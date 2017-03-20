@@ -6,6 +6,13 @@
 2. 分析jsx => element tree => fiber tree => html dom在react中的流程.
 3. react中的fiber tree的建立和执行, 以及异步的schedule.
 
+![react-questions](./images/react-questions.jpeg)
+
+### 研究工具和方法
+* chrome 打断点
+* ag the sliver searcher, 源代码搜索，分析
+* 猜测它的实现原理，打log验证 打call trace验证,console.log, console.trace;
+
 ### 准备工作
 
 代码下载,编译
