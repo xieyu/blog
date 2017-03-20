@@ -9,9 +9,9 @@
 ![react-questions](./images/react-questions.jpeg)
 
 ### 研究工具和方法
-* chrome 打断点
+* chrome debug 打断点
 * ag the sliver searcher, 源代码搜索，分析
-* 猜测它的实现原理，打log验证 打call trace验证,console.log, console.trace;
+* 猜测它的实现原理，打log验证, call trace验证, console.log, console.trace;
 
 ### 准备工作
 
@@ -162,17 +162,6 @@ switch (nextPriorityLevel) {
     }
 ```
 
-#### fiber执行的三个阶段
-
-``react``中的``fiber``执行的执行主要分为三个阶段
-
-1. ``beginWork``: fiber展开（把ClassComponent render开来，最后展开到fiber tree的叶子节点都是hostComponent)
-
-2. ``completeWork``: 计算fiber之间的diff, 底层的dom元素的创建，以及dom tree的建立，还有事件绑定。
-
-3. ``commitWork``: 调用host接口，把fiber的diff更新到host上去.
-
-
 #### fiber类型
 
 FunctionalComponent, ClassComponent 对应着用户创建的Component, HostRoot, HostComponent, HostPortal, HostText这些是和平台相关的组件。对于web来说就是 div, span这些dom元素了。
@@ -194,8 +183,29 @@ module.exports = {
 };
 ```
 
-### Fiber 执行过程分析
-#### ClassComponent
-#### HostRoot
-#### HostComponent
-#### HostText
+
+### fiber执行的三个阶段
+
+``react``中的``fiber``执行的执行主要分为三个阶段
+
+1. ``beginWork``: fiber展开（把ClassComponent render开来，最后展开到fiber tree的叶子节点都是hostComponent)
+
+2. ``completeWork``: 计算fiber之间的diff, 底层的dom元素的创建，以及dom tree的建立，还有事件绑定。
+
+3. ``commitWork``: 调用host接口，把fiber的diff更新到host上去
+
+#### begin work: fiber tree 的展开
+
+
+```javascript
+function performUnitOfWork(workInProgress: Fiber): Fiber | null {
+   const current = workInProgress.alternate;
+   let next = beginWork(current, workInProgress, nextPriorityLevel);
+
+   if (next === null) {
+     next = completeUnitOfWork(workInProgress);
+   }
+   return next;
+ }
+```
+![](./images/begin-work-create-fiber.jpeg)
