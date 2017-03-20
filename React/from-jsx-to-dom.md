@@ -4,7 +4,7 @@
 
 1. React的component的lifecycle 在react中是怎么被调到的.
 2. 分析jsx => element tree => fiber tree => html dom在react中的流程.
-3. react中的fiber tree的建立和执行
+3. react中的fiber tree的建立和执行, 以及异步的schedule.
 
 ### 准备工作
 
