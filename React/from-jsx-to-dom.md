@@ -10,8 +10,8 @@
 
 ### 研究工具和方法
 * chrome debug 打断点
-* ag the sliver searcher, 源代码搜索，分析
-* 猜测它的实现原理，打log验证, call trace验证, console.log, console.trace;
+* [ag the silver searcher](https://github.com/ggreer/the_silver_searcher), 源代码全局搜索.
+* 猜测它的实现原理，打log, call trace验证, console.log, console.trace;
 
 ### 准备工作
 
@@ -196,6 +196,7 @@ module.exports = {
 
 #### begin work: fiber tree 的展开
 
+每次的beginWork(fiber), 会把fiber的所有直接子节点展开（这里只展开一层, 不会递归的去展开子节点的子节点）
 
 ```javascript
 function performUnitOfWork(workInProgress: Fiber): Fiber | null {
@@ -208,4 +209,26 @@ function performUnitOfWork(workInProgress: Fiber): Fiber | null {
    return next;
  }
 ```
+
+在workloop里面会把beginWork创建的子节点接着传给beginWork，继续展开fiber tree
+
+```javascript
+//workLoop
+while (nextUnitOfWork !== null && !deadlineHasExpired) {
+       if (deadline.timeRemaining() > timeHeuristicForUnitOfWork) {
+         nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+````
+
 ![](./images/begin-work-create-fiber.jpeg)
+
+
+#### completeWork 创建dom元素，计算diff
+
+创建的`instance`(对于html来说，就是dom节点), 存储在`workInProgress.stateNode` 里面, 计算好的props diff存放在了``workInProgress.updateQueue``，在下一个阶段commitWork 会把这个updateQueue里面的patch提交到host。
+
+![](./images/completework-flow.jpeg)
+
+#### commitWork 提交diff
+在commitUpdate中取WorkInprogress.updateQueue,然后调用Dom操作把diff apply上去
+
+![](./images/commit-work.jpeg)
