@@ -117,7 +117,7 @@ __do_cancel (void)
 
 ``pthread_join(t1, &result)`` 线程会等到t1执行结束，然后从result获取线程返回的结果。
 
-1. 检查是否有死锁,(避免出现自己等待自己的状况)
+1. 检查是否有死锁,(避免出现自己等待自己的状况)(TODO:弄清楚这块的CANCEL_BITMASK)
 
 ```cpp
 if ((pd == self
@@ -177,15 +177,17 @@ pd->tid = -1;
       __free_tcb (pd);
   return result;
 
-
 ```
 
 
-### Locks
+### 线程的同步
 
-pthread中的locks通过linux的futex(faster user space locking)实现, lock放在process之间的共享内存中, pthread通过atomic的指令来对这个lock进行dec, inc, load and test 等操作, 如果有竞态冲突的时候获取锁失败的时候，才会去sys call 调用linux底层的do_futex, 底层把线程放到futex对应的wait队列里面, 然后挂起线程等待被唤醒.
+pthread中的locks通过linux的futex(faster user space locking)实现, lock放在process之间的共享内存中, pthread通过atomic的指令来对这个lock进行dec, inc, load and test 等操作, 如果有竞态冲突的时候获取锁失败的时候，才会去sys call 调用linux底层的do_futex, 底层把线程放到futex对应的wait队列里面, 然后挂起线程等待被唤醒。
+
+由于只有竞态冲突的时候才需要syscall, 其他情况都不需要，因此节省了很多sys call，这样比较快。
 
 <img src="./glibc-pthread-images/pthread-lock-overview.jpeg" width=300px/>
+
 
 
 #### Mutex
