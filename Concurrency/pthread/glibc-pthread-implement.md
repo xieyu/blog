@@ -1,10 +1,8 @@
 ## Glibc的pthread实现代码阅读
 
-本文主要包含两个部分，第一部分 ``thread lifecycle`` 主要讲述 Glibc pthread实现中的线程的生命周期，主要包含线程的创建，执行，exit, detach和join。
+本文主要包含两个部分，第一部分线程的生命周期，主要包含线程的创建，执行，exit, detach和join。第二部分主要讲述pthread中的线程的同步方法包括mutex, sem, condition var, rwlock, barrier的实现，pthread使用了linux的futex来实现这些同步方法。
 
-第二部分主要讲述pthread中的线程的同步方法包括Mutex, Sem, Condvar, Barrier的实现，pthread使用了linux的futex来实现。
-
-### thread lifecycle
+### 线程的生命周期
 
 #### pthread_create
 
