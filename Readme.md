@@ -7,4 +7,5 @@
 
 ## 并发
 
-* [Pthread Primer 笔记](./Thread/pthread/pthread-primer.md)
+* [Pthread Primer 笔记](./Concurrency/pthread/pthread-primer.md)
+* [Glibc的pthread实现代码阅读](./Concurrency/pthread/glibc-pthread-implement.md)
