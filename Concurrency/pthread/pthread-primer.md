@@ -1,6 +1,6 @@
-## Pthread primer 笔记
+# Pthread primer 笔记
 
-### 进程和线程
+## 进程和线程
 
 #### 在kernel中process的context
 
@@ -25,8 +25,8 @@
 ```cpp
 //设置和获取线程的stack address
 include <pthread.h>
-int pthread_attr_setstack(pthread_attr_t *attr, void *stackaddr, size_t stacksize);
-int pthread_attr_getstack(const pthread_attr_t *attr, void **stackaddr, size_t *stacksize);
+int pthread_attr_setstack(pthread_attr_t *attr, void* stackaddr, size_t stacksize);
+int pthread_attr_getstack(const pthread_attr_t* attr, void** stackaddr, size_t* stacksize);
 ```
 
 <b>整个进程只有一份signal dispatch table</b>
@@ -38,7 +38,7 @@ int pthread_attr_getstack(const pthread_attr_t *attr, void **stackaddr, size_t *
 1. ``context switch``: process的上下文切换比thread的context switch 耗时间.
 2. ``memory share``: thread之间的通信，共享process的内存，file等资源比process之间的通信，share内存方便.
 
-### 线程调度和生命周期
+## 线程调度和生命周期
 
 #### 线程调度
 线程有两种调度方式，一种是完全在user space, 由thread库做调度，优点是省了system call 从而省下了从user space 到kernel space的切换, 比较快，缺点是，有一个线程挂在IO上后，整个process都会被挂起.(可以把block的system call 改成nonblock的，使用asyc io来解决这个问题).
@@ -78,12 +78,11 @@ pthread_create(&tid, &attr, foo, NULL);
 * yielding. 线程T1主动调用sched_yield, 如果有和T1优先权一样的T2线程，就切换到T2线程，如果没有，T1就接着运行。
 * time-slicing. T1的时间片用完了，和T1有同样优先权的T2接着运行。
 
-### 线程的生命周期
 
 #### 创建和退出线程
 ```cpp
 //create
-int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg);
+int pthread_create(pthread_t* thread, const pthread_attr_t* attr, void*(* start_routine)(void*), void* arg);
 //exit
 void pthread_exit(status);
 ```
@@ -101,7 +100,7 @@ pthread_t thread_id;
 pthread_attr_t attr;
 pthread_attr_init(&attr);
 pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-pthread_create(&thread_id, &attr, work, (void *)arg);
+pthread_create(&thread_id, &attr, work, (void*)arg);
 ```
 
 阻塞等待线程的执行结果，获取线程的返回结果
@@ -114,14 +113,7 @@ joinable线程和detehced线程的区别是线程结束的时候，资源(线程
 
 对于joinable线程t1, 只有当其他线程对t1调用了pthread_join之后, 线程t1才会释放所占用的资源, 否则 会进入类似于进程的zombile状态，这些资源不会被会回收掉.
 
-#### detach
-如果想要t1线程执行结束收系统自动回收t1的资源, 而不是通过调用pthread_join回收资源(会阻塞线程), 我们可以将线程设置为deteched, 有三种方式可以设置线程为deteched.
-
-* 创建线程时指定线程的 detach 属性: pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-* 通过在子线程中调用 pthread_detach(pthread_self());
-* 在主线程中调用 pthread_detach(thread_id);(非阻塞, 执行完会立即会返回)
-
-#### 使用信号量
+#### 使用信号量 等待线程执行结束
 
 使用信号量等待一堆子线程执行结束, 在主线程里面调用thread_signle_barrier, 然后子线程结束的时候调用``SEM_POST(barrier)``
 
@@ -132,8 +124,74 @@ void thread_signle_barrier(sem_t* barrier, int count){
         count--;
     }
 }
+
+#### detach
+如果想要t1线程执行结束收系统自动回收t1的资源, 而不是通过调用pthread_join回收资源(会阻塞线程), 我们可以将线程设置为deteched, 有三种方式可以设置线程为deteched.
+
+* 创建线程时指定线程的 detach 属性: pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+* 通过在子线程中调用 pthread_detach(pthread_self());
+* 在主线程中调用 pthread_detach(thread_id);(非阻塞, 执行完会立即会返回)
+
+
 ```
-### 线程的同步
+
+#### 取消线程的执行
+
+在pthread中可以通过pthread_cancel(t1)来取消线程t1的执行, 这个会设置线程t1的cancel state, 由线程t1在自己在cancel point 检查是否退出线程, 在退出线程的时候会执行cleanup stack中的函数(比如释放自己hold的锁). 一般会block的函数调用，比如sem_wait, pthread_cond_wait或者会block的系统调用前后检查check point.
+
+如下代码段：
+```cpp
+void cleanup_lock2(void* arg){
+    pthread_mutex_unlock((pthread_mutex_t*)arg)
+}
+
+void thread1_run(){
+    pthread_mutex_lock(&answer_lock);
+    pthread_cleanup_push(cleanup_lock2, (void*)&answer_lock);
+    while(!firest_thread_to_find_answer) {
+        pthread_testcancel();
+        pthread_cond_wait(&cvn, &answer_lock);
+        pthread_testcancel();
+    }
+    pthread_cleanup_pop(0)
+}
+```
+
+也可以通过``pthread_setcanceltype``设置为异步取消PTHREAD_CANCEL_ASYNCHRONOUS，这样会给t1线程发送``SIGCANCEL``信号，t1线程在信号处理函数中结束自己的执行。
+
+#### Signal 信号处理
+
+Linux 多线程应用中，每个线程可以通过调用 pthread_sigmask() 设置本线程的信号掩码, pthread_kill像某个线程发送signal. 什么是sigmask ?
+
+##### signal handler 异步的方式处理信号
+
+多线程处理signal时候需要注意事项
+
+* 信号处理函数尽量只执行简单的操作，譬如只是设置一个外部变量，其它复杂的操作留在信号处理函数之外执行；
+* errno 是线程安全，即每个线程有自己的 errno，但不是异步信号安全。如果信号处理函数比较复杂，且调用了可能会改变 errno 值的库函数，必须考虑在信号处理函数开始时保存、结束的时候恢复被中断线程的 errno 值；
+* 信号处理函数只能调用可以重入的 C 库函数；譬如不能调用 malloc（），free（）以及标准 I/O 库函数等；
+* 信号处理函数如果需要访问全局变量，在定义此全局变量时须将其声明为 volatile，以避免编译器不恰当的优化
+
+##### sigwait, 同步串行方式
+
+等待信号的到来，以串行的方式从信号队列中取出信号进行处理.
+```cpp
+
+void signal_hanlder_thread() {
+    sigemptyset(&waitset);  
+    sigaddset(&waitset, SIGRTMIN);  
+    sigaddset(&waitset, SIGUSR1);  
+
+    while (1)  {  
+        //串行的方式处理信号
+        rc = sigwaitinfo(&waitset, &info);  
+        if (rc != -1) {  
+        sig_handler(info.si_signo);  
+    }
+}
+```
+
+## 线程的同步
 
 ### atomic 指令
 线程执行的时候，在两个指令之间，随时都可能会被抢占掉, 所以需要一个atomic的指令来避免这种状况.
@@ -175,19 +233,22 @@ pthread_mutex_unlock
 #### semaphores(信号量)
 信号量机制用于协调多个资源的使用(比如一个队列或者缓冲区)，semaphores的值表示可用资源的数量(队列中可用资源的个数)。常用于解决生产者和消费者问题.
 
-```cpp
+```
 // 初始化
 int sem_init(sem_t *sem, int pshared, unsigned int val);
 // 没有可用的信号量就等待，否则
 int sem_wait(sem_t *sem);
 // 释放一个信号量，信号量的值加1
 int sem_post(sem_t *sem);
-
-信号量流程
 ```
+
+
+信号量处理流程
+
 <img src="./images/semaphore-flow.jpeg" width=400px/>
 
 生产者消费者问题, 假设队列的长度是20:
+
 <img src="./images/producer-consumer.jpeg" width=340px/>
 
 ```cpp
@@ -236,27 +297,29 @@ condition var 的流程, condition var 访问需要用个mutex lock保护起来,
 <img src="./images/condition-flow.jpeg" width=400px/>
 
 ```cpp
+<code>
 // 初始化
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 // 动态初始化
-int pthread_cond_init(pthread_cond_t *restrict cond, const pthread_condattr_t *restrict attr);
+int pthread_cond_init(pthread_cond_t* restrict cond, const pthread_condattr_t* restrict attr);
 
 //销毁
-int pthread_cond_destroy(pthread_cond_t *cond);
+int pthread_cond_destroy(pthread_cond_t* cond);
 
 //等待
-int pthread_cond_wait( pthread_cond_t *   restrict cond, pthread_mutex_t *  restrict mutex );
-int pthread_cond_timedwait( pthread_cond_t *         restrict cond, pthread_mutex_t *        restrict mutex, const struct timespec *  restrict abstime );
+int pthread_cond_wait( pthread_cond_t*   restrict cond, pthread_mutex_t*  restrict mutex );
+int pthread_cond_timedwait( pthread_cond_t*         restrict cond, pthread_mutex_t*        restrict mutex, const struct timespec*  restrict abstime );
 
 
 // 通知
 // singal 函数一次只能唤醒一个线程, 而 broadcast 会唤醒所有在当前条件变量下等待的线程.
-int pthread_cond_broadcast(pthread_cond_t *cond);
-int pthread_cond_signal(pthread_cond_t *cond);
+int pthread_cond_broadcast(pthread_cond_t* cond);
+int pthread_cond_signal(pthread_cond_t* cond);
+
 ```
 
 wait for condition
-```
+```cpp
 // safely examine the condition, prevent other threads from
 // altering it
 pthread_mutex_lock (&lock);
@@ -267,9 +330,10 @@ while ( SOME-CONDITION is false)
 do_stuff();
 pthread_mutex_unlock (&lock);
 ```
+
 signal condition
 
-```
+```cpp
 // ensure we have exclusive access to whathever comprises the condition
 pthread_mutex_lock (&lock);
 
@@ -290,22 +354,22 @@ pthread_mutex_unlock (&lock)
 
 ```cpp
 pthread_rwlock_t rwlock;
-int pthread_rwlock_init(pthread_rwlock_t *restrict rwlock, const pthread_rwlockattr_t *restrict attr);
-int pthread_rwlock_destroy(pthread_rwlock_t *rwlock);
+int pthread_rwlock_init(pthread_rwlock_t* restrict rwlock, const pthread_rwlockattr_t * restrict attr);
+int pthread_rwlock_destroy(pthread_rwlock_t* rwlock);
 
 // 获取读锁
-int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock);
+int pthread_rwlock_rdlock(pthread_rwlock_t* rwlock);
 // 获取写锁
-int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock);
-// 释放锁
-int pthread_rwlock_unlock(pthread_rwlock_t *rwlock);
+int pthread_rwlock_wrlock(pthread_rwlock_t* rwlock);
+// 释放锁  
+int pthread_rwlock_unlock(pthread_rwlock_t* rwlock);
 ```
 
 ### Spin lock (自旋锁)
 
 多次trylock, 如果失败了再block, 它的出发点是trylock这个指令的时间很短（比如2us)然后mutex block一次可能需要42us,所以它先尝试几次, 如果在这几us内，lock被释放了，那么能够成功的获取锁了。
 ```cpp
-spin_lock(mutex_t *m) {
+spin_lock(mutex_t* m) {
     for(int i = 0; i < SPIN_COUNT; i++) {
         if (pthread_mutex_trylock(m) != EBUSY) {
             return;
@@ -323,7 +387,7 @@ spin_lock(mutex_t *m) {
 使用spin lock的时候，需要好好的评估下到底值不值得，就是critical section hold住lock的时间会不会很长。。如果一般很短的话，值得用spin lock，否则的话用spin lock反而浪费时间。
 
 ### Barriers
-```c
+```cpp
 pthread_barrier_t mybarrier;
 //初始化
 pthread_barrier_init(&mybarrier, NULL, THREAD_COUNT + 1);
@@ -333,19 +397,6 @@ pthread_barrier_wait(&mybarrier);
 
 等待最后一个线程达到barrier点。
 <img src="./images/barrier-wait.jpeg" width=500px/>
-### cancelation
-
-
-### signals
-
-## pthread FAQ
-* Under what conditions will a process exit
-* What happens when a pthread gets created? (you don't need to go into super specifics)
-* Where is each thread's stack?
-* How do you get a return value given a a pthread_t? What are the ways a thread can set that return value? What happens if you discard the return value?
-* Why is pthread_join important (think stack space, registers, return values)?
-* What does pthread_exit do under normal circumstances (ie you are not the last thread)? What other functions are called when you call pthread_exit?
-* Give me three conditions under which a multithreaded process will exit. Can you think of any more?
 
 
 
