@@ -1,9 +1,9 @@
-## Glibc的pthread实现代码研读 1: 线程生命周期
+## Glibc的pthread实现代码研读 1: 线程的生命周期
 
 本文主要包含pthread线程在linux上的创建，执行，exit, detach, join, cancel, thread local storage。
 
 ### pthread_t
-struct定义在``nptl/descr.h``中, 这边主要抽几个主要的field来说明下(这里为了方便描述，对field在struct的顺序做了重新的编排)。
+struct pthread定义在``nptl/descr.h``中, 这边抽几组主要的field来说明下(这里为了方便描述，对field在struct的顺序做了重新的编排)。
 
 首先是创建完线程之后，系统给的id和各种flag attribute.
 ```cpp
@@ -14,7 +14,7 @@ struct定义在``nptl/descr.h``中, 这边主要抽几个主要的field来说明
  int lock;
 ```
 
-然后最显而易见的是pthread sturct肯定要保存线程要执行的函数指针，函数参数以及函数执行的结果
+然后最显而易见的是, 线程要执行的函数指针，函数参数以及函数执行的结果, 这几个字段会在线程的入口start_thread中用到。对于result字段: pthread_join(t1, &status), 这个会等待线程t1执行结束，然后把结果放到status中。
 
 ```cpp
  //保存线程返回结果
@@ -36,7 +36,8 @@ struct pthread_unwind_buf* cleanup_jmp_buf;
 struct _Unwind_Exception exc;
 ```
 
-标明线程是被join的还是已经deteched字段
+标明线程是被join的还是已经deteched字段, 这个字段涉及到线程的pthread struct该什么时候释放。
+
 ```cpp
  struct pthread* joinid;
  #define IS_DETACHED(pd) ((pd)->joinid == (pd))
@@ -55,7 +56,7 @@ stack相关的field, 在ALLOCATE_STACK和回收statck的时候会用到，由于
  size_t reported_guardsize;
 ```
 
-thread specific 相关的字段
+thread specific data相关的字段
 ```cpp
 
 // 用于thread specific data, thread local storage
@@ -68,29 +69,46 @@ struct pthread_key_data
 struct pthread_key_data* specific[PTHREAD_KEY_1STLEVEL_SIZE];
 ```
 
-
-sched_param 和schedpolicy 保存调度策略和调度参数，在线程create的时候，会调用sched_setaffinity， sched_setscheduler让系统设置这些参数。
+最后调度策略和调度参数相关的字段，在线程create的时候，会调用sched_setaffinity， sched_setscheduler让系统设置这些参数。
 
 ```cpp
  // 调度策略和调度参数
  struct sched_param schedparam;
  int schedpolicy;
- ```
+```
 
+#### pthread struct 的alloc和free
+``nptl/allocatestatck.c`` 中的``allocate_stack``和``__deallocate_stack``负责alloc和free pd struct。如果用的是系统分配的stack话， pthread有个stack list，当alloc的时候，从这个stack list中取出一个，然后在free的时候，把这个stack放回到stack list中。
+
+这就导致了一个问题, pthread_t 并不适合作为线程的标识符，比如下面两个线程的pthread_t的地址是一样的(参考自Linux 多线程服务端编程: 4.3节):
+
+```cpp
+int main() {
+    pthread_t t1, t2;
+    pthread_create(&t1, NULL, threadFunc, NULL);
+    printf("%lx\n", t1);
+    pthread_join(t1, NULL);
+
+    pthread_create(&t2, NULL, threadFunc, NULL);
+    printf("%lx\n", t2);
+    pthread_join(t2, NULL);
+
+}
+```
 
 
 ### pthread_create
 
-pthread create 首先分配线程的栈，以及分配pd struct, 然后调syscall clone(2) 创建一个线程，创建的新的线程会从``START_THREAD_DEFF`` 这个入口开始执行起来，最后线程的执行结果保存在pd->result里面， 用户可以通过pthread_attr_setstack来指定线程stack的内存，也可以直接使用系统的内存。
+pthread create 首先分配线程的栈，并在这个栈上划出一片内存给pthread struct, 然后调syscall clone(2) 创建一个线程，创建的新的线程会从``START_THREAD_DEFF`` 这个入口开始执行起来，最后线程的执行结果保存在pd->result里面， 用户可以通过pthread_attr_setstack来指定线程stack的内存，也可以直接使用系统的内存。
 
 <img src="./images/pthread-create.jpeg" />
-1. 分配stack, 使用用户提供的stack或者系统分配一个stack(pd 这个struct也存放在stack里面了)
+分配stack, 使用用户提供的stack或者系统分配一个stack(pd 这个struct也存放在stack里面了)
 
 ```cpp
 ALLOCATE_STACK(iattr, &pd)
 ```
 
-2. ``create_thread`` 调用linux系统接口clone创建线程, 如果线程要指定在某个CPU上跑的话，调用sched_setaffinity设置好cpuset, 最后何止好调度策略和调度参数。
+``create_thread`` 调用linux系统接口clone创建线程, 如果线程要指定在某个CPU上跑的话，调用sched_setaffinity设置好cpuset, 最后何止好调度策略和调度参数。
 
 ```cpp
 ARCH_CLONE(&start_thread, STACK_VARIABLES_ARGS, clone_flags, pd, &pd->tid, tp, &pd->tid)
@@ -117,9 +135,15 @@ clone中的的start_thread就是线程的entry_point, 这个函数定义在nptl/
 
 ### start thread
 
-start thread是线程的入口， 在跑用户函数之前，会设置一个jmp point, 之后等线程执行结束的时候(调用pthread_exit, 或者线程被cancel掉的时候)，会longjump 回到这个函数, 接着做线程执行完的清理工作。 如果线程是Deteched， 那么线程的pd结构就会被释放掉(因为pthread返回的status指针是保存在pd->result这个里面的)，否则就要等pthread_join完之后释放掉。
+start thread是线程的入口， 在跑用户函数之前，会设置一个jmp point, 之后等线程执行结束的时候(调用pthread_exit, 或者线程被cancel掉的时候)，会longjump 回到这个函数, 接着做线程执行完的清理工作。
 
-1. 设置好unwind_buf
+如果线程是Deteched， 那么线程的pd结构就会被释放掉(因为pthread返回的status指针是保存在pd->result这个里面的)，否则就要等pthread_join完之后释放掉。
+
+最后线程exit_thread之后，会把pd中的tid设置为0，这样就可以唤醒等待join该线程结束的线程。
+
+<img src="./images/start-thread.jpeg" />
+
+1. 设置好unwind buffer, do cancel的时候可以跳回来
 
 ```cpp
 int not_first_call;
@@ -165,7 +189,7 @@ __exit_thread ();
 
 ### pthread_exit
 
-猜测pthread_exit 的do_cancel的unwind会调用生命周期结束cpp对象析构函数(这个地方需要debug看下call statck)和还有pthread_cleanup_push中注册的cleaup函数，最后会longjmp回到start_thread里面的setjmp那块，继续执行线程结束后的清理工作。
+猜测pthread_exit 的do_cancel的unwind会调用pthread_cleanup_push中注册的cleaup函数，最后会longjmp回到start_thread里面的setjmp那块，继续执行线程结束后的清理工作。
 
 ```cpp
 __pthread_exit (void* value)
@@ -192,7 +216,7 @@ __do_cancel (void)
 
 ``pthread_join(t1, &result)`` 线程会调用lll_wait_tid等到t1执行结束，然后从t1的pd->result获取线程返回的结果, 返回给status，最后释放线程t1对应的pd sturct.
 
-1. 检查是否有死锁,(避免出现自己等待自己的状况)(TODO:弄清楚这块的CANCEL_BITMASK)
+1. 检查是否有死锁, 避免等待自己，以及正在被cancel的线程，
 
 ```cpp
 if ((pd == self
@@ -218,7 +242,6 @@ result = EDEADLK;
 3. 等待t1线程执行结束, 这里的lll_wait_tid 最后会去调用linux提供的futex, 会被挂起来，一直等到t1的tid变为0。
 
 ```cpp
-else
     /* Wait for the child.  */
     lll_wait_tid (pd->tid);
 ```
@@ -238,7 +261,7 @@ pd->tid = -1;
 
 ### pthread_detach
 
-标记线程为detached, 如果线程是cancel状态就是释放pd struct对应的内存。
+标记线程为detached, 把pd的jionid改为自己。
 
 ```cpp
   int result = 0;
@@ -255,7 +278,35 @@ pd->tid = -1;
 ```
 
 ### pthread_cancel
-线程的取消, cancel point, push_cleanup, pop_cleanup
+pthread_cancel 只是把``pd->cancelhandling``的状态记为``CANCLEING_BITMASK|CANCELED_BITMASK``。
 
+```cpp
+do{
+    oldval = pd->cancelhandling;
+    newval = oldval | CANCELING_BITMASK | CANCELED_BITMASK;
+    //other code
+
+} while (atomic_compare_and_exchange_bool_acq (&pd->cancelhandling, newval,
+                          oldval);
+```
+
+然后在pthread_testcancel的时候，才真正的调用do_cancel去cancel thread.
+
+
+```cpp
+//pthread_testcancel --> CANCELLATION_P
+
+if (CANCEL_ENABLED_AND_CANCELED (cancelhandling))			      \
+     {									      \
+   THREAD_SETMEM (self, result, PTHREAD_CANCELED);			      \
+   __do_cancel ();							      \
+     }			
+```
+或者一些会check cancel point的调用比如pthread_cond_wait里面，会去检查这个标记，
+```cpp
+pthread_cond_wait -->futex_wait_cancelable --> pthread_enable_asynccancel -->  __do_cancel
+futex_reltimed_wait_cancelable --> pthread_enable_asynccancel --> __do_cancel
+sem_wait_common -> futex_abstimed_wait_cancelable --> pthread_enable_asynccancel --> __do_cancel
+```
 
 ### singal handle

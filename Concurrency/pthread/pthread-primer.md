@@ -150,9 +150,7 @@ void thread1_run(){
     pthread_mutex_lock(&answer_lock);
     pthread_cleanup_push(cleanup_lock2, (void*)&answer_lock);
     while(!firest_thread_to_find_answer) {
-        pthread_testcancel();
         pthread_cond_wait(&cvn, &answer_lock);
-        pthread_testcancel();
     }
     pthread_cleanup_pop(0)
 }
