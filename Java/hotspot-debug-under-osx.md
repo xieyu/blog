@@ -1,5 +1,8 @@
 ## 在osx下编译调试hotspot
 
+### 摘要
+本文主要描述了在osx下编译hotspot debug版本以方便后续的hotspot代码研读，并尝试了使用gdb和lldb对hotspot进行debug。解决了Debug的时候会遇到的SIGSEGV问题，最后确定用lldb脚本来debug hotspot。
+
 ### 准备工作
 
 1. 安装freetype

@@ -1,6 +1,10 @@
 ## Hotspot代码研读: jvm 初始化时创建的线程
 
-#### 创建线程的callstack
+### 摘要
+
+本文通过在pthread_create方法上打断点的方式，得到了jvm初始化的时候创建的线程。然后对里面主要线程JavaThread, VMThread， CompilerThread, GCthread 做了简要的分析。
+
+### 创建线程的callstack
 
 由于创建线程最终肯定会调用pthread_create方法，所以为了研究jvm启动的时候，创立了哪些线程，准备了下面的lldb调试脚本。在pthread_create方法上打断点，然后用bt命令打印callstack， 然后continue接着执行, 去打印下一个pthread_create的callstack, 这样最后就可以得到所有的pthread_create的callstack了。
 
@@ -44,7 +48,7 @@ $lldb -s HelloWorld.lldb
 
 <img src="./images/jvm-threads-pthread-callstack.jpeg" />
 
-#### 线程创建的过程
+### 线程创建的过程
 
 main是java的laucher入口，在``main-> JLI_LAUCH -> LoadJavaVM ``中会调用dlopen加载libjvm的so, 设置好JNI_CreateJavaVm的函数指针.
 ```cpp
@@ -72,12 +76,17 @@ frame #16: java.c:1450: InitializeJVM
 frame #17: java.c:402: JavaMain
 ```
 
-#### 线程class之间的继承关系
+#### Thread 之间的继承关系
 线程class之间的继承关系如下:
 
 <img src="./images/thread-inherit.jpeg"/>
 
 
-#### JavaThread
+### JavaThread
+// TODO
 
-#### VMThread
+### VMThread
+// TODO
+
+### CompileBroker
+// TODO
