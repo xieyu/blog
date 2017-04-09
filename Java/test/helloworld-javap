@@ -1,0 +1,109 @@
+Classfile /codes/blog/Java/src/HelloWorld.class
+  Last modified Apr 6, 2017; size 599 bytes
+  MD5 checksum 2b8311ae416b16544ae236e673c1ce9b
+  Compiled from "HelloWorld.java"
+public class HelloWorld
+  minor version: 0
+  major version: 52
+  flags: ACC_PUBLIC, ACC_SUPER
+Constant pool:
+   #1 = Methodref          #9.#23         // java/lang/Object."<init>":()V
+   #2 = Fieldref           #3.#24         // HelloWorld.m_age:I
+   #3 = Class              #25            // HelloWorld
+   #4 = Methodref          #3.#23         // HelloWorld."<init>":()V
+   #5 = Methodref          #3.#26         // HelloWorld.hello:()V
+   #6 = Fieldref           #27.#28        // java/lang/System.out:Ljava/io/PrintStream;
+   #7 = String             #29            // hello, world
+   #8 = Methodref          #30.#31        // java/io/PrintStream.println:(Ljava/lang/String;)V
+   #9 = Class              #32            // java/lang/Object
+  #10 = Utf8               m_name
+  #11 = Utf8               Ljava/lang/String;
+  #12 = Utf8               m_age
+  #13 = Utf8               I
+  #14 = Utf8               <init>
+  #15 = Utf8               ()V
+  #16 = Utf8               Code
+  #17 = Utf8               LineNumberTable
+  #18 = Utf8               main
+  #19 = Utf8               ([Ljava/lang/String;)V
+  #20 = Utf8               hello
+  #21 = Utf8               SourceFile
+  #22 = Utf8               HelloWorld.java
+  #23 = NameAndType        #14:#15        // "<init>":()V
+  #24 = NameAndType        #12:#13        // m_age:I
+  #25 = Utf8               HelloWorld
+  #26 = NameAndType        #20:#15        // hello:()V
+  #27 = Class              #33            // java/lang/System
+  #28 = NameAndType        #34:#35        // out:Ljava/io/PrintStream;
+  #29 = Utf8               hello, world
+  #30 = Class              #36            // java/io/PrintStream
+  #31 = NameAndType        #37:#38        // println:(Ljava/lang/String;)V
+  #32 = Utf8               java/lang/Object
+  #33 = Utf8               java/lang/System
+  #34 = Utf8               out
+  #35 = Utf8               Ljava/io/PrintStream;
+  #36 = Utf8               java/io/PrintStream
+  #37 = Utf8               println
+  #38 = Utf8               (Ljava/lang/String;)V
+{
+  java.lang.String m_name;
+    descriptor: Ljava/lang/String;
+    flags:
+
+  int m_age;
+    descriptor: I
+    flags:
+
+  public HelloWorld();
+    descriptor: ()V
+    flags: ACC_PUBLIC
+    Code:
+      stack=2, locals=1, args_size=1
+         0: aload_0
+         1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+         4: aload_0
+         5: iconst_0
+         6: putfield      #2                  // Field m_age:I
+         9: return
+      LineNumberTable:
+        line 1: 0
+        line 3: 4
+
+  public static void main(java.lang.String[]);
+    descriptor: ([Ljava/lang/String;)V
+    flags: ACC_PUBLIC, ACC_STATIC
+    Code:
+      stack=2, locals=2, args_size=1
+         0: new           #3                  // class HelloWorld
+         3: dup
+         4: invokespecial #4                  // Method "<init>":()V
+         7: astore_1
+         8: aload_1
+         9: invokevirtual #5                  // Method hello:()V
+        12: return
+      LineNumberTable:
+        line 6: 0
+        line 7: 8
+        line 8: 12
+
+  public void hello();
+    descriptor: ()V
+    flags: ACC_PUBLIC
+    Code:
+      stack=3, locals=1, args_size=1
+         0: aload_0
+         1: dup
+         2: getfield      #2                  // Field m_age:I
+         5: iconst_1
+         6: iadd
+         7: putfield      #2                  // Field m_age:I
+        10: getstatic     #6                  // Field java/lang/System.out:Ljava/io/PrintStream;
+        13: ldc           #7                  // String hello, world
+        15: invokevirtual #8                  // Method java/io/PrintStream.println:(Ljava/lang/String;)V
+        18: return
+      LineNumberTable:
+        line 11: 0
+        line 12: 10
+        line 13: 18
+}
+SourceFile: "HelloWorld.java"
