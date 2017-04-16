@@ -1,5 +1,10 @@
 ## Mysql CookBook 笔记
 
+### 摘要
+
+本文主要包含了mysql cookbook这本书中介绍的mysql基本知识。msyql用户管理，table的create, update, insert, drop,
+sql query select， group by聚合统计，以及inner join, inner join self, outer join(left join, right join)的基本用法。
+
 ### 基本命令
 
 登录mysql
