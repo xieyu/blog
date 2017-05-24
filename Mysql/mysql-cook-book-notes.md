@@ -1,5 +1,40 @@
 ## Mysql CookBook 笔记
 
+- [基本命令](#基本命令)
+    - [登录mysql](#登录mysql)
+    - [数据库相关命令](#数据库操作)
+    - [表相关命令](#表相关命令)
+    - [record相关命令](#record相关命令)
+    - [授权认证相关命令](#授权认证相关命令)
+
+- [sql查询](#sql查询)
+    - [基本的select 语句](#基本的select语句)
+    - [order by](#order-by)
+    - [distinct](#distinct)
+    - [Null](#Null)
+    - [view](#view)
+    - [join](#join)
+    - [subquery](#subquery)
+    - [join和subquery](#join和subquery)
+        - [inner join](#inner-join)
+        - [outer join](#outer-join)
+        - [self join](#self-join)
+
+    - [limit](#limit)
+
+- [字符串](#字符串)
+    - [字符串存储类型](#字符串存储类型)
+    - [charset](#charset)
+    - [字符串匹配](#字符串匹配)
+    - [字符串变换函数](#字符串变换函数)
+
+- [日期和时间](#日期和时间)
+
+
+- [统计汇总](#统计汇总)
+    - [group by]
+    - [having]
+
 ### 摘要
 
 本文主要包含了mysql cookbook这本书中介绍的mysql基本知识。msyql用户管理，table的create, update, insert, drop,
@@ -7,22 +42,26 @@ sql query select， group by聚合统计，以及inner join, inner join self, ou
 
 ### 基本命令
 
-登录mysql
+##### 登录mysql
 
 ```bash
 $mysql -h localhost -u user -p
 ```
 
 执行文件中的sql语句
+
 ```bash
 # 使用数据库cookbook,执行limbs中的sql语句。
 $mysql cookbook <limibs.sql
 
 #登陆后，source limbs中的sql语句。
 mysql>source limbs.sql
+
 ```
 
-dump和导入数据库
+数据库相关命令
+-----
+dump, import数据库
 
 ```bash
 #dump cookbook整个数据库
@@ -31,9 +70,10 @@ $mysqldump cookbook > dump.sql
 #dump cookbookd的limbs table
 $mysqldump coookbook limbs >limbs.sql
 $mysql -h other-host other_database <dump.sql
+
 ```
 
-创建，删除database
+create, drop数据库
 
 ```bash
 #创建数据库
@@ -49,7 +89,9 @@ mysql>drop database cookbook;
 mysql>show databases;
 ```
 
-创建，修改，删除table
+表相关命令
+-----
+
 ```bash
 #创建表limbs
 mysql>create table limbs (thing varchar(20), legs int, arms int);
@@ -85,7 +127,9 @@ mysql>show create table limbs;
 
 ```
 
-在table中 insert, update, delete数据行
+record相关命令
+-----
+
 
 ```bash
 # 创建表
@@ -104,7 +148,9 @@ mysql>delete from limbs where thing='fish' limit 1;
 ```
 
 
-创建，删除，授权，取消授权，查看所有创建的用户, 修改密码
+授权认证相关命令
+-----
+
 ```bash
 #创建用户
 mysql>create user 'cbuser'@'localhost' identified by 'cbpass';
@@ -129,10 +175,15 @@ mysql>revoke udpate on cookbook.* from 'cbuser'@'localhost';
 
 #查看所有的用户
 mysql>select * from mysql.user;
-```
-### 查询语句
 
-基本的select 语句
+```
+
+
+sql查询语句
+---
+
+#### 基本的select 语句
+
 
 ```bash
 mysql>select * from limbs;
@@ -144,13 +195,15 @@ msyql>select thing, legs, arms from limbs where thing='fish' and legs=0;
 ```
 
 给选中的列，用内置函数做变化，重命名。
+
 ```bash
 mysql> select date_format(t "%M, %e, %Y") as date_sent,
      >        concat(srcuser, "@", srchost) as sender,
      >        size from mail;
 ```
 
-排序 order by
+#### order by
+
 ```bash
 #默认是升序:ASC
 mysql> select * from mail where destuser="tricia"
@@ -165,7 +218,7 @@ mysql> select * from mail where destuser="tricia"
      > order by size desc, srcuser;
 ```
 
-去除冗余的行 distinct
+#### distinct
 
 ```bash
 #distinct多列
@@ -175,6 +228,8 @@ mysql> select distinct srcuser from mail;
 mysql> select distinct year(t), month(t), dayofmonth(t) from mail;
 ```
 
+#### NULL 
+
 NULL, is null, is not null
 
 ```bash
@@ -183,6 +238,7 @@ mysql> select * from expt where score is not null;
 mysql> select subject, test, if(score is null, "unknow", "score") as "score" from expt;
 ```
 
+#### view
 view,一个虚拟的table, 然后可以像正常的table一样在上面select
 
 ```bash
@@ -194,6 +250,8 @@ mysql> create view mail_view as
      > size from mail;
 ```
 
+#### join
+
 使用join或者子查询从多个表中select数据
 
 ```bash
@@ -202,19 +260,22 @@ mysql> select id, name, service, contact_name
      > inner join profile_concat on id = profile_id;
 ```
 
+#### subquery
 subquery（子查询）
 ```bash
 mysql> select * from profile_concat
      > where profile_id = (select id from profile where nmae="Nancy");
 ```
 
+#### limit
 limit: 获取结果中某个range内的数据。
 
 ```bash
 mysql> select * from profile limit @skip_count, @show_count;
 ```
 
-### 字符串
+字符串
+-----
 
 选择字符串存储类型
 * char   最大长度255, mysql存储的时候，使用fixed width, 不足的用空格填充。
@@ -294,7 +355,7 @@ mysql>update metal set anme = contact(name, "idle");
 mysql>select name, locate("in", name), locate("in,  name, 3) from metal
 ```
 
-#### 字符串pattern匹配
+#### 字符串匹配
 
 ```bash
 # like
@@ -359,11 +420,12 @@ mysql>select name, sum(miles)
      >order by sum(miles) desc limit 1;
 ```
 
-### Join和子查询
+Join和子查询
+----
 
 关键词: inner join, left join, right join, on, using, where.
 
-inner join
+##### inner join
 
 ```bash
 mysql> select * from artist
@@ -409,9 +471,12 @@ mysql>select db1.artist.name, db2.painting.title
      >on db1.artist.a_id = db2.painting.a_id
 ```
 
+##### outer join
+
 使用outer join查找table之间mistach的数据行
 
 查找在painting中没有数据行的artist.
+
 ```bash
 #使用left join
 mysql>select *
@@ -426,7 +491,8 @@ mysql>select *
      >where a_id not in (select a_id from painting);
 ```
 
-和自己join
+##### self join
+
 ```bash
 #查找和某个title同一个画家的作品。
 mysql>select p2.title
@@ -443,6 +509,7 @@ mysql> select s2.name, s2.statehood
 ```
 
 查找每组的极值（最大值或者最小值）
+
 ```bash
 # 创建一个临时表
 mysql> create table tmp
