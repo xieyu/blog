@@ -9,10 +9,8 @@
 
 数据库
 -----
-
 * [《Redis in Action》笔记](./Redis/redis-in-action-notes.md)
 * [《Mysql cookbook》笔记](./Mysql/mysql-cook-book-notes.md)
-* [《Mongodb权威指南》笔记](./Mongodb/mongodb-the-definitive-guide.md)
 
 
 Java
