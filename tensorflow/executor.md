@@ -1,8 +1,12 @@
 Tensorflow Graph Executor
 -------------------------
 ## 摘要
+Tensorflow中的graph执行示意图如下(图片来自[tensorflow-talk-debugging](https://wookayin.github.io/tensorflow-talk-debugging/#1))。无论单机版的(direct session)还是分布式版(GRPC, MPI, RMDA等）都先会对graph先划分成子图subgraph, 然后每个subgraph会交给一个execturo去执行。
 
-tensorflow中图的执行有单机版的(direct session)和分布式版的，两者最后都会用executor去执行图。本文主要分析了tensorflow 在执行computation graph中的调度逻辑，以及在执行graph过程中，node的输入输出数据，node的执行状态是怎么保存的。
+本文主要分析了executor在执行sugraph时，node的输入输出数据和node的执行状态是如何保存的，以及Node执行的调度，最后分析了control flow 节点的执行逻辑。
+
+![tensors_flowing](./images/tensors_flowing.gif)
+
 
 在读这部分代码的时候，我想如果自己从头写这部分代码的话，需要解决那些问题，然后列了下面几个基本的问题
 
@@ -12,6 +16,7 @@ tensorflow中图的执行有单机版的(direct session)和分布式版的，两
 4. node之间如何并行地执行？
 
 后来在[1]中发现节点还有Switch, Merge, IterNext, Enter, Exit 五个flow control node，用来实现while循环，为此tensorflowe引入了frame的概念，可以粗略的认为和函数调用一样吧, 在遇到Enter node的时候，就新建一个child frame，把inputs(类似于函数函数调用时候参数入栈)一样，forward到child frame中，在遇到Exit node，就把输出放到parent frame 中(类似于将函数的return值入栈)。
+
 
 ## Executor中数据流程
 
@@ -43,3 +48,4 @@ tensorflow中图的执行有单机版的(direct session)和分布式版的，两
 ## 参考
 
 1. [Tensorflow control flow implemention]
+2. [tensorflow-talk-debugging](https://wookayin.github.io/tensorflow-talk-debugging/#1)
