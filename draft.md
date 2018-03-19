@@ -1,3 +1,28 @@
-Tensorflow
+Tensorflow源码学习
 ----------
-* [Tensorflow代码学习: executor](./tensorflow/executor.md)
+
+## Core
+
+### Common runtime
+
+* [Executor](./tensorflow/executor.md)
+* DirectSession
+* Device
+* OpKernelContext
+* Allocator
+* Tensor
+* Randevzous
+
+### Distribute Runtime
+
+* GRPC Distribute runtime
+* RAMD Distribute runtime
+* MPI  Distribute runtime
+
+### Operator
+
+* Operator: Variable， ReousrceManager
+* Operator: Assign =，+=，-=
+* Operator: MatMul
+* Operator: Convel
+
