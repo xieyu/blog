@@ -35,7 +35,7 @@ Executor基类只要去实现RunAsync就行。
 
 #### ExecutorImpl
 
-ExecutorImpl集成了Executor，它的RunAsync实现转交给了ExecutorState::RunAsync, ExecutorImpl主要的工作是从Graph中解析出一些静态信息，比如FrameInfo, GraphView, 由后面的ExecutorState执行的时候使用。
+ExecutorImpl继承实现了Executor，它的RunAsync实现转发给了ExecutorState::RunAsync, ExecutorImpl主要的工作是从Graph中解析出一些静态信息，比如FrameInfo, GraphView, 由后面的ExecutorState执行的时候使用。
 
 ~~~cpp
 void ExecutorImpl::RunAsync(const Args& args, DoneCallback done) {
@@ -206,6 +206,13 @@ TaggedNode, 把is_dead, input_frame, input_iter这个包了起来。
     int outstanding_frame_count;
     PendingCounts counts_;
 ```
+
+### Node的转变过程
+
+
+下图是一个graph中每个node被处理的过程，首先在ExecutorImpl::Initialize的时候，将node 处理成NodeItem,创建node对应的kernal, 然后在node ready可执行的时候，会创建一个TaggedNode放入Ready队列中，最后交给ExecutorState::Process去执行这个Node。
+
+![node process flow](./images/node_process_flow.jpeg)
 
 
 ### Executor中的调用关系
