@@ -8,9 +8,141 @@ Tensorflow中无论单机版的(direct session)还是分布式版(GRPC, MPI, RMD
 
 本文主要分析了executor在执行graph时，Node的执行调度以及node的输入输出数据, 执行状态是如何保存的，最后结合代码和[Tensorflow control flow implemention](http://download.tensorflow.org/paper/white_paper_tf_control_flow_implementation_2017_11_1.pdf)这部分文档分析了的control flow的具体实现。主要涉及的代码有(common_runtime/executor.cc)
 
+### Executor中主要类
+
+#### Executor 
+Executor为基类，对外提供了两个接口Run和RunAsync, 其中Run是对RunAsync简单的一层包装。
+
+```cpp
+
+  // Synchronous wrapper for RunAsync().
+  Status Run(const Args& args) {
+    Status ret;
+    Notification n;
+    RunAsync(args, [&ret, &n](const Status& s) {
+      ret = s;
+      n.Notify();
+    });
+    n.WaitForNotification();
+    return ret;
+  }
+```
+
+Executor基类只要去实现RunAsync就行。
+```cpp
+  virtual void RunAsync(const Args& args, DoneCallback done) = 0;
+```
+
+#### ExecutorImpl
+
+ExecutorImpl集成了Executor，它的RunAsync实现转交给了ExecutorState::RunAsync, ExecutorImpl主要的工作是从Graph中解析出一些静态信息，比如FrameInfo, GraphView, 由后面的ExecutorState执行的时候使用。
+
+~~~cpp
+void ExecutorImpl::RunAsync(const Args& args, DoneCallback done) {
+  (new ExecutorState(args, this))->RunAsync(std::move(done));
+}
+~~~
+#### FrameInfo
+
+struct FrameInfo由EnsureFrameInfo这个函数lazy创建，并在Intialize填充好它的字段。
+~~~cpp
+  FrameInfo* EnsureFrameInfo(const string& fname) {
+    auto slot = &frame_info_[fname];
+    if (*slot == nullptr) {
+      *slot = new FrameInfo;
+    }
+    return *slot;
+  }
+~~~
+
+FrameInfo包含的字段如下:
+
+~~~cpp
+    // The total number of inputs to a frame.
+    int input_count;
+
+    // The total number of input tensors of a frame.
+    // == sum(nodes[*].num_inputs()) where nodes are the nodes in the frame.
+    int total_inputs;
+
+    // Used to determine the next place to allocate space in the
+    // pending_counts data structure we'll eventually construct
+    PendingCounts::Layout pending_counts_layout;
+
+    // Each frame has its own PendingCounts only for the nodes in the frame.
+    PendingCounts* pending_counts;  // Owned
+
+    // The nodes in a frame. Used only for debugging.
+    std::vector<const Node*>* nodes;  // Owned
+~~~
+
+1. pending_counts_layout在后面会用来创建Node的PendingCount, pending count会用来跟踪Node的状态（比如是否所有的input都已ready, Node是否已经执行过了，Node是否在Dead path)，
+
+2. total_inputs会在ExecutorState::IteratorState中用到，用于创建InputTensors数组。
+
+#### Gview和NodeItem
+
+Gview可以看成是NodeItem的容器，根据node的id就可以找到相应的NodeItem, 对于graph中的每个node, 在ExecutorImpl::Initialize中都会创建一个NodeItem，放到Gview中。
+
+NodeItem包含的主要字段如下：
+```cpp
+  // A graph node.
+  const Node* node = nullptr;
+
+  // The kernel for this node.
+  OpKernel* kernel = nullptr;
+
+  // Cached values of node->num_inputs() and node->num_outputs(), to
+  // avoid levels of indirection.
+  int num_inputs;
+  int num_outputs;
+
+  // ExecutorImpl::tensors_[input_start] is the 1st positional input
+  // for this node.
+  int input_start = 0;
+
+  // Number of output edges.
+  size_t num_output_edges;
+
+  PendingCounts::Handle pending_id;
+```
+
+1. kernel:  由params.create_kernel创建，kernel是在device上执行的主要对象，并将在ExecutorImpl的析构函数中调用params.delte_kernel删除该对象。
+
+2. input_start：纪录了在当前IteratorState的input_tensors中开始的index。这个node的输入为：input_tensors[input_start: input_start + num_inputs]这部分对应的Tensors。
+
+3. pending_id: 根据这个id在当前的IteratorState中找到对应的PendingCount，从而找到这个nodeItem的执行状态。
+
+NodeItem中包含了一些标志位，一些标志该node是否是Control flow node, 一些标志表明kernel是否是Async的和expensive的。
+
+~~~cpp
+  bool kernel_is_expensive : 1;  // True iff kernel->IsExpensive()
+  bool kernel_is_async : 1;      // True iff kernel->AsAsync() != nullptr
+
+  bool is_merge : 1;             // True iff IsMerge(node)
+  bool is_enter : 1;             // True iff IsEnter(node)
+  bool is_exit : 1;              // True iff IsExit(node)
+  bool is_control_trigger : 1;   // True iff IsControlTrigger(node)
+  bool is_sink : 1;              // True iff IsSink(node)
+  // True iff IsEnter(node) || IsExit(node) || IsNextIteration(node)
+  bool is_enter_exit_or_next_iter : 1;
+~~~
+
+NodeItem AllocatorAttirbute
+
+```cpp
+  // Return array of per-output allocator attributes.
+  const AllocatorAttributes* output_attrs() const { return output_attr_base(); }
+```
+
+#### ExecutorState
+
+
+### Executor中的调用关系
+
 ### ExecutorImpl call flow
 
-Executor被调用的入口为NewLocalExecutor, 其后的调用的过程如下：
+Executor被调用的入口为NewLocalExecutor, 在DirectSesion中会为每个subgraph创建一个executor, 然后交给ExecutorBarrier同时执行多个Executor。NewLocalExecutor在ExecutorImpl成员函数中的调用过程如下：
 
 ![executor impl call flow](./images/executor_impl_call.jpeg)
 
