@@ -128,14 +128,84 @@ NodeItem中包含了一些标志位，一些标志该node是否是Control flow n
   bool is_enter_exit_or_next_iter : 1;
 ~~~
 
-NodeItem AllocatorAttirbute
+另外NodeItem 所包含的AllocatorAttirbute也会影响device所返回的allocator。
 
 ```cpp
   // Return array of per-output allocator attributes.
   const AllocatorAttributes* output_attrs() const { return output_attr_base(); }
 ```
 
+InferAllocAttr主要根据device, send, recv等节点, 来设置是否是gpu_compatible的，
+
+```cpp
+      attr->set_nic_compatible(true);
+      attr->set_gpu_compatible(true);
+```
+
+其中AllocatorAttributes主要影响GpuDevice所返回的allocator上。
+
+```cpp
+//common_runtime/gpu/gpu_device_factory.cc
+
+  Allocator* GetAllocator(AllocatorAttributes attr) override {
+    if (attr.on_host()) {
+      if (attr.gpu_compatible() || force_gpu_compatible_) {
+        ProcessState* ps = ProcessState::singleton();
+        return ps->GetCUDAHostAllocator(0);
+      } else {
+        return cpu_allocator_;
+      }
+    } else {
+      return gpu_allocator_;
+    }
+}
+```
+
 #### ExecutorState
+
+
+##### ExecutorState::FrameState
+
+###### FrameState和IterationState创建地方:
+
+1. 在ExecutorState的构造函数中会创建一个FrameState作为rootframe, 同时也会创建该frameState的第一个IterationState。
+
+2. 在执行完一个Node之后，PropagateOutputs在遇到Enter节点的时候，会调用FindOrCreateChildFrame来创建一个新的FrameState,以及该FrameState的第一个IterationState
+
+3. 在PropgateOutputs的时候，遇到NextIteration Node 会去调用FrameState::IncreatementIteration新增一个IterationState
+
+4.所有的framesate都放在了outstanding_frames 这个map中，新建的framestate会插到这个map中，删除的时候会从这个map中去掉。
+
+
+###### FrameState删除的地方
+
+1.在PropgateOutputs中，如果is_frame_done，就会调用DeleteFrame, DeleteFrame会向parent frame传播dead_exits（TODO: 这部分描述细化）
+
+IterationState删除的地方
+
+1. CleanupFrameIterations
+2. frame->CleanupIterations
+
+##### ExecutorState::TaggedNode
+
+TaggedNode, 把is_dead, input_frame, input_iter这个包了起来。
+
+```cpp
+    const Node* node = nullptr;
+    FrameState* input_frame = nullptr;
+    int64 input_iter = -1;
+    bool is_dead = false;
+```
+
+##### IterationState
+
+```cpp
+    Entry* input_tensors;
+    // The number of outstanding ops for each iteration.
+    size_t outstanding_ops;
+    int outstanding_frame_count;
+    PendingCounts counts_;
+```
 
 
 ### Executor中的调用关系
