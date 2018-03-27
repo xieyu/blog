@@ -6,7 +6,7 @@ Tensorflow源码学习
 ### Common runtime
 
 * [Executor](./tensorflow/executor.md)
-* DirectSession
+* [DirectSession](./tensorflow/direct-session.md)
 * Device
 * OpKernelContext
 * Allocator

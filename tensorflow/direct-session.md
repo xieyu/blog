@@ -13,15 +13,28 @@ DirectSession 则主要工作以下几方面：
 5. graph按device划分之后，graph之间的通信问题。（IntraProcessRandezvous)
 6. graph多次run的step id和信息
 
-### session factory
+### graph的转变过程
 
-### feed and fetch
 
-### prune graph
+Graphdef --> GraphExecutionState
+
+1. node device placement
+2. add feed and fetch nodes
+
+
+### RewriteGraph
+
+![rewrite graph](./images/rewrite_graph_call_stack.jpeg)
+![feed input fetch output](./images/feed_input_fetch_output.jpeg)
+
+### Graph device placement
 
 ### graph partition
+
+Graph partition根据上面Placemnet的结果，将graph partition成不同的子图，子图之间添加send 和recv节点，send和recv节点会用rendzvous来传送tensor
+
+![graph partition](./images/distributed_graph.png)
 
 ### IntraProcessRandezvous
 
 ### Run
-
