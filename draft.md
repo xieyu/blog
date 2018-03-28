@@ -7,22 +7,29 @@ Tensorflow源码学习
 
 * [Executor](./tensorflow/executor.md)
 * [DirectSession](./tensorflow/direct-session.md)
+* Rendezvous
 * Device
-* OpKernelContext
 * Allocator
+* OpKernelContext
 * Tensor
-* Randevzous
+
+### Operator
+* Variable
+* Assign
+* MatMul
+* Convel
+
 
 ### Distribute Runtime
 
-* GRPC Distribute runtime
-* RAMD Distribute runtime
-* MPI  Distribute runtime
+* GrpcSession
+* Master, Worker, MasterSession, WorkerSession
+* RDMA
+* MPI
 
-### Operator
 
-* Operator: Variable， ReousrceManager
-* Operator: Assign =，+=，-=
-* Operator: MatMul
-* Operator: Convel
+## 源码写作技巧总结
 
+* Factory 模式
+* impl 模式
+* template special 模板特化
