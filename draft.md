@@ -7,13 +7,14 @@ Tensorflow源码学习
 
 * [Executor](./tensorflow/executor.md)
 * [DirectSession](./tensorflow/direct-session.md)
-* Rendezvous
+* [Rendezvous](./tensorflow/rendezvous.md)
 * Device
 * Allocator
-* OpKernelContext
 * Tensor
+* OpKernelContext
 
-### Operator
+### OpKernel
+* OpKernel
 * Variable
 * Assign
 * MatMul

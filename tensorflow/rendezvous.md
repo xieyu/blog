@@ -1,4 +1,4 @@
-Tensorflow RendezVous(Draft)
+Tensorflow Rendezvous(Draft)
 ---------------------
 
 ### 摘要
@@ -84,12 +84,108 @@ static Status TensorListDeviceCopy(
 
 #### BaseRemoteRendezvous
 
+BaseRemoteRendezvous 的RecvAsync中会检查是否是同一个recv 和sender是否在同一个worker上。
+
+
+```cpp
+// 检查是否是同一个worker
+bool BaseRemoteRendezvous::IsSameWorker(DeviceNameUtils::ParsedName src,
+                                        DeviceNameUtils::ParsedName dst) {
+  return DeviceNameUtils::IsSameAddressSpace(src, dst);
+}
+```
+
+如果是同一个worker的话就采用类似IntraProcessRendezvous方式来处理，否则需要通过远程调RecvFromRemoteAsync。
+
+```cpp
+void BaseRemoteRendezvous::RecvAsync(const ParsedKey& parsed,
+  //other code ..
+  //case1: 是同一个worker, 说明在本地上
+  if (IsSameWorker(parsed.src, parsed.dst)) {
+    local_->RecvAsync(
+        parsed, recv_args,
+        [this, parsed, done](
+        //other code ... 
+        //in recv done callback
+        SameWorkerRecvDone(parsed, send_args, recv_args, in, out,
+  } else {
+  //case2: 不是同一个worker需要用RPC 去取。
+    RecvFromRemoteAsync(parsed, recv_args, std::move(done));
+  }
+```
+
+RemoteRendezvous中加了个一个Initialize的接口, 这样绑定了一个WorkerSession, 然后在SameWorkerRecvDone的时候，通过这个workerSession去找到对应的device。
+```cpp
+Status BaseRemoteRendezvous::Initialize(WorkerSession* session) {
+//other codes...
+}
+```
+在SameWorkerRecvDone中通过workerSession找到src_device和dst_device
+```cpp
+void BaseRemoteRendezvous::SameWorkerRecvDone(
+  //other code ...
+  Status s = sess->device_mgr->LookupDevice(parsed.src_device, &src_device);
+  //other code ...
+  s = sess->device_mgr->LookupDevice(parsed.dst_device, &dst_device);
+  //other code ..
+  //通过ViaDMA实现各个device之间的copy
+  CopyTensor::ViaDMA(parsed.edge_name, send_args.device_context,
+```
+
 #### RpcRemoteRendezvous
 
+RpcRemoteRendezvous在BaseRemoteRendezvous的基础上，实现了RecvFromeRemoteAsync的功能, 首先找到send所在的src_worker, 
+然后通过rpc调用去取的远程src_worker上的tensor。
+
+
+```cpp
+void RpcRemoteRendezvous::RecvFromRemoteAsync(
+  //other code..
+  RpcRecvTensorCall* call = get_call_freelist()->New();
+
+  //1. 找到远程的src_worker
+  WorkerSession* sess = session();
+  WorkerInterface* rwi = sess->worker_cache->CreateWorker(call->src_worker_);
+
+  //2. 找到要copy到的device
+  s = sess->device_mgr->LookupDevice(parsed.dst_device, &dst_device);
+
+ //other code ..
+  //3. Grpc call
+  call->Init(rwi, step_id_, parsed.FullKey(), recv_args.alloc_attrs, dst_device,
+             recv_args, std::move(done));
+  call->Start([this, call]() {
+ //other code ..
+```
+
+在RpcRecvTensorCall中会call worker的RecvTensorAsync。
+
+```cpp
+  void StartRTCall(std::function<void()> recv_done) {
+   //other code
+    wi_->RecvTensorAsync(&opts_, &req_, &resp_, std::move(cb));
+  }
+```
+
+中间经过worker service，最终会去call GrpcWorker::GrpcRecvTensorAsync.
+
+```cpp
+void GrpcWorker::GrpcRecvTensorAsync(CallOptions* opts,
+    // Case 1: 如果目标tensor在GPU上的话，需要先cp到host上
+    if (src_dev->tensorflow_gpu_device_info() && (!on_host)) {
+        StatusCallback copy_ready = [response, done, copy, is_dead](const Status& s) {  
+            //other code ..
+            // copy到response buffer中
+            grpc::EncodeTensorToByteBuffer(is_dead, *copy, response);
+            done(s);
+        }
+        GPUUtil::CopyGPUTensorToCPU(src_dev, send_dev_context, &val, copy, copy_ready);
+        } else {
+        //Case 2: 在Host上直接cp到response的buffer中。
+            grpc::EncodeTensorToByteBuffer(is_dead, val, response);
+            done(Status::OK());
+        }
+    }
+```
+
 ### Rendezvous Manager
-
-### SendOp, RecvOp
-
-### Rendezvous in  DirectSession
-
-### Rendezvous in  GrpcSession
