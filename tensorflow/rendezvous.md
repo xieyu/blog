@@ -1,4 +1,4 @@
-Tensorflow Rendezvous(Draft)
+Tensorflow Rendezvous
 ---------------------
 
 ### 摘要
@@ -188,4 +188,35 @@ void GrpcWorker::GrpcRecvTensorAsync(CallOptions* opts,
     }
 ```
 
-### Rendezvous Manager
+### RendezvousMgr
+
+RendezvousMgr的作用是维护一个从step_id到Rendezvous的映射。
+
+> RendezvousMgr keeps track of a set of local rendezvous instances.
+> All tensors sent by this worker are buffered in a RendezvousMgr
+> until the tensor is received.  Each global unique "step_id"
+> corresponds to one local rendezvous instance managed by a
+> RendezvousMgr.
+
+
+RendezvousMgr的继承关系如下
+![rendezvous mgr](./images/rendezvous_mgr.jpeg)
+
+ 映射的table在BaseRendezvousMgr中。
+
+```cpp
+  //BaseRendezvousMgr的数据成员
+  typedef gtl::FlatMap<int64, BaseRemoteRendezvous*> Table;
+  mutex mu_;
+  Table table_ GUARDED_BY(mu_);
+```
+
+它的派生类比如RpcRendezvousMgr通过override它的Create函数来创建自己版本的rendezvous。
+
+```cpp
+ protected:
+  virtual BaseRemoteRendezvous* Create(int64 step_id,
+                                       const WorkerEnv* worker_env) = 0;
+```
+
+
