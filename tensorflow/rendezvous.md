@@ -214,6 +214,7 @@ RendezvousMgr的继承关系如下
 它的派生类比如RpcRendezvousMgr通过override它的Create函数来创建自己版本的rendezvous。
 
 ```cpp
+  //BaseRendezvousMgr 的CreateRendezvous的纯虚函数
  protected:
   virtual BaseRemoteRendezvous* Create(int64 step_id,
                                        const WorkerEnv* worker_env) = 0;
