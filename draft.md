@@ -5,11 +5,12 @@ Tensorflow源码学习
 
 ### Common runtime
 
-* [Executor](./tensorflow/executor.md)
+* [Executor draft](./tensorflow/executor.md)
 * [DirectSession](./tensorflow/direct-session.md)
 * [Rendezvous](./tensorflow/rendezvous.md)
-* Device
+* [Device](./tensorflow/device.md)
 * Allocator
+* ResourceMgr
 * Tensor
 * OpKernelContext
 
