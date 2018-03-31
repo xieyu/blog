@@ -3,7 +3,7 @@ Tensorflow Device
 
 ### 摘要
 
-Device从逻辑来讲，是一个计算单元，包含了自己的memory，它是对GPU， TPU， CPU等计算device统一抽象。作为一个Device主要的接口有以下几个：
+Device包含了自己的memory的计算单元，它是对GPU， TPU， CPU等计算device统一抽象，主要的接口有以下几个：
 
 1. GetAllocator: 这个返回一个allocator，负责在device上分配memory
 2. Compute，ComputeAsync: 负责执行OpKernel中的运算。

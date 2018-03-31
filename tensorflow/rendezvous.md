@@ -8,8 +8,6 @@ Rendezvous负责在Send和Recv node之间传递tensor, tensor的传递可能会�
 1. Send操作不会被block，而Recv操作可能会block，一直等到有tensor，才会返回或者调用异步的callback。
 2. 由于send 和recv node可能在同一个worker的不同device上，也有可能在不同worker的不同device上，所以Rendezvous又分为LocalRendezvous, IntraProcessRendezvous, RemoteRendezvous 以对应不同的场景。
 
-本文首先分析了Rendezvous和Redezvous Mgr的集成关系，然后分析了Rendezvous在DirectSession和GrpSession中被创建，使用情况。
-
 ### Rendezvous
 
 #### 继承关系
