@@ -22,6 +22,14 @@
 4. [Device：计算单元抽象(CPU/GPU)](./tensorflow/device.md)
 
 
+## Notes
+
+1. keras模型部署优化
+    - [将keras模型导出为tf frozen graph](./tensorflow/export-keras-model-as-tf-frozen-graph.md)
+    - [TODO: 使用dataset iterator替换tf graph中的placeholder](./tensorflow/replace-placeholder-with-iterator.md)
+
+
+
 ## 其他
 
 1. [Redis in Action笔记](./Redis/redis-in-action-notes.md)
