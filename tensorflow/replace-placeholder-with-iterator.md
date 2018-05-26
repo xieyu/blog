@@ -107,21 +107,20 @@ class DataSetFactory(object):
 #### prefetch_to_device
 
 tensorflow 后来加了prefetch_to_device, 经测试可以提高5%左右的效率吧,但是和structure iterator初始化的时候有冲突，因此这个地方把它去掉了。
-```
-        # 由于prefech_to_device必须是dataset的最后一个处理单元，
-        # structure iterator用这个ds初始化的时候会有问题，
-        # 因此这个地方将prefetch_to_gpu注释掉了
-        # gpu_prefetch = tf.contrib.data.prefetch_to_device(
-        #         "/device:GPU:0",
-        #         buffer_size=self.batch_size * 10)
-        # ds = ds.apply(gpu_prefetch)
-
+```python
+# 由于prefech_to_device必须是dataset的最后一个处理单元，
+# structure iterator用这个ds初始化的时候会有问题，
+# 因此这个地方将prefetch_to_gpu注释掉了
+# gpu_prefetch = tf.contrib.data.prefetch_to_device(
+#         "/device:GPU:0",
+#         buffer_size=self.batch_size * 10)
+# ds = ds.apply(gpu_prefetch)
 ```
 
 
 #### 使用dataset初始化iterator
 
-```
+```python
     def init_iterator(self, dataset):
         # 这里的output_op就是load_model时返回的iterator
         init_iterator_op = self.iterator.make_initializer(dataset)
@@ -132,5 +131,3 @@ tensorflow 后来加了prefetch_to_device, 经测试可以提高5%左右的效�
         while True:
             outputs = self.sess.run(self.output_op)
 ```
-
-
