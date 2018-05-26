@@ -2,7 +2,7 @@
 
 ### 引言
 
-下图是一个graph中每个node被处理的过程，首先在ExecutorImpl::Initialize的时候，将node 处理成NodeItem,创建node对应的kernal, 然后在node ready可执行的时候，会创建一个TaggedNode放入Ready队列中，最后交给ExecutorState::Process去执行这个Node。
+下图是一个graph中每个node被处理的过程，首先在ExecutorImpl::Initialize的时候，将node 处理成NodeItem，创建node对应的kernal, 然后在node ready可执行的时候，会创建一个TaggedNode(TaggedNode主要多了个frame指针，记录了当前执行的frame), 并将它放入Ready队列中，最后交给ExecutorState::Process去执行这个Node。
 ![node process flow](./images/node_process_flow.jpeg)
 
 
@@ -96,4 +96,57 @@ InferAllocAttr主要根据device, send, recv等节点, 来设置是否是gpu_com
 ```
 
 
-### TaggedNodeSeq
+### TaggedNode
+
+TaggedNode 增加了了一个FrameState指针，指向了Node将要执行的FrameState, input_iter, input_frame加上input_iter可以确定了
+
+
+```cpp
+  struct TaggedNode {
+    const Node* node = nullptr;
+    FrameState* input_frame = nullptr;
+    int64 input_iter = -1;
+    bool is_dead = false;
+
+    TaggedNode(const Node* t_node, FrameState* in_frame, int64 in_iter,
+               bool dead) {
+      node = t_node;
+      input_frame = in_frame;
+      input_iter = in_iter;
+      is_dead = dead;
+    }
+```
+
+在node处于ready 可执行状态的时候，会创建一个TaggedNode, 并放到TaggedNodeSeq队列中，等待调度执行。
+
+```
+ExecutorState::FrameState::ActivateNodes ==>
+    ready->push_back(TaggedNode(dst_item->node, this, iter, dst_dead));
+
+ExecutorState::RunAsync ==>
+    for (const Node* n : impl_->root_nodes_) {
+      DCHECK_EQ(n->in_edges().size(), 0);
+      ready.push_back(TaggedNode{n, root_frame_, 0, false});
+    }
+```
+
+
+### 获取node输入tensors指针
+
+首先根据TaggedNode中的input_frame，input_iter获取node的输入tensors
+
+```
+  Entry* GetInputTensors(FrameState* input_frame,
+                         int64 input_iter) const NO_THREAD_SAFETY_ANALYSIS {
+    return input_frame->GetIteration(input_iter)->input_tensors;
+  }
+```
+
+然后根据NodeItem中定义的input_start获取first_input tensor的指针
+
+```
+//在ExecutorState::Process中:
+    Entry* input_tensors = GetInputTensors(input_frame, input_iter);
+    Entry* first_input = input_tensors + item.input_start;
+```
+
