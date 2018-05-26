@@ -17,6 +17,13 @@
 ### tensorflow
 
 1. [Executor: 执行Computation Graph](./tensorflow/executor.md)
+    - Graph预处理：Subgraph rewrite graph
+    - Graph预处理：GraphView
+    - Pending Count: 节点的执行状态
+    - Execute Graph Computation: Graph执行的调度。
+    - Flow Control Node: Switch/Merge/Exit/Enter/NextIter
+    - FrameInfo, WhileLoop iter
+
 2. [DirectSession: 单机执行computation graph](./tensorflow/direct-session.md)
 3. [RendezVous：跨设备，跨主机通信](./tensorflow/rendezvous.md)
 4. [Device：计算单元抽象(CPU/GPU)](./tensorflow/device.md)
