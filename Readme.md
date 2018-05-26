@@ -16,9 +16,8 @@
 
 ### tensorflow
 
-1. [Executor: 执行Computation Graph](./tensorflow/executor.md)
-    - Graph预处理：Subgraph rewrite graph
-    - Graph预处理：GraphView
+1. [Executor: 执行Computation Sub Graph](./tensorflow/executor.md)
+    - [(DRAFT) Sub Graph预处理：Node => NodeItem => TaggedNode](./tensorflow/executor-subgraph-preprocess.md)
     - Pending Count: 节点的执行状态
     - Execute Graph Computation: Graph执行的调度。
     - Flow Control Node: Switch/Merge/Exit/Enter/NextIter
