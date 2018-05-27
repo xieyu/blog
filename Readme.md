@@ -18,7 +18,7 @@
 
 1. [Executor: 执行Computation Sub Graph](./tensorflow/executor.md)
     - [SubGraph预处理：Node => NodeItem => TaggedNode](./tensorflow/executor-subgraph-preprocess.md)
-    - [Frame: ControlFrameInfo/FrameInfo/FrameState/IterationState](./tensorflow/executor-frame.md)
+    - [Frame: FrameInfo/FrameState/IterationState](./tensorflow/executor-frame.md)
     - Entry: 保存node之间的输入输出tensor
     - Pending Count: node执行状态
     - Execute Graph Computation: PrepareInputs/Process/ProcessOutputs/PropateOutputs
