@@ -17,15 +17,43 @@
 ### tensorflow
 
 1. [Executor: 执行Computation Sub Graph](./tensorflow/executor.md)
-    - [(DRAFT) Sub Graph预处理：Node => NodeItem => TaggedNode](./tensorflow/executor-subgraph-preprocess.md)
-    - Pending Count: 节点的执行状态
-    - Execute Graph Computation: Graph执行的调度。
-    - Flow Control Node: Switch/Merge/Exit/Enter/NextIter
-    - FrameInfo, WhileLoop iter
+    - [SubGraph预处理：Node => NodeItem => TaggedNode](./tensorflow/executor-subgraph-preprocess.md)
+    - [Frame: ControlFrameInfo/FrameInfo/FrameState/IterationState](./tensorflow/executor-frame.md)
+    - Entry: 保存node之间的输入输出tensor
+    - Pending Count: node执行状态
+    - Execute Graph Computation: PrepareInputs/Process/ProcessOutputs/PropateOutputs
 
 2. [DirectSession: 单机执行computation graph](./tensorflow/direct-session.md)
+    - SessionFactory
+    - Rewrite Graph
+    - CallFrame: Feed and Fetch
+    - Place node to device
+    - Graph Partition
+    - Create executors
+    - Tensor Store
+
 3. [RendezVous：跨设备，跨主机通信](./tensorflow/rendezvous.md)
+    - Rendezvous主要模块以及继承关系
+    - LocalRendezvous
+    - IntraProcessRendezvous
+    - CopyTensor::ViaDMA: GPU,CPU之间的通信
+    - BaseRemoteRendezvous
+    - RpcRemoteRenddezvous
+    - RendezvousMgr
+
 4. [Device：计算单元抽象(CPU/GPU)](./tensorflow/device.md)
+    - Device继承关系
+    - Device Factory
+    - Device Thread pool
+    - Device Context
+    - Device Allocator
+
+5. Resource Manager
+6. Opkernal
+7. GrpSession: Grp分布式执行computation graph
+8. Estimator
+9. Dataset
+10. tfslim
 
 
 ## Notes
