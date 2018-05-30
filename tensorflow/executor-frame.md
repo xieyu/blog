@@ -5,42 +5,6 @@ Frame存放node之间输入输出的tensor(具体的由Entry来实现)，以及n
 FrameState对应着一个while loop， IterationState则对应着while loop中的某个iter迭代时候的状态。
  IterationState中有个EntryVec用于保存某次迭代时候，node之间输入输出的Entry, 在分析executor中Frame相关代码之前，我们先看下tensorflow中的control flow op。
 
-### Tensorflow中的control flow op
-
-本节主要参照 [Tensorflow control flow implemention](http://download.tensorflow.org/paper/white_paper_tf_control_flow_implementation_2017_11_1.pdf) 这篇文章。Tensorflow中control flow op主要包含以下几种:
-在Tensorflow中，graph中每个node的op，都在一个execution Frame中执行，下面这几种control-flow op用于创建和管理这些execution Frame.
-
-
-* <b>Switch</b>:  A Switch operator forwards the input tensor d to one of its outputs depending on the
-boolean tensor of the control input p. A Switch is enabled for execution when both its inputs are
-available.
-
-* <b>Merge</b>:A Merge operator forwards one of its available inputs to its output. A Merge is enabled
-for execution when any of its inputs is available. It is unspecified which available input it outputs
-if there are multiple inputs available
-
-* <b>Enter</b>: An Enter operator forwards its input to the execution frame that is uniquely
-identified by the given name. This Enter op is used to pass a tensor in one execution frame to a
-child execution frame. There can be multiple Enter ops to the same child execution frame, each
-making a tensor available (asynchronously) in that child execution frame. An Enter is enabled
-for execution when its input is available. A new execution frame is instantiated in the
-TensorFlow runtime when the first Enter op to that frame is executed
-
-* <b>Exit</b>: An Exit operator forwards a value from an execution frame to its parent execution frame.
-This Exit op is used to return a tensor computed in a child execution frame back to its parent
-frame. There can be multiple Exit ops to the parent frame, each asynchronously passing a
-tensor back to the parent frame. An Exit is enabled when its input is available.
-
-* <b>NextIteration</b>: A NextIteration operator forwards its input to the next iteration in the current
-execution frame. The TensorFlow runtime keeps track of iterations in an execution frame. Any
-op executed in an execution frame has a unique iteration id, which allows us to uniquely identify
-different invocations of the same op in an iterative computation. Note that there can be multiple
-NextIteration ops in an execution frame. The TensorFlow runtime starts iteration N+1 when the
-first NextIteration op is executed at iteration N. As more tensors enter an iteration by executing
-NextIteration ops, more ops in that iteration will be ready for execution. A NextIteration is
-enabled when its input is available.
-
-如果把execution frame和函数调用做类比的话，那么Enter有点类似于传参，而Exit则类似于return 返回值。
 
 
 ### ExecutorImpl::FrameInfo
@@ -137,7 +101,3 @@ IterationState删除的地方
 
 4. 所有的framesate都放在了outstanding_frames 这个map中，新建的framestate会插到这个map中，删除的时候会从这个map中去掉。
 
-
-参考文献：
-
-1. [Tensorflow control flow implemention](http://download.tensorflow.org/paper/white_paper_tf_control_flow_implementation_2017_11_1.pdf)
