@@ -49,8 +49,14 @@
     - Device Context
     - Device Allocator
 
-5. Resource Manager
+5. OpKernal Context
 6. Opkernal
+    - Variable
+    - Const
+    - PlaceHolder
+    - Matmul
+    - Conv
+
 7. GrpSession: Grp分布式执行computation graph
 8. Estimator
 9. Dataset
