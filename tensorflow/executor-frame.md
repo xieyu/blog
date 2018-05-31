@@ -6,19 +6,66 @@ FrameState对应着一个while loop， IterationState则对应着while loop中�
  IterationState中有个EntryVec用于保存某次迭代时候，node之间输入输出的Entry, 在分析executor中Frame相关代码之前，我们先看下tensorflow中的control flow op。
 
 
+### ExecutorImpl::ControlFlowInfo
+
+ControlFlowInfo里面``unique_frame_names``保存了computation graph中所有frame的名字，frame_names则是个倒查表，索引对应于``node->id``, 可以根据``frame_names[node->id()]``找到node对应的frame_name.
+
+```cpp
+  struct ControlFlowInfo {
+    gtl::FlatSet<string> unique_frame_names;
+    std::vector<string> frame_names;
+  };
+```
+BuildControlFlowInfo 会遍历整个graph, 然后处理Enter/Exit node, 填充好ControlFlowInfo中的字段, 
+
+1. 如果遇到Enter node, 则进入子Frame, Enter node的每个输出node对应的frame_name都是EnterNode对应的 "frame_node"属性
+
+```cpp
+//Enter node包含了frame_name 属性，
+GetNodeAttr(curr_node->attrs(), "frame_name", &frame_name));
+```
+
+2. 如果是Exit node, 则退出子Frame, Exit node的每个输出node对应的frame_name都是Exit node parent node的 frame_name
+
+```cpp
+//other code
+     else if (IsExit(curr_node)) {
+      parent = parent_nodes[curr_id];
+      frame_name = cf_info->frame_names[parent->id()];
+      parent = parent_nodes[parent->id()];
+}
+```
+
+3. 如果是其他类型的node, 则node的每个输出node frame和当前node一致
+
+```cpp
+ parent = parent_nodes[curr_id];
+ frame_name = cf_info->frame_names[curr_id];
+```
+
+在executor中首先会根据node->id找到frame_name, 然后根据frame_name找到对应的FrameInfo
+```cpp
+    const string& frame_name = cf_info.frame_names[id];
+    FrameInfo* frame_info = EnsureFrameInfo(frame_name);
+```
 
 ### ExecutorImpl::FrameInfo
 
 FrameInfo包含的主要字段如下:
 
-1. input_count
-
 ```cpp
     // The total number of inputs to a frame.
     int input_count;
+
+    // The total number of input tensors of a frame.
+    // == sum(nodes[*].num_inputs()) where nodes are the nodes in the frame.
+    int total_inputs;
+
+    PendingCounts::Layout pending_counts_layout;
+    PendingCounts* pending_counts;  // Owned
 ```
-在tensorflow中Enter类型的节点代表进入某个frame[]().
-input_count初始化的地方如下, 会遍历整个graph中的node, 如果node是Enter类型节点的话，就把node->frame_name对应的frame 的input_count + 1。
+
+1. input_count 代表graph中Enter node属性frame_name是该frame的个数, 统计个数的代码如下：
 
 ```cpp
 //ExecutorImpl::Initialize
@@ -33,28 +80,9 @@ input_count初始化的地方如下, 会遍历整个graph中的node, 如果node�
   }
 ```
 
-2. total_inputs
+2. total_inputs会在ExecutorState::IteratorState中用到，它的值为该frame中所有node的inputs总和。
 
-total_inputs会在ExecutorState::IteratorState中用到，用于创建InputTensors数组。
-
-```cpp
-    // The total number of input tensors of a frame.
-    // == sum(nodes[*].num_inputs()) where nodes are the nodes in the frame.
-    int total_inputs;
-```
-3. PendingCounts相关
-
- pending_counts_layout在后面会用来创建Node的PendingCount, pending count会用来跟踪Node的状态（比如是否所有的input都已ready, Node是否已经执行过了，Node是否在Dead path)，
-```cpp
-    // Used to determine the next place to allocate space in the
-    // pending_counts data structure we'll eventually construct
-    PendingCounts::Layout pending_counts_layout;
-
-    // Each frame has its own PendingCounts only for the nodes in the frame.
-    PendingCounts* pending_counts;  // Owned
-```
-
-
+3. PendingCounts相关，pending_counts_layout在后面会用来创建Node的PendingCount, pending count会用来跟踪Node的状态（比如是否所有的input都已ready, Node是否已经执行过了，Node是否在Dead path)，
 
 struct FrameInfo由EnsureFrameInfo这个函数lazy创建，并在Intialize填充好它的字段。
 
@@ -67,11 +95,41 @@ struct FrameInfo由EnsureFrameInfo这个函数lazy创建，并在Intialize填充
     return *slot;
   }
 ```
+FrameInfo将在ExecutorImpl的析构函数中被删掉。
+```cpp
+  ~ExecutorImpl() override {
+    //other code
+    for (auto fiter : frame_info_) {
+      delete fiter.second;
+    }
+```
 
 ### ExecutorState::FrameState
 
+前面两个ControlFlowInfo/FrameInfo都是静态的信息(所以叫XXXInfo)，而FrameState和IterationState都是动态信息，会在Graph执行的时候动态创建。
 
-#### FrameState删除的地方
+#### 创建FrameState: FindOrCreateChildFrame
+
+在FindOrCreateChildFrame中，会调用InitializeFrameInfo从FrameInfo中抽取有用的字段
+```cpp
+    void InitializeFrameInfo(const string& enter_name) {
+      auto it_frame_info = executor->frame_info_.find(enter_name);
+      DCHECK(it_frame_info != executor->frame_info_.end());
+      ExecutorImpl::FrameInfo* finfo = it_frame_info->second;
+      pending_counts = finfo->pending_counts;
+      total_input_tensors = finfo->total_inputs;
+      num_pending_inputs = finfo->input_count;
+      nodes = finfo->nodes;
+    }
+```
+
+FindOrCreateChildFrame被调用的stack
+```
+Process -> PropagationOutputs -> FindOrCreateChildFrame
+```
+
+
+#### 删除FrameState: DeleteFrame
 
 1.在PropgateOutputs中，如果is_frame_done，就会调用DeleteFrame, DeleteFrame会向parent frame传播dead_exits（TODO: 这部分描述细化）
 
