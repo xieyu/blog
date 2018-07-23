@@ -68,7 +68,7 @@
 1. keras模型部署优化
     - [将keras模型导出为tf frozen graph](./tensorflow/export-keras-model-as-tf-frozen-graph.md)
     - [使用dataset iterator 优化keras model预测的吞吐量](./tensorflow/replace-placeholder-with-iterator.md)
-
+    - [统计cpu/gpu 负载率脚本](./tensorflow/stat_cpu_gpu_load.md)
 
 
 ## 其他
