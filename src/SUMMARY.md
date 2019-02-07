@@ -26,3 +26,6 @@
   - [osx下编译调试hotspot](./java/hotspot-debug-under-osx.md)
   - [jvm的初始化时创建的线程](./java/hotspot-thread-created-when-init.md)
   - [class文件的加载和执行](./java/hotspot-class-file-load-and-run.md)
+
+- [raft](./raft/index.md)
+    - [note's Diego's paper](./raft/the-paper.md)
