@@ -27,5 +27,13 @@
   - [jvm的初始化时创建的线程](./java/hotspot-thread-created-when-init.md)
   - [class文件的加载和执行](./java/hotspot-class-file-load-and-run.md)
 
+- [rust](./rust/index.md)
+    - [TRPL 笔记](./rust/trpl/index.md)
+        - [rust ownership](./rust/trpl/ownership.md)
+        - [rust pointer](./rust/trpl/pointer.md)
+
 - [raft](./raft/index.md)
     - [note's Diego's paper](./raft/the-paper.md)
+
+- [leveldb](./leveldb/index.md)
+    - [skiplist](./leveldb/skiplist.md)
