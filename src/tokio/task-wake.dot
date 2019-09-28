@@ -1,0 +1,47 @@
+//
+// task-wake.dot
+//
+// Created on 28-09-2019 by xieyu
+//
+digraph taskwake {
+  rankdir=LR;
+  newrank=true;
+  node[shape=box];
+
+  subgraph cluster_worker {
+    label="worker"
+    worker_run[label="run"];
+  }
+
+  subgraph cluster_task{
+    label="task";
+
+    task_run[label="run"];
+    task_schedule[label="schedule"];
+  }
+
+  subgraph cluster_waker {
+    label="waker";
+    waker;
+  }
+
+  subgraph cluster_context{
+    label="Context"
+    context[label="context"];
+    context_from_waker[label="from_waker"];
+
+    context_from_waker -> context -> wake_by_ref;
+  }
+
+  subgraph cluster_pool {
+    label="pool"
+    pool_submit[label="submit"];
+    pool_unpark[label="unpark"];
+    pool_submit -> signal_work -> notify -> pool_unpark;
+  }
+
+  waker -> context_from_waker[label="pass to";style="dashed"];
+  pool_unpark -> worker_run -> task_run;
+  task_run -> waker[label="new";style="dashed"];
+  wake_by_ref -> task_schedule -> pool_submit;
+}

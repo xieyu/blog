@@ -8,12 +8,12 @@ digraph worksteal{
   rankdir=LR;
   node[shape="box"];
 
-  sender_spawn[label="sender.spawn"; shape="cds"];
+  sender_spawn[label="sender.spawn";style=filled;shape="cds";fillcolor=green;];
 
   subgraph cluster_pool {
     label = pool
-
     pool_queue[label=queue;style=filled;];
+
     submit_external -> signal_worker -> spawn_thread;
     submit_external -> pool_queue[label="push"];
     {rank=same; submit_external;signal_worker}
@@ -33,14 +33,16 @@ digraph worksteal{
   }
 
   subgraph cluster_entry{
-    label = entry;
+    label = "pool.entry";
     notify -> unpark;
   }
 
   subgraph cluster_task {
     label= task;
-    task_run[label="run"];
+    task_run[label="run";style="filled";fillcolor=green];
   }
+
+  future_poll[label="future poll";]
 
   sender_spawn -> submit_external;
   signal_worker -> notify;
@@ -50,6 +52,7 @@ digraph worksteal{
   worker_queue2 -> worker_queue[label="steal batch"];
   pool_queue -> worker_queue2[label="steal batch"];
 
-  unpark -> worker_run[label="resume"];
+  unpark -> worker_run[label="resume";style="dashed"];
   run_task2 -> task_run;
+  task_run -> future_poll;
 }
