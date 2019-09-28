@@ -1,0 +1,98 @@
+//
+// task-event-detail.dot
+//
+// Created on 28-09-2019 by xieyu
+//
+digraph task_event_detail {
+  node[shape=box];
+  subgraph cluster_TcpListner{
+    graph[label="TcpListner";fontsize=20;style=rounded]
+    poll_accept -> poll_accept_std;
+  }
+
+  subgraph cluster_TcpStream{
+    graph[label="TcpStream";fontsize=20;style=rounded]
+    TcpStream_new[label="new"];
+    peek -> poll_peek;
+    poll_read -> poll_read_priv;
+    poll_write -> poll_write_priv;
+  }
+
+  subgraph cluster_PollEvented{
+    graph[label="pollEvented";fontsize=20;style=rounded]
+    PollEvented_new[label="new"];
+    poll_read_ready;
+    poll_write_ready;
+    poll_ready[label="poll_ready!"];
+    {poll_read_ready, poll_write_ready} -> poll_ready[label="注册"];
+    poll_ready -> register;
+  }
+
+  subgraph cluster_Registration{
+    graph[label="Registration";fontsize=20;style=rounded]
+    Registration_new[label="new"];
+    Registration_poll_read_ready[label="poll_read_ready"];
+    Registration_poll_write_ready[label="poll_write_ready"];
+    Registration_register[label="register"];
+    Registration_register2[label="register2"];
+    Registration_poll_ready[label="poll_ready"];
+    Registration_Node[label="Registration::Node"];
+
+    Registration_register -> Registration_register2;
+    {Registration_poll_write_ready, Registration_poll_read_ready} -> Registration_poll_ready;
+    Registration_poll_ready -> Registration_Node[label="Locked New if null"];
+
+    subgraph cluster_inner {
+      graph[label="Inner";fontsize=16;style=rounded]
+      Registration_inner_new[label="new"];
+      Registration_inner_register[label="register"];
+    }
+
+    Registration_register2 -> Registration_Node[label="从Node中获取waker"];
+    Registration_register2 -> Registration_inner_new;
+    Registration_register2 -> Registration_inner_register[label="pass waker"];
+  }
+
+  subgraph cluster_Reactor{
+    graph[label="Registration";fontsize=20;style=rounded]
+      subgraph cluster_Reactor_Inner{
+        rankdir=LR;
+        graph[label="Inner";fontsize=16;style=rounded]
+        reactor_inner_register[label="register"];
+
+        add_source -> io_dispatch;
+        add_source -> token;
+        io_dispatch -> token;
+        {io_dispatch, token} -> reactor_inner_register;
+        {rank=same; add_source, token; };
+      }
+      reactor_poll -> dispatch -> io_dispatch;
+  }
+
+  subgraph cluster_mio {
+    graph[label="mio";fontsize=20;style=rounded]
+    mio_poll[label="poll"];
+  }
+
+  subgraph cluster_scheduleio{
+    graph[label="scheduleio";fontsize=20;style=rounded]
+    reader;
+    writer;
+  }
+
+  subgraph cluster_AtomicWaker{
+    graph[label="AtomicWaker";fontsize=20;style=rounded]
+    AtomicWaker_register[label="register"];
+  }
+
+
+
+  {poll_accept_std, poll_peek, poll_read_priv} -> poll_read_ready ->Registration_poll_read_ready;
+  poll_write_priv -> poll_write_ready -> Registration_poll_write_ready;
+  poll_accept -> TcpStream_new;
+  {TcpStream_new} -> PollEvented_new -> Registration_new;
+  register -> Registration_register;
+  Registration_inner_new -> add_source;
+  Registration_inner_register -> reactor_inner_register->{reader, writer}->AtomicWaker_register;
+  mio_poll -> reactor_poll;
+}

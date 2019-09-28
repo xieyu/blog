@@ -10,3 +10,5 @@ driver负责将底层的io事件传递给相应的等待任务，事件驱动主
 task和mio event通过token 建立关系，两者通过Context关联起来
 
 ![task-token-event](./task-token-event.svg)
+
+![task-event-detail](./task-event-detail.svg)
