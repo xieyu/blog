@@ -5,6 +5,7 @@
 //
 digraph task_token_event {
   rankdir=LR
+  newrank=true
   node[shape=box];
   subgraph cluster_current_thread{
     graph[label="current thread";fontsize=20;style=rounded]
@@ -52,9 +53,14 @@ digraph task_token_event {
   subgraph cluster_mio {
     graph[label="mio";fontsize=20;style=rounded]
     event_token[label="event.token"]
+    mio_poll[label="poll"]
+    mio_poll -> event_token;
+    mio_register[label="register"];
   }
 
-  event_token ->Reactor[label="Registration"];
+  event_token ->Reactor[label="dispatch"];
+  task_poll -> ScheduleIo[label="set";style=dashed];
+  task_poll -> mio_register[label="set";style=dashed];
 
   {reader, writer} -> ctx[label="related to"; style=dashed;];
   waker_ref -> ctx [label="3.from_waker"];
