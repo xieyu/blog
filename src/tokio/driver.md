@@ -176,3 +176,95 @@ tokio中通过token将event和scheduleIO关联起来
 ```
 
 ![task-event-detail](./task-event-detail.svg)
+
+
+### 事件分发：dispatch
+
+``reactor::poll``调用``mio::poll``来轮询是否有事件发生，如果有事件发生，则从mio的event中取出token,
+
+然后调动dispatch, 调用相应的wake函数
+
+```rust
+//tokio-net/src/driver/reactor.rs
+
+    #[cfg_attr(feature = "tracing", tracing::instrument(level = "debug"))]
+    fn poll(&mut self, max_wait: Option<Duration>) -> io::Result<()> {
+        // Block waiting for an event to happen, peeling out how many events
+        // happened.
+        match self.inner.io.poll(&mut self.events, max_wait) {
+            Ok(_) => {}
+            Err(e) => return Err(e),
+        }
+
+        // Process all the events that came in, dispatching appropriately
+
+        // event count is only used for  tracing instrumentation.
+        #[cfg(feature = "tracing")]
+        let mut events = 0;
+
+        for event in self.events.iter() {
+            #[cfg(feature = "tracing")]
+            {
+                events += 1;
+            }
+            let token = event.token();
+            trace!(event.readiness = ?event.readiness(), event.token = ?token);
+
+            if token == TOKEN_WAKEUP {
+                self.inner
+                    .wakeup
+                    .set_readiness(mio::Ready::empty())
+                    .unwrap();
+            } else {
+                self.dispatch(token, event.readiness());
+            }
+        }
+
+        trace!(message = "loop process", events);
+
+        Ok(())
+    }
+```
+```rust
+    fn dispatch(&self, token: mio::Token, ready: mio::Ready) {
+        let aba_guard = token.0 & !MAX_SOURCES;
+        let token = token.0 & MAX_SOURCES;
+
+        let mut rd = None;
+        let mut wr = None;
+
+        // Create a scope to ensure that notifying the tasks stays out of the
+        // lock's critical section.
+        {
+            let io_dispatch = self.inner.io_dispatch.read();
+
+            let io = match io_dispatch.get(token) {
+                Some(io) => io,
+                None => return,
+            };
+
+            if aba_guard != io.aba_guard {
+                return;
+            }
+
+            io.readiness.fetch_or(ready.as_usize(), Relaxed);
+
+            if ready.is_writable() || platform::is_hup(ready) {
+                wr = io.writer.take_waker();
+            }
+
+            if !(ready & (!mio::Ready::writable())).is_empty() {
+                rd = io.reader.take_waker();
+            }
+        }
+
+        if let Some(w) = rd {
+            w.wake();
+        }
+
+        if let Some(w) = wr {
+            w.wake();
+        }
+    }
+}
+```
