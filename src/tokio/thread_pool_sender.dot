@@ -1,0 +1,29 @@
+//
+// thread_pool_sender.dot
+//
+// Created on 07-10-2019 by xieyu
+//
+digraph thread_pool_sender {
+  rankdir=LR;
+  newrank=true;
+  node[shape=box;style=rounded];
+
+  subgraph cluster_sender {
+    label="sender"
+    spawn -> prepare_for_spawn;
+  }
+
+  subgraph cluster_task {
+    label="task"
+    task_new[label="new"];
+  }
+
+  subgraph cluster_pool {
+    label="pool"
+    submit_external;
+    state[shape=egg;style=filled;color=gray80];
+  }
+
+  spawn -> {submit_external, task_new};
+  prepare_for_spawn -> state;
+}

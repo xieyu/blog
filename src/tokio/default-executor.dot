@@ -1,0 +1,23 @@
+//
+// default-executor.dot
+//
+// Created on 07-10-2019 by xieyu
+//
+digraph defaultexecutor {
+  node[shape=box;style=rounded];
+  rankdir=LR;
+
+  subgraph cluster_executor{
+    label="DefaultExecutor";
+    spawn;
+    with_current;
+  };
+
+  tokio_spawn[label="tokio::spawn"];
+  tokio_spawn -> spawn -> with_current;
+  EXECUTOR[shape=egg;style="filled";fillcolor=gray80;label="Thread local var\n EXECUTOR"];
+  with_current -> EXECUTOR[style=dashed;];
+  Sender_spawn[label="sender::spawn"];
+  TaskExecutor_spawn[label="TaskExecutor::spawn"];
+  EXECUTOR -> {Sender_spawn, TaskExecutor_spawn};
+}

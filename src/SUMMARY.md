@@ -39,5 +39,6 @@
     - [skiplist](./leveldb/skiplist.md)
 
 - [tokio](./tokio/index.md)
+    - [Executor](./tokio/executor.md)
     - [thread pool](./tokio/thread-pool.md)
     - [driver](./tokio/driver.md)

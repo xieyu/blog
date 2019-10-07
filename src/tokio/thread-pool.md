@@ -28,3 +28,7 @@ task 从spawn到最后run的过程：
 worker在sleep时候，会把自己push到pool的sleep_stack上, entry中的park/unpark负责线程的sleep和wake.
 
 ![worker sleep](./worker-sleep.svg)
+
+### worker run
+
+![worker-run](./worker-run.svg)
