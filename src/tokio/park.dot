@@ -1,0 +1,38 @@
+digraph park {
+  node[shape=box;style="rounded"];
+  newrank=true;
+  rankdir=TD;
+  subgraph cluster_executor {
+    graph[label="executor";fontsize=20;style=rounded]
+    ParkThread
+  }
+
+  subgraph cluster_trait {
+    graph[label="trait";fontsize=20;]
+    Park [
+      shape="record";
+      label="{
+        trait Park  |
+        park \l
+        park_timeout \l
+        unpark \l
+      }";
+    ]
+  }
+
+  subgraph cluster_driver{
+    graph[label="Driver";fontsize=20;style=rounded]
+    Reactor;
+  }
+
+  subgraph cluster_timer {
+    graph[label="timer";fontsize=20;style=rounded]
+  }
+
+  subgraph cluster_threadpool {
+    graph[label="threadpool";fontsize=20;style=rounded]
+    DefaultPark
+  }
+
+  {DefaultPark, Reactor, ParkThread} -> Park;
+}

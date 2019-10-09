@@ -46,6 +46,24 @@ current thread executor 是单线程的executor。task spwan和execute是在同�
 
 代码中Entered和Borrow的作用是干啥的不太明白，感觉这块代码有点绕.
 
+Entered和Borrow定义如下:
+```rust
+/// A `CurrentThread` instance bound to a supplied execution context.
+pub struct Entered<'a, P: Park> {
+    executor: &'a mut CurrentThread<P>,
+}
+```
+
+```rust
+/// This is mostly split out to make the borrow checker happy.
+struct Borrow<'a, U> {
+    id: u64,
+    scheduler: &'a mut Scheduler<U>,
+    num_futures: &'a atomic::AtomicUsize,
+}
+```
+
+
 ![current-thread-executor](./current-thread-executor.svg)
 
 ### thread pool sender
