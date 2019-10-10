@@ -17,3 +17,7 @@ allows embedding custom functionality to perform when the thread is blocked.
 ### Thread pool default park
 
 ![threadpool_default_park](./threadpool_default_park.svg)
+
+### ParkThread
+
+![park-thread](./park-thread.svg)

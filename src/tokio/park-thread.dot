@@ -1,0 +1,67 @@
+digraph parkthread {
+  node[shape=box;style="rounded"];
+  newrank=true;
+  rankdir=TD;
+
+  subgraph cluster_park {
+    graph[label="park";fontsize=20;];
+    unpark;
+    park;
+    park_timeout;
+  }
+  subgraph cluster_ParkThread {
+    graph[label="ParkThread";fontsize=20;];
+    Inner[
+      shape="record";
+      label="{
+        Inner|
+        <park> + park \l|
+        <unparker> + unparker\l|
+        <park_timeout> + park_timeout \l|
+        state\l|
+        mutex\l|
+        condvar\l|
+      }";
+    ];
+    ParkThread [
+      shape="record";
+      label="{
+        ParkThread |
+        <with_current> + with_current \l|
+        <park> + park \l|
+        <park_timeout> + park \l|
+        <unpark> + unpark \l|
+        <unparker> unparker \l
+      }";
+    ];
+
+    subgraph cluster_Inner {
+      graph[label="Inner";fontsize=18;];
+      mutex;
+      condvar;
+      inner_park[label="park"];
+      inner_park -> mutex[label="lock"];
+    }
+    pt_park[label="park"];
+    pt_park_timeout[label="park_timeout"];
+    pt_unpark[label="unpark"];
+    pt_with_current[label="with_current"];
+    {pt_park, pt_park_timeout, pt_unpark} -> pt_with_current -> CURRENT_PARKER;
+
+    pt_park -> Inner:park;
+    pt_park_timeout -> Inner:park_timeout;
+    pt_unpark -> Inner:unparker;
+    pt_unpark -> UnparkThread;
+    UnparkThread[
+      shape="record";
+      label="{
+        UnparkThread|
+        <inner> inner \l
+      }";
+    ];
+    UnparkThread:inner -> Inner:unparker;
+  }
+  park -> pt_park;
+  park_timeout -> pt_park_timeout;
+  unpark -> pt_unpark;
+}
