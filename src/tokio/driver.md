@@ -17,6 +17,7 @@ task和mio event通过token 建立关系，回调函数waker通过过Context包�
 
 ## 主要数据结构
 
+![reactor-park-struct](./reactor-park-struct.svg)
 
 ``reactor::inner``中的``io_dispatch``表，用于记录事件token到ScheduleIO的一个映射关系.
 

@@ -1,0 +1,15 @@
+digraph reactor_park_struct {
+  node[shape=box;style="rounded"];
+  newrank=true;
+  rankdir=LR;
+
+  Reactor [
+    shape="record";
+    label="{{
+      Reactor |
+      events: mio::Events\l|
+      inner: Arc<Inner>|
+      _wakeup_registration
+    }}";
+  ]
+}
