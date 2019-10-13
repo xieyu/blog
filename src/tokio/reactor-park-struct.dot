@@ -44,9 +44,18 @@ digraph reactor_park_struct {
     shape="record";
     label="{{
       ScheduleIo|
-      readiness: AtomicUsize\l
-      reader: AtomicWaker\l
-      writer: AtomicWaker\l
+      readiness: AtomicUsize\l|
+      <r>reader: AtomicWaker\l|
+      <w>writer: AtomicWaker\l|
+    }}";
+  ]
+
+  AtomicWaker [
+    shape="record";
+    label="{{
+      AtomicWaker |
+      state: AtomicUsize\l|
+      waker: CausalCell\<Option\<Waker\>\>\l
     }}";
   ]
 
@@ -54,4 +63,5 @@ digraph reactor_park_struct {
   HandlePriv:inner -> Inner[label="Weak"];
   Reactor:inner -> Inner[label="Arc"];
   Inner:scheduleio -> ScheduleIo[label="Rwlock\<Slab\>"];
+  {ScheduleIo:r, ScheduleIo:w} -> AtomicWaker;
 }
