@@ -1,0 +1,62 @@
+digraph split {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  ReadHalf[shape="record";
+    label="{{
+      ReadHalf|
+        <i> inner: Arc\<Inner\<T\>\>\l|
+        <poll_read> + poll_read \l|
+        <poll_read_buf> + poll_read_buf \l
+    }}";
+  ];
+
+  WriteHalf[shape="record";
+    label="{{
+      WriteHalf|
+       <i> inner: Arc\<Inner\<T\>\>\l|
+        + poll_write_buf\l|
+        + poll_write\l|
+        + poll_flush\l|
+        + poll_shutdown\l
+    }}";
+  ];
+
+  Inner [shape="record";
+    label="{{
+      Inner |
+        locked: AtomicBool\l|
+        <s> stream: UnsafeCell\<T\>|
+        <poll_lock> +poll_lock\l|
+        <stream_pin> +stream_pin\l
+    }}";
+  ];
+
+  Guard [shape="record";
+    label="{{
+      Guard |
+        <i> inner: &'a Inner\<T\>\l
+    }}";
+  ]
+
+  Stream[shape="record";
+    label="{{
+      Stream|
+        + poll_read\l|
+        + poll_read_buf\l|
+        + poll_write_buf\l|
+        + poll_write\l|
+        + poll_flush\l|
+        + poll_shutdown\l
+    }}";
+  ]
+
+
+  ReadHalf:i -> Inner[label="Arc"];
+  WriteHalf:i -> Inner[label="Arc"];
+  Inner:s -> Stream[label="UnsafeCell"];
+  Guard:i -> Inner;
+
+  ReadHalf:poll_read -> {Inner:poll_lock, Inner:stream_pin};
+}

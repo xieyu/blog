@@ -39,9 +39,6 @@ This trait inherits from std::io::Read and indicates that an I/O object is non-b
 
 ![tcp_stream](./tcp_stream.svg)
 
-
-
-
 ## Split
 
 Split a single value implementing `AsyncRead + AsyncWrite` into separate
@@ -138,11 +135,6 @@ where
 }
 ```
 
-## Transport
-
-Codec
-
-This is often known as “framing”: instead of viewing your connections as consisting of just bytes in/bytes out, you view them as “frames” of application data that are received and sent. A framed stream of bytes is often referred to as a “transport”.
 
 
 ### buf reader/writer/sream
