@@ -1,0 +1,24 @@
+probe process("/lib/x86_64-linux-gnu/libc.so.6").function("malloc").return {
+  if (target() == pid()) {
+    printf("malloc: %p , bytes %d\n", $return, $bytes)
+    print_ubacktrace();
+  }
+}
+
+probe process("/lib/x86_64-linux-gnu/libc.so.6").function("free"){
+  if (target() == pid()) {
+    printf("free: %p\n", $mem);
+    print_ubacktrace();
+  }
+}
+
+probe process("/codes/xieyu/blog/src/stp/leakExample").function("fb") {
+  if (target() == pid()) {
+    printf("call of fb\n");
+    print_ubacktrace();
+  }
+}
+
+probe begin {
+  println("start detec")
+}

@@ -1,0 +1,31 @@
+digraph logcal_xor {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_bulitin_op {
+    graph[label="bulitin_op.rs";fontsize=20;]
+    logcal_xor;
+  }
+
+  subgraph cluster_scalar_function {
+    graph[label="scalar_function.rs";fontsize=20;]
+    LogicalXor;
+  }
+
+  LogicalXor -> logcal_xor [label="dispatch_call!"];
+
+  subgraph cluster_expr_mod {
+    graph[label="expr/mod.rs";fontsize=20;]
+    
+    ScalarFunc [shape="record";
+      label="{{
+        struct ScalarFunc |
+          <sig> sig\l
+      }}";
+    ];
+  }
+
+  ScalarFunc:sig -> LogicalXor;
+
+}

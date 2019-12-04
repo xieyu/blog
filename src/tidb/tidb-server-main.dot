@@ -1,0 +1,87 @@
+digraph tidb_main_server {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_main {
+    graph[label="tidb-server/main.go";fontsize=20;];
+    main ->{
+      syncLog;
+      cleanup;
+      runServer;
+      createServer;
+      createStoreAndDomain;
+      setupMetrics;
+      setGlobalVars;
+      overrideConfig;
+      loadConfig;
+      registerMetrics;
+      registerStores;
+    };
+  };
+  runServer -> server_Run;
+
+  subgraph cluster_server {
+    graph[label="server/server.go";fontsize=20;];
+    subgraph cluster_forloop {
+      graph[label="loop\l Accept新连接，并启动goroutine \l运行onConn处理该连接";fontsize=20;]
+      onConn;
+      newConn;
+      listener_Accept[label="listener.Accept"];
+      plugin_ForeachPlugin[label="plugin.ForeachPlugin"];
+    }
+    server_Run[label="Run"];
+    server_Run -> onConn[label="go routine"];
+    server_Run -> {
+      newConn;
+      listener_Accept;
+      plugin_ForeachPlugin;
+    };
+  };
+
+  onConn -> conn_Run;
+  subgraph cluster_session {
+    graph[label="session/session.go";fontsize=20;]
+    session_Execute[label="Execute"];
+  }
+
+  subgraph cluster_tidb {
+    graph[label="server/driver_tidb.go";fontsize=20;]
+    ctx_Execute[label="TiDBContext.Execute"];
+  }
+  ctx_Execute -> session_Execute;
+
+  subgraph cluster_conn {
+    graph[label="server/conn.go";fontsize=20;]
+    conn_Run[label="Run"];
+    subgraph cluster_con_forloop {
+      graph[label="loop\l读取pack并dispatch\l处理数据包";fontsize=20;]
+      dispatch[lable="dispatch\l 根据data[0] 做分发"];
+      writeError;
+      readPacket[label="readPacket\l读取网络请求包"];
+    };
+    conn_Run -> {
+      dispatch;
+      writeError;
+      readPacket;
+    };
+
+    dispatch -> {
+      handleQuery;
+      handleFieldList;
+      handleStmtPrepare;
+      handleStmtExecute;
+      handleStmtClose;
+      handleChangeUser;
+      handleSetOption;
+      handleStmtSendLongData;
+    };
+    writeResultset[label="writeResultset\l 调用ResultSet Next获取结果"];
+
+    handleQuery -> {
+      ctx_Execute;
+      writeResultset;
+      writeMultiResultset;
+    };
+  }
+}

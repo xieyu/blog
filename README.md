@@ -1,5 +1,9 @@
 ## 个人技术博客 [ghpage](https://xieyu.github.io/blog/)
 
+### TiDB
+
+- [TiDB Server Main Loop](./src/tidb/main.md)
+
 
 ### Tokio code 阅读系列
 
