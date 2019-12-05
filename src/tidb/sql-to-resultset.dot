@@ -1,0 +1,13 @@
+digraph sql_to_resultset {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  SQLString[label="SQL string"];
+  StmtNode [label="[]ast.StmtNode"];
+  recordSet[label="sqlexec.RecordSet"];
+
+  SQLString -> StmtNode[label="session.ParseSQL\l词法语法分析"];
+  StmtNode -> ExecStmt[label="compiler.Compile\l指定查询计划以及优化器"];
+  ExecStmt -> recordSet[label="session.executeStatment\l生成执行器"];
+}

@@ -1,0 +1,77 @@
+digraph sql_plan {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_executor {
+    graph[label="executor/compiler.go";fontsize=20;];
+    Compile[label="Compile\l制定查询计划以及优化"];
+  }
+  subgraph cluster_plan {
+    graph[label="planer";fontsize=20;];
+
+    Preprocess[label="Preprocess\l一些合法性检查以及名字绑定"];
+    Optimize[label="Optimize\l制定查询计划并优化"];
+    Optimize -> {
+      TryFastPlan;
+      optimize;
+      GenHintsFromPhysicalPlan;
+      BindHint;
+    };
+    optimize -> DoOptimize;
+    DoOptimize -> {
+      logicalOptimize;
+      physicalOptimize;
+      postOptimize;
+    };
+    physicalOptimize[label="physicalOptimize\l物理优化"];
+    logicalOptimize[label="logicalOptimize\l遍历optRuleList\l调用相应优化方法"];
+    rule_optimize[label="rule.optimize\l基于规则的优化"];
+
+    logicalOptimize->rule_optimize;
+    rule_optimize -> {
+      columnPruner;
+      buildKeySolver;
+      decorrelateSolver;
+      aggregationEliminator;
+      projectionEliminator;
+      maxMinEliminator;
+      ppdSolver;
+      outerJoinEliminator;
+      partitionProcessor;
+      aggregationPushDownSolver;
+      pushDownTopNOptimizer;
+    };
+    task_plan[label="plan"];
+    task_cost[label="cost"];
+
+    physicalOptimize -> {
+      recursiveDeriveStats;
+      findBestTask;
+      preparePossibleProperties;
+      task_plan;
+      task_cost;
+    };
+    findBestTask[label="findBestTask\lconvert the logicalplan \lto physicalplan"];
+
+    findBestTask -> {
+      LogicalShow;
+      LogicalTableDual;
+      LogcalShowDDLJobs;
+      DataSource;
+      LogicalMemTable;
+      baseLogcalPlan;
+    };
+
+    postOptimize -> {
+      eliminatePhysicalProjection;
+      injectExtraProjection;
+    };
+  }
+
+  Compile -> {
+    Preprocess;
+    Optimize;
+  }
+
+}
