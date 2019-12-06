@@ -1,0 +1,91 @@
+digraph sql_executor {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_executor {
+    graph[label="executor";fontsize=20;];
+    Compile[label="Compile\l制定查询计划以及优化"];
+  };
+
+  subgraph cluster_sort {
+    graph[label="executor/sort.go";fontsize=20;];
+    SortExec;
+  }
+  subgraph cluster_projection {
+    graph[label="executor/projection";fontsize=20;];
+    ProjectionExec;
+  }
+
+  subgraph cluster_executor_builder {
+    graph[label="executor/builder.go";fontsize=20;];
+    subgraph cluster_executorBuilder {
+      graph[label="executorBuilder";fontsize=20;];
+      build[label="build\l根据plan类型创建相应Executor"];
+      build -> {
+        buildChange;
+        buildCheckTable;
+        buildDDL;
+        buildExecute;
+        buildExplain;
+        buildHashJoin;
+        buildHashAgg;
+        buildMemTable;
+        buildProjection;
+        buildSelection;
+        buildIndexReader;
+        buildApply;
+        buildInsert;
+        buildSort;
+      };
+      buildProjection -> ProjectionExec;
+      buildInsert -> InsertExec;
+      buildSelection -> SelectExec;
+      buildSort -> SortExec;
+    };
+  }
+  subgraph cluster_executor {
+    graph[label="executor/executor.go";fontsize=20;];
+    Next;
+  }
+
+  subgraph cluster_executor_adapter {
+    graph[label="executor/adapter.go";fontsize=20;];
+    subgraph cluster_ExecStmt {
+      graph[label="ExecStmt";fontsize=20;];
+      Exec -> {
+        buildExecutor;
+        handleNoDelay;
+      };
+
+      handleNoDelay -> handleNoDelayExecutor;
+      handleNoDelayExecutor -> Next;
+      buildExecutor -> {
+        newExecutorBuilder;
+        build;
+      };
+    }
+  }
+
+  subgraph cluster_session {
+    graph[label="session";fontsize=20;];
+    ParseSQL[label="ParseSQL\lyy parser做SQL词法语法分析"];
+    execute -> {
+      ParseSQL;
+      Compile;
+      executeStatement;
+    };
+
+    executeStatement -> runStmt;
+
+    runStmt -> {
+      Exec;
+      Txn;
+      StmtRollback;
+      checkTxnAborted;
+      StmtCommit;
+      finishStmt;
+    };
+  }
+
+}

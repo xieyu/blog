@@ -66,3 +66,18 @@ TiDB中SQL执行过程如下
 
 ![sql-plan](./sql-plan.svg)
 
+### SQL build executor
+
+根据plan生成相应的executor
+
+![sql-executor](./sql-executor.svg)
+
+
+### executor Next
+
+#### handleNoDelay
+
+不需要返回结果的立即执行
+![sql-nodelay-next](./sql-nodelay-next.svg)
+
+#### RecordSet driver
