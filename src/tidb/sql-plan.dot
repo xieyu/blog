@@ -12,13 +12,36 @@ digraph sql_plan {
 
     Preprocess[label="Preprocess\l一些合法性检查以及名字绑定"];
     Optimize[label="Optimize\l制定查询计划并优化"];
+    PlanBuilder_Build[label="PlanBuilder.Build\l将astNode转换为LogicalPlan"]
     Optimize -> {
       TryFastPlan;
       optimize;
       GenHintsFromPhysicalPlan;
       BindHint;
     };
+    DoOptimize[label="DoOptimize\l基于规则和cost优化"];
     optimize -> DoOptimize;
+    optimize -> PlanBuilder_Build;
+    PlanBuilder_Build-> {
+      buildAdmin;
+      buildLoadData;
+      buildExplain;
+      buildSelect;
+      buildInsert;
+      buildUpdate;
+      buildDelete;
+      buildDo;
+    };
+
+    buildSelect -> {
+      buildResultSetNode;
+      buildJoin;
+      buildLimit;
+      buildSort;
+      buildProjection;
+      buildDataSource;
+    };
+
     DoOptimize -> {
       logicalOptimize;
       physicalOptimize;
