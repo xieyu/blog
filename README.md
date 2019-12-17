@@ -3,6 +3,7 @@
 ### TiDB
 
 - [TiDB Server Main Loop](./src/tidb/main.md)
+- [TiDB Plan](./src/tidb/plan.md)
 
 
 ### Tokio code 阅读系列

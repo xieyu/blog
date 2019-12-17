@@ -1,0 +1,80 @@
+digraph join_to_physical_plan {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  findBestTask -> exhaustPhysicalPlans;
+  exhaustPhysicalPlans -> {
+    getHashJoins;
+    tryToGetIndexJoin;
+    getMergeJoin;
+  }
+  getHashJoin[label="getHashJoin\l(prop, innerIdx, useOuterToBuild)\l根据join类型选择不同参数"];
+  getHashJoins -> getHashJoin;
+  getHashJoin -> NewPhysicalHashJoin;
+  NewPhysicalHashJoin -> { PhysicalHashJoin; }
+
+  getMergeJoin -> { PhysicalMergeJoin; }
+  tryToGetIndexJoin -> {
+    getIndexJoinByOuterIdx;
+  }
+
+  getIndexJoinByOuterIdx -> {
+    buildIndexJoinInner2TableScan;
+    buildIndexJoinInner2IndexScan;
+  }
+  buildIndexJoinInner2TableScan -> {
+    constructIndexJoin;
+    constructIndexHashJoin;
+    constructInnerTableScanTask;
+  }
+
+  buildIndexJoinInner2IndexScan -> {
+    constructIndexJoin;
+    constructInnerIndexScanTask;
+    constructIndexMergeJoin;
+    constructIndexHashJoin;
+  };
+
+  constructIndexJoin -> PhysicalIndexJoin;
+  constructInnerIndexScanTask -> PhysicalIndexScan;
+  constructIndexMergeJoin -> {
+    constructIndexJoin;
+    PhysicalIndexMergeJoin;
+  }
+
+  constructInnerTableScanTask -> {
+    PhysicalTableScan;
+    constructInnerUnionScan;
+  }
+
+  constructInnerUnionScan -> {
+    PhysicalUnionScan;
+  }
+
+  constructIndexHashJoin -> {
+    constructIndexJoin;
+    PhysicalIndexHashJoin;
+  }
+  subgraph cluster_physicalPlan {
+    graph[label="physicalPlan";fontsize=20;];
+    {
+      rank=same;
+      PhysicalUnionScan;
+      PhysicalTableScan;
+      PhysicalIndexScan;
+      PhysicalMergeJoin;
+      PhysicalHashJoin[fillcolor=gray];
+      PhysicalIndexHashJoin;
+      PhysicalIndexJoin;
+      PhysicalIndexMergeJoin;
+    }
+  }
+
+  {
+    rank=same;
+    getHashJoins;
+    tryToGetIndexJoin;
+    getMergeJoin;
+  }
+
+}
