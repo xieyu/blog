@@ -4,6 +4,7 @@
 
 - [TiDB Server Main Loop](./src/tidb/main.md)
 - [TiDB Plan](./src/tidb/plan.md)
+- [TiDB Hasjoin draft](./src/tidb/hash-join.md)
 
 
 ### Tokio code 阅读系列

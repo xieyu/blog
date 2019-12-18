@@ -31,6 +31,7 @@
   - [TiDB Server Main Loop](./tidb/main.md)
   - [TiDB Schema](./tidb/schema.md)
   - [TiDB Plan](./tidb/plan.md)
+  - [TiDB Hash Join](./tidb/hash-join.md)
 
 - [tokio](./tokio/index.md)
     - [Executor](./tokio/executor.md)
