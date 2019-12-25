@@ -7,7 +7,7 @@
 
 ### Specifying System
 
-- [基本定义概念整理](./src/specify-systems/basic-concepts.md)
+- [基本定义概念整理](./src/specifying-systems/basic-concepts.md)
 
 
 ## 代码阅读笔记
