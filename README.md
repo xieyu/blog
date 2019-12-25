@@ -5,6 +5,10 @@
 ### Design Data Intensive Application
 - [Consistency And Consensus](./src/ddia/consistency-and-consensus.md)
 
+### Specifying System
+
+- [基本定义概念整理](./src/specify-systems/basic-concepts.md)
+
 
 ## 代码阅读笔记
 ### TiDB
