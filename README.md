@@ -4,6 +4,7 @@
 
 ### Design Data Intensive Application
 - [Consistency And Consensus](./src/ddia/consistency-and-consensus.md)
+- [Transactions](./src/ddia/transactions.md)
 
 ### Specifying System
 
