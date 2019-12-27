@@ -1,0 +1,72 @@
+digraph mosthread {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  proc_main[shape="record";
+    label="{{
+      proc_main|
+        runtime.main\l
+    }}";
+  ];
+  startm[shape="record";
+    label="{{
+      startm|
+        // Schedules some M \l 
+        to run the p (creates \l
+        an M if necessary).
+    }}";
+  ];
+  newm[shape="record";
+    label="{{
+      newm|
+        创建一个新的m\l
+    }}";
+  ];
+  newosproc[shape="record";
+    label="{{
+      newosproc|
+        linux\l
+    }}";
+  ];
+  clone[
+    fillcolor="#f38181";
+    style=filled;
+    label="clone"
+  ];
+  mget[shape="record";
+    label="{{
+      mget|
+        从sched空闲队列\l中获取一个\l
+    }}";
+  ];
+  newm -> {
+    allocm;
+    newvm1;
+    notewakeup;
+  };
+  newvm1 -> {
+    newosproc;
+  }
+  newosproc -> clone[label="入口mstart"];
+  clone -> mstart[style=dashed;label="新线程入口"];
+  mstart -> mstart1 -> {
+    mstartfn;
+    schedule;
+  };
+
+  allocm -> {
+    acquirem;
+    acquirep;
+    mcommoninit;
+  };
+
+  proc_main -> newm[label="执行sysmon go routine"];
+  startm -> {
+    newm;
+    mget;
+  };
+  wakep -> startm;
+  handoffp -> startm;
+  injectglist -> startm;
+  sysmon -> startm;
+}

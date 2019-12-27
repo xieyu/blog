@@ -12,6 +12,10 @@
 
 
 ## 代码阅读笔记
+### Golang
+
+- [Runtime PGM调度模型](./src/golang/pgm.md)
+
 ### TiDB
 
 - [TiDB Server Main Loop](./src/tidb/main.md)
@@ -26,3 +30,13 @@
   - [thread pool runtime](./src/tokio/thread-pool.md) tokio 使用了crossbeam中的Queue, Stealer, Worker等来实现线程池。采用work steal机制来保证任务均匀分配。
 - [Driver: mio事件驱动](./src/tokio/driver.md) Driver 在io event事件触发后，唤醒等待的task。
 - [Io: async read/write 等抽象](./src/tokio/io.md)
+
+### Tensorflow
+
+- [Executor: 执行Computation Sub Graph](./src/tensorflow/executor.md)
+    - [SubGraph预处理：Node/NodeItem/TaggedNode](./src/tensorflow/executor-subgraph-preprocess.md)
+    - [Flow control op: switch/merge/enter/exit/nextIteration](./src/tensorflow/flow-control-op.md)
+    - [Frame: ControlFlowInfo/FrameInfo/FrameState/IterationState](./src/tensorflow/executor-frame.md)
+- [DirectSession: 单机执行computation graph](./tensorflow/direct-session.md)
+- [RendezVous：跨设备，跨主机通信](./tensorflow/rendezvous.md)
+- [Device：计算单元抽象(CPU/GPU)](./tensorflow/device.md)

@@ -27,6 +27,9 @@
   - [jvm的初始化时创建的线程](./java/hotspot-thread-created-when-init.md)
   - [class文件的加载和执行](./java/hotspot-class-file-load-and-run.md)
 
+- [Go](./golang/index.md)
+  - [Runtime PGM调度模型](./golang/pgm.md)
+
 - [TiDB](./tidb/index.md)
   - [TiDB Server Main Loop](./tidb/main.md)
   - [TiDB Schema](./tidb/schema.md)

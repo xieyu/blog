@@ -69,6 +69,8 @@ the database remembers both the old committed value and the new vlaue set by the
 
 ### Snapshot Isolation and Repeatable Read
 
+each transaction reads from the consistent snapshot of database, that is, the transaction sees all the data 
+
 #### Read skew(nonrepeatable read)
 
 在转账过程中，短暂的不一致问题, 无法容忍短暂不一致的场景

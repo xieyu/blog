@@ -1,0 +1,65 @@
+digraph pgm {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  m[shape="record";
+    label="{{
+      m: Woker OS线程|
+       g0 *g \l|
+       morebuf gobuf\l|
+       <g> curg *g\l|
+       <p> p puintptr\l
+    }}";
+  ];
+
+  p[shape="record";
+    label="{{
+      p|
+        field \l
+    }}";
+  ];
+
+  g[shape="record";
+    label="{{
+      g: 代表一个goroutine|
+        <stack> stack stack\l|
+        m *m\l|
+        gopc uintptr\l|
+        <startpc> startpc uintptr\l
+    }}";
+  ];
+
+  p[shape="record";
+    label="{{
+      p|
+        status \l|
+        m muintptrs;\l|
+        内存相关\l
+        mcache *mache;\l
+        mspancache struct \{len int buf[128]*mspan\}\l|
+        local队列:\l
+        runq [256]guintptr]\l
+        runhead uint32;\l
+        runtail uint32;\l
+    }}";
+  ];
+  stack[shape="record";
+    label="{{
+      stack|
+        lo uintptr\l|
+        hi uintptr\l
+    }}";
+  ];
+
+  gofn[shape="record";
+    label="{{
+      go func()\{..\}|
+        goroutine函数\l
+    }}";
+  ];
+
+  m:p -> p[label="acquirep/handoffp"];
+  m:g -> g;
+  g:stack -> stack;
+  g:startpc -> gofn[label="在newproc中设置"];
+}
