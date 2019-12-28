@@ -1,0 +1,11 @@
+digraph proc_status {
+  node[shape=circle];
+  newrank=true;
+  rankdir=LR;
+  _Pgstop -> _Pidle;
+  _Pidle -> _Pgstop;
+  _Pidle -> _Prunning;
+  _Prunning -> _Pidle;
+  _Prunning -> _Psyscall;
+  _Psyscall -> _Pdead;
+}

@@ -26,5 +26,14 @@ Golang中的PGM采用类似于tokio的thread pool executor.  采用了worksteal�
 
 ![m-os-thread](./m-os-thread.svg)
 
+## Status
+
+### Goroutine
+
+![goroutine-status](./goroutine-status.svg)
+
+### Proc
+
+![proc-status](./proc-status.svg)
 
 ## sysmon
