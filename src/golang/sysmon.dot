@@ -2,6 +2,19 @@ digraph sysmon {
   node[shape=box];
   newrank=true;
   rankdir=LR;
+  retake[shape="record";
+    label="{{
+      retake|
+        遍历allp,对符合\l条件的调用preemptone\l
+    }}";
+  ];
+  preemptone[shape="record";
+    label="{{
+      preemptone|
+        gp.statckguard0 = stackPreempt\l
+        gp.preempt = true\l
+    }}";
+  ];
   subgraph cluster_sysmon {
     graph[label="sysmon线程启动";fontsize=20;];
     runtime_main -> newm [label="创建m线程执行"];
@@ -15,7 +28,7 @@ digraph sysmon {
     graph[label="forloop";fontsize=20;];
     notesleep;
     noteclear;
-    retak;
+    retake;
     osRelax;
     subgraph cluster_netpoll {
       graph[label="netpoll";fontsize=20;];
@@ -26,16 +39,25 @@ digraph sysmon {
   fn_sysmon -> {
     notesleep;
     noteclear;
-    retak;
+    retake;
     netpoll;
     injectglist;
     osRelax;
   }
 
-  retak -> {
+  retake -> {
     handoffp;
     preemptone;
   }
+  preemptone -> preemptM;
+  preemptM -> signalM[label="unix"];
+  signalM[shape="record";
+    label="{{
+      signalM|
+        发送抢占\l信号给线程\l
+    }}";
+  ];
+  signalM -> tgkill[label="linux"];
   newm2[label="newm"];
   handoffp -> startm -> newm2;
 }
