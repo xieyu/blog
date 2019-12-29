@@ -17,12 +17,15 @@
 ## Work stealing scheduler
 
 Golang中的PGM采用类似于tokio的thread pool executor.  采用了worksteal的形式, 一方面降低了对global队列的锁的竞争。
-
 另一方面每个G(go routine) 生成的go routine优先放到proc的local 队列里面，优先由同一个线程执行，比较好的增加了局部性。
 
 ![pgm-work-stealing](./pgm-work-stealing.svg)
 
-## m 线程创建
+## processor创建
+
+![processor](./processor.svg)
+
+## machine worker thread线程创建
 
 ![m-os-thread](./m-os-thread.svg)
 
@@ -37,3 +40,5 @@ Golang中的PGM采用类似于tokio的thread pool executor.  采用了worksteal�
 ![proc-status](./proc-status.svg)
 
 ## sysmon
+
+![sysmon](./sysmon.svg)

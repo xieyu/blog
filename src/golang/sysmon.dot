@@ -1,0 +1,41 @@
+digraph sysmon {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_sysmon {
+    graph[label="sysmon线程启动";fontsize=20;];
+    runtime_main -> newm [label="创建m线程执行"];
+    newm -> newm1 -> newosproc -> clone
+    clone -> mstart[label="新线程入口"];
+    mstart -> mstartfn;
+    mstartfn -> sysmon[label="即为"];
+  };
+  fn_sysmon[label="sysmon"]
+  subgraph cluster_forloop{
+    graph[label="forloop";fontsize=20;];
+    notesleep;
+    noteclear;
+    retak;
+    osRelax;
+    subgraph cluster_netpoll {
+      graph[label="netpoll";fontsize=20;];
+      netpoll;
+      injectglist;
+    }
+  }
+  fn_sysmon -> {
+    notesleep;
+    noteclear;
+    retak;
+    netpoll;
+    injectglist;
+    osRelax;
+  }
+
+  retak -> {
+    handoffp;
+    preemptone;
+  }
+  newm2[label="newm"];
+  handoffp -> startm -> newm2;
+}

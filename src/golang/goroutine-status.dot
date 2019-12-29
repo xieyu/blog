@@ -18,6 +18,8 @@ digraph goroutine_status {
   _Grunning -> _Grunnable[label="goschedImpl"];
   _Grunning -> _Gsyscall[label="reentersyscall"];
   _Grunning -> _Gsyscall[label="entersyscallblock"];
+  _Grunning -> _Gcopystack[label="newstack"];
+  _Gcopystack -> _Grunning[label="newstack"];
 
   //runnable
   _Grunnable -> _Grunning[label="execute"];
