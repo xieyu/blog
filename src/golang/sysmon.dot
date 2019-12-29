@@ -57,7 +57,16 @@ digraph sysmon {
         发送抢占\l信号给线程\l
     }}";
   ];
+  doSigPreempt[shape="record";
+    label="{{
+      doSigPreempt|
+        异步\l
+    }}";
+  ];
   signalM -> tgkill[label="linux"];
+  tgkill -> doSigPreempt[label="SIGUSR", style=dashed]
+  doSigPreempt -> {preemptPark, gopreempt_m}[label="mcall"];
+  {preemptPark, gopreempt_m} -> schedule[style=dashed];
   newm2[label="newm"];
   handoffp -> startm -> newm2;
 }
