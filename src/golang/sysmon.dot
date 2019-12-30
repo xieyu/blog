@@ -13,6 +13,8 @@ digraph sysmon {
       preemptone|
         gp.statckguard0 = stackPreempt\l
         gp.preempt = true\l
+        将会在newstack中\l 
+        配合该参数做协作调度\l
     }}";
   ];
   subgraph cluster_sysmon {
@@ -44,6 +46,12 @@ digraph sysmon {
     injectglist;
     osRelax;
   }
+  handoffp[shape="record";
+    label="{{
+      handoffp|
+        对于处于syscall的P\l
+    }}";
+  ];
 
   retake -> {
     handoffp;
