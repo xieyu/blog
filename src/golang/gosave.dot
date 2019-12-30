@@ -1,0 +1,19 @@
+digraph gosave {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  {
+    findrunnable;
+    newm1;
+    syscall_setenv_c;
+    cgocall;
+  }-> asmcgocall -> gosave;
+  schedule -> findrunnable;
+  startm -> newm -> newm1;
+  cgocall -> {
+    entersyscall;
+    exitsyscall;
+  }
+  entersyscall -> reentersyscall -> save;
+  exitsyscall -> mcall -> gogo;
+}
