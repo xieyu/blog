@@ -30,6 +30,7 @@
 - [Go](./golang/index.md)
   - [Runtime PGM调度模型](./golang/pgm.md)
   - [Goroutine Stack](./golang/goroutine-stack.md)
+  - [Memory分配](./golang/memory.md)
 
 - [TiDB](./tidb/index.md)
   - [TiDB Server Main Loop](./tidb/main.md)

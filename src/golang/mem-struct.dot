@@ -1,0 +1,87 @@
+digraph mem_struct {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  mheap[shape="record";
+    label="{{
+      mheap|
+        allspans []*mspan\l|
+        arenas [1 \<\< arenaL1Bits]*[1 \<\< arenaL2Bits]*heapArena\l|
+        arenaHints *arenaHint\l|
+        arena linearAlloc\l|
+        allArenas []arenaIdx\l|
+        central [numSpanClasses]struct \{\l
+          mcentral mcentral\l
+          ..
+        \}\l|
+        spanalloc fixalloc\l
+    }}";
+  ];
+
+  mspan[shape="record";
+    label="{{
+      mspan|
+        next *mspan\l|
+        prev *mspan\l|
+        startAddr uintptr\l|
+        npages    uintptr\l|
+        freeindex uintptr\l|
+        nelems uintptr\l|
+        allocCache uint64\l|
+        allocBits  *gcBits\l|
+        gcmarkBits *gcBits\l|
+        spanclass   spanClass\l
+    }}";
+  ];
+  mcache[shape="record";
+    label="{{
+      mcache|
+        tiny uintptr \l|
+        tinyoffset\l|
+        local_tinyallocs\l|
+        alloc [numSpanClasses]*mspan\l|
+        stackcache [NumStackOrders] stackfreelist\l|
+        local_largefree uintptr\l|
+        local_nlargefree uintptr\l|
+        local_nsmallfree [_NumSizeClasses]\l
+    }}";
+  ];
+  mcentral[shape="record";
+    label="{{
+      mcentral|
+        lock mutex\l|
+        spanclass spanClass\l|
+        nonempty mSpanList\l|
+        empty mSpanList\l|
+        nmalloc uint64\l
+    }}";
+  ];
+  mspanList[shape="record";
+    label="{{
+      mspanList|
+        first *mspan\l|
+        last *mspan\l
+    }}";
+  ];
+  p[shape="record";
+    label="{{
+      p|
+        mcache *mcache\l
+    }}";
+  ];
+  m [shape="record";
+    label="{{
+      m os worker线程|
+        mcache *mcache\l
+    }}";
+  ];
+
+  mheap -> mspan;
+  mcache -> mspan;
+  mcentral -> mspanList;
+  mspanList -> mspan;
+  mheap -> mcentral;
+  m -> p[label="acquirep 绑定"];
+  p -> mcache;
+}
