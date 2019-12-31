@@ -16,6 +16,7 @@
 
 - [Runtime PGM调度模型](./src/golang/pgm.md)
 - [Goroutine stack](./src/golang/goroutine-stack.md)
+- [Go 内存分配](./src/golang/memory.md)
 
 ### TiDB
 

@@ -73,7 +73,7 @@ digraph mspancreate {
     sysUsed;
   }
   subgraph cluster_linux{
-    graph[label="linxu";fontsize=20;];
+    graph[label="linux";fontsize=20;];
     mmap;
     madvise;
   }
