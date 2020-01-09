@@ -1,0 +1,134 @@
+digraph context_struct {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  Context[shape="record";
+    label="{{
+      Context 接口|
+        Deadline() (deadline time.Time, ok bool)\l |
+        Done() \<-chan struct\{\}\l|
+        Err() error\l|
+        Value(key interface\{\}) interface\{\}\l
+    }}";
+  ];
+  emptyCtx[shape="record";
+    label="{{
+      emptyCtx|
+      默认的ctx,\l 可作为顶层的ctx\l
+        type emptyCtx int\l
+    }}";
+  ];
+  cancelCtx[shape="record";
+    label="{{
+      cancelCtx|
+        Context\l|
+        mu sync.Mutex\l|
+        done chan struct\{\}\l|
+        children map[canceler]struct\{\}\l|
+        err error
+    }}";
+  ];
+
+  timerCtx[shape="record";
+    label="{{
+      timerCtx|
+        cancelCtx\l|
+        timer *time.Timer\l|
+        deadline time.Time\l
+    }}";
+  ];
+  valueCtx[shape="record";
+    label="{{
+      valueCtx|
+        Context \l|
+        key, val interface\{\}\l
+    }}";
+  ];
+  time_AfterFunc[shape="record";
+    label="{{
+      time.AfterFunc|
+        超时后调用cancel\l
+    }}";
+  ];
+  func_cancel[shape="record";
+    label="{{
+      func_cancel|
+        返回CancelFunc函数\l
+        func()\{c.cancel(true, Canceled);\}\l
+    }}";
+  ];
+  cancel[shape="record";
+    label="{{
+      cancel|
+       关闭done chan \l
+       并调用所有child的cancel\l|
+       cancel中加了检查，\l 
+       可以被调用多次\l
+    }}";
+  ];
+  close_done_chan[shape="record";
+    label="{{
+      close_done_chan|
+        关闭done chan，通知所有\l 
+        等待的goroutine\l
+        close(c.done)\l
+    }}";
+  ];
+  wait_done_go[shape="record";
+    label="{{
+      go routine|
+      等待ctx.Done的goroutine\l
+        select \{
+          case \<- ctx.Done():
+            return;
+        \}\l
+    }}";
+  ];
+
+  Background -> emptyCtx;
+  TODO -> emptyCtx;
+  emptyCtx -> Context[label="impl"];
+  cancelCtx -> Context;
+  valueCtx -> Context;
+  timerCtx -> cancelCtx;
+
+  WithTimeout -> WithDeadline;
+  WithDeadline -> {
+    WithCancel;
+    newCancelCtx;
+    time_AfterFunc;
+    timerCtx;
+    propagateCancel;
+    func_cancel;
+  }
+  WithValue -> {
+    valueCtx;
+  }
+  WithCancel -> {
+    newCancelCtx;
+    propagateCancel;
+  }
+
+  func_cancel -> cancel;
+  time_AfterFunc -> cancel;
+  cancel -> close_done_chan;
+  close_done_chan -> wait_done_go;
+  newCancelCtx -> cancelCtx;
+
+  {
+    rank=same;
+    WithCancel;
+    WithValue;
+    WithDeadline;
+    WithTimeout;
+    TODO;
+    Background;
+  }
+  {
+    rank=same;
+    emptyCtx;
+    cancelCtx;
+    valueCtx;
+  }
+
+}

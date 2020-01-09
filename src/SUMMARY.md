@@ -32,6 +32,7 @@
   - [Goroutine Stack](./golang/goroutine-stack.md)
   - [Memory分配](./golang/memory.md)
   - [GC](./golang/GC.md)
+  - [Context and waitgroup](./golang/context-wait-group.md)
 
 - [TiDB](./tidb/index.md)
   - [TiDB Server Main Loop](./tidb/main.md)

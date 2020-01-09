@@ -18,6 +18,7 @@
 - [Goroutine stack](./src/golang/goroutine-stack.md)
 - [Go 内存分配](./src/golang/memory.md)
 - [GC](./src/golang/GC.md)
+- [并发控制: Context and WaitGroup](./src/golang/context-wait-group.md)
 
 ### TiDB
 
