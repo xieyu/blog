@@ -19,7 +19,7 @@
 - [Go 内存分配](./src/golang/memory.md)
 - [GC](./src/golang/GC.md)
 - [Context](./src/golang/context.md)
-- [defer, panic, recover](./golang/defer-panic-recover.md)
+- [defer, panic, recover](./src/golang/defer-panic-recover.md)
 
 ### TiDB
 
