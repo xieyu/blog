@@ -33,6 +33,7 @@
   - [Memory分配](./golang/memory.md)
   - [GC](./golang/GC.md)
   - [Context](./golang/context.md)
+  - [defer-panic-recover](./golang/defer-panic-recover.md)
 
 - [TiDB](./tidb/index.md)
   - [TiDB Server Main Loop](./tidb/main.md)
