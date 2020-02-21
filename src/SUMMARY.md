@@ -41,6 +41,9 @@
   - [TiDB Plan](./tidb/plan.md)
   - [TiDB Hash Join](./tidb/hash-join.md)
 
+- [Kafka](./kafka/index.md)
+  - [Kafka produce and fetch](./kafka/kafka-produce-fetch.md)
+
 - [tokio](./tokio/index.md)
     - [Executor](./tokio/executor.md)
       - [Park](./tokio/park.md)

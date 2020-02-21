@@ -1,0 +1,90 @@
+digraph kafkaServer {
+  node[shape=box];
+  newrank=true;
+  rankdir=TD;
+  /*
+  KafkaServer -> {
+    BrokerState;
+    LogManager;
+    ReplicaManager;
+    GroupCoordinator;
+    KafkaController;
+    KafkaScheduler;
+    TransactionCoordinator;
+    MetadataCache;
+    QuotaManagers;
+    KafkaZkClient;
+  }*/
+  subgraph cluster_KafkaApi {
+    graph[label="KafkaApi";fontsize=20;];
+    handle -> {
+      handleProduceRequest;
+      handleFetchRequest;
+    }
+    handleFetchRequest -> {
+      fetchMessages;
+      processResponseCallback;
+    }
+    processResponseCallback -> createResponse -> maybeConvertFetchedData;
+    handleProduceRequest -> {
+      appendRecords;
+    }
+  }
+  subgraph cluster_channel {
+    graph[label="channel";fontsize=20;];
+    channel_write;
+  }
+
+  subgraph cluster_FileRecords {
+    graph[label="FileRecords";fontsize=20;];
+    FileRecords_append[label="append"];
+    FileRecords_slice[label="slice"];
+    FileRecords_append -> MemoryRecords_writeFullyTo -> channel_write;
+  }
+  subgraph cluster_Segment {
+    graph[label="LogSegment";fontsize=20;];
+    segment_append[shape="record";
+      label="{{
+        append
+      }}";
+    ];
+    segment_append -> {
+      FileRecords_append;
+      timeIndex_maybeAppend;
+      offsetIndex_append;
+    }
+    segment_read[label="read"];
+    segment_read -> {
+      FileRecords_slice;
+      translateOffset;
+    }
+  }
+
+  subgraph cluster_log {
+    graph[label="log";fontsize=20;];
+    appendAsLeader -> append -> segment_append; 
+    localLog_read[label="read"];
+    localLog_read -> segment_read;
+  }
+
+  subgraph cluster_Partition {
+    graph[label="Partition";fontsize=20;];
+    appendRecordsToLeader -> appendAsLeader;
+    partition_readRecords[label="readRecords"];
+    partition_readRecords -> localLog_read;
+    fetchOffsetSnapshot -> localLogWithEpochOrException -> getLocalLog;
+  }
+
+  subgraph cluster_ReplicaManager {
+    graph[label="ReplicaManager";fontsize=20;];
+    fetchMessages -> readFromLog -> readFromLocalLog -> read -> partition_readRecords;
+    appendRecords -> appendToLocalLog -> appendRecordsToLeader;
+    read -> {
+      getPartitionOrException;
+      findPreferredReadReplica;
+      fetchOffsetSnapshot;
+    }
+    getPartitionOrException -> getPartitionOrError -> getPartition;
+  }
+
+}
