@@ -1,0 +1,18 @@
+digraph getPartition {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_ReplicaManager {
+    graph[label="ReplicaManager";fontsize=20;];
+    allPartitions[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="allPartitions"
+    ];
+
+    getPartition -> allPartitions;
+    createPartition -> allPartitions[label="put"];
+    markPartitionOffline -> allPartitions[label="put"];
+  }
+}

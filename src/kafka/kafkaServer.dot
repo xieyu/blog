@@ -2,34 +2,6 @@ digraph kafkaServer {
   node[shape=box];
   newrank=true;
   rankdir=TD;
-  /*
-  KafkaServer -> {
-    BrokerState;
-    LogManager;
-    ReplicaManager;
-    GroupCoordinator;
-    KafkaController;
-    KafkaScheduler;
-    TransactionCoordinator;
-    MetadataCache;
-    QuotaManagers;
-    KafkaZkClient;
-  }*/
-  subgraph cluster_KafkaApi {
-    graph[label="KafkaApi";fontsize=20;];
-    handle -> {
-      handleProduceRequest;
-      handleFetchRequest;
-    }
-    handleFetchRequest -> {
-      fetchMessages;
-      processResponseCallback;
-    }
-    processResponseCallback -> createResponse -> maybeConvertFetchedData;
-    handleProduceRequest -> {
-      appendRecords;
-    }
-  }
   subgraph cluster_channel {
     graph[label="channel";fontsize=20;];
     channel_write;
@@ -67,12 +39,48 @@ digraph kafkaServer {
     localLog_read -> segment_read;
   }
 
+  subgraph cluster_logManager {
+    graph[label="logManager";fontsize=20;];
+    logCreationOrDeletionLock[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="logCreationOrDeletionLock"
+    ];
+
+    getOrCreateLog -> {
+      logCreationOrDeletionLock;
+      preferredLogDirs;
+      logDirs;
+    };
+    finishedInitializingLog;
+  }
+
   subgraph cluster_Partition {
     graph[label="Partition";fontsize=20;];
     appendRecordsToLeader -> appendAsLeader;
     partition_readRecords[label="readRecords"];
-    partition_readRecords -> localLog_read;
-    fetchOffsetSnapshot -> localLogWithEpochOrException -> getLocalLog;
+    partition_readRecords -> {
+      localLog_read;
+      localLogWithEpochOrException;
+    }
+    fetchOffsetSnapshot -> localLogWithEpochOrException -> getLocalLog -> checkCurrentLeaderEpoch;
+    getLocalLog -> log;
+    log[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="log"
+    ];
+    //创建日志
+    createLogIfNotExists -> {
+      createLog;
+      log;
+    };
+    createLog -> {
+      getOrCreateLog;
+      finishedInitializingLog;
+    }
   }
 
   subgraph cluster_ReplicaManager {
@@ -85,6 +93,30 @@ digraph kafkaServer {
       fetchOffsetSnapshot;
     }
     getPartitionOrException -> getPartitionOrError -> getPartition;
+
+  }
+
+  subgraph cluster_KafkaApi {
+    graph[label="KafkaApi: kafkaServer对外接口";fontsize=20;];
+    handle[shape="record";
+      label="{
+        handle|
+          KafkaServer api处理入口\l
+      }";
+    ];
+    handle -> {
+      handleProduceRequest;
+      handleFetchRequest;
+    }
+
+    handleFetchRequest -> {
+      fetchMessages;
+      processResponseCallback;
+    }
+    processResponseCallback -> createResponse -> maybeConvertFetchedData;
+    handleProduceRequest -> {
+      appendRecords;
+    }
   }
 
 }
