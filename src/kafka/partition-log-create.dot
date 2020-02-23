@@ -54,10 +54,17 @@ digraph partionLogCreate {
 
   subgraph cluster_ReplicaManager {
     graph[label="ReplicaManager";fontsize=20;];
+    allPartitions[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="allPartitions"
+    ];
 
     becomeLeaderOrFollower -> {
       makeFollowers;
       createLogIfNotExists;
+      allPartitions;
     }
     makeFollowers -> {
       createLogIfNotExists;

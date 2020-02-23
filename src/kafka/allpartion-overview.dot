@@ -16,6 +16,29 @@ digraph allpartionsoverview {
   subgraph cluster_KafkaController {
     graph[label="KafkaController";fontsize=20;];
     zkHandlers -> PartitionStateMachine -> ControllerChannelManager;
+    zkHandlers[shape="record";
+      label="{{
+        zkHandlers|
+          server启动时候，注册watch zk\l
+          路径的各种handler回调\l
+      }}";
+    ];
+    PartitionStateMachine[shape="record";
+      label="{{
+        PartitionStateMachine|
+          管理partion状态机\l 
+          并将partition状态的\l 
+          改变转换为request \l 
+          发送给其他borker\l
+      }}";
+    ];
+    ControllerChannelManager[shape="record";
+      label="{{
+        ControllerChannelManager|
+          负责管理Controller和\l 
+          其他broker之间的通信线程\l
+      }}";
+    ];
     ControllerChannelManager ->{
       RequestSendThread1;
       RequestSendThread2;
