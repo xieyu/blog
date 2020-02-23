@@ -20,4 +20,9 @@ ReplicaManager的allPartions是存放在zk中的吗？不同broker server之间�
 当zk中broker,topic, partion, controller等发生变动时候，由kafka controller通过ControllerChannelManager
 向每个kafka broker发送``LEADER_AND_ISR``消息, broker收到消息以后，会更新ReplicaManager中的allPartitions信息。
 
+![allpartionsoverview](./allpartion-overview.svg)
+
+
+具体细节如下
 ![getPartition](./getpartition.svg)
+
