@@ -123,6 +123,11 @@ digraph kafkaServer {
       findPreferredReadReplica;
       fetchOffsetSnapshot;
     }
+    findPreferredReadReplica -> {
+      getPartitionOrException;
+      getPartitionReplicaEndpoints;
+      remoteReplicas;
+    };
     getPartitionOrException[shape="record";
       label="{
         getPartitionOrException|
