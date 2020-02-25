@@ -28,13 +28,15 @@ digraph log_read_write {
   subgraph cluster_TimeIndex {
     graph[label="TimeIndex";fontsize=20;];
     timeIndex_maybeAppend[label="maybeAppend"];
-    timeIndex_maybeAppend -> mmap;
   }
+  timeIndex_maybeAppend -> mmap;
+  offsetIndex_append -> mmap;
+  {rank=same;offsetIndex_append;timeIndex_maybeAppend};
+
   subgraph cluster_OffsetIndex {
     graph[label="OffsetIndex";fontsize=20;];
     offsetIndex_append[label="Append"];
     offsetIndex_lookup[label="lookup"];
-    offsetIndex_append -> mmap;
     offsetIndex_lookup -> {
       largestLowerBoundSlotFor;
       parseEntry;
@@ -66,17 +68,41 @@ digraph log_read_write {
       offsetIndex_lookup;
       searchForOffsetWithSize;
     };
+    translateOffset[shape="record";
+      label="{{
+        translateOffset|
+          根据index文件，查找消息Ｎ\l 
+          在segment文件中的offset\l
+      }}";
+    ];
+    shouldRoll[shape="record";
+      label="{{
+        shouldRoll|
+          根据segment大小时间限制\l 
+          来判断是否要roll\l
+      }}";
+    ];
     shouldRoll -> {
       maxSegmentBytes;
       timeWaitedForRoll;
     }
+    {rank=same;segment_read;segment_append};
   }
 
   subgraph cluster_log {
     graph[label="log";fontsize=20;];
-    localLog_read[label="read"];
+    localLog_read[shape="record";
+      label="{{
+        read|
+          根据startOffset,从segments\l 
+          中找到segment, 从该segment\l 
+          中读取消息\l
+      }}";
+    ];
     appendAsLeader -> append; 
-    localLog_read -> segment_read;
+    localLog_read -> {
+      segments;
+    }
     append -> {
       maybeRoll;
     }
@@ -99,13 +125,16 @@ digraph log_read_write {
       label="segments"
     ];
     activeSegment -> segments[color=red];
+    {rank=same;localLog_read;appendAsLeader};
   }
   maybeRoll -> shouldRoll;
   append -> segment_append;
+  localLog_read -> segment_read;
 
   subgraph cluster_partition {
     graph[label="partition";fontsize=20;];
     readRecords -> localLog_read;
     appendRecordsToLeader -> appendAsLeader;
+    {rank=same;readRecords;appendRecordsToLeader};
   }
 }
