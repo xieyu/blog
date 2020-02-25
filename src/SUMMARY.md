@@ -43,6 +43,7 @@
 
 - [Kafka](./kafka/index.md)
   - [Kafka produce and fetch](./kafka/kafka-produce-fetch.md)
+  - [Kafka log](./kafka/log.md)
 
 - [tokio](./tokio/index.md)
     - [Executor](./tokio/executor.md)

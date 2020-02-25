@@ -24,6 +24,7 @@
 ### Kafka
 
 - [Kafka 读写消息](./src/kafka/kafka-produce-fetch.md)
+- [Kafka log](./src/kafka/log.md)
 
 ### TiDB
 

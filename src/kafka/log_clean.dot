@@ -1,0 +1,95 @@
+digraph logClean{
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_log {
+    graph[label="log";fontsize=20;];
+    log_flush[label="flush"];
+    log_delete[label="delete"];
+    deleteOldSegments;
+  }
+
+  subgraph cluster_logCleaner {
+    graph[label="logCleaner";fontsize=20;];
+    cleaner_startup[label="startup"];
+    cleaner_startup[shape="record";
+      label="{{
+        startup|
+          清理compact类型的日志\l
+      }}";
+    ];
+  }
+
+  subgraph cluster_logManager {
+    graph[label="logManager";fontsize=20;];
+    logManager_startup[label="startup"];
+    scheduler_schedule[shape="record";
+      label="{{
+        scheduler.schedule|
+          后台启动定时任务\l
+      }}";
+    ];
+    cleanupLogs[shape="record";
+      label="{{
+        cleanupLogs|
+          清理过期日志\l
+      }}";
+    ];
+    flushDirtyLogs[shape="record";
+      label="{{
+        flushDirtyLogs|
+          定时刷新还没\l 
+          写到磁盘上的日志\l
+      }}";
+    ];
+    deleteLogs[shape="record";
+      label="{{
+        deleteLogs|
+          定时删除标记为删除的日志\l
+      }}";
+    ];
+
+    logManager_startup -> scheduler_schedule;
+    scheduler_schedule -> {
+      cleanupLogs;
+      flushDirtyLogs;
+      checkpointLogRecoveryOffsets;
+      checkpointLogStartOffsets;
+      deleteLogs;
+      cleaner_startup;
+    };
+
+    flushDirtyLogs -> {
+      log_flush;
+    };
+
+    cleanupLogs -> {
+      pauseCleaningForNonCompactedPartitions;
+      deleteOldSegments;
+    };
+    checkpointLogRecoveryOffsets -> {
+      checkpointRecoveryOffsetsAndCleanSnapshot;
+      liveLogDirs;
+    }
+
+    deleteLogs -> {
+      log_delete;
+    }
+    checkpointLogStartOffsets -> {
+      liveLogDirs;
+      checkpointLogStartOffsetsInDir;
+    };
+
+    checkpointLogStartOffsetsInDir -> {
+      logsByDir;
+      logStartOffsetCheckpoints;
+      checkpoint_write;
+    };
+  }
+
+  subgraph cluster_KafkaServer {
+    graph[label="KafkaServer";fontsize=20;];
+    startup -> logManager_startup;
+  }
+}

@@ -1,0 +1,170 @@
+digraph logManager {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_nio_channel {
+    graph[label="java.nio.channels";fontsize=20;];
+    FileChannel_open[label="FileChannel.open"];
+  };
+
+  subgraph cluster_LazyIndex {
+    graph[label="LazyIndex";fontsize=20;];
+    LazyIndex_forOffset[label="forOffset"];
+    LazyIndex_forTime[label="TimeIndex"];
+    LazyIndex_forTime -> TimeIndex;
+    LazyIndex_forOffset -> OffsetIndex;
+  };
+
+  subgraph cluster_FileRecords {
+    graph[label="FileRecords";fontsize=20;];
+    FileRecords_open[label="open"];
+    FileRecords_open -> {
+      openChannel;
+    }
+    openChannel -> {
+      FileChannel_open;
+      randomAccessFile_getChannel;
+    }
+  };
+
+  subgraph cluster_logSegment {
+    graph[label="logSegment";fontsize=20;];
+    LogSegment_open[label="open"];
+    LogSegment_open -> {
+      FileRecords_open;
+      LazyIndex_forOffset;
+      LazyIndex_forTime;
+
+      logFile;
+      offsetIndexFile;
+      timeIndexFile;
+    }
+
+    subgraph cluster_log {
+      graph[label="log: 获取路径名";fontsize=20;];
+      logFile;
+      offsetIndexFile;
+      timeIndexFile;
+    }
+  }
+  subgraph cluster_log {
+    graph[label="log";fontsize=20;];
+    log_contruct[label="Log"];
+    loadSegments[shape="record";
+      label="{{
+        loadSegments|
+          加载Partiton的\l 
+          所有Segment文件\l
+      }}";
+    ];
+    createDirectories[shape="record";
+      label="{{
+        createDirectories|
+          如果目录不存在\l
+          则创建日志目录\l
+      }}";
+    ];
+    listFiles[shape="record";
+      label="{{
+        listFiles|
+          列举目录下\l 
+          所有文件\l
+      }}";
+    ];
+    offsetFromFile[shape="record";
+      label="{{
+        offsetFromFile|
+          获取index对应的文件路径\l
+      }}";
+    ];
+    deleteFileIfExists[shape="record";
+      label="{{
+        deleteFileIfExists|
+          删除orphaned index file\l
+      }}";
+    ];
+
+    log_contruct -> {
+      createDirectories;
+      loadSegments;
+    };
+    loadSegments -> {
+      addSegment;
+      loadSegmentFiles;
+    }
+    loadSegmentFiles -> {
+      deleteFileIfExists;
+      listFiles;
+      isIndexFile;
+      offsetFromFile;
+      isLogFile;
+      timeIndexFile;
+      LogSegment_open;
+      sanityCheck;
+    }
+    addSegment -> segments[color="red"];
+    segments[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="segments"
+    ];
+  }
+
+
+  subgraph cluster_logManager {
+    graph[label="logManager";fontsize=20;];
+    logManager_construct[label="LogManager"];
+    loadLogs[shape="record";
+      label="{{
+        loadLogs|
+          使用多线程loadLog\l
+      }}";
+    ];
+    newFixedThreadPool[shape="record";
+      label="{{
+        newFixedThreadPool|
+          使用线程池\l
+      }}";
+    ];
+    logManager_construct -> {loadLogs;} -> { newFixedThreadPool; };
+
+    loadLogs -> loadLog[label="多线程"];
+    loadLog -> {
+      log_contruct;
+    };
+
+    getOrCreateLog -> {
+      getLog
+      log_contruct;
+    };
+    getLog -> {
+      futureLogs;
+      currentLogs;
+    };
+    futureLogs[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="futureLogs"
+    ];
+    currentLogs[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="currentLogs"
+    ];
+    {getOrCreateLog; loadLog} -> currentLogs[color=red];
+    {getOrCreateLog;loadLog} -> futureLogs[color=red];
+  }
+  subgraph cluster_Partition {
+    graph[label="Partition";fontsize=20;];
+    createLog -> getOrCreateLog;
+  }
+
+  subgraph cluster_KafkaServer {
+    graph[label="KafkaServer";fontsize=20;];
+    startup -> logManager_construct;
+  }
+  {rank=same;getOrCreateLog;logManager_construct};
+}

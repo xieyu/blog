@@ -1,0 +1,82 @@
+digraph logStruct {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  Topic[shape="record";
+    label="{{
+      Topic:每个topic有多个partition|
+        Partition1\l|
+        <p> Partition2: 每个parition有多个副本|
+        Partition3\l|
+        ...\l
+    }}";
+  ];
+
+  Partition[shape="record";
+    label="{{
+      Partition: 每个partion有多个segment日志文件|
+        segment1 \l|
+        <s> segment2 \l|
+        segment3 \l|
+        ... \l
+    }}";
+  ];
+  Segement[shape="record";
+    label="{{
+      Segement|
+        xxxx.log\l|
+        xxxx.index\l
+    }}";
+  ];
+
+  subgraph cluster_ReplicaLeader {
+    graph[label="Replica-Leader";fontsize=20;];
+    Partition;
+    Segement;
+  }
+
+  subgraph cluster_Replica2 {
+    graph[label="Replica-follower";fontsize=20;];
+    Partition2[shape="record";
+      label="{{
+        Partition|
+          segment1 \l|
+          <s> segment2 \l|
+          segment3 \l|
+          ... \l
+      }}";
+    ];
+    Segement2[shape="record";
+      label="{{
+        Segement|
+          xxxx.log\l|
+          xxxx.index\l
+      }}";
+    ];
+    Partition2:s -> Segement2;
+  }
+
+  subgraph cluster_Replica3 {
+    graph[label="Replica-follower";fontsize=20;];
+    Partition3[shape="record";
+      label="{{
+        Partition|
+          segment1 \l|
+          <s> segment2 \l|
+          segment3 \l|
+          ... \l
+      }}";
+    ];
+    Segement3[shape="record";
+      label="{{
+        Segement|
+          xxxx.log\l|
+          xxxx.index\l
+      }}";
+    ];
+    Partition3:s -> Segement3;
+  }
+
+  Topic:p -> {Partition, Partition2, Partition3};
+  Partition:s -> Segement;
+}
