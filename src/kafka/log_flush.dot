@@ -1,0 +1,80 @@
+digraph log_flush {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_channel {
+    graph[label="nio.channels.FileChannel";fontsize=20;];
+    channel_force[label="force"];
+  }
+
+  subgraph cluster_segment {
+    graph[label="segment";fontsize=20;];
+    segment_flush[label="flush"];
+    segment_flush -> {
+      offsetIndex_flush;
+      timeIndex_flush;
+      txnIndex_flush;
+    } -> mmap_force;
+    segment_flush -> fileRecords_flush -> channel_force
+  }
+
+  subgraph cluster_log {
+    graph[label="log";fontsize=20;];
+    log_flush[label="flush"];
+    log_flush -> {
+      segment_flush;
+      logSegments;
+      checkIfMemoryMappedBufferClosed;
+    }
+    segments[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="segments"
+    ];
+    logSegments -> segments[label="recoveryPoint"];
+  }
+
+  subgraph cluster_logManager {
+    graph[label="logManager";fontsize=20;];
+    logManager_startup[label="startup"];
+    logManager_startup -> scheduler_schedule;
+    scheduler_schedule[shape="record";
+      label="{{
+        scheduler.schedule|
+          后台启动定时任务\l
+      }}";
+    ];
+    flushDirtyLogs[shape="record";
+      label="{{
+        flushDirtyLogs|
+          刷新unwriten log到disk\l
+      }}";
+    ];
+    currentLogs[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="currentLogs"
+    ];
+    futureLogs[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="futureLogs"
+    ];
+    scheduler_schedule -> {
+      flushDirtyLogs
+    };
+    flushDirtyLogs -> {
+      currentLogs;
+      futureLogs;
+      log_flush;
+    }
+  }
+
+  subgraph cluster_KafkaServer {
+    graph[label="KafkaServer";fontsize=20;];
+    startup -> logManager_startup;
+  }
+}

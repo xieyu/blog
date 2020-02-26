@@ -24,6 +24,8 @@ digraph logStruct {
   Segement[shape="record";
     label="{{
       Segement|
+      以Segment中第一个消息在\l
+      partition中的offset为文件名\l|
         <msg> xxxx.log\l|
         <index> xxxx.index\l
     }}";
@@ -40,10 +42,12 @@ digraph logStruct {
         ...\l
     }}";
   ];
-
   Index[shape="record";
     label="{{
       Index|
+      用于快速定位消息\l 
+      在Segment日志文件中的offset\l
+      为稀疏索引\l|
         1, 0\l|
         ...\l|
         <msgN> msgN, filePosition\l

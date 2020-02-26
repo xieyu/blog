@@ -9,6 +9,7 @@ digraph log_read_write {
   subgraph cluster_channel {
     graph[label="nio.files.FileChannel";fontsize=20;];
     channel_write[label="write"];
+    channel_force[label="force"];
   }
   subgraph cluster_record {
     graph[label="record";fontsize=20;];
@@ -20,6 +21,8 @@ digraph log_read_write {
     graph[label="FileRecords";fontsize=20;];
     FileRecords_append[label="append"];
     FileRecords_slice[label="slice"];
+    fileRecords_flush[label="flush"];
+
     FileRecords_append -> MemoryRecords_writeFullyTo -> channel_write;
     FileRecords_slice -> new_FileRecords -> batchesFrom;
     batchesFrom -> batchIterator;
@@ -86,6 +89,19 @@ digraph log_read_write {
       maxSegmentBytes;
       timeWaitedForRoll;
     }
+    segment_flush[label="flush"];
+    segment_flush -> {
+      offsetIndex_flush;
+      timeIndex_flush;
+      txnIndex_flush;
+    }
+
+    segment_flush -> {
+      offsetIndex_flush;
+      timeIndex_flush;
+      txnIndex_flush;
+    } -> mmap_force;
+    segment_flush -> fileRecords_flush -> channel_force
     {rank=same;segment_read;segment_append};
   }
 
@@ -99,6 +115,28 @@ digraph log_read_write {
           中读取消息\l
       }}";
     ];
+    roll[shape="record";
+      label="{{
+        roll|
+          如果当前activeSegment达到最大限制\l 
+          新开一个segment\l
+      }}";
+    ];
+    activeSegment[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        activeSegment|
+          activeSegment为\lsegments中最后一个\l
+      }}";
+    ];
+    append[shape="record";
+      label="{{
+        append|
+          unflushedMessages超过\l 
+          了flushInterval调用flush\l
+      }}";
+    ];
     appendAsLeader -> append; 
     localLog_read -> {
       segments;
@@ -106,30 +144,26 @@ digraph log_read_write {
     append -> {
       maybeRoll;
     }
+    append -> flush;
     maybeRoll -> {
       activeSegment;
       roll;
     }
     roll -> addSegment;
-    addSegment -> segments;
-    activeSegment[
-      fillcolor="#95e1d3"
-      style=filled;
-      shape=box3d;
-      label="activeSegment"
-    ];
+    addSegment -> segments[color=red];
     segments[
       fillcolor="#95e1d3"
       style=filled;
       shape=box3d;
       label="segments"
     ];
-    activeSegment -> segments[color=red];
+    activeSegment -> segments;
     {rank=same;localLog_read;appendAsLeader};
   }
   maybeRoll -> shouldRoll;
   append -> segment_append;
   localLog_read -> segment_read;
+  flush -> segment_flush;
 
   subgraph cluster_partition {
     graph[label="partition";fontsize=20;];
