@@ -1,0 +1,110 @@
+digraph partition {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_KafkaZkClient {
+    graph[label="KafkaZkClient";fontsize=20;];
+    updateLeaderAndIsr -> setTopicAssignmentRaw;
+    setTopicAssignmentRaw -> retryRequestUntilConnected;
+  };
+
+  subgraph cluster_replicaManager {
+    graph[label="replicaManager";fontsize=20;];
+    isrShrinkRate;
+    isrExpandRate;
+    recordIsrChange;
+    failedIsrUpdatesRate;
+  };
+
+  subgraph cluster_ZkPartitionStateStore {
+    graph[label="ZkPartitionStateStore";fontsize=20;];
+    stateStore_expandIsr[label="expandIsr"];
+    stateStore_shrinkIsr[label="shrinkIsr"];
+    stateStore_shrinkIsr -> {
+      updateIsr;
+      isrShrinkRate;
+    }
+    stateStore_expandIsr -> {
+      updateFetchState;
+      isrExpandRate;
+    }
+    updateIsr -> {
+      updateLeaderAndIsr;
+      recordIsrChange;
+      failedIsrUpdatesRate;
+    }
+  }
+  subgraph cluster_replica {
+    graph[label="replica";fontsize=20;];
+    Replica[shape="record";
+      label="{{
+        Replica|
+          brokerId\l|
+          topicPartition\l|
+          logEndOffsetMetadata\l|
+          lastSentHighWatermark\l
+      }}";
+    ];
+    updateFetchState;
+    new_Replica[shape="record";
+      label="{{
+        new Replica
+      }}";
+    ];
+    
+  }
+  subgraph cluster_logManager {
+    graph[label="logManager";fontsize=20;];
+    getOrCreateLog;
+  }
+  subgraph cluster_Partition {
+    graph[label="Partition";fontsize=20;];
+    topic;
+    partitionId;
+    createLogIfNotExists -> createLog -> getOrCreateLog;
+    remoteReplicasMap[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="remoteReplicasMap"
+    ];
+    remoteReplicasMap -> Replica;
+    makeLeader -> {
+      updateFetchState;
+      createLogIfNotExists;
+      updateAssignmentAndIsr;
+      remoteReplicas;
+    };
+    makeFollower -> {
+      updateAssignmentAndIsr;
+      createLogIfNotExists;
+    }
+    updateAssignmentAndIsr ->  remoteReplicasMap[color="red"];
+    updateAssignmentAndIsr -> {
+      OngoingReassignmentState;
+      SimpleAssignmentState;
+    } ->  AssignmentState;
+    updateAssignmentAndIsr -> new_Replica;
+    maybeExpandIsr -> {
+      expandIsr;
+      new_LeaderAndIsr;
+    };
+    maybeShrinkIsr -> {
+      shrinkIsr;
+      maybeIncrementLeaderHW;
+      getOutOfSyncReplicas;
+    };
+    shrinkIsr -> {
+      new_LeaderAndIsr;
+      stateStore_shrinkIsr;
+      maybeUpdateIsrAndVersion;
+    };
+    expandIsr -> {
+      new_LeaderAndIsr;
+      maybeUpdateIsrAndVersion;
+      stateStore_expandIsr;
+    };
+
+    remoteReplicas -> remoteReplicasMap[label="keys"];
+  }
+}
