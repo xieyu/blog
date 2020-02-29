@@ -146,6 +146,7 @@ digraph partition_isr {
       label="{{
         maybeShrinkIsr|
           从ISR中踢掉out sync的replica\l
+          该操作只会在partition的leader上做\l
       }}";
     ];
     isFollowerInSync[shape="record";
@@ -180,6 +181,12 @@ digraph partition_isr {
     stateStore_expandIsr -> LeaderAndIsr;
     stateStore_shrinkIsr -> LeaderAndIsr;
     LeaderAndIsr -> zk_partitionState[style="dashed"];
+    updateFollowerFetchState[shape="record";
+      label="{{
+        updateFollowerFetchState|
+        检查follower是否已经in-sync
+      }}";
+    ];
 
     updateFollowerFetchState -> maybeExpandIsr;
     getOutOfSyncReplicas -> isFollowerOutOfSync -> getReplicaOrException;
@@ -258,35 +265,58 @@ digraph partition_isr {
     ];
     scheduler_schedule -> replicaManager_maybeShrinkIsr;
     //expandIsr
-    replicaManager_updateFollowerFetchState[label="updateFollowerFetchState"];
+    replicaManager_updateFollowerFetchState[shape="record";
+      label="{{
+        updateFollowerFetchState|
+          如果是从follower发送过来的\l 
+          请求，就更新follower状态\l
+      }}";
+    ];
     fetchMessages -> replicaManager_updateFollowerFetchState;
     becomLeaderOrFollower -> {
-    makeFollowers;
-    makeLeaders;
+      makeFollowers;
+      makeLeaders;
     }
+    addFetcherForPartitions;
   }
 
   replicaManager_maybeShrinkIsr -> maybeShrinkIsr;
   replicaManager_updateFollowerFetchState -> updateFollowerFetchState;
-  makeFollowers -> makeFollower;
+  makeFollowers -> {
+    makeFollower;
+    addFetcherForPartitions;
+  };
   makeLeaders -> makeLeader;
 
   subgraph cluster_fetchThread {
     graph[label="ReplicaFetcher thread";fontsize=20;];
-    processFetchRequest -> fetchFromLeader -> fetchMessages;
+    fetcherThread;
+    fetcherThread -> processFetchRequest[style="dashed"];
+    processFetchRequest -> fetchFromLeader;
     fetchFromLeader[shape="record";
       fillcolor="#FFD3B6";
       style=filled;
       label="{{
         fetchFromLeader|
-          每个partition的follower\l 
-          有个线程负从leader fetchMessage\l
+          每个partition的follower broker\l 
+          有个线程负从leader 所在的broker发送\l 
+          fetchMessage请求\l
       }}";
     ];
   }
+  addFetcherForPartitions ->fetcherThread;
+  addFetcherForPartitions[shape="record";
+    label="{{
+      addFetcherForPartitions|
+        follower启动和\l 
+        partition leader同步的线程\l
+    }}";
+  ];
+  fetchFromLeader -> handleFetchRequest;
 
   subgraph cluster_KafkaApi {
     graph[label="KafkaApi";fontsize=20;];
     handleLeaderAndIsrRequest -> becomLeaderOrFollower;
+    handleFetchRequest -> fetchMessages;
   }
 }

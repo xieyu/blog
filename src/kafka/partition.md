@@ -6,7 +6,7 @@ PartionState中重要信息为当前partion的leader和ISR(in sync replica)的re
 isr信息有``maybeShrinkIsr``和``maybeExpandIsr``这两个函数维护.
 
 每个parition的replica follower都有一个replicaFetcher 线程，该线程负责从partition的leader中
-获取消息，然后该replica达到in sync标准的话，就将该replicaId加入到该partiton中的ISR中。
+获取消息，在parition leader中处理fetchMessage请求时，判断该follower是否达到in sync标准，将该replicaId加入到该partiton中的ISR中。
 
 另外ReplicaManager后台会周期性的调用``maybeShrinkIsr``将outOfSync的replica从ISR中踢掉。
 
@@ -83,7 +83,7 @@ paritionstate中存储信息如下
   }
 ```
 
-LeaderAndIsrPartitionState定义如下
+LeaderAndIsrPartitionState定义在LeaderAndIsrRequest.json中,定义如下
 ```json
   "commonStructs": [
     { "name": "LeaderAndIsrPartitionState", "versions": "0+", "fields": [
@@ -112,6 +112,10 @@ LeaderAndIsrPartitionState定义如下
     ]}
   ]
 ```
+
+## Replica sync(副本同步)
+
+![replica-sync](./replica-sync.svg)
 
 # Ref
 1. [Kafka ISR 副本同步机制](http://objcoding.com/2019/11/05/kafka-isr/)
