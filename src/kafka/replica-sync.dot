@@ -42,6 +42,18 @@ digraph replica_sync {
       buildFetch;
       processFetchRequest;
     };
+    processPartitionData[shape="record";
+      label="{{
+        processPartitionData|
+        存储取到的partion leader msg
+      }}";
+    ];
+    buildFetch[shape="record";
+      label="{{
+        buildFetch|
+          构造fetch请求\l
+      }}";
+    ];
     processFetchRequest -> {
       fetchFromLeader;
       processPartitionData;
@@ -51,6 +63,17 @@ digraph replica_sync {
       leaderEndpoint_sendRequest;
     };
     buildFetch -> FetchSessionHandler;
+
+    maybeTruncate -> {
+      fetchTruncatingPartitions;
+      truncateToEpochEndOffsets;
+      truncateToHighWatermark;
+    };
+    truncateToEpochEndOffsets -> {
+      fetchEpochEndOffsets;
+      maybeTruncateToEpochEndOffsets;
+      updateFetchOffsetAndMaybeMarkTruncationComplete;
+    }
   };
   processPartitionData -> appendRecordsToFollowerOrFutureReplica;
 
@@ -109,6 +132,12 @@ digraph replica_sync {
     graph[label="Partition";fontsize=20;];
     updateFetchState -> maybeExpandIsr;
     maybeExpandIsr -> partitionState[style=dashed];
+    appendRecordsToFollowerOrFutureReplica[shape="record";
+      label="{{
+        appendRecordsToFollowerOrFutureReplica|
+          将records保存起来\l
+      }}";
+    ];
     appendRecordsToFollowerOrFutureReplica -> doAppendRecordsToFollowerOrFutureReplica;
     doAppendRecordsToFollowerOrFutureReplica -> appendAsFollower;
   }

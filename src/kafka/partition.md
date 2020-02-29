@@ -115,7 +115,15 @@ LeaderAndIsrPartitionState定义在LeaderAndIsrRequest.json中,定义如下
 
 ## Replica sync(副本同步)
 
+在broker成为一个follower时候，会启动一个fetchThread，用于和partition leader同步消息
 ![replica-sync](./replica-sync.svg)
+
+
+## Replica Leader Election
+
+partition replica leader是由KafkaController来分配的.
+
+![replica-leader-election](./replica-leader-election.svg)
 
 # Ref
 1. [Kafka ISR 副本同步机制](http://objcoding.com/2019/11/05/kafka-isr/)
