@@ -33,6 +33,14 @@ isr信息有``maybeShrinkIsr``和``maybeExpandIsr``这两个函数维护.
   }
 ```
 
+### partition 对应log对象创建
+
+在成为leader或者follower时会创建相应的log对象
+
+log对象是什么时候创建的？parition创建时候就创建吗？
+![kafka-log-create](./partition-log-create.svg)
+
+
 ### Partition sate 在zk中的存储
 
 #### 存储路径

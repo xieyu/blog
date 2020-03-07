@@ -1,0 +1,43 @@
+digraph partition_modification {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_controllerContext {
+    graph[label="controllerContext";fontsize=20;style=rounded];
+    partitionReplicaAssignment;
+    updateReplicaAssignmentForPartition -> {
+      partitionFullReplicaAssignmentForTopic;
+    }
+    getChildren[
+      shape="record";
+      label="{{
+        getChildren|
+        TopicPartitionsZNode
+      }}";
+    ];
+    setTopicAssignment;
+    partitionFullReplicaAssignmentForTopic;
+  };
+
+  subgraph cluster_zkClient {
+    graph[label="zkClient";fontsize=20;style=rounded];
+    getReplicaAssignmentForTopics;
+  };
+  subgraph cluster_TopicDeleteManager {
+    graph[label="TopicDeleteManager";fontsize=20;style=rounded];
+    isTopicQueuedUpForDeletion;
+    
+  };
+  PartitionModificationsHandler -> processPartitionModifications;
+  processPartitionModifications -> {
+    getReplicaAssignmentForTopics;
+    partitionReplicaAssignment;
+    isTopicQueuedUpForDeletion;
+    restorePartitionReplicaAssignment;
+    updateReplicaAssignmentForPartition;
+    onNewPartitionCreation;
+  }
+  restorePartitionReplicaAssignment -> {
+    getChildren;
+  }
+}

@@ -23,13 +23,24 @@ digraph allpartionsoverview {
           路径的各种handler回调\l
       }}";
     ];
+    zkHandlers -> ReplicaStateMachine;
     PartitionStateMachine[shape="record";
       label="{{
         PartitionStateMachine|
           管理partion状态机\l 
           并将partition状态的\l 
           改变转换为request \l 
-          发送给其他borker\l
+          发送给其他broker\l
+      }}";
+    ];
+    ReplicaStateMachine[
+      shape="record";
+      label="{{
+        ReplicaStateMachine|
+        replica状态机\l
+        将replica状态的转变\l 
+        转换为request\l
+        发送给其他broker\l
       }}";
     ];
     ControllerChannelManager[shape="record";
@@ -37,6 +48,33 @@ digraph allpartionsoverview {
         ControllerChannelManager|
           负责管理Controller和\l 
           其他broker之间的通信线程\l
+      }}";
+    ];
+    ControllerContext[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        ControllerContext|
+        对zk中一些状态的缓存\l|
+        allTopics\l|
+        partitionAssignments\l|
+        partitionLeadershipInfo\l|
+        partitionsBeingReassigned\l|
+        partitionStates\l|
+        replicaStates\l|
+        replicasOnOfflineDirs\l|
+        topicsToBeDeleted\l|
+      }}";
+    ];
+    zkHandlers -> ControllerContext;
+    ReplicaStateMachine -> ControllerChannelManager;
+    RequestSendThread1[
+      shape="record";
+      label="{{
+        RequestSendThread|
+        controller和每个broker之间通信\l
+        有个blocing queue和单独的发送线程
       }}";
     ];
     ControllerChannelManager ->{

@@ -45,6 +45,7 @@
   - [Kafka produce and fetch](./kafka/kafka-produce-fetch.md)
   - [Kafka log](./kafka/log.md)
   - [Kafka Partition](./kafka/partition.md)
+  - [Kafka Controller](./kafka/controller.md)
   - [Kafka Replica Assignment](./kafka/replica-assignment.md)
 
 - [tokio](./tokio/index.md)
