@@ -47,6 +47,7 @@
   - [Kafka Partition](./kafka/partition.md)
   - [Kafka Controller](./kafka/controller.md)
   - [Kafka Replica Assignment](./kafka/replica-assignment.md)
+  - [Kafka Partition/Replica状态机](./kafka/paritition-replica-statemachine.md)
 
 - [tokio](./tokio/index.md)
     - [Executor](./tokio/executor.md)

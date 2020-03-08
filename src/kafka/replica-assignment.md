@@ -9,13 +9,13 @@
 4. TRS: target replica set, 要达到目标的replica set
 4. ORS: target replica set, 原有的replica set
 
-具体迁移过程kafka代码中注释写的比较详细。
+具体迁移过程kafka代码中注释写的比较详细, 主要分为俩个阶段:
 
 #### Phase A
 如果AR没有在partition的ISR中，controller会发送NewReplica请求给AR的broker, 这些broker开始调用
 replicaManager的makeFollowers, 启动Replicafetch线程和parititon leader同步，达到in-sync条件后，partition leader会将该broker加入到ISR中。
 
-然后会出发controller在zk中注册的handler,开始下一步的迁移
+然后会触发controller在zk中注册的handler,开始下一步的迁移
 
 #### Phase B
 

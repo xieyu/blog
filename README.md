@@ -26,6 +26,7 @@
 - [Kafka log](./src/kafka/log.md)
 - [Kafka Partition](./src/kafka/partition.md)
 - [Kafka Replica 迁移](./src/kafka/replica-assignment.md)
+- [Kafka Partition/Replica状态机](./src/kafka/paritition-replica-statemachine.md)
 - [Kafka 读写消息](./src/kafka/kafka-produce-fetch.md)
 
 ### TiDB
