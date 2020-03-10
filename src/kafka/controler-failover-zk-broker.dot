@@ -6,6 +6,7 @@ digraph controller_failover_zk {
   subgraph cluster_controllerContext {
     graph[label="controllerContext";fontsize=20;style=rounded];
     partitionsInStates -> partitionStates;
+    updateBrokerMetadata -> liveBrokers -> liveBrokerEpochs;
     partitionLeadershipInfo;
     replicasOnOfflineDirs[
       fillcolor="#95e1d3";
@@ -116,6 +117,7 @@ digraph controller_failover_zk {
         新增broker, 创建通信线程\l
       }}";
     ];
+    sendUpdateMetadataRequest;
   };
   subgraph cluster_replicaStateMachine {
     graph[label="replicaStateMachine";fontsize=20;style=rounded];
@@ -303,5 +305,13 @@ digraph controller_failover_zk {
     unregisterBrokerModificationsHandler;
     registerZNodeChildChangeHandler;
   };
+  registerBrokerModificationsHandler -> processBrokerModification;
+
+  processBrokerModification -> {
+    getBroker;
+    updateBrokerMetadata;
+    onBrokerUpdate;
+  }
+  onBrokerUpdate -> sendUpdateMetadataRequest;
   {rank=same; onBrokerFailure;onBrokerStartup};
 }

@@ -133,5 +133,36 @@ partition replica leader是由KafkaController来分配的.
 
 ![replica-leader-election](./replica-leader-election.svg)
 
+![electLeaderForPartitions](./elecLeaderForPartitions.svg)
+
+
+partion leader选择策略
+
+```scala
+  def offlinePartitionLeaderElection(assignment: Seq[Int], isr: Seq[Int], liveReplicas: Set[Int], uncleanLeaderElectionEnabled: Boolean, controllerContext: ControllerContext): Option[Int] = {
+    assignment.find(id => liveReplicas.contains(id) && isr.contains(id)).orElse {
+      if (uncleanLeaderElectionEnabled) {
+        val leaderOpt = assignment.find(liveReplicas.contains)
+        if (leaderOpt.isDefined)
+          controllerContext.stats.uncleanLeaderElectionRate.mark()
+        leaderOpt
+      } else {
+        None
+      }
+    }
+  }
+  def reassignPartitionLeaderElection(reassignment: Seq[Int], isr: Seq[Int], liveReplicas: Set[Int]): Option[Int] = {
+    reassignment.find(id => liveReplicas.contains(id) && isr.contains(id))
+  }
+
+  def preferredReplicaPartitionLeaderElection(assignment: Seq[Int], isr: Seq[Int], liveReplicas: Set[Int]): Option[Int] = {
+    assignment.headOption.filter(id => liveReplicas.contains(id) && isr.contains(id))
+  }
+
+  def controlledShutdownPartitionLeaderElection(assignment: Seq[Int], isr: Seq[Int], liveReplicas: Set[Int], shuttingDownBrokers: Set[Int]): Option[Int] = {
+    assignment.find(id => liveReplicas.contains(id) && isr.contains(id) && !shuttingDownBrokers.contains(id))
+  }
+```
+
 # Ref
 1. [Kafka ISR 副本同步机制](http://objcoding.com/2019/11/05/kafka-isr/)

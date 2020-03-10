@@ -73,13 +73,25 @@ digraph replica_leader_election {
     graph[label="KafkaController";fontsize=20;];
     subgraph cluster_PartionStateMachine {
       graph[label="PartionStateMachine";fontsize=20;];
-      handleStateChange;
       handleStateChange[shape="record";
         label="{{
           handleStateChange|
           将partion状态改变转换为\l 
           LeaderAndIsrReuest\l
           群发给所有的broker\l
+        }}";
+      ];
+      handleStateChange -> {
+        electLeaderForPartitions;
+      }
+      electLeaderForPartitions -> doElectLeaderForPartitions;
+      doElectLeaderForPartitions[
+        fillcolor="#f38181"
+        style=filled;
+        shape="record";
+        label="{{
+          doElectLeaderForPartitions|
+          根据选举策略做选举\l
         }}";
       ];
     }

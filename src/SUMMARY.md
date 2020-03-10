@@ -45,8 +45,11 @@
   - [Kafka produce and fetch](./kafka/kafka-produce-fetch.md)
   - [Kafka log](./kafka/log.md)
   - [Kafka Partition](./kafka/partition.md)
-  - [Kafka Controller](./kafka/controller.md)
-  - [Kafka Replica Assignment](./kafka/replica-assignment.md)
+  - [Kafka Controller 主要功能](./kafka/controller-main.md)
+  - [Kafka Controller 通信管理 channelManager](./kafka/controller-channel-manager.md)
+  - [Kafka Controller 选举](./kafka/controller-elect.md)
+  - [Kafka Controller zk监听](./kafka/controller-zk.md)
+  - [Kafka Controller 副本迁移](./kafka/replica-assignment.md)
   - [Kafka Partition/Replica状态机](./kafka/paritition-replica-statemachine.md)
 
 - [tokio](./tokio/index.md)
