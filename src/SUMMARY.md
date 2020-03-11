@@ -42,6 +42,7 @@
   - [TiDB Hash Join](./tidb/hash-join.md)
 
 - [Kafka](./kafka/index.md)
+  - [Kafka client: producer](./kafka/client-producer.md)
   - [Kafka produce and fetch](./kafka/kafka-produce-fetch.md)
   - [Kafka log](./kafka/log.md)
   - [Kafka Partition](./kafka/partition.md)

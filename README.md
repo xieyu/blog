@@ -23,6 +23,7 @@
 
 ### Kafka
 
+- [Kafka client: producer](./src/kafak/client-producer.md)
 - [Kafka log](./src/kafka/log.md)
 - [Kafka Partition](./src/kafka/partition.md)
 - [Kafka Controller 主要功能](./src/kafka/controller-main.md)

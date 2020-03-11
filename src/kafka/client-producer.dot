@@ -1,0 +1,175 @@
+digraph client_producer {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_KafkaProducer {
+    graph[label="KafkaProducer";fontsize=20;style=rounded];
+    keySerializer_serialize[
+      shape="record";
+      label="{{
+        keySerializer_serialize|
+        key做序列化
+      }}";
+    ];
+    valueSerializer_serialize[
+      shape="record";
+      label="{{
+        valueSerializer_serialize|
+        value做序列化
+      }}";
+    ];
+    partition[
+      shape="record";
+      label="{{
+        partition|
+        计算消息对应的partition\l
+      }}";
+    ];
+    sender_wakeup[
+      shape="record";
+      label="{{
+        sender_wakeup|
+        唤醒发送线程
+      }}";
+    ];
+    sender_wakeup -> sender_run[style=dashed];
+    waitOnMetadata[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        waitOnMetadata|
+        等待元数据\l
+      }}";
+    ];
+    send -> doSend -> {
+      waitOnMetadata;
+      keySerializer_serialize;
+      valueSerializer_serialize;
+      partition;
+      estimateSizeInBytesUpperBound;
+      RecordAccumulator_append;
+      sender_wakeup;
+    }
+    subgraph cluster_SenderThread {
+      graph[label="Sender Thread";fontsize=20;style=rounded];
+      sender_run[
+        fillcolor="#f38181"
+        style=filled;
+        shape="record";
+        label="{{
+          sender_run|
+          发送线程主循环\l
+        }}";
+      ];
+      sender_run -> runOnce -> {
+        resetProducerIdIfNeeded;
+        maybeWaitForProducerId;
+        maybeSendAndPollTransactionalRequest;
+        client_poll;
+      };
+      runOnce -> sendProducerData -> sendProduceRequests -> sendProduceRequest;
+      sendProduceRequest -> client_send;
+      client_send[
+        shape="record";
+        label="{{
+        client_send|
+        通过网络发送数据\l
+        }}";
+      ];
+    };
+    sendProducerData -> { accumulator_drain; }
+    subgraph cluster_RecordAccumulator {
+      graph[label="RecordAccumulator";fontsize=20;style=rounded];
+      RecordAccumulator_append[
+        shape="record";
+        label="{{
+          append|
+          将消息放到tp对应的队列中
+        }}";
+      ];
+      accumulator_drain[
+        shape="record";
+        label="{{
+          drain|
+          从tp队列中获取消息
+        }}";
+      ];
+      peekFirst[
+        shape="record";
+        label="{{
+          peekFirst|
+          从tp队列头部获取消息\l
+        }}";
+      ];
+      incrementSequenceNumber[
+        shape="record";
+        label="{{
+          incrementSequenceNumber|
+          每个消息分配一个序列号\l
+        }}";
+      ];
+      accumulator_drain -> drainBatchesForOneNode -> {
+        getDeque;
+        peekFirst;
+        incrementSequenceNumber;
+      };
+      getDeque -> batches;
+      batches[
+        fillcolor="#95e1d3";
+        style=filled;
+        shape="record";
+        label="{{
+          batches|
+          每个tp对应一个队列
+        }}";
+      ];
+      getOrCreateDeque[
+        shape="record";
+        label="{{
+          getOrCreateDeque|
+          获取活着创建tp对应的队列
+        }}";
+      ];
+      putIfAbsent[
+        shape="record";
+        label="{{
+          putIfAbsent|
+          向batches插入新的tp队列\l
+        }}";
+      ];
+      RecordAccumulator_append -> {
+        getOrCreateDeque;
+        tryAppend;
+        addLast;
+      }
+      addLast[
+        shape="record";
+        label="{{
+          addLast|
+          将AppendResult放入队列中
+        }}";
+      ];
+      tryAppend[
+        shape="record";
+        label="{{
+          tryAppend|
+          构造RecordAppendResult\l
+        }}";
+      ];
+      tryAppend -> FutureRecordMetadata;
+      getOrCreateDeque ->  {
+        batches;
+        putIfAbsent;
+        newArrayDeque;
+      }
+      newArrayDeque[
+        shape="record";
+        label="{{
+          newArrayDeque|
+          新建一个tp的ArrayDeque\l
+        }}";
+      ];
+    };
+  };
+}
