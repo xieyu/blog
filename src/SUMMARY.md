@@ -43,6 +43,8 @@
 
 - [Kafka](./kafka/index.md)
   - [Kafka client: producer](./kafka/client-producer.md)
+  - [Kafka client: consumer](./kafka/consumer.md)
+  - [Kafka group coordinator](./kafka/group-coordinator.md)
   - [Kafka produce and fetch](./kafka/kafka-produce-fetch.md)
   - [Kafka log](./kafka/log.md)
   - [Kafka Partition](./kafka/partition.md)

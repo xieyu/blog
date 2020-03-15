@@ -1,0 +1,386 @@
+digraph join_group{
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_GroupMetadataManager {
+    graph[label="GroupMetadataManager";fontsize=20;style=rounded];
+    gm_getGroup[
+      shape="record";
+      label="{{
+        getGroup
+      }}";
+    ];
+    
+  };
+  subgraph cluster_DelayedOPerationPurgatory {
+    graph[label="DelayedOPerationPurgatory";fontsize=20;style=rounded];
+    tryCompleteElseWatch;
+    checkAndComplete;
+    tryCompleteElseWatch -> tryComplete;
+  };
+    tryCompleteElseWatch -> onCompleteJoin;
+  subgraph cluster_MemberMetadata {
+    graph[label="MemberMetadata";fontsize=20;style=rounded];
+    MemberMetadata[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        MemberMetadata|
+        memberId String\l
+        groupId String\l
+        clientId string\l
+        clientHost string\l|
+        assignment;\l|
+        awaitingJoinCallback;\l|
+        awaitingSyncCallback;\l|
+        latestHeartbeat;\l|
+        isLeaving;\l|
+        isStaticMember;\l|
+        isAwaitingJoin;\l|
+        isAwaitingSync\l
+      }}";
+    ];
+  };
+
+  subgraph cluster_Group {
+    graph[label="GroupMetadata";fontsize=20;style=rounded];
+    transitionTo_PreparingRebalance;
+    supportsProtocols;
+    hasAllMembersJoined;
+
+    generateMemberId[
+      shape="record";
+      label="{{
+        generateMemberId|
+        如果指定了GroupInstanceId\l
+        clientid + groupInstanceId\l
+        否则为clientId.id-randomUUID\l
+      }}";
+    ];
+    replaceGroupInstance[
+      shape="record";
+      label="{{
+        replaceGroupInstance|
+        更新staticMember的memeberId\l
+      }}";
+    ];
+    canRebalance[
+      shape="record";
+      label="{{
+        canRebalance|
+        检查是否在Reblance状态
+      }}";
+    ];
+    hasStaticMember;
+    getStaticMemberId;
+    addPendingMember;
+    isStaticMemberFenced;
+    updateMember;
+    group_add;
+    removePendingMember;
+    addStaticMember;
+    isLeader;
+    removeStaticMember;
+    maybeInvokeJoinCallback -> awaitingJoinCallback;
+    isStaticMemberFenced -> {
+      hasStaticMember;
+      getStaticMemberId;
+    }
+    subgraph cluster_Members {
+      graph[label="Members";fontsize=20;style=rounded];
+      group_add[
+        fillcolor="#f38181"
+        style=filled;
+        shape="record";
+        label="{{
+          add|
+          第一个加入的member\l 
+          为leader
+        }}";
+      ];
+      group_remove[
+        shape="record";
+        label="{{
+          remove|
+          从memeber列表中去掉\l
+          如果是leader的话，\l
+          选用memeber类表中第一个为leader\l
+        }}";
+      ];
+      group_add -> {leaderId;members;}
+      group_remove -> {leaderId;members;}
+    };
+
+    updateMember -> awaitingJoinCallback;
+
+    subgraph cluster_pendingMember {
+      graph[label="pendingMember";fontsize=20;style=rounded];
+      {isPendingMember;addPendingMember;removePendingMember} -> pendingMembers;
+    };
+    subgraph cluster_staticMember {
+      graph[label="staticMember";fontsize=20;style=rounded];
+      isStaticMemberFenced[
+        shape="record";
+        label="{{
+          isStaticMemberFenced|
+          检查StaticMember的memberId\l
+          是否能对的上\l
+        }}";
+      ];
+      {hasStaticMember;addStaticMember;removeStaticMember;getStaticMemberId} -> staticMembers;
+    };
+
+    isLeader -> leaderId;
+    members[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        members|
+        mutable.HashMap[String, MemberMetadata]
+      }}";
+    ];
+    members -> MemberMetadata;
+    leaderId[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        leaderId
+      }}";
+    ];
+
+    staticMembers[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        staticMembers|
+        key: group.instance.id, value: member.id\l
+        mutable.HashMap[String, string]\l
+      }}";
+    ];
+    pendingMembers[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        pendingMembers|
+        mutable.HashSet[string]
+      }}";
+    ];
+    state[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        state|
+        GroupState
+      }}";
+    ];
+    transitionTo_PreparingRebalance -> {
+      state;
+    }
+    initNextGeneration -> selectProtocol-> allMemberMetadata -> members;
+    canRebalance -> state;
+
+    maybeElectNewJoinedLeader -> members;
+  };
+
+  subgraph cluster_GroupCoordinator {
+    graph[label="GroupCoordinator";fontsize=20;style=rounded];
+    handleJoinGroup[
+      shape="record";
+      label="{{
+        handleJoinGroup|
+        groupId为UNknow时，创建group\l
+        检查是否超过GROUP_MAX了\l
+      }}";
+    ];
+    doUnknownJoinGroup[
+      shape="record";
+      label="{{
+        doUnknownJoinGroup|
+        新成员加入\l
+        1.生成MemberId\l
+        2.如果是staticMember,更新groupId对应的memberId
+      }}";
+    ];
+    doJoinGroup[
+      shape="record";
+      label="{{
+        doJoinGroup|
+        以前的staticMember成员回来？？
+      }}";
+    ];
+    updateMemberAndRebalance[
+      shape="record";
+      label="{{
+        updateMemberAndRebalance|
+        更新成员并可能触发Reblance
+      }}";
+    ];
+    prepareRebalance[
+      shape="record";
+      label="{{
+        prepareRebalance|
+        1.如果在Relbalance中，报错\l
+        2.group迁移到PrepareRebalance状态\l
+        3.延迟执行delayedRebalance\l
+      }}";
+    ];
+    resetAndPropagateAssignmentError[
+      shape="record";
+      label="{{
+        resetAndPropagateAssignmentError|
+        报错REBLANCE_IN_PROGRESS
+      }}";
+    ];
+
+    handleJoinGroup -> {
+      doJoinGroup;
+      doUnknownJoinGroup;
+    };
+    doJoinGroup -> {
+      responseCallback;
+      isPendingMember;
+      supportsProtocols;
+      addMemberAndRebalance;
+      isStaticMemberFenced;
+      updateMemberAndRebalance;
+      isLeader;
+    }
+    doUnknownJoinGroup -> {
+      responseCallback;
+      generateMemberId;
+      hasStaticMember;
+      replaceGroupInstance;
+      completeAndScheduleNextExpiration;
+      updateMember;
+      maybeInvokeJoinCallback;
+      addPendingMember;
+      addPendingMemberExpiration;
+      addMemberAndRebalance;
+    };
+    addPendingMemberExpiration -> {
+      tryCompleteElseWatch;
+      DelayedHeartbeat;
+    };
+    addMemberAndRebalance[
+      shape="record";
+      label="{{
+        addMemberAndRebalance|
+        添加consumer成员并且\l
+        可能触发Reblance\l
+        如果是staticMember\l 
+        加入到staicMember中\l
+      }}";
+    ];
+    completeAndScheduleNextExpiration[
+      shape="record";
+      label="{{
+        completeAndScheduleNextExpiration|
+        添加一个延迟操作\l
+        剔除心跳超时的member\l
+      }}";
+    ];
+    completeAndScheduleNextExpiration -> {
+      checkAndComplete;
+      DelayedHeartbeat;
+    };
+    DelayedHeartbeat -> {
+      onCompleteHeartbeat;
+      onExpireHeartbeat;
+      tryCompleteHeartbeat;
+    }
+    tryCompleteHeartbeat -> {
+      forceComplete;
+      shouldCompleteNonPendingHeartbeat;
+    }
+    onExpireHeartbeat -> {
+      removePendingMemberAndUpdateGroup;
+      removeMemberAndUpdateGroup;
+    }
+    onExpireHeartbeat[
+      shape="record";
+      label="{{
+        onExpireHeartbeat|
+        去掉心跳超时的member
+      }}";
+    ];
+    updateMemberAndRebalance -> {
+      updateMember;
+      maybePrepareRebalance;
+    };
+    maybePrepareRebalance -> {
+      prepareRebalance;
+      canRebalance;
+    }
+    addPendingMemberExpiration -> {
+      group_add;
+      MemberMetadata;
+      completeAndScheduleNextExpiration;
+      maybePrepareRebalance;
+      addStaticMember;
+      removePendingMember;
+    }
+    addMemberAndRebalance -> {
+      MemberMetadata;
+      group_add;
+      completeAndScheduleNextExpiration;
+      maybePrepareRebalance;
+      removePendingMember;
+      addStaticMember;
+    }
+    prepareRebalance -> {
+      resetAndPropagateAssignmentError;
+      transitionTo_PreparingRebalance;
+      tryCompleteElseWatch;
+      DelayedJoin;
+      InitialDelayedJoin;
+    }
+    DelayedJoin -> {
+      tryCompleteJoin;
+      onExpiration;
+      onCompleteJoin;
+    }
+    tryCompleteJoin -> {
+      hasAllMembersJoined;
+      forceComplete;
+    }
+    onCompleteJoin -> {
+      storeGroup;
+      initNextGeneration;
+      maybeElectNewJoinedLeader;
+      maybeInvokeJoinCallback;
+      completeAndScheduleNextHeartbeatExpiration;
+    }
+
+    handleLeaveGroup -> {
+      group_remove;
+      gm_getGroup;
+      isStaticMemberFenced;
+      removePendingMemberAndUpdateGroup;
+      checkAndComplete;
+      removeMemberAndUpdateGroup;
+    };
+
+    removeMemberAndUpdateGroup -> {
+      maybeInvokeJoinCallback;
+      removeStaticMember;
+    }
+    removePendingMemberAndUpdateGroup -> {
+      removePendingMember;
+      maybePrepareRebalance;
+      checkAndComplete;
+    }
+    {rank=same;handleJoinGroup;handleLeaveGroup}
+  };
+
+  subgraph cluster_KafkaApi {
+    graph[label="KafkaApi";fontsize=20;style=rounded];
+    handleJoinGroupRequest -> handleJoinGroup;
+    handleLeaveGroupRequest -> handleLeaveGroup;
+  };
+}

@@ -1,0 +1,139 @@
+digraph commit_offset {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Consumer {
+    graph[label="Consumer";fontsize=20;style=rounded];
+    Request[
+      shape="record";
+      label="{{
+        Request|
+        groupId: string\l|
+        memeberId: string\l|
+        groupInstanceId: Option[string]\l|
+        generationId: int\l|
+        <om> offsetMetadata: Map[TopicPartition, OffsetAndMetadata]\l
+      }}";
+    ];
+    Request:om -> offsetAndMetadata;
+    RequestFetchOffset[
+      shape="record";
+      label="{{
+        RequestFetchOffset|
+        groupId: String \l|
+        partitions: Option[Seq[TopicPartition]]\l
+      }}";
+    ];
+  };
+  subgraph cluster_ReplicaManager {
+    graph[label="ReplicaManager";fontsize=20;style=rounded];
+    appendRecords[
+      shape="record";
+      label="{{
+        appendRecords|
+        将records存放\l到kafka topic中\l
+      }}";
+    ];
+  };
+  subgraph cluster_OffsetMetadata {
+    graph[label="OffsetMetadata";fontsize=20;style=rounded];
+    offsetMetadata[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        offsetMetadata|
+        offset: Long\l|
+        leaderEpoch Optional[Integer]\l|
+        metadata: String\l|
+        commitTimestamp: Long\l|
+        expireTimestamp: Option[Long]\l
+      }}";
+    ];
+  };
+  subgraph cluster_GroupMetadata {
+    graph[label="GroupMetadata";fontsize=20;style=rounded];
+    allOffsets -> offsets;
+    offsets[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        offsets|
+        HashMap[TopicPartition， CommitRecordMetadataAndOffset]
+      }}";
+    ];
+    prepareOffsetCommit;
+    onOffsetCommitAppend -> offsets;
+  };
+
+  subgraph cluster_GroupManager {
+    graph[label="GroupManager";fontsize=20;style=rounded];
+    gm_getGroup[
+      shape="record";
+      label="{{
+        getGroup|
+        根据groupId获取\lGroupMetadata\l
+      }}";
+    ];
+    gm_storeOffsets[
+      shape="record";
+      label="{{
+        storeOffsets|
+        将offset存储在topic中
+      }}";
+    ];
+    gm_addGroup[
+      shape="record";
+      label="{{
+        addGroup|
+        将groupId加入到Pool中\l
+      }}";
+    ];
+    groupMetadataCache[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        groupMetadataCache|
+        Pool[String, GroupMetadata]
+      }}";
+    ];
+    getOffsets -> {
+      groupMetadataCache;
+      allOffsets;
+    };
+
+    {gm_addGroup;gm_getGroup} -> groupMetadataCache;
+    gm_storeOffsets -> {
+      offsetMetadata;
+      hasReceivedConsistentOffsetCommits;
+      offsetCommitKey;
+      offsetCommitValue;
+      GROUP_METADATA_TOPIC_NAME;
+      partitionFor;
+      appendForGroup;
+      prepareOffsetCommit;
+      onOffsetCommitAppend;
+    }
+    appendForGroup -> appendRecords;
+  };
+
+  subgraph cluster_GroupCoordinator {
+    graph[label="GroupCoordinator";fontsize=20;style=rounded];
+    handleCommitOffsets -> {
+      gm_getGroup;
+      gm_addGroup;
+      doCommitOffsets;
+    };
+    doCommitOffsets -> {
+      completeAndScheduleNextExpiration;
+      gm_storeOffsets;
+    };
+    handleFetchOffsets -> {
+      getOffsets;
+    }
+  };
+  RequestFetchOffset -> handleFetchOffsets;
+  Request -> handleCommitOffsets;
+}
