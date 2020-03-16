@@ -23,8 +23,8 @@
 
 ### Kafka
 
-- [Kafka client: producer](./src/kafak/client-producer.md)
-- [Kafka client: consumer](./src/kafak/client-consumer.md)
+- [Kafka client: producer](./src/kafka/client-producer.md)
+- [Kafka group coordinator](./src/kafka/group-coordinator.md)
 - [Kafka log日志存储管理](./src/kafka/log.md)
 - [Kafka Partition](./src/kafka/partition.md)
 - [Kafka Controller 主要功能](./src/kafka/controller-main.md)

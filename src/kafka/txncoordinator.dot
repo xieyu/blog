@@ -1,0 +1,94 @@
+digraph txn_coordinator{
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_zkClient {
+    graph[label="zkClient";fontsize=20;style=rounded];
+    zk_getDataAndVersion -> ProducerIdBlockZNode;
+    conditionalUpdatePath;
+  };
+
+  subgraph cluster_PorudcerIdManager {
+    graph[label="PorudcerIdManager";fontsize=20;style=rounded];
+    producerIdManager_shutdown;
+    generateProducerId ->{
+      currentProducerIdBlock;
+      getNewProducerIdBlock;
+    }
+    getNewProducerIdBlock -> {
+      zk_getDataAndVersion;
+      parseProducerIdBlockData;
+      generateProducerIdBlockJson;
+      conditionalUpdatePath;
+    }
+    producerIdManager_shutdown[
+      shape="record";
+      label="{{
+        shutdown|
+        打印nextProducerId
+      }}";
+    ];
+  };
+
+  subgraph cluster_TranscationMetaData {
+    graph[label="TranscationMetaData";fontsize=20;style=rounded];
+    TranscationMetaData;
+    prepareIncrementProducerEpoch;
+    prepareAddPartitions;
+  };
+
+  subgraph cluster_TranscationStateManager {
+    graph[label="TranscationStateManager";fontsize=20;style=rounded];
+    getTransactionState;
+    appendTransactionToLog;
+    
+  };
+
+  subgraph cluster_TranscationCoordinator {
+    graph[label="TranscationCoordinator";fontsize=20;style=rounded];
+    handleInitProducerId -> {
+      generateProducerId;
+      getTransactionState;
+      putTransactionStateIfNotExists;
+      TranscationMetaData;
+      handleEndTransaction;
+      appendTransactionToLog;
+    }
+    handleAddPartitionsToTransaction -> {
+      getTransactionState;
+      prepareAddPartitions;
+      appendTransactionToLog;
+    }
+
+    handleTxnEmigration -> {
+      removeMarkersForTxnTopicPartition;
+      removeTransactionsForTxnTopicPartition;
+    }
+    handleTxnImmigration -> {
+      removeMarkersForTxnTopicPartition;
+      loadTransactionsForTxnTopicPartition;
+    }
+    handleEndTransaction -> 
+      logInvalidStateTransitionAndReturnError;
+      addTxnMarkersToSend;
+      appendTransactionToLog;
+    }
+
+    startup -> schedule -> abortTimedOutTransactions;
+    startup -> {
+      txnMarkerChannelManager_start
+    }
+    shutdown -> {
+      scheduler_shutdown;
+      producerIdManager_shutdown;
+      txnManager_shutdown;
+      txnMarkerChannelManager_shutdown;
+    }
+
+
+    prepareInitProducerIdTransit -> {
+      prepareIncrementProducerEpoch;
+      prepareProducerIdRotation;
+      isProducerEpochExhausted;
+    }
+}

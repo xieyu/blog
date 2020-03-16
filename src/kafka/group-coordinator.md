@@ -63,7 +63,10 @@ Group instance id: the unique identifier defined by user to distinguish each cli
 
 ## Group状态
 
+group状态，以及group各个状态下对join/leave/sync/offset_commit等行为的反应
+
 ![group-state](./group-state.svg)
+
 
 
 ## Ref
