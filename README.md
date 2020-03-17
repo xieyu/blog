@@ -23,8 +23,6 @@
 
 ### Kafka
 
-- [Kafka client: producer](./src/kafka/client-producer.md)
-- [Kafka group coordinator](./src/kafka/group-coordinator.md)
 - [Kafka log日志存储管理](./src/kafka/log.md)
 - [Kafka Partition](./src/kafka/partition.md)
 - [Kafka Controller 主要功能](./src/kafka/controller-main.md)
@@ -34,6 +32,9 @@
 - [Kafka Controller 副本迁移](./src/kafka/replica-assignment.md)
 - [Kafka Partition/Replica状态机](./src/kafka/paritition-replica-statemachine.md)
 - [Kafka 读写消息](./src/kafka/kafka-produce-fetch.md)
+- [Kafka client: producer](./src/kafka/client-producer.md)
+- [Kafka group coordinator](./src/kafka/group-coordinator.md)
+- [Kffka Txn coordinator](./src/kafka/txn_coordinator.md)
 
 ### TiDB
 

@@ -53,6 +53,7 @@
   - [Kafka Controller zk监听](./kafka/controller-zk.md)
   - [Kafka Controller 副本迁移](./kafka/replica-assignment.md)
   - [Kafka Partition/Replica状态机](./kafka/paritition-replica-statemachine.md)
+  - [Kafka 事务](./kafka/txn_coordinator.md)
 
 - [tokio](./tokio/index.md)
     - [Executor](./tokio/executor.md)
