@@ -5,7 +5,6 @@ digraph txn_end {
 
   subgraph cluster_ReplicaManager {
     graph[label="ReplicaManager";fontsize=20;style=rounded];
-    appendRecords;
     appendRecords[
       shape="record";
       label="{{
@@ -235,6 +234,8 @@ digraph txn_end {
       }}";
     ];
     sendTxnMarkersCallback[
+      fillcolor="#f38181"
+      style=filled;
       shape="record";
       label="{{
         sendTxnMarkersCallback|
@@ -308,22 +309,14 @@ digraph txn_end {
       }}";
     ];
     doWork -> generateRequests;
+    generateRequests;
+    drainQueuedTransactionMarkers;
+    forEachTxnTopicPartition;
   };
 
   subgraph cluster_TransactionCoordinator {
     graph[label="TransactionCoordinator";fontsize=20;style=rounded];
-    handleEndTransaction -> {
-      prepareAbortOrCommit
-      appendTransactionToLog;
-    }
   };
-  subgraph cluster_KafkaApi {
-    graph[label="KafkaApi";fontsize=20;style=rounded];
-    handleEndTxnRequest -> {
-      handleEndTransaction;
-    }
-  };
-  handleEndTransaction -> sendTxnMarkersCallback[style=dashed];
 
   TransactionMarkerRequestCompletionHandler -> {
     getTransactionState;
@@ -338,8 +331,9 @@ digraph txn_end {
 
   updateCacheCallback -> completeTransitionTo;
   updateCacheCallback -> {
-    sendTxnMarkersCallback;
     getTransactionState;
     appendCallback;
   }
+  {rank=same;addTxnMarkersToSend;forEachTxnTopicPartition;retryLogAppends}
+  {rank=same;markersPerTxnTopicPartition;txnLogAppendRetryQueue}
 }

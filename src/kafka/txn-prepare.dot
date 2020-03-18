@@ -133,6 +133,19 @@ digraph txn_prepare {
       appendRecords;
     };
     appendRecords -> updateCacheCallback -> completeTransitionTo;
+    updateCacheCallback -> sendTxnMarkersCallback;
+    sendTxnMarkersCallback[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        sendTxnMarkersCallback|
+        coordinator开始向各个broker\l 
+        发送txnMark请求\l
+        不断尝试直到成功\l
+        并将状态设置为Complete\l
+        }}"
+    ];
   };
 
 

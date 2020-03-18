@@ -193,26 +193,26 @@
 <!-- TxnMetadataCacheEntry -->
 <g id="node11" class="node">
 <title>TxnMetadataCacheEntry</title>
-<polygon fill="#95e1d3" stroke="#000000" points="1190.334,-208.2 1190.334,-307.8 1403.4961,-307.8 1403.4961,-208.2 1190.334,-208.2"/>
-<text text-anchor="middle" x="1296.915" y="-292.6" font-family="Times,serif" font-size="14.00" fill="#000000">TxnMetadataCacheEntry</text>
-<polyline fill="none" stroke="#000000" points="1190.334,-285.8 1403.4961,-285.8 "/>
-<text text-anchor="start" x="1198.334" y="-270.6" font-family="Times,serif" font-size="14.00" fill="#000000">coordinatorEpoch Int </text>
-<polyline fill="none" stroke="#000000" points="1190.334,-263.8 1403.4961,-263.8 "/>
-<text text-anchor="start" x="1198.334" y="-248.6" font-family="Times,serif" font-size="14.00" fill="#000000">metadataPerTransactionalId </text>
-<text text-anchor="start" x="1198.334" y="-234.6" font-family="Times,serif" font-size="14.00" fill="#000000"> Pool[String, TransactionMetadata]</text>
-<text text-anchor="middle" x="1296.915" y="-220.6" font-family="Times,serif" font-size="14.00" fill="#000000"> 事务ID到事务metadata映射</text>
+<polygon fill="#95e1d3" stroke="#000000" points="1190.334,-242.2 1190.334,-341.8 1403.4961,-341.8 1403.4961,-242.2 1190.334,-242.2"/>
+<text text-anchor="middle" x="1296.915" y="-326.6" font-family="Times,serif" font-size="14.00" fill="#000000">TxnMetadataCacheEntry</text>
+<polyline fill="none" stroke="#000000" points="1190.334,-319.8 1403.4961,-319.8 "/>
+<text text-anchor="start" x="1198.334" y="-304.6" font-family="Times,serif" font-size="14.00" fill="#000000">coordinatorEpoch Int </text>
+<polyline fill="none" stroke="#000000" points="1190.334,-297.8 1403.4961,-297.8 "/>
+<text text-anchor="start" x="1198.334" y="-282.6" font-family="Times,serif" font-size="14.00" fill="#000000">metadataPerTransactionalId </text>
+<text text-anchor="start" x="1198.334" y="-268.6" font-family="Times,serif" font-size="14.00" fill="#000000"> Pool[String, TransactionMetadata]</text>
+<text text-anchor="middle" x="1296.915" y="-254.6" font-family="Times,serif" font-size="14.00" fill="#000000"> 事务ID到事务metadata映射</text>
 </g>
 <!-- transactionMetadataCache&#45;&gt;TxnMetadataCacheEntry -->
 <g id="edge4" class="edge">
 <title>transactionMetadataCache:entry&#45;&gt;TxnMetadataCacheEntry</title>
-<path fill="none" stroke="#000000" d="M1154.0308,-213C1162.536,-213 1171.2,-213.7344 1179.8433,-215.0155"/>
-<polygon fill="#000000" stroke="#000000" points="1179.5207,-218.5113 1189.9696,-216.7593 1180.7087,-211.6129 1179.5207,-218.5113"/>
+<path fill="none" stroke="#000000" d="M1154.0308,-213C1167.3476,-213 1190.1375,-223.6425 1213.6527,-237.1151"/>
+<polygon fill="#000000" stroke="#000000" points="1211.9338,-240.1644 1222.3328,-242.1922 1215.4681,-234.1221 1211.9338,-240.1644"/>
 </g>
 <!-- TxnMetadataCacheEntry&#45;&gt;TransactionMetadata -->
 <g id="edge5" class="edge">
 <title>TxnMetadataCacheEntry:meta&#45;&gt;TransactionMetadata</title>
-<path fill="none" stroke="#000000" d="M1403.915,-236C1483.1735,-236 1526.3668,-323.1872 1548.6416,-396.194"/>
-<polygon fill="#000000" stroke="#000000" points="1545.3285,-397.3329 1551.5168,-405.9326 1552.042,-395.3508 1545.3285,-397.3329"/>
+<path fill="none" stroke="#000000" d="M1403.915,-270C1471.1049,-270 1514.2271,-335.8707 1539.6262,-396.1716"/>
+<polygon fill="#000000" stroke="#000000" points="1536.5326,-397.8544 1543.5514,-405.7908 1543.0138,-395.2096 1536.5326,-397.8544"/>
 </g>
 <!-- partitionFor -->
 <g id="node12" class="node">
@@ -230,6 +230,23 @@
 <path fill="none" stroke="#000000" d="M1092.1094,-147.6748C1114.9955,-153.9324 1138.6099,-164.6549 1154.334,-183 1215.9599,-254.8983 1150.6812,-307.0072 1190.334,-393 1202.3048,-418.9604 1220.9242,-443.9589 1239.272,-464.8669"/>
 <polygon fill="#000000" stroke="#000000" points="1236.7253,-467.2694 1246.0066,-472.379 1241.9374,-462.5967 1236.7253,-467.2694"/>
 </g>
+<!-- sendTxnMarkersCallback -->
+<g id="node16" class="node">
+<title>sendTxnMarkersCallback</title>
+<polygon fill="#f38181" stroke="#000000" points="1203.3804,-104.8002 1203.3804,-213.1998 1390.4497,-213.1998 1390.4497,-104.8002 1203.3804,-104.8002"/>
+<text text-anchor="middle" x="1296.915" y="-197.9998" font-family="Times,serif" font-size="14.00" fill="#000000">sendTxnMarkersCallback</text>
+<polyline fill="none" stroke="#000000" points="1203.3804,-191.1998 1390.4497,-191.1998 "/>
+<text text-anchor="start" x="1211.3804" y="-175.9998" font-family="Times,serif" font-size="14.00" fill="#000000">coordinator开始向各个broker</text>
+<text text-anchor="start" x="1211.3804" y="-156.3999" font-family="Times,serif" font-size="14.00" fill="#000000"> 发送txnMark请求</text>
+<text text-anchor="start" x="1211.3804" y="-136.8" font-family="Times,serif" font-size="14.00" fill="#000000"> 不断尝试直到成功</text>
+<text text-anchor="start" x="1211.3804" y="-117.2001" font-family="Times,serif" font-size="14.00" fill="#000000"> 并将状态设置为Complete</text>
+</g>
+<!-- updateCacheCallback&#45;&gt;sendTxnMarkersCallback -->
+<g id="edge13" class="edge">
+<title>updateCacheCallback&#45;&gt;sendTxnMarkersCallback</title>
+<path fill="none" stroke="#000000" d="M1092.1433,-144.0468C1122.6609,-146.2753 1159.1911,-148.9429 1192.8934,-151.404"/>
+<polygon fill="#000000" stroke="#000000" points="1193.0238,-154.9227 1203.2522,-152.1604 1193.5337,-147.9413 1193.0238,-154.9227"/>
+</g>
 <!-- getAndMaybeAddTransactionState&#45;&gt;transactionMetadataCache -->
 <g id="edge7" class="edge">
 <title>getAndMaybeAddTransactionState&#45;&gt;transactionMetadataCache</title>
@@ -243,49 +260,49 @@
 <polygon fill="#000000" stroke="#000000" points="898.6937,-317.5001 908.6937,-314 898.6936,-310.5001 898.6937,-317.5001"/>
 </g>
 <!-- handleEndTransaction -->
-<g id="node16" class="node">
+<g id="node17" class="node">
 <title>handleEndTransaction</title>
 <polygon fill="none" stroke="#000000" points="337.2254,-725 195.2902,-725 195.2902,-689 337.2254,-689 337.2254,-725"/>
 <text text-anchor="middle" x="266.2578" y="-702.8" font-family="Times,serif" font-size="14.00" fill="#000000">handleEndTransaction</text>
 </g>
 <!-- handleEndTransaction&#45;&gt;prepareAbortOrCommit -->
-<g id="edge13" class="edge">
+<g id="edge14" class="edge">
 <title>handleEndTransaction&#45;&gt;prepareAbortOrCommit</title>
 <path fill="none" stroke="#000000" d="M300.8208,-688.9499C325.7549,-675.9283 360.3825,-657.8445 391.6035,-641.5397"/>
 <polygon fill="#000000" stroke="#000000" points="393.4932,-644.5014 400.737,-636.7698 390.2527,-638.2966 393.4932,-644.5014"/>
 </g>
 <!-- handleEndTransaction&#45;&gt;appendTransactionToLog -->
-<g id="edge14" class="edge">
+<g id="edge15" class="edge">
 <title>handleEndTransaction&#45;&gt;appendTransactionToLog</title>
 <path fill="none" stroke="#000000" d="M266.9254,-688.9081C269.8809,-628.0998 285.4754,-427.0447 364.9912,-287 377.2188,-265.4646 395.5477,-245.6224 413.3295,-229.4465"/>
 <polygon fill="#000000" stroke="#000000" points="415.7317,-231.9943 420.8974,-222.7441 411.0907,-226.7539 415.7317,-231.9943"/>
 </g>
 <!-- handleEndTransaction&#45;&gt;getTransactionState -->
-<g id="edge15" class="edge">
+<g id="edge16" class="edge">
 <title>handleEndTransaction&#45;&gt;getTransactionState</title>
 <path fill="none" stroke="#000000" d="M267.8935,-688.8851C273.3065,-637.6933 294.5177,-489.4255 364.9912,-393 376.9427,-376.6473 393.7634,-362.6549 410.3204,-351.4728"/>
 <polygon fill="#000000" stroke="#000000" points="412.4466,-354.2654 418.9275,-345.8839 408.6344,-348.3945 412.4466,-354.2654"/>
 </g>
 <!-- addTxnMarkersToSend -->
-<g id="node17" class="node">
+<g id="node18" class="node">
 <title>addTxnMarkersToSend</title>
 <polygon fill="none" stroke="#000000" points="541.3037,-725 393.3271,-725 393.3271,-689 541.3037,-689 541.3037,-725"/>
 <text text-anchor="middle" x="467.3154" y="-702.8" font-family="Times,serif" font-size="14.00" fill="#000000">addTxnMarkersToSend</text>
 </g>
 <!-- handleEndTransaction&#45;&gt;addTxnMarkersToSend -->
-<g id="edge16" class="edge">
+<g id="edge17" class="edge">
 <title>handleEndTransaction&#45;&gt;addTxnMarkersToSend</title>
 <path fill="none" stroke="#000000" d="M337.1432,-707C352.0748,-707 367.9646,-707 383.3248,-707"/>
 <polygon fill="#000000" stroke="#000000" points="383.3267,-710.5001 393.3267,-707 383.3267,-703.5001 383.3267,-710.5001"/>
 </g>
 <!-- handleEndTxnRequest -->
-<g id="node18" class="node">
+<g id="node19" class="node">
 <title>handleEndTxnRequest</title>
 <polygon fill="none" stroke="#000000" points="159.2874,-725 16.237,-725 16.237,-689 159.2874,-689 159.2874,-725"/>
 <text text-anchor="middle" x="87.7622" y="-702.8" font-family="Times,serif" font-size="14.00" fill="#000000">handleEndTxnRequest</text>
 </g>
 <!-- handleEndTxnRequest&#45;&gt;handleEndTransaction -->
-<g id="edge17" class="edge">
+<g id="edge18" class="edge">
 <title>handleEndTxnRequest&#45;&gt;handleEndTransaction</title>
 <path fill="none" stroke="#000000" d="M159.3347,-707C167.8395,-707 176.5674,-707 185.1925,-707"/>
 <polygon fill="#000000" stroke="#000000" points="185.2509,-710.5001 195.2509,-707 185.2508,-703.5001 185.2509,-710.5001"/>
