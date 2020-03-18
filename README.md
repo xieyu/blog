@@ -34,7 +34,7 @@
 - [Kafka 读写消息](./src/kafka/kafka-produce-fetch.md)
 - [Kafka client: producer](./src/kafka/client-producer.md)
 - [Kafka group coordinator](./src/kafka/group-coordinator.md)
-- [Kffka Txn coordinator](./src/kafka/txn_coordinator.md)
+- [Kafka Txn coordinator](./src/kafka/txn_coordinator.md)
 
 ### TiDB
 
