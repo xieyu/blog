@@ -65,19 +65,34 @@ digraph immigration {
         从tp 日志恢复事务metadata内存中
       }}";
     ];
+    sendTxnMarkers[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        sendTxnMarkers|
+        将状态为PrepareAbort\l 
+        PrepareCommit的事务\l
+        重新发送WriteMarkers请求\l
+      }}";
+    ];
     transactionMetadataCache:entry -> TxnMetadataCacheEntry;
     TxnMetadataCacheEntry:meta -> TransactionMetadata;
 
     loadTransactionsForTxnTopicPartition-> {
       addLoadedTransactionsToCache
       getLog;
+      sendTxnMarkers;
     }
     addLoadedTransactionsToCache -> transactionMetadataCache;
   }
 
   subgraph cluster_TranscationCoordinator {
     graph[label="TranscationCoordinator";fontsize=20;style=rounded];
-    handleTxnImmigration -> loadTransactionsForTxnTopicPartition;
+    handleTxnImmigration -> {
+      loadTransactionsForTxnTopicPartition;
+      removeMarkersForTxnTopicPartition;
+    }
   };
   subgraph cluster_KafkaApi {
     graph[label="KafkaApi";fontsize=20;style=rounded];
