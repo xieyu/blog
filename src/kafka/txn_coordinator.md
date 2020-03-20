@@ -111,7 +111,8 @@ txn coordinator partition leader发生了变化，新的leader读取事务日志
 ## Ref
 
 1. [Transactions in Apache Kafka](https://www.confluent.io/blog/transactions-apache-kafka/)
-2. [Kafka设计解析8](https://cloud.tencent.com/developer/article/1149669)
-3. [Transactional Messaging in Kafka](https://cwiki.apache.org/confluence/display/KAFKA/Transactional+Messaging+in+Kafka)
-4. [Exactly Once Delivery and Transactional Messaging in Kafka](https://docs.google.com/document/d/11Jqy_GjUGtdXJK94XGsEIK7CP1SnQGdp2eF0wSw9ra8/edit#heading=h.i4ub5zye01nh)
+2. [Transactional Messaging in Kafka](https://cwiki.apache.org/confluence/display/KAFKA/Transactional+Messaging+in+Kafka)
+3. [Exactly Once Delivery and Transactional Messaging in Kafka](https://docs.google.com/document/d/11Jqy_GjUGtdXJK94XGsEIK7CP1SnQGdp2eF0wSw9ra8/edit#heading=h.i4ub5zye01nh)
+4. [Transactional Messaging in Kafka](https://cwiki.apache.org/confluence/display/KAFKA/Transactional+Messaging+in+Kafka)
 5. [Kafka 事务实现原理](https://zhmin.github.io/2019/05/20/kafka-transaction/)
+6. [Kafka设计解析8](https://cloud.tencent.com/developer/article/1149669)

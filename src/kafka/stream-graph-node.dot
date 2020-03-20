@@ -1,0 +1,19 @@
+digraph stream_graph_node {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  StreamsGraphNode -> {
+    StateStoreNode;
+    StreamSinkNode;
+    StreamSourceNode;
+    TableProcessorNode;
+    ProcessorGraphNode;
+    StreamTableJoinNode;
+    BaseRepartitionNode
+    BaseJoinProcessorNode;
+    KTableKTableForeignKeyJoinResolutionNode;
+  };
+  StateStoreNode -> GlobalStoreNode;
+  StreamSourceNode -> TableSourceNode;
+  ProcessorGraphNode -> StreamsGraphNode;
+}

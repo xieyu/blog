@@ -23,18 +23,20 @@
 
 ### Kafka
 
-- [Kafka log日志存储管理](./src/kafka/log.md)
-- [Kafka Partition](./src/kafka/partition.md)
-- [Kafka Controller 主要功能](./src/kafka/controller-main.md)
-- [Kafka Controller 通信管理 channelManager](./src/kafka/controller-channel-manager.md)
-- [Kafka Controller 选举](./src/kafka/controller-elect.md)
-- [Kafka Controller zk监听](./src/kafka/controller-zk.md)
-- [Kafka Controller 副本迁移](./src/kafka/replica-assignment.md)
-- [Kafka Partition/Replica状态机](./src/kafka/paritition-replica-statemachine.md)
-- [Kafka 读写消息](./src/kafka/kafka-produce-fetch.md)
-- [Kafka client: producer](./src/kafka/client-producer.md)
-- [Kafka group coordinator](./src/kafka/group-coordinator.md)
-- [Kafka Txn coordinator](./src/kafka/txn_coordinator.md)
+- [log日志存储管理](./src/kafka/log.md)
+- [Partition](./src/kafka/partition.md)
+- [Controller 主要功能](./src/kafka/controller-main.md)
+- [Controller 通信管理 channelManager](./src/kafka/controller-channel-manager.md)
+- [Controller 选举](./src/kafka/controller-elect.md)
+- [Controller zk监听](./src/kafka/controller-zk.md)
+- [Controller 副本迁移](./src/kafka/replica-assignment.md)
+- [Partition/Replica状态机](./src/kafka/paritition-replica-statemachine.md)
+- [读写消息](./src/kafka/kafka-produce-fetch.md)
+- [client: producer](./src/kafka/client-producer.md)
+- [group coordinator](./src/kafka/group-coordinator.md)
+- [事务](./src/kafka/txn_coordinator.md)
+- [Stream流处理](./src/kafka/stream.md)
+
 
 ### TiDB
 
