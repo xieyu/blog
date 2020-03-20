@@ -1,5 +1,8 @@
 # Draft: Stream
 
+## StreamGraph
+
+![stream graph node](./stream-graph-node.svg)
 
 ## Questions
 
