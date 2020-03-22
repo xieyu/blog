@@ -1,8 +1,19 @@
 # Draft: Stream
 
-## StreamGraph
+## StreamGraphNode
 
 ![stream graph node](./stream-graph-node.svg)
+
+### Processor
+![stream processor](./stream-processor.svg)
+
+### ProcessorContext 
+
+![stream processor context](./stream-processor-context.svg)
+
+## Stream start
+
+![stream start](./stream-start.svg)
 
 ## Questions
 
@@ -47,3 +58,6 @@ Topic中存储的数据记录本身是Key-Value形式的，同时Kafka的log com
 # Ref
 
 1. [Kafka设计解析（七）- Kafka Stream](https://cloud.tencent.com/developer/article/1149756)
+2. [Kafka Streams开发者指南](https://www.orchome.com/335)
+3. [Kafka Streams Internal: TaskManager](https://jaceklaskowski.gitbooks.io/mastering-kafka-streams/kafka-streams-internals-TaskManager.html)
+4. [Kafka Streams Architecture](https://cwiki.apache.org/confluence/display/KAFKA/Kafka+Streams+Architecture)

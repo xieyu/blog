@@ -8,7 +8,7 @@ digraph stream_graph_node {
         <sb> storeBuilder\l|
         String sourceName\l|
         String topic\l|
-        ConsumedInternal consumed\l|
+        <ci> ConsumedInternal consumed\l|
         String processorName \l|
         <ps> ProcessorSupplier stateUpdateSupplier\l
     }}";
@@ -116,7 +116,7 @@ digraph stream_graph_node {
     label="{{
       StreamSinkNode|
         TopicNameExtractor\l|
-        ProducedInternal\l
+        <pi> ProducedInternal\l
     }}";
   ];
   StreamSourceNode[shape="record";
@@ -139,13 +139,90 @@ digraph stream_graph_node {
     label="{{
       StreamTableJoinNode|
         String[] storeNames\l|
-        ProcessorParameters\<K,V\> processorParameters\l|
+        <pp> ProcessorParameters\<K,V\> processorParameters\l|
         string otherJoinSideNodeName\l|
     }}";
   ];
+  BaseRepartitionNode[
+    shape="record";
+    label="{{
+      BaseRepartitionNode|
+      Serde\<K\> keySerde\l|
+      Serde\<V\> valueSerde\l|
+      String sinkName\l|
+      String sourceName\l|
+      String repartitionTopic\l|
+      StreamPartitioner\<K,V\> partitioner\l|
+      <pp> ProcessorParameters processorParameters\l
+    }}";
+  ];
+  BaseJoinProcessorNode[
+    shape="record";
+    label="{{
+      BaseJoinProcessorNode|
+      <pp> ProcessorParameters joinThisProcessorParameters\l|
+      ProcessorParameters joinOtherProcessorParameters\l|
+      ProcessorParameters joinMergeProcessorParameters\l|
+      ValueJoiner \l|
+      String thisJoinSideNodeName\l|
+      String otherJoinSideNodeName\l
+    }}";
+  ];
+  KTableKTableForeignKeyJoinResolutionNode[
+    shape="record";
+    label="{{
+      KTableKTableForeignKeyJoinResolutionNode|
+      <pp> ProcessorParameters\<KO, SubscriptionWrapper\<K\>\> joinOneToOneProcessorParameters;\l|
+      ProcessorParameters\<KO, Change\<VO\>\> joinByPrefixProcessorParameters;\l|
+      ProcessorParameters\<K, SubscriptionResponseWrapper\<VO\>\> resolverProcessorParameters;\l|
+      String finalRepartitionTopicName;\l|
+      String finalRepartitionSinkName;\l|
+      String finalRepartitionSourceName;\l|
+      Serde\<K\> keySerde;\l|
+      Serde\<SubscriptionResponseWrapper\<VO\>\> subResponseSerde;\l|
+      KTableValueGetterSupplier\<K, V\> originalValueGetter;\l
+    }}";
+  ];
+  ProducedInternal[
+    shape="record";
+    label="{{
+      ProducedInternal|
+      Serde\<K\> keySerde\l|
+      Serde\<V\> valueSerde\l|
+      StreamPartitioner\l|
+      String name\l
+    }}";
+  ];
+  ConsumedInternal[
+    shape="record";
+    label="{{
+      ConsumedInternal|
+      Serde\<K\> keySerde\l|
+      Deserializer\<K\> keyDeserializer\l|
+      Serde\<V\> valueSerde\l|
+      Deserializer\<V\> valueDeserializer\l|
+      Topology.AutoOffsetReset offsetResetPolicy\l|
+      TimestampExtractor timestampExtractor \l|
+      String name\l
+    }}";
+  ];
 
+  BaseJoinProcessorNode -> {
+    StreamStreamJoinNode;
+    KTableKTableJoinNode;
+  }
+
+  Produced -> ProducedInternal;
+  Consumed -> ConsumedInternal;
+  StreamSinkNode:pi -> ProducedInternal;
+
+  BaseJoinProcessorNode:pp -> ProcessorParameters;
+  KTableKTableForeignKeyJoinResolutionNode:pp -> ProcessorParameters;
+  BaseRepartitionNode:pp -> ProcessorParameters;
+  StreamTableJoinNode:pp -> ProcessorParameters;
   GlobalStoreNode:sb -> StoreBuilder;
   GlobalStoreNode:ps -> ProcessorSupplier;
+  GlobalStoreNode:ci -> ConsumedInternal;
   StatefulProcessorNode:sb -> {StateStore; StoreBuilder}
   ProcessorContext:store -> StateStore;
   ProcessorGraphNode:pp -> ProcessorParameters;
