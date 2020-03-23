@@ -56,6 +56,9 @@
   - [事务](./kafka/txn_coordinator.md)
   - [Stream](./kafka/stream.md)
 
+- [LevelDB](./leveldb/index.md)
+  - [draft](./leveldb/draft.md)
+
 - [tokio](./tokio/index.md)
     - [Executor](./tokio/executor.md)
       - [Park](./tokio/park.md)
