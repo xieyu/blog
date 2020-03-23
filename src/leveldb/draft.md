@@ -18,3 +18,7 @@
 ### DB Put
 
 ![db-put](./db-put.svg)
+
+### DB Compact
+
+![db-compact](./db-compact.svg)

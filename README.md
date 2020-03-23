@@ -39,7 +39,7 @@
 
 ### LevelDB
 
-- [Draft](./leveldb/draft.md)
+- [Draft](./src/leveldb/draft.md)
 
 ### TiDB
 

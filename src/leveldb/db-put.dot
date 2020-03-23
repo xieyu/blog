@@ -5,6 +5,14 @@ digraph db_put {
   subgraph cluster_SkipList {
     graph[label="SkipList";fontsize=20;style=rounded];
     SkipList_Insert;
+    SkipList_Insert[shape="record";
+      fillcolor="#f38181"
+      style=filled;
+      label="{{
+        Insert|
+        将记录插入到skiplist中
+      }}";
+    ];
   };
 
   subgraph cluster_MemTable {
@@ -33,11 +41,24 @@ digraph db_put {
       BeforeFile;
       FindFile;
     }
+    NewFileNumber;
   };
+  subgraph cluster_WritableFile {
+    graph[label="WritableFile";fontsize=20;];
+    WritableFile_Append[shape="record";
+      label="{{
+        Append\|
+        将record追加到文件中\l
+      }}";
+    ];
+    
+  }
 
   subgraph cluster_LogWriter {
     graph[label="LogWriter";fontsize=20;style=rounded];
     AddRecord[
+      fillcolor="#f38181"
+      style=filled;
       shape="record";
       label="{{
         AddRecord|
@@ -45,6 +66,7 @@ digraph db_put {
         挂掉后，能从日志中恢复\l
       }}";
     ];
+    AddRecord -> WritableFile_Append;
   };
 
   subgraph cluster_MemTableInserter {
@@ -97,11 +119,11 @@ digraph db_put {
     subgraph cluster_writers {
       graph[label="writers队列";fontsize=20;style=rounded];
       subgraph cluster_cv {
-        graph[label="cv";fontsize=20;style=rounded];
+        graph[label="ConditionVar";fontsize=20;style=rounded];
         cv_wait[
           shape="record";
           label="{{
-            cv_wait|
+            Wait|
             如果自己不再writers队列\l 
             最开头的话就等待\l
           }}";
@@ -109,7 +131,7 @@ digraph db_put {
         cv_Signal[
           shape="record";
           label="{{
-            cv_Signal|
+            Signal|
             自己写完了，\l 
             通知writers_队列中其他\l
             writer开始写\l
@@ -321,6 +343,8 @@ digraph db_put {
         shutting_down_;
       }
       WriteLevel0Table[
+        fillcolor="#f38181"
+        style=filled;
         shape="record";
         label="{{
           WriteLevel0Table|

@@ -304,8 +304,8 @@ digraph db_get {
       shape="record";
       label="{{
         Get|
-        1.先从mem中查找 
-        2.然后从immute中查找\l
+        1.先从mem_中查找\l
+        2.然后从imm_中查找\l
         3.从当前version中查找\l
       }}";
     ];
