@@ -1,0 +1,75 @@
+digraph table_format {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  TableFormat[
+    shape="record";
+    label="{{
+      TableFormat|
+      文件开头|
+      DataBlock 1\l|
+      <DataBlock> DataBlock 2\l|
+      ...|
+      DataBlock N\l|
+      <metaBlock> MetaBlock 1\l|
+      ...|
+      MetaBlock K\l|
+      <metaIndex> MetaIndexBlock\l|
+      <index> IndexBlock\l|
+      <Footer> Footer\l|
+      文件结尾
+    }}";
+  ];
+  DataBlock[
+    shape="record";
+    label="{{
+      DataBlock|
+      Record1\l|
+      ...|
+      RecordN\l|
+      restarts_0\l|
+      ...|
+      restarts_k\l|
+      num_restarts\l|
+      comparessType\l|
+      CRC32 Value\l
+    }}";
+  ];
+  Footer[
+    shape="record";
+    label="{{
+      Footer|
+      <metaIndex> offset_, size_ \lmetaindex_handle char[p]\l|
+      <index> offset_, size\l index_handle char[q]\l|
+      pading: char[40-p-q]\l|
+      magic: fixed64\l
+    }}";
+  ];
+  IndexBlock[
+    shape="record";
+    label="{{
+      IndexBlock|
+      field \l
+    }}";
+  ];
+  MetaIndexBlock[
+    shape="record";
+    label="{{
+      MetaIndexBlock|
+      filter.filter_policy_name,\loffset, size\l
+    }}";
+  ];
+  TableFormat:Footer -> {
+    TableFormat:index;
+    TableFormat:metaIndex;
+  }
+
+  IndexBlock -> TableFormat:DataBlock;
+
+  Footer:metaIndex -> TableFormat:metaIndex;
+  Footer:index -> TableFormat:index;
+  TableFormat:Footer -> Footer;
+  TableFormat:DataBlock -> DataBlock;
+  TableFormat:metaIndex -> MetaIndexBlock;
+  TableFormat:index -> IndexBlock;
+}

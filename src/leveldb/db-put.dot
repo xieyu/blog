@@ -152,6 +152,7 @@ digraph db_put {
         shape="record";
         label="{{
           writers_|
+            writers队列\l
             std::deque\<Writer*\> \l 
             writers_ GUARDED_BY(mutex_);\l
         }}";
@@ -197,6 +198,16 @@ digraph db_put {
       label="{{
         mem_|
         当前可变的MemTable
+      }}";
+    ];
+    DBImpl_Write[
+      shape="record";
+      label="{{
+        Write|
+        1. 先将自己加入到writers队列\l
+        2. 通过MakeRoomForWrite保证mem_有足够空间写入key,value\l
+        3. 先写入WAL日志\l
+        4. 写入memTable中\l
       }}";
     ];
 
@@ -327,6 +338,7 @@ digraph db_put {
         CompactMemTable;
         CompactRange;
         DoCompactionWork;
+        PickCompaction;
       };
 
       CompactMemTable[
@@ -358,10 +370,25 @@ digraph db_put {
           将MemTable落盘
         }}";
       ];
+      DoCompactionWork[
+        shape="record";
+        label="{{
+          DoCompactionWork|
+          做归并排序
+        }}";
+      ];
+      PickCompaction[
+        shape="record";
+        label="{{
+          PickCompaction|
+          选择需要compact的files
+        }}";
+      ];
       DoCompactionWork -> {
         CompactMemTable;
         OpenCompactionOutputFile;
         FinishCompactionOutputFile;
+        BlockBuilder_Add;
       };
 
       WriteLevel0Table -> {
