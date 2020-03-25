@@ -31,9 +31,19 @@ memtable写入文件过程
 
 table format
 
-![table-format](./ss-table-format.jpg)
+1. restart point的作用是啥？
 
+![table-format](./table-format.svg)
 
+## WAL日志
+
+## VersionSet
+
+### Manifest文件
+
+### VersionEdit
+
+## 各种迭代器: Iterator
 ## Ref
 1. [table format](https://github.com/google/leveldb/blob/master/doc/table_format.md)
 2. [LevelDB设计与实现 - 读写流程](https://zhuanlan.zhihu.com/p/51360281)

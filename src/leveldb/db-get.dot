@@ -8,6 +8,15 @@ digraph db_get {
       shape="record";
       label="{{
         LastSequence
+        如果Options中没指定snapshot\l 
+        就以version的LastSequnce为准\l
+      }}";
+    ];
+    VersionSet_current[
+      shape="record";
+      label="{{
+        VersionSet_current|
+        使用当前的versionset
       }}";
     ];
     VersionSet_LastSequence -> last_sequence_;
@@ -47,7 +56,7 @@ digraph db_get {
       shape="record";
       label="{{
         Get|
-        从内存SkipList查找\l
+        在Memtalbe和immutable中查找\l
       }}";
     ];
     memtable_key[

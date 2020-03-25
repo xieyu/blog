@@ -29,7 +29,28 @@ digraph db_put {
       EncodeFixed64;
       EncodeVarint32;
       memcpy;
+      KeyValue;
     }
+    KeyValue[
+      shape="record";
+      label="{{
+        插入skiplist的buf编码|
+        keySize: varint32\l| 
+        <KeyBytes> keyBytes\l|
+        valueSize: varint32\l|
+        value bytes\l
+      }}";
+    ];
+    KeyBytes[
+      shape="record";
+      label="{{
+        KeyBytes|
+        key_data|
+        <sequence> sequence_number|
+        type\l|
+      }}";
+    ];
+    KeyValue:KeyBytes -> KeyBytes;
   };
   subgraph cluster_VersionSet {
     graph[label="VersionSet";fontsize=20;style=rounded];
