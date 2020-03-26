@@ -1,0 +1,5 @@
+digraph doCompaction {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+}
