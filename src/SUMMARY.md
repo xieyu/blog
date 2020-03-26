@@ -62,7 +62,7 @@
   - [Read 流程](./leveldb/read.md)
   - [SSTable 文件格式和读写](./leveldb/table-format.md)
   - [versionset和Manifest](./leveldb/versionset.md)
-  - [后台压缩线程](./leveldb/table-compact.md)
+  - [Do Compact](./leveldb/table-compact.md)
 
 - [tokio](./tokio/index.md)
     - [Executor](./tokio/executor.md)

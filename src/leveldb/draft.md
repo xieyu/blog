@@ -35,17 +35,19 @@ table format
 
 ![table-format](./table-format.svg)
 
-## WAL日志
 
 ## VersionSet
-
 ![versionset](./version.svg)
 
 ### Manifest文件
 
 ### VersionEdit
 
-## 各种迭代器: Iterator
+## TODO:
+## WAL日志
+## Iterator
+## Bloom Filter
+
 ## Ref
 1. [table format](https://github.com/google/leveldb/blob/master/doc/table_format.md)
 2. [LevelDB设计与实现 - 读写流程](https://zhuanlan.zhihu.com/p/51360281)

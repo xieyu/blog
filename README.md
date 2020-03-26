@@ -43,6 +43,7 @@
 - [Write 流程](./src/leveldb/write.md)
 - [SSTable 文件格式和读写](./src/leveldb/table-format.md)
 - [versionset和Manifest文件](./src/leveldb/versionset.md)
+- [Compact](./src/leveldb/table-compact.md)
 
 ### TiDB
 
