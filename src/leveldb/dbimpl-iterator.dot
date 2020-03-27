@@ -1,0 +1,169 @@
+digraph dbimpl_iterator {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  DBIter[
+    shape="record";
+    label="{{
+      DBIter|
+      DBImpl* db_;\l|
+      const Comparator* const user_comparator_;\l|
+      Iterator* const iter_;\l|
+      SequenceNumber const sequence_;\l|
+      Status status_;\l|
+      std::string saved_key_; \l|
+      std::string saved_value_;\l|
+      Direction direction_;\l|
+      bool valid_;\l|
+      Random rnd_;\l|
+      size_t bytes_until_read_sampling_;\l
+    }}";
+  ];
+  MemTable_NewIterator[
+    shape="record";
+    label="{{
+      MemTable::NewIterator|
+      内存中mem和\l 
+      imm_的Iterator\l
+    }}";
+  ];
+  MemTable_NewIterator -> MemTableIterator;
+  TableCache_NewIterator[
+    shape="record";
+    label="{{
+      TableCache::NewIterator|
+      所有level 0文件的Iterator\l
+    }}";
+  ];
+  TableCache_NewIterator -> {
+      Table_NewIterator;
+  }
+  Table_NewIterator[
+    shape="record";
+    label="{{
+      Table::NewIterator
+    }}";
+  ];
+  AddIterators[
+    shape="record";
+    label="{{
+      Version::AddIterators
+    }}";
+  ];
+  NewConcatenatingIterator[
+    shape="record";
+    label="{{
+      Version::NewConcatenatingIterator
+    }}";
+  ];
+  Table_NewIterator -> {
+    NewTwoLevelIterator;
+    Block_NewIterator;
+  }
+  Block_NewIterator -> Block_Iter;
+
+  DBImpl_NewIterator -> {
+    NewInternalIterator;
+    NewDBIterator;
+  }
+  NewInternalIterator -> {
+    MemTable_NewIterator;
+    AddIterators;
+    NewMergingIterator;
+  }[color="#e84545"]
+  NewMergingIterator -> {
+    MergingIterator;
+  }
+  NewConcatenatingIterator[
+    shape="record";
+    label="{{
+      NewConcatenatingIterator|
+      其他level的每个level\l 
+      合并成一个Iterator\l
+    }}";
+  ];
+  List[
+    shape="record";
+    label="{{
+      List|
+      <MemTableIterator1> MemTable::Iterator for mm_\l|
+      <MemTableIterator2> MemTable::Iterator for imm_\l|
+      <level0Iter> level0 文件0 Iterator\l|
+      ...\l|
+      level0 文件n Iterator\l|
+      <levelNIter> level 1所有文件的Iterator \l|
+      <levelNIter> level 2所有文件的Iterator \l|
+      ...\l
+    }}";
+  ];
+  TwoLevelIterator1[
+    shape="record";
+    label="{{
+      TwoLevelIterator|
+      组合了index blockBlock::Iter\l 
+      和data block的Block::Iter\l
+    }}";
+  ];
+  TwoLevelIterator2[
+    shape="record";
+    label="{{
+      TwoLevelIterator|
+      组合了LevelFileNumIterator\l
+      和Table::Iterator\l
+    }}";
+  ];
+
+  TwoLevelIterator3[
+    shape="record";
+    label="{{
+      TwoLevelIterator|
+      组合了index blockBlock::Iter\l 
+      和data block的Block::Iter\l
+    }}";
+  ];
+  DBImpl_NewIterator[
+    shape="record";
+    label="{{
+      DBImpl::NewIterator
+    }}";
+  ];
+  NewInternalIterator[
+    shape="record";
+    label="{{
+      DBImpl::NewInternalIterator
+    }}";
+  ];
+  TableCache_NewIterator2[
+    shape="record";
+    label="{{
+      TableCache::NewIterator
+    }}";
+  ];
+
+  NewConcatenatingIterator-> {
+    NewTwoLevelIterator;
+    LevelFileNumIterator;
+    GetFileIterator;
+  }
+  GetFileIterator -> TableCache_NewIterator2 -> TwoLevelIterator3;
+  NewTwoLevelIterator -> {TwoLevelIterator1;TwoLevelIterator2;TwoLevelIterator3};
+  AddIterators -> {
+    NewConcatenatingIterator;
+    TableCache_NewIterator;
+  }
+  NewDBIterator -> DBIter;
+  {rank=same;TwoLevelIterator1;TwoLevelIterator2;MemTableIterator;};
+  {
+    edge[style=dashed;color=gray];
+    LevelFileNumIterator -> TwoLevelIterator2;
+    TableCache_NewIterator2 -> TwoLevelIterator2;
+
+    Block_Iter -> TwoLevelIterator1;
+    MergingIterator -> DBIter;
+    List -> MergingIterator;
+    MemTableIterator -> {List:MemTableIterator1;List:MemTableIterator2};
+    TwoLevelIterator1 -> List;
+    TwoLevelIterator2 -> List;
+    TwoLevelIterator3 -> TwoLevelIterator2;
+  }
+}

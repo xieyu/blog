@@ -63,6 +63,7 @@
   - [SSTable 文件格式和读写](./leveldb/table-format.md)
   - [versionset和Manifest](./leveldb/versionset.md)
   - [Do Compact](./leveldb/table-compact.md)
+  - [Iterator迭代器](./leveldb/iterator.md)
 
 - [tokio](./tokio/index.md)
     - [Executor](./tokio/executor.md)
