@@ -22,3 +22,11 @@ immtable，然后由后台压缩线程将immtable写入到level 0 文件。如�
 5. 每次写入都会更新versionSet的LastSequnceNumber，用于版本控制,Sequnce越大，表明key,value值越新。
 
 ![db-put](./db-put.svg)
+
+### WAL 日志写入
+
+![write_batch](./write_batch_internal.svg)
+
+### WAL 日志恢复
+
+![wal-log-recover](./wal-log-recover.svg)

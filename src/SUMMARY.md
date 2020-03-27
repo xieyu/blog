@@ -64,7 +64,6 @@
   - [versionset和Manifest](./leveldb/versionset.md)
   - [Do Compact](./leveldb/table-compact.md)
   - [Iterator迭代器](./leveldb/iterator.md)
-  - [WAL日志](./leveldb/wal-log.md)
 
 - [tokio](./tokio/index.md)
     - [Executor](./tokio/executor.md)

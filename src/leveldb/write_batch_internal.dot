@@ -2,14 +2,21 @@ digraph write_batch{
   node[shape=box;];
   newrank=true;
   rankdir=LR;
+  subgraph cluster_RecordFormat {
+    graph[label="RecordFormat";fontsize=20;];
+    rep_;
+    record;
+    varstring;
+  }
+
   rep_[
     shape="record";
     label="{{
       rep_|
-      最后写入日志中的slice
+      最后写入日志中的slice\l|
       <sequnce> sequence: fixed64\l|
       <count> count: fixed32\l|
-      <data> data: record[count]
+      <data> data: record[count]\l
     }}";
   ];
   record[
@@ -86,7 +93,7 @@ digraph write_batch{
   AddRecord[
     shape="record";
     label="{{
-      AddRecord|
+      Writer::AddRecord|
       将日志写入文件\l
     }}";
   ];
@@ -96,11 +103,13 @@ digraph write_batch{
     kTypeValue;
     rep__push_back;
     PutLengthPrefixedSlice;
-  }
+  }[color="#75daad"];
+
   WriteBatch_Delete ->  {
     SetCount;
     kTypeDeletion;
     rep__push_back;
-  }
+  }[color="#FF7272"];
+  {rank=same;WriteBatch_Delete;WriteBatch_Put;SetSequence};
   rep__push_back -> rep_:data;
 }

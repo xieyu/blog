@@ -44,7 +44,7 @@
 - [SSTable 文件格式和读写](./src/leveldb/table-format.md)
 - [versionset和Manifest文件](./src/leveldb/versionset.md)
 - [Compact](./src/leveldb/table-compact.md)
-- [Iterator迭代器](./leveldb/iterator.md)
+- [Iterator迭代器](./src/leveldb/iterator.md)
 
 ### TiDB
 
