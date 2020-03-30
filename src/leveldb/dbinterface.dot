@@ -227,7 +227,7 @@ digraph dbInterface {
       <Table> Table table_\l
     }}";
   ];
-  MemTable:Table -> Table;
+  MemTable:Table -> SkipList;
 
   TableCache[
     shape="record";
@@ -245,6 +245,7 @@ digraph dbInterface {
       <cache> Cache* cache_;\l
     }}";
   ];
+  TableCache -> Table;
   TableCache:env -> Env;
   TableCache:options -> Options;
   TableCache:cache -> Cache;
@@ -329,9 +330,9 @@ digraph dbInterface {
     TableCache;
   };
 
+    MemTable;
   subgraph cluster_Table {
     graph[label="Table";fontsize=20;style=rounded];
-    MemTable;
     Table_Rep;
     Table;
   };
