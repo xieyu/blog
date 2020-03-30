@@ -64,6 +64,7 @@
   - [versionset和Manifest](./leveldb/versionset.md)
   - [Do Compact](./leveldb/table-compact.md)
   - [Iterator迭代器](./leveldb/iterator.md)
+  - [Bloom filter](./leveldb/bloom-filter.md)
 
 - [tokio](./tokio/index.md)
     - [Executor](./tokio/executor.md)
