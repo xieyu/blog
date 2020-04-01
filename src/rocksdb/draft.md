@@ -16,4 +16,10 @@
 ## WriteBatch
 
 ![write-batch](./write-batch.svg)
+
+## ColumnFamily
+
+![column_family](./column_family.svg)
+
 ## Write Thread
+

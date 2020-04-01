@@ -1,0 +1,51 @@
+digraph ColumnFamily {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  ColumnFamilyHandle[
+    shape="record";
+    label="{{
+      ColumnFamilyHandle|
+        virtual const std::string& GetName() const = 0;\l|
+        virtual uint32_t GetID() const = 0;\l|
+        virtual Status GetDescriptor(ColumnFamilyDescriptor* desc) = 0;\l|
+        virtual const Comparator* GetComparator() const = 0;\l
+    }}";
+  ];
+  ColumnFamilyHandle -> ColumnFamilyHandleImpl;
+  ColumnFamilyHandleImpl[
+    shape="record";
+    label="{{
+      ColumnFamilyHandleImpl|
+      <ColumnFamilyData> ColumnFamilyData* cfd_;\l|
+      DBImpl* db_;\l|
+      InstrumentedMutex* mutex_;\l
+    }}";
+  ];
+
+  ColumnFamilyHandleImpl:ColumnFamilyData -> ColumnFamilyData;
+
+  ColumnFamilyData[
+    shape="record";
+    label="{{
+      ColumnFamilyData|
+        uint32_t id_;\l|
+        const std::string name_;\l|
+        Version* dummy_versions_;\l|
+        <Version> Version* current_;\l|
+        <MemTable> MemTable* mem_;\l|
+        MemTableList imm_;\l|
+        SuperVersion* super_version_;\l
+    }}";
+  ];
+  ColumnFamilyData:MemTable -> MemTable;
+  ColumnFamilyData:Version -> Version;
+
+  MemTable[
+    shape="record";
+    label="{{
+      MemTable|
+      VersionEdit
+    }}";
+  ];
+}

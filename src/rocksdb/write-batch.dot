@@ -120,16 +120,22 @@ digraph write_batch {
   };
   WriteBatch_Rep -> ReadRecordFromWriteBatch[style=dashed;color=gray];
   subgraph cluster_FlushScheduler {
-    graph[label="FlushScheduler";fontsize=20;style=rounded];
+    graph[label="TrimHistoryScheduler";fontsize=20;style=rounded];
     ScheduleWork -> {
-      head_;
+    cfds_
     }
-    head_ -> TakeNextColumnFamily 
+    cfds_ -> TakeNextColumnFamily 
   };
 
   subgraph cluster_ColumnFamily {
     graph[label="ColumnFamily";fontsize=20;style=rounded];
-    ColumnFamilyMemTables_GetMemTable;
+    ColumnFamilyMemTables_GetMemTable[
+      shape="record";
+      label="{{
+        GetMemTable|
+        获取ColumnFamily对应的table\l
+      }}";
+    ];
     ColumnFamilyMemTables_GetColumnFamilyHandle;
     SeekToColumnFamily;
   };
@@ -217,7 +223,7 @@ digraph write_batch {
   };
 
   subgraph cluster_WriteBatch_Handler {
-    graph[label="WriteBatch_Handler";fontsize=20;style=rounded];
+    graph[label="WriteBatch::Handler";fontsize=20;style=rounded];
     PutCF;
   };
 
