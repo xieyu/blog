@@ -30,3 +30,6 @@ column family 相关数据结构之间引用关系
 
  Writer的状态
 ![write_thread_state](./write_thread_state.svg)
+
+write过程
+![write](./write_thread.svg)
