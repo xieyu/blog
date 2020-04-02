@@ -359,4 +359,6 @@ digraph write_batch {
     }
     Contents -> log_Writer_AddRecord;
   }
+  {rank=same;DB_Put;WriteBatchBase}
+  {rank=same;Iterate;WriteBatch_Rep;PutCF;MemTableInserter_PutCFImpl}
 }

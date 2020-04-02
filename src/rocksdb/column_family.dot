@@ -2,7 +2,7 @@ digraph ColumnFamily {
   node[shape=box;];
   newrank=true;
   rankdir=LR;
-  edge[weight=5];
+  edge[weight=5;color=gray40];
 //  splines = ortho;
 
 
@@ -187,9 +187,82 @@ digraph ColumnFamily {
         std::string checksum_method_;\l
       }}";
     ];
+    VersionSet[
+      shape="record";
+      label="{{
+        VersionSet|
+          <ColumnFamilySet> std::unique_ptr\<ColumnFamilySet\>\l column_family_set_;\l|
+          Env* const env_;\l|
+          FileSystem* const fs_;\l|
+          const std::string dbname_;\l|
+          std::atomic<uint64_t> last_sequence_;\l|
+          std::deque<ManifestWriter*> manifest_writers_;\l|
+          ...\l
+      }}";
+    ];
   }
+  VersionSet:ColumnFamilySet -> ColumnFamilySet;
   subgraph cluster_ColumnFamily {
     graph[label="ColumnFamily";fontsize=20;];
+    ColumnFamilyMemTables[
+      shape="record";
+      label="{{
+        ColumnFamilyMemTables|
+          virtual bool Seek(uint32_t column_family_id) = 0;\l|
+          virtual uint64_t GetLogNumber() const = 0;\l|
+          virtual MemTable* GetMemTable() const = 0;\l|
+          virtual ColumnFamilyHandle* GetColumnFamilyHandle() = 0;\l|
+          virtual ColumnFamilyData* current()\l
+      }}";
+    ];
+
+    ColumnFamilyMemTables -> {
+      ColumnFamilyMemTablesImpl
+      ColumnFamilyMemTablesDefault
+      ColumnFamilyHandle
+    }[color="#b83b5e"];
+
+    ColumnFamilyMemTablesDefault[
+      shape="record";
+      label="{{
+        ColumnFamilyMemTablesDefault|
+        bool ok_;|
+        <MemTable> MemTable* mem_;
+      }}";
+    ];
+    ColumnFamilyMemTablesDefault:MemTable -> MemTable;
+
+    ColumnFamilyMemTablesImpl[
+      shape="record";
+      label="{{
+        ColumnFamilyMemTablesImpl|
+          <ColumnFamilySet> ColumnFamilySet* column_family_set_;\l|
+          <ColumnFamilyData> ColumnFamilyData* current_;\l|
+          <ColumnFamilyHandleInternal> ColumnFamilyHandleInternal handle_;\l
+      }}";
+    ];
+    ColumnFamilyMemTablesImpl:ColumnFamilySet -> ColumnFamilySet[color="#f08a5d"];
+    ColumnFamilyMemTablesImpl:ColumnFamilyData -> ColumnFamilyData[color="#f08a5d"];
+    ColumnFamilyMemTablesImpl:ColumnFamilyHandleInternal-> ColumnFamilyHandleInternal[color="#f08a5d"];
+
+    ColumnFamilySet[
+      shape="record";
+      label="{{
+        ColumnFamilySet|
+          std::unordered_map\<std::string, uint32_t\>\l column_families_;\l|
+          <ColumnFamilyData> std::unordered_map\<uint32_t, ColumnFamilyData*\>\l column_family_data_;\l|
+          uint32_t max_column_family_;\l|
+          ColumnFamilyData* dummy_cfd_;\l|
+          ColumnFamilyData* default_cfd_cache_;\l|
+          <Cache> Cache* table_cache_;\l|
+          WriteBufferManager* write_buffer_manager_;\l|
+          WriteController* write_controller_;\l|
+          BlockCacheTracer* const block_cache_tracer_;\l
+      }}";
+    ];
+    ColumnFamilySet:ColumnFamilyData -> ColumnFamilyData;
+    ColumnFamilySet:Cache -> Cache;
+
     ColumnFamilyHandle[
       shape="record";
       label="{{
@@ -210,8 +283,17 @@ digraph ColumnFamily {
         InstrumentedMutex* mutex_;\l
       }}";
     ];
+    ColumnFamilyHandleImpl -> ColumnFamilyHandleInternal[color="#17b978"];
+    ColumnFamilyHandleImpl:ColumnFamilyData -> ColumnFamilyData[color="#17b978"];
 
-    ColumnFamilyHandleImpl:ColumnFamilyData -> ColumnFamilyData;
+    ColumnFamilyHandleInternal[
+      shape="record";
+      label="{{
+        ColumnFamilyHandleInternal|
+          <ColumnFamilyData> ColumnFamilyData* internal_cfd_;\l
+      }}";
+    ];
+    ColumnFamilyHandleInternal:ColumnFamilyData -> ColumnFamilyData;
 
     ColumnFamilyData[
       shape="record";
@@ -226,8 +308,35 @@ digraph ColumnFamily {
           SuperVersion* super_version_;\l
       }}";
     ];
-    ColumnFamilyData:MemTable -> MemTable;
-    ColumnFamilyData:Version -> Version;
+    ColumnFamilyData:MemTable -> MemTable[color="#e84545"];
+    ColumnFamilyData:Version -> Version[color="#e84545"];
+
+    subgraph cluster_ColumnFamilyHandle {
+      graph[label="ColumnFamilyHandle";fontsize=20;style=rounded];
+      ColumnFamilyHandle;
+      ColumnFamilyHandleInternal;
+      ColumnFamilyHandleImpl;
+    };
+    subgraph cluster_ColumnFamilyMemTables {
+      graph[label="ColumnFamilyMemTables";fontsize=20;style=rounded];
+      ColumnFamilyMemTables;
+      ColumnFamilyMemTablesDefault;
+      ColumnFamilyMemTablesImpl;
+    };
   }
-  {rank=same;MemTable;ColumnFamilyHandle;Version;}
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;style=rounded];
+    DBImpl[
+      shape="record";
+      label="{{
+        DBImpl|
+          <ColumnFamilyMemTablesImpl> std::unique_ptr\<ColumnFamilyMemTablesImpl\>\l column_family_memtables_;\l|
+          <ColumnFamilyHandleImpl> ColumnFamilyHandleImpl* default_cf_handle_;\l
+      }}";
+    ];
+    DBImpl:ColumnFamilyMemTablesImpl -> ColumnFamilyMemTablesImpl[color="#3f72af"];
+    DBImpl:ColumnFamilyHandleImpl -> ColumnFamilyHandleImpl[color="#3f72af"];
+  };
+  {rank=same;MemTable;ColumnFamilyMemTables;Version;}
+  {rank=same;TableCache;VersionStorageInfo}
 }
