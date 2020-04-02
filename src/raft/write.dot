@@ -66,16 +66,94 @@ digraph Writer {
 
   DBImpl_WriteImpl -> {
     JoinBatchGroup;
-    CompleteParallelMemTableWriter;
-    ExitAsBatchGroupFollower;
-    EnterAsBatchGroupLeader;
-    LaunchParallelMemTableWriters;
     DBImpl_PipelineWriteImpl;
+    IF_STATE_PARALLEL_MEMABLE_WRITER;
+    IF_STATE_GROUP_LEADER;
+  }[color="#e84545"]
+
+  IF_STATE_PARALLEL_MEMABLE_WRITER[shape="record";
+    label="{{
+      如果JoinBatchGroup后状态为\l|
+      STATE_PARALLEL_MEMTABLE_WRITER\l
+    }}";
+  ];
+
+  IF_STATE_PARALLEL_MEMABLE_WRITER -> {
+    ShouldWriteToMemtable;
+    WriteBatchInternal_InsertInto;
+    CompleteParallelMemTableWriter;
+    MemTableInsertStatusCheck;
+    ExitAsBatchGroupFollower;
+    EnterAsMemTableWriter;
+  }[color="#f08a5d"];
+
+  WriteBatchInternal_InsertInto[shape="record";
+    label="{{
+      WriteBatchInternal::InsertInto|
+      将WriteBatch插入MemTable\l
+    }}";
+  ];
+  JoinBatchGroup -> IF_STATE_PARALLEL_MEMABLE_WRITER [style=dashed;color=gray;];
+  JoinBatchGroup -> IF_STATE_GROUP_LEADER[style=dashed;color=gray];
+  LaunchParallelMemTableWriters -> IF_STATE_PARALLEL_MEMABLE_WRITER[style=dashed;color=gray];
+
+  IF_STATE_GROUP_LEADER[shape="record";
+    label="{{
+      如果JoinBatchGroup后状态为\l 
+      成为GROUP_LEADER\l
+    }}";
+  ];
+  {rank=same;IF_STATE_GROUP_LEADER;IF_STATE_PARALLEL_MEMABLE_WRITER};
+
+  subgraph cluster_GroupLeader {
+    graph[label="WriteGroupLeader";fontsize=20;];
+    IF_STATE_GROUP_LEADER -> {
+      PreprocessWrite;
+      EnterAsBatchGroupLeader;
+      ShouldWriteToMemtable;
+      IF_PARALLEL;
+      WriteToWAL;
+      WriteBatchInternal_InsertInto;
+      ConcurrentWriteToWAL;
+    }[color="#17b978"];
+
+    IF_PARALLEL[shape="record";
+      label="{{
+        如果允许并行写\l
+        就LaunchParallelMemTableWriters\l
+        让所有writers并行写\l
+        否则由groupLeader 插入\l 
+        到MemTable中\l
+      }}";
+    ];
+    IF_PARALLEL -> LaunchParallelMemTableWriters;
+    WriteToWAL[shape="record";
+      label="{{
+        WriteToWAL|
+        写WAL日志
+      }}";
+    ];
+    ConcurrentWriteToWAL[shape="record";
+      label="{{
+        ConcurrentWriteToWAL|
+        由two_write_queues_变量\l 
+        决定是否并发写\l
+        并发的写入WAL日志\l
+      }}";
+    ];
+
+    LaunchParallelMemTableWriters[shape="record";
+      label="{{
+        LaunchParallelMemTableWriters|
+        将group中的所有write状态设置为\l
+        STATE_PARALLEL_MEMTABLE_WRITER\l
+      }}";
+    ];
   }
   DBImpl_WriteImpl[
     shape="record";
     label="{{
-      DBImpl_WriteImpl|
+      DBImpl::WriteImpl|
       1.如果打开了enable_pipline_write则调用\l
       PipelinedWriteImpl\l
     }}";
@@ -87,7 +165,7 @@ digraph Writer {
     ExitAsBatchGroupFollower;
     ExitAsMemTableWriter;
     EnterAsMemTableWriter;
-  }
+  }[color="#3f72af"]
 
   JoinBatchGroup[
     shape="record";
@@ -166,4 +244,11 @@ digraph Writer {
     StateCV_noitfy_one;
     StateCV_noitfy_one -> StateCV_wait;
   };
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    DBImpl_PipelineWriteImpl;
+    DBImpl_WriteImpl;
+    DBImpl;
+    WaitForPendingWrites;
+  }
 }
