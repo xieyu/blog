@@ -3,7 +3,8 @@ digraph PipelineWriteImpl {
   newrank=true;
   rankdir=LR;
   edge[weight=5;color=gray40];
-  PipelineWriteImpl -> {
+  PipelinedWriteImpl
+  PipelinedWriteImpl -> {
     JoinBatchGroup;
     AllowWriteBatching;
     WaitForMemTableWriters;
@@ -152,7 +153,10 @@ digraph PipelineWriteImpl {
     GetBackgroundThreads;
     Schedule;
   }
-  Schedule -> BGWorkFlush;
+  Schedule -> {
+    BGWorkFlush;
+    BGWorkCompaction;
+  }
 
   BGWorkFlush -> {
     BackgroundCallFlush;
@@ -167,6 +171,7 @@ digraph PipelineWriteImpl {
     FlushBufferToLog;
     MaybeScheduleFlushOrCompaction;
     atomic_flush_install_cv__SignalAll;
+    PurgeObsoleteFiles;
   }
 
   BackgroundFlush -> {
@@ -178,5 +183,74 @@ digraph PipelineWriteImpl {
     FlushMemTablesToOutputFiles;
   }
 
-  FlushMemTablesToOutputFiles -> 
+  FlushMemTablesToOutputFiles -> {
+    AtomicFlushMemTablesToOutputFiles;
+    GetSnapshotContext;
+    GetLatestMutableCFOptions;
+    FlushMemTablesToOutputFiles2;
+  }
+  FlushMemTablesToOutputFiles2 -> {
+    FlushJob;
+    SyncClosedLogs;
+    FlushJob_Run;
+  }
+  FlushJob_Run -> {
+    GetPerfLevel;
+    WriteLevel0Table;
+    RollbackMemtableFlush;
+    TryInstallMemtableFlushResults;
+  }
+
+  WriteLevel0Table -> {
+    FlushBufferToLog;
+    BuildTable;
+  }
+  BuildTable -> {
+    TableFileName;
+    NewWritableFile;
+    MergeHelper;
+    Bulder_Finish;
+    Builder_Add;
+  }
+  TryInstallMemtableFlushResults -> {
+    LogAndApply;
+    InstallNewVersion;
+    UpdateCachedValuesFromMemTableListVersion;
+    ResetTrimHistoryNeeded;
+  }
+
+  BGWorkCompaction -> {
+    BackgroundCallCompaction;
+  }
+  BackgroundCallCompaction -> {
+    WaitForIngestFile;
+    BackgroundCompaction;
+    FindObsoleteFiles;
+    ReleaseFileNumberFromPendingOutputs;
+    MaybeScheduleFlushOrCompaction;
+    bg_cv__SignalAll;
+  }
+
+  BackgroundCompaction -> {
+    PickCompactionFromQueue;
+    GetLatestMutableCFOptions;
+    EnoughRoomForCompaction;
+    AddToCompactionQueue;
+    MaybeScheduleFlushOrCompaction;
+    NotifyOnCompactionBegin;
+    LogAndApply;
+    InstallSuperVersionAndScheduleWork;
+    CompactionJob;
+    NotifyOnCompactionCompleted;
+  }
+  PickCompactionFromQueue -> {
+    RequestCompactionToken;
+    compaction_queue_;
+  }
+  AddToCompactionQueue -> {
+    compaction_queue_;
+    set_queued_for_compaction;
+  }
+  CloseHelper -> PopFirstFromFlushQueue;
+  compaction_queue_ -> PopFirstFromFlushQueue;
 }
