@@ -41,7 +41,9 @@ digraph Writer {
     shape="record";
     label="{{
       WriteThread|
-        <Writer> std::atomic\<Writer*\> newest_writer_;\l|
+        <Writer>
+        当前writer链表队列\l
+        std::atomic\<Writer*\> newest_writer_;\l|
         std::atomic\<Writer*\> newest_memtable_writer_;\l|
         port::Mutex stall_mu_;\l|
         port::CondVar stall_cv_;\l
@@ -97,6 +99,10 @@ digraph Writer {
   JoinBatchGroup -> IF_STATE_GROUP_LEADER[style=dashed;color=gray];
   LaunchParallelMemTableWriters -> IF_STATE_PARALLEL_MEMABLE_WRITER[style=dashed;color=gray];
 
+  CompleteParallelMemTableWriter -> {
+    AwaitState;
+  }
+
   IF_STATE_GROUP_LEADER[shape="record";
     label="{{
       如果JoinBatchGroup后状态为\l 
@@ -105,17 +111,21 @@ digraph Writer {
   ];
   {rank=same;IF_STATE_GROUP_LEADER;IF_STATE_PARALLEL_MEMABLE_WRITER};
 
-  subgraph cluster_GroupLeader {
-    graph[label="WriteGroupLeader";fontsize=20;];
     IF_STATE_GROUP_LEADER -> {
       PreprocessWrite;
       EnterAsBatchGroupLeader;
       ShouldWriteToMemtable;
       IF_PARALLEL;
       WriteToWAL;
-      WriteBatchInternal_InsertInto;
       ConcurrentWriteToWAL;
     }[color="#17b978"];
+
+    PreprocessWrite -> {
+      WaitForPendingWrites;
+      HandleWriteBufferFull;
+      TrimMemtableHistory;
+      ScheduleFlushes;
+    }
 
     IF_PARALLEL[shape="record";
       label="{{
@@ -126,7 +136,10 @@ digraph Writer {
         到MemTable中\l
       }}";
     ];
-    IF_PARALLEL -> LaunchParallelMemTableWriters;
+    IF_PARALLEL -> {
+      LaunchParallelMemTableWriters;
+      WriteBatchInternal_InsertInto;
+    };
     WriteToWAL[shape="record";
       label="{{
         WriteToWAL|
@@ -149,7 +162,6 @@ digraph Writer {
         STATE_PARALLEL_MEMTABLE_WRITER\l
       }}";
     ];
-  }
   DBImpl_WriteImpl[
     shape="record";
     label="{{
@@ -158,6 +170,7 @@ digraph Writer {
       PipelinedWriteImpl\l
     }}";
   ];
+  /*
   DBImpl_PipelineWriteImpl -> {
     JoinBatchGroup;
     WaitForPendingWrites;
@@ -166,6 +179,7 @@ digraph Writer {
     ExitAsMemTableWriter;
     EnterAsMemTableWriter;
   }[color="#3f72af"]
+  */
 
   JoinBatchGroup[
     shape="record";
@@ -179,7 +193,8 @@ digraph Writer {
     LinkOne;
     SetState;
     AwaitState;
-  }
+  }[color="#3f72af"];
+
   LinkOne[
     shape="record";
     label="{{
@@ -214,6 +229,14 @@ digraph Writer {
     Writer:state;
     StateCV_wait;
   }
+  SetState[
+    shape="record";
+    label="{{
+      SetState|
+      设置Writer的状态，并通知\l 
+      等待writer状态变化的condvar\l
+    }}";
+  ];
 
   SetState -> {
     Writer:state;
@@ -230,6 +253,7 @@ digraph Writer {
     CreateMissingNewerLinks;
     HasMerge;
   }
+
   ExitAsMemTableWriter -> {
     newest_memtable_writer_;
     SetState;

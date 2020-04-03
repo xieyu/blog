@@ -28,8 +28,20 @@ column family 相关数据结构之间引用关系
 
 ## Write Thread
 
- Writer的状态
-![write_thread_state](./write_thread_state.svg)
+Writer的状态
+![write thread state](./write_thread_state.svg)
 
-write过程
-![write](./write_thread.svg)
+write thread过程
+Write group leader 负责写入WAL日志。
+memtable可能由group leader写，也有可能由各个writer 并发写。
+
+write thread是对写线程的抽象
+![write thread](./write_thread.svg)
+
+write 相关struct之间引用关系
+
+![write struct](./write_struct.svg)
+
+
+write impl
+![pipelined-write impl](./pipline_writeimpl.svg)
