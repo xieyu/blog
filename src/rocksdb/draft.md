@@ -45,3 +45,22 @@ write 相关struct之间引用关系
 
 write impl
 ![pipelined-write impl](./pipline_writeimpl.svg)
+
+
+## 后台压缩
+
+MaybeScheduleFlushOrCompaction
+
+![flush-compaction](./flush_compaction.svg)
+
+后台线程调度Schedule
+
+![schedule-bgtread](./schedule-bgthread.svg)
+
+后台刷新mem到磁盘上
+
+![backgroup-flush](./background-flush.svg)
+
+后台线程压缩
+
+![backgroup-compaction](./background-compaction.svg)

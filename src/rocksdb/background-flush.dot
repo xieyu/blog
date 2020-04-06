@@ -1,0 +1,76 @@
+digraph background_flushtitl {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  BackgroundFlush -> {
+    FlushMemTablesToOutputFiles;
+  }
+  FlushMemTablesToOutputFiles -> {
+    AtomicFlushMemTablesToOutputFiles;
+    GetSnapshotContext;
+    GetLatestMutableCFOptions;
+    FlushMemTableToOutputFile;
+  }
+
+  AtomicFlushMemTablesToOutputFiles -> {
+    GetDataDir;
+    GetSnapshotContext;
+    FlushJob;
+    PickMemTable;
+    GetCompressionFlush;
+    SyncClosedLogs;
+    FlushJob_Run
+  }
+
+  FlushMemTableToOutputFile -> {
+    FlushJob;
+    NotifyOnFlushBegin;
+    FlushJob_Run;
+    InstallSuperVersionAndScheduleWork;
+    NotifyOnCompactionCompleted;
+  }
+  FlushJob -> FlushJob_Run[style=dashed;color=gray80];
+
+  FlushJob_Run -> {
+    WriteLevel0Table;
+    RollbackMemtableFlush;
+    TryInstallMemtableFlushResults;
+  }
+
+  WriteLevel0Table[shape="record";
+    label="{{
+      WriteLevel0Table|
+      将mem刷到L0级别文件中\l
+    }}";
+  ];
+  WriteLevel0Table -> {
+    FlushBufferToLog;
+    NewMergingIterator;
+    BuildTable;
+    AddFile;
+  }
+
+  BuildTable[shape="record";
+    label="{{
+      BuildTable|
+      构建SSTable\l
+    }}";
+  ];
+  BuildTable -> {
+    TableFileName;
+    NewWritableFile;
+    NewTableBuilder;
+    Builder_Add;
+    Builder_Finish;
+    Builder_Abandon;
+    LogAndNotifyTableFileCreationFinished;
+  }
+  subgraph cluster_TableBuilder {
+    graph[label="TableBuilder";fontsize=20;];
+    NewTableBuilder;
+    Builder_Add;
+    Builder_Finish;
+    Builder_Abandon;
+  }
+}

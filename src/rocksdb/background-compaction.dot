@@ -1,0 +1,101 @@
+digraph atomic_flush {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  MaybeScheduleFlushOrCompaction -> Schedule;
+  Schedule -> {
+    BGWorkBottomCompaction;
+    BGWorkFlush;
+    BGWorkCompaction;
+  }[style=dashed;color=gray40];
+  BGWorkCompaction -> BackgroundCallCompaction -> BackgroundCompaction;
+  BGWorkBottomCompaction -> BackgroundCallCompaction;
+  BGWorkFlush -> BackgroundCallFlush; 
+
+  BackgroundCompaction -> {
+    EnoughRoomForCompaction;
+    ReleaseCompactionFiles;
+    PickCompactionFromQueue;
+    AddToCompactionQueue;
+    NeedsCompaction;
+    MaybeScheduleFlushOrCompaction;
+    NotifyOnCompactionBegin;
+    LogAndApply;
+    SetThreadOperation;
+    AddFile;
+    InstallSuperVersionAndScheduleWork;
+    Schedule;
+    NotifyOnFlushCompleted;
+    CompactionJob;
+    CompactionJob_Prepare;
+    CompactionJob_Run;
+  }
+  PickCompactionFromQueue -> {
+    compaction_queue_;
+    RequestCompactionToken;
+  }
+  AddToCompactionQueue -> {
+    compaction_queue_;
+  }
+  compaction_queue_[shape="record";
+    label="{{
+      compaction_queue_|
+        std::deque\<ColumnFamilyData*\>\l 
+        compaction_queue_;\l
+    }}";
+  ];
+  compaction_queue_ -> PopFirstFromCompactionQueue[style=dashed;color=gray40];
+  BackgroundCallFlush -> BackgroundFlush -> PopFirstFromCompactionQueue;
+
+  subgraph cluster_TableBuilder {
+    graph[label="TableBuilder";fontsize=20;];
+    TableBuilder_Add;
+    TableBuilder_Finish;
+    TableBuilder_Abandon;
+  }
+
+  subgraph cluster_CompactionJob {
+    graph[label="CompactionJob";fontsize=20;];
+    //compaction job
+    CompactionJob_Prepare;
+    CompactionJob;
+    CompactionJob_Run[shape="record";
+      label="{{
+        CompactionJob_Run|
+        使用线程池跑key/value压缩\l
+        每个线程参数为sub_comact_states[i]\l
+      }}";
+    ];
+    CompactionJob_Run -> {
+      thread_pool;
+      sub_compact_states;
+      ProcessKeyValueCompaction;
+    }
+    sub_compact_states[shape="record";
+      label="{{
+        sub_compact_states\l|
+        CompactionJob::SubcompactionState\l|
+        Slice *start, *end;\l|
+        Status status;\l|
+        ...
+        std::vector\<Output\> outputs;\l|
+        std::unique_ptr\<WritableFileWriter\> outfile;\l|
+        std::unique_ptr\<TableBuilder\> builder;\l
+      }}";
+    ];
+    sub_compact_states -> ProcessKeyValueCompaction[style=dashed;color=gray70];
+    thread_pool -> ProcessKeyValueCompaction[style=dashed;color=gray70];
+
+    ProcessKeyValueCompaction -> {
+      CreateCompactionFilter;
+      MakeInputIterator;
+      MergeHelper;
+      OpenCompactionOutputFile;
+      FinishCompactionOutputFile;
+      TableBuilder_Add;
+      TableBuilder_Finish;
+      TableBuilder_Abandon;
+    }
+  }
+}
