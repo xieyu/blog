@@ -69,6 +69,8 @@
 
 - [RocksDB](./rocksdb/index.md)
   - [draft](./rocksdb/draft.md)
+  - [write流程](./rocksdb/write.md)
+  - [后台flush和compact线程](./rocksdb/flush-and-compact.md)
 
 - [tokio](./tokio/index.md)
     - [Executor](./tokio/executor.md)

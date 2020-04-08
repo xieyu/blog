@@ -38,9 +38,6 @@ memtable可能由group leader写，也有可能由各个writer 并发写。
 write thread是对写线程的抽象
 ![write thread](./write_thread.svg)
 
-write 相关struct之间引用关系
-
-![write struct](./write_struct.svg)
 
 
 write impl
@@ -50,22 +47,13 @@ write impl
 
 ![preprocess write](./preprocess_write.svg)
 
-schedule flush
-![schedule flush](./schedule_flushes.svg)
-
 ## 后台压缩
 
 MaybeScheduleFlushOrCompaction
 
 ![flush-compaction](./flush_compaction.svg)
 
-后台线程调度Schedule
 
-![schedule-bgtread](./schedule-bgthread.svg)
-
-后台刷新mem到磁盘上
-
-![backgroup-flush](./background-flush.svg)
 
 后台线程压缩
 

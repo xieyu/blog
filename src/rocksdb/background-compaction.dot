@@ -3,6 +3,7 @@ digraph atomic_flush {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
+  /*
   MaybeScheduleFlushOrCompaction -> Schedule;
   Schedule -> {
     BGWorkBottomCompaction;
@@ -12,6 +13,7 @@ digraph atomic_flush {
   BGWorkCompaction -> BackgroundCallCompaction -> BackgroundCompaction;
   BGWorkBottomCompaction -> BackgroundCallCompaction;
   BGWorkFlush -> BackgroundCallFlush; 
+  */
 
   BackgroundCompaction -> {
     EnoughRoomForCompaction;
@@ -46,7 +48,7 @@ digraph atomic_flush {
     }}";
   ];
   compaction_queue_ -> PopFirstFromCompactionQueue[style=dashed;color=gray40];
-  BackgroundCallFlush -> BackgroundFlush -> PopFirstFromCompactionQueue;
+  //BackgroundCallFlush -> BackgroundFlush -> PopFirstFromCompactionQueue;
 
   subgraph cluster_TableBuilder {
     graph[label="TableBuilder";fontsize=20;];

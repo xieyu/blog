@@ -26,6 +26,14 @@ digraph schedule_flushes {
     MaybeScheduleFlushOrCompaction;
   }[color="#3f72af"]
 
+  SelectColumnFamiliesForAtomicFlush[shape="record";
+    label="{{
+      SelectColumnFamiliesForAtomicFlush|
+      如果immutable_db_options_.\lattomic_flush
+      为true\l
+    }}";
+  ];
+
   SchedulePendingFlush -> {
     flush_queue_
   }
@@ -42,13 +50,6 @@ digraph schedule_flushes {
     edge[style=dashed;color=gray40];
   }
 
-  MaybeScheduleFlushOrCompaction[shape="record";
-    label="{{
-      MaybeScheduleFlushOrCompaction|
-      将memtable flush到磁盘上\l
-      触发后台线程压缩\l
-    }}";
-  ];
   SelectColumnFamiliesForAtomicFlush -> {
     GetColumnFamilySet;
   }
@@ -67,12 +68,81 @@ digraph schedule_flushes {
     }}";
   ];
   SwitchMemtable -> {
-    NewSuperVersion;
+    WriteRecoverableState;
     ConstructNewMemtable;
     CreateWAL;
     SetMemtable;
     MemTableList_Add;
+    alive_log_files_;
   };
+
+  subgraph cluster_MemTableList {
+    graph[label="MemTableList";fontsize=20;];
+    MemTableList_Add[shape="record";
+        label="{{
+          MemTableList::Add|
+          将memtabl加到memtablelist中\l
+        }}";
+    ];
+    IsFlushPending[shape="record";
+      label="{{
+        IsFlushPending|
+        Returns true if there \l 
+        is at least one memtable\l
+        on which flush has\l
+        not yet started.\l
+      }}";
+    ];
+    MemTableList_Add -> current_;
+    PickMemtablesToFlush -> current_;
+    PickMemtablesToFlush[shape="record";
+      label="{{
+        PickMemtablesToFlush|
+        遍历current list\l
+        返回要flush的memlist\l
+      }}";
+    ];
+    current_[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        current_|
+        ColumnFamilyData\l 
+        对应的immtable list\l
+      }}";
+    ];
+  }
+
+  subgraph cluster_FlushJob {
+    graph[label="FlushJob";fontsize=20;];
+    FlushJob_PickMemTable -> PickMemtablesToFlush;
+    FlushJob_PickMemTable[shape="record";
+      label="{{
+        PickMemTable|
+        获取要flush的memtable
+      }}";
+    ];
+    FlushJob_Run -> WriteLevel0Table;
+    WriteLevel0Table[shape="record";
+      label="{{
+        WriteLevel0Table|
+        将memtable写入文件
+      }}";
+    ];
+  }
+
+  subgraph cluster_WriteThread {
+    graph[label="WriteThread";fontsize=20;];
+    EnterUnbatched -> {
+    InstrumentedMutex;
+      AwaitState;
+      WaitForPendingWrites;
+    }
+    ExitUnbatched -> {
+      SetState;
+      CreateMissingNewerLinks;
+    }
+  }
 
   subgraph cluster_MemTableInsert {
     graph[label="MemTableInserter";fontsize=20;];
@@ -157,17 +227,20 @@ digraph schedule_flushes {
         ConstructNewMemtable;
         SetMemtable;
       }
-      MemTableList_Add[shape="record";
-        label="{{
-          MemTableList::Add|
-          将memtabl加到memtablelist中\l
-        }}";
-      ];
     }
   }
 
   subgraph cluster_DBImpl{
     graph[label="Dbimpl";fontsize=20;];
+    CreateWAL;
+    MaybeScheduleFlushOrCompaction[
+      shape="record";
+      label="{{
+        MaybeScheduleFlushOrCompaction|
+        将memtable flush到磁盘上\l
+        触发后台线程压缩\l
+      }}";
+    ];
     WriteImpl;
     SwitchMemtable;
     PreprocessWrite;
@@ -197,18 +270,22 @@ digraph schedule_flushes {
           typedef std::vector\<std::pair\l\<ColumnFamilyData*, uint64_t\>\> FlushRequest;
       }}";
     ];
-  flush_queue_:FlushRequest -> FlushRequest;
+    flush_queue_:FlushRequest -> FlushRequest;
+    BackgroundFlush[shape="record";
+      label="{{
+        BackgroundFlush|
+        遍历flush_queue_\l
+        将需要刷新的columnfamilyData\l 
+        的memtable\l
+        刷到磁盘上\l
+      }}";
+    ];
+    BackgroundFlush -> IsFlushPending;
+    BackgroundFlush -> FlushMemTablesToOutputFiles -> FlushMemTableToOutputFile -> {
+      FlushJob_PickMemTable;
+      FlushJob_Run;
+    }
   }
-  BackgroundFlush[shape="record";
-    label="{{
-      BackgroundFlush|
-      遍历flush_queue_\l
-      将需要刷新的columnfamilyData\l 
-      的memtable\l
-      刷到磁盘上\l
-    }}";
-  ];
-  BackgroundFlush -> IsFlushPending;
 
   //data depends relationship
   {
