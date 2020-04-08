@@ -46,6 +46,12 @@ write 相关struct之间引用关系
 write impl
 ![pipelined-write impl](./pipline_writeimpl.svg)
 
+## PreprocessWrite
+
+![preprocess write](./preprocess_write.svg)
+
+schedule flush
+![schedule flush](./schedule_flushes.svg)
 
 ## 后台压缩
 
@@ -62,5 +68,7 @@ MaybeScheduleFlushOrCompaction
 ![backgroup-flush](./background-flush.svg)
 
 后台线程压缩
+
+compaction job之间是怎么划分的？怎么让不同线程去compact不同部分？
 
 ![backgroup-compaction](./background-compaction.svg)
