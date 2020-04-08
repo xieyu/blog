@@ -40,16 +40,7 @@ digraph MaybeScheduleFlushOrCompaction {
 
   BackgroundCallFlush -> {
     BackgroundFlush;
-    bg_cv__SignalAll;
-    SleepForMicroseconds;
-    ReleaseFileNumberFromPendingOutputs;
-    FindObsoleteFiles;
-    FlushBufferToLog;
-    MaybeScheduleFlushOrCompaction;
-    atomic_flush_install_cv__SignalAll;
-    PurgeObsoleteFiles;
   }
-
   BackgroundFlush[shape="record";
     label="{{
       BackgroundFlush|
@@ -57,10 +48,12 @@ digraph MaybeScheduleFlushOrCompaction {
       刷到磁盘上\l
     }}";
   ];
-  BackgroundCompaction[shape="record";
+  BackgroundFlush -> Flush_Job -> WriteLevel0Table -> TableBuilder[style=dashed;color=gray40];
+
+  WriteLevel0Table[shape="record";
     label="{{
-      BackgroundCompaction|
-      压缩\l
+      WriteLevel0Table|
+      将memtable刷入磁盘中
     }}";
   ];
 
@@ -69,12 +62,19 @@ digraph MaybeScheduleFlushOrCompaction {
     BackgroundCallCompaction;
   }
   BackgroundCallCompaction -> {
-    WaitForIngestFile;
     BackgroundCompaction;
-    FindObsoleteFiles;
-    ReleaseFileNumberFromPendingOutputs;
-    MaybeScheduleFlushOrCompaction;
-    bg_cv__SignalAll;
   }
-
+  BackgroundCompaction[shape="record";
+    label="{{
+      BackgroundCompaction|
+      压缩\l
+    }}";
+  ];
+  BackgroundCompaction -> CompactionJob -> ProcessKeyValueCompaction -> TableBuilder[style=dashed;color=gray40];
+  ProcessKeyValueCompaction[shape="record";
+    label="{{
+      ProcessKeyValueCompaction|
+      最归并排序compaction\l
+    }}";
+  ];
 }
