@@ -50,7 +50,7 @@
 ### RocksDB
 
 - [Write 流程](./src/rocksdb/write.md)
-- [后台flush和compact线程](./rocksdb/flush-and-compact.md)
+- [后台flush和compact线程](./src/rocksdb/flush-and-compact.md)
 
 ### TiDB
 
