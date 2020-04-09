@@ -3,52 +3,38 @@ digraph atomic_flush {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
-  /*
-  MaybeScheduleFlushOrCompaction -> Schedule;
-  Schedule -> {
-    BGWorkBottomCompaction;
-    BGWorkFlush;
-    BGWorkCompaction;
-  }[style=dashed;color=gray40];
-  BGWorkCompaction -> BackgroundCallCompaction -> BackgroundCompaction;
-  BGWorkBottomCompaction -> BackgroundCallCompaction;
-  BGWorkFlush -> BackgroundCallFlush; 
-  */
+  subgraph cluster_CompactionPicker {
+    graph[label="CompactionPicker";fontsize=20;];
+    CompactionPicker_PickCompaction -> {
+      FIFOCompactionPicker;
+      LevelCompactionPicker;
+      UniversalCompactionPicker;
+    } -> Compaction;
+    Compaction[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        Compaction|
+        包含了要compaction的一些metadata\l|
+        const int start_level_;\l
+        const int output_level_;\l
+        VersionStorageInfo* input_vstorage_;\l
+        const std::vector\<CompactionInputFiles\> inputs_;
+      }}";
+    ];
+    {
+      rank=same;
+      FIFOCompactionPicker;
+      LevelCompactionPicker;
+      UniversalCompactionPicker;
+    }
+  }
 
-  BackgroundCompaction -> {
-    EnoughRoomForCompaction;
-    ReleaseCompactionFiles;
-    PickCompactionFromQueue;
-    AddToCompactionQueue;
+  subgraph cluster_ColumnFamilyData {
+    graph[label="ColumnFamilyData";fontsize=20;];
+    PickCompaction -> CompactionPicker_PickCompaction;
     NeedsCompaction;
-    MaybeScheduleFlushOrCompaction;
-    NotifyOnCompactionBegin;
-    LogAndApply;
-    SetThreadOperation;
-    AddFile;
-    InstallSuperVersionAndScheduleWork;
-    Schedule;
-    NotifyOnFlushCompleted;
-    CompactionJob;
-    CompactionJob_Prepare;
-    CompactionJob_Run;
   }
-  PickCompactionFromQueue -> {
-    compaction_queue_;
-    RequestCompactionToken;
-  }
-  AddToCompactionQueue -> {
-    compaction_queue_;
-  }
-  compaction_queue_[shape="record";
-    label="{{
-      compaction_queue_|
-        std::deque\<ColumnFamilyData*\>\l 
-        compaction_queue_;\l
-    }}";
-  ];
-  compaction_queue_ -> PopFirstFromCompactionQueue[style=dashed;color=gray40];
-  //BackgroundCallFlush -> BackgroundFlush -> PopFirstFromCompactionQueue;
 
   subgraph cluster_TableBuilder {
     graph[label="TableBuilder";fontsize=20;];
@@ -60,8 +46,48 @@ digraph atomic_flush {
   subgraph cluster_CompactionJob {
     graph[label="CompactionJob";fontsize=20;];
     //compaction job
-    CompactionJob_Prepare;
-    CompactionJob;
+    CompactionJob[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        CompactionJob\l|
+          const std::string& dbname_;\l|
+          <CompactionState> CompactionState* compact_;\l|
+          FSDirectory* output_directory_;\l|
+          VersionSet* versions_;\l|
+          ...
+      }}"
+    ];
+    CompactionJob:CompactionState -> CompactionState;
+    CompactionState[
+      shape="record"
+      label="{{
+        CompactionState|
+          <SubcompactionState> std::vector\<CompactionJob::SubcompactionState\>\l sub_compact_states;\l|
+          Compaction* const compaction;\l|
+      }}"
+    ];
+    CompactionState:SubcompactionState -> sub_compact_states;
+    Compaction -> CompactionJob[style=dashed];
+    CompactionJob -> {
+      CompactionJob_Prepare;
+      CompactionJob_Run;
+    }
+    CompactionJob_Prepare[
+      shape="record"
+      label="{{
+        CompactionJob_Prepare|
+        将compactionJob划分为\l 
+        sub compact state\l
+      }}"
+    ];
+    CompactionJob_Prepare -> {
+      sub_compact_states;
+      ShouldFormSubcompactions;
+      boundaries_;
+    }
+
     CompactionJob_Run[shape="record";
       label="{{
         CompactionJob_Run|
@@ -69,14 +95,21 @@ digraph atomic_flush {
         每个线程参数为sub_comact_states[i]\l
       }}";
     ];
+    thread_pool[
+      shape="record"
+      label="{{
+        thread_pool|
+        使用多线程做压缩
+      }}"
+    ];
     CompactionJob_Run -> {
       thread_pool;
       sub_compact_states;
       ProcessKeyValueCompaction;
-    }
+    }[color="#3f72af"]
+
     sub_compact_states[shape="record";
       label="{{
-        sub_compact_states\l|
         CompactionJob::SubcompactionState\l|
         Slice *start, *end;\l|
         Status status;\l|
@@ -88,7 +121,13 @@ digraph atomic_flush {
     ];
     sub_compact_states -> ProcessKeyValueCompaction[style=dashed;color=gray70];
     thread_pool -> ProcessKeyValueCompaction[style=dashed;color=gray70];
-
+    ProcessKeyValueCompaction[shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        ProcessKeyValueCompaction
+      }}";
+    ];
     ProcessKeyValueCompaction -> {
       CreateCompactionFilter;
       MakeInputIterator;
@@ -100,4 +139,76 @@ digraph atomic_flush {
       TableBuilder_Abandon;
     }
   }
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    SchedulePendingCompaction[
+      shape="record"
+      label="{{
+        SchedulePendingCompaction|
+        将columnFamilyData加入队列\l
+      }}"
+    ];
+    MaybeScheduleFlushOrCompaction[
+      shape="record"
+      label="{{
+        MaybeScheduleFlushOrCompaction|
+        触发后台线程compact\l
+      }}"
+    ];
+    FlushMemTableToOutputFile[
+      shape="record"
+      label="{{
+        FlushMemTableToOutputFile|
+        将memtable刷到level0\l
+        sstable文件\l
+      }}"
+    ];
+    {
+      //CreateColumnFamilyImpl;
+      //CreateColumnFamilyWithImport;
+      //DeleteFile;
+      //DeleteFilesInRanges;
+      //IngestExternalFile;
+      AtomicFlushMemTablesToOutputFiles;
+      FlushMemTableToOutputFile;
+      //CompactFilesImpl;
+      SwitchMemtable;
+    }-> InstallSuperVersionAndScheduleWork;
+
+    InstallSuperVersionAndScheduleWork ->{
+      SchedulePendingCompaction;
+      MaybeScheduleFlushOrCompaction;
+    }
+    MaybeScheduleFlushOrCompaction -> BackgroundCompaction[style=dashed]
+
+    SuggestCompactRange -> SehedulePendingCompaction;
+    SchedulePendingCompaction -> AddToCompactionQueue;
+
+    BackgroundCompaction -> {
+      PickCompactionFromQueue;
+      AddToCompactionQueue;
+      NeedsCompaction;
+      CompactionJob;
+      CompactionJob_Prepare;
+      CompactionJob_Run;
+      InstallSuperVersionAndScheduleWork
+    }[color="#b83b5e"]
+
+    NeedsCompaction -> AddToCompactionQueue[style=dashed];
+    AddToCompactionQueue -> { compaction_queue_;}
+
+    compaction_queue_[shape="record";
+      label="{{
+        compaction_queue_|
+          std::deque\<ColumnFamilyData*\>\l 
+          compaction_queue_;\l
+      }}";
+    ];
+    //compaction_queue_ -> PopFirstFromCompactionQueue[style=dashed];
+    compaction_queue_ -> PickCompactionFromQueue[style=dashed];
+    //BackgroundCallFlush -> BackgroundFlush -> PopFirstFromCompactionQueue;
+    PickCompactionFromQueue -> PickCompaction;
+  }
+  {rank=same;BackgroundCompaction;CompactionPicker_PickCompaction;}
 }
