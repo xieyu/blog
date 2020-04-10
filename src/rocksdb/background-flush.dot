@@ -3,13 +3,21 @@ digraph background_flushtitl {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
-  subgraph cluster_MemTableList {
-    graph[label="MemTableList";fontsize=20;];
-    PickMemtablesToFlush;
-  }
 
   subgraph cluster_ColumnFamilyData {
     graph[label="ColumnFamilyData";fontsize=20;];
+
+    subgraph cluster_MemTableList {
+      graph[label="MemTableList";fontsize=20;];
+      PickMemtablesToFlush[
+        shape="record"
+        label="{{
+          PickMemtablesToFlush|
+          根据max_memtable_id筛选出\l
+          需要flush的memtable
+        }}"
+      ];
+    }
     ColumnFamilyData[shape="record";
       fillcolor="#95e1d3"
       style=filled;
@@ -24,23 +32,31 @@ digraph background_flushtitl {
 
   subgraph cluster_FlushJob {
     graph[label="FlushJob";fontsize=20;];
-    PickMemTable -> PickMemtablesToFlush;
-    PickMemTable -> mems_;
-    mems_[
+    FlushJob[
       shape="record";
       fillcolor="#95e1d3"
       style=filled;
       label="{{
-        mems_|
-          autovector\<MemTable*\> mems_;
-      }}";
+        FlushJob|
+        const unit64_t* max_memtable_id_\l|
+        ColumnFamilyData* cfd_;\l|
+        autovector<MemTable*> mems_;\l
+      }}"
     ];
-    mems_ -> WriteLevel0Table[style=dashed;color=gray40];
+    PickMemTable[
+      shape="record"
+      label="{{
+        PickMemTable|
+        从flushJob的columnFaimlyData的\l
+        imm_列表中选择需要flush的memtable\l
+      }}"
+    ];
+    PickMemTable -> PickMemtablesToFlush;
+    PickMemTable -> FlushJob;
+    FlushJob -> ColumnFamilyData;
     FlushJob -> FlushJob_Run[style=dashed;color=gray80];
     FlushJob_Run -> {
       WriteLevel0Table;
-      RollbackMemtableFlush;
-      TryInstallMemtableFlushResults;
     }
     WriteLevel0Table[shape="record";
       label="{{
@@ -98,9 +114,10 @@ digraph background_flushtitl {
       GetSnapshotContext;
       GetLatestMutableCFOptions;
       FlushMemTableToOutputFile;
-    }
+    }[color="#b83b5e"]
 
     AtomicFlushMemTablesToOutputFiles -> {
+      InstallSuperVersionAndScheduleWork;
       GetDataDir;
       GetSnapshotContext;
       FlushJob;
@@ -108,7 +125,7 @@ digraph background_flushtitl {
       GetCompressionFlush;
       SyncClosedLogs;
       FlushJob_Run
-    }
+    }[color="#3f72af"]
 
     FlushMemTableToOutputFile -> {
       FlushJob;
@@ -117,14 +134,11 @@ digraph background_flushtitl {
       FlushJob_Run;
       InstallSuperVersionAndScheduleWork;
       NotifyOnCompactionCompleted;
-    }
+    }[color="#f08a5d"]
   }
 
   WriteLevel0Table -> {
-    FlushBufferToLog;
-    NewMergingIterator;
     BuildTable;
-    AddFile;
   }
 
   BuildTable[shape="record";
@@ -134,13 +148,10 @@ digraph background_flushtitl {
     }}";
   ];
   BuildTable -> {
-    TableFileName;
-    NewWritableFile;
     NewTableBuilder;
     Builder_Add;
     Builder_Finish;
     Builder_Abandon;
-    LogAndNotifyTableFileCreationFinished;
   }
   subgraph cluster_TableBuilder {
     graph[label="TableBuilder";fontsize=20;];
@@ -151,7 +162,7 @@ digraph background_flushtitl {
   }
 
   //rank
-  {rank=same;flush_queue_;FlushJob;PickMemTable;FlushJob_Run}
+  {rank=same;flush_queue_;PickMemTable;FlushJob_Run}
 
   // dataflow depend
   {
