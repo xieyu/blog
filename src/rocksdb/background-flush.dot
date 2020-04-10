@@ -94,6 +94,7 @@ digraph background_flushtitl {
     BackgroundFlush -> {
       PopFirstFromFlushQueue;
       FlushMemTablesToOutputFiles;
+      IsFlushPending;
     }
     PopFirstFromFlushQueue[shape="record";
       label="{{

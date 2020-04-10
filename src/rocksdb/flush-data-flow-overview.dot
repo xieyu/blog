@@ -3,7 +3,7 @@ digraph flush_data_flow_overview {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
-  BackgrounFlush[shape="record";
+  BackgroundFlush[shape="record";
     label="{{
       BackgrounFlush|
       后台线程将队列\l 
@@ -36,5 +36,6 @@ digraph flush_data_flow_overview {
     graph[label="Disk";fontsize=20;];
     SSTableFile;
   }
-  flush_queue_ -> BackgrounFlush -> FlushJob -> WriteLevel0Table -> TableBuilder -> SSTableFile;
+  flush_queue_ -> BackgroundFlush -> FlushJob -> WriteLevel0Table -> TableBuilder -> SSTableFile;
+  BackgroundFlush -> IsFlushPending;
 }

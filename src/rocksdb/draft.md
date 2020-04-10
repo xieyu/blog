@@ -22,9 +22,6 @@
 1. Blob 中value和key是怎么对的上的？
 2. 数据结构之间怎么串起来的。 
 
-column family 相关数据结构之间引用关系
-
-![column_family](./column_family.svg)
 
 ## Write Thread
 
@@ -60,3 +57,7 @@ MaybeScheduleFlushOrCompaction
 compaction job之间是怎么划分的？怎么让不同线程去compact不同部分？
 
 ![backgroup-compaction](./background-compaction.svg)
+
+
+## compaction picker
+

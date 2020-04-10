@@ -1,0 +1,124 @@
+digraph level_compactoin_picker {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_VersionStorageInfo {
+    graph[label="VersionStorageInfo";fontsize=20;];
+    GetOverlappingInputs -> {
+      GetOverlappingInputsRangeBinarySearch;
+      level_files_brief_;
+      CompareWithoutTimestamp;
+    }
+    GetCleanInputsWithinInterval -> GetOverlappingInputsRangeBinarySearch;
+    GetOverlappingInputsRangeBinarySearch -> {
+      sstableKeyCompare;
+      level_files_brief_;
+    }
+    level_files_brief_[
+      shape="record"
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        level_files_brief_|
+          autovector\<ROCKSDB_NAMESPACE\l::LevelFilesBrief\>\l level_files_brief_\l
+      }}"
+    ];
+    LevelFilesBrief[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        LevelFilesBrief|
+          size_t num_files;\l|
+          FdWithKeyRange* files;\l
+      }}"
+    ];
+    FdWithKeyRange[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        FdWithKeyRange|
+          FileDescriptor fd;\l|
+          FileMetaData* file_metadata;\l|
+          Slice smallest_key;\l|
+          Slice largest_key;\l
+      }}"
+    ];
+    level_files_brief_ -> LevelFilesBrief -> FdWithKeyRange;
+    ComputeCompactionScore -> {
+      files_;
+      MaxBytesForLevel;
+      ComputeFilesMarkedForCompaction;
+      ComputeExpiredTtlFiles;
+      ComputeBottommostFilesMarkedForCompaction;
+      ComputeFilesMarkedForPeriodicCompaction;
+      EstimateCompactionBytesNeeded;
+    }
+  }
+
+  subgraph cluster_CompactionPicker {
+    graph[label="CompactionPicker";fontsize=20;];
+    SetupOtherInputs -> {
+      GetOverlappingInputs;
+      AreFilesInCompaction;
+      GetCleanInputsWithinInterval;
+    }
+    GetOverlappingL0Files -> {
+      GetOverlappingInputs;
+      IsRangeInCompaction;
+    }
+    FilesRangeOverlapWithCompaction -> {
+      GetRange;
+      RangeOverlapWithCompaction;
+    }
+    AreFilesInCompaction -> {
+      FileMetaData_being_compacted;
+    }
+    IsRangeInCompaction -> {
+      GetOverlappingInputs;
+      AreFilesInCompaction;
+    }
+    RangeOverlapWithCompaction -> {
+      compactions_in_progress_;
+    }
+    GetGrandparents -> {
+      GetOverlappingInputs;
+    }
+    RegisterCompaction -> compactions_in_progress_;
+  }
+
+  subgraph cluster_LevelCompactionBuilder {
+    graph[label="LevelCompactionBuilder";fontsize=20;];
+    LevelCompactionBuilder_PickCompaction[
+      shape="record"
+      label="{{
+        PickCompaction
+      }}"
+    ];
+    LevelCompactionBuilder_PickCompaction -> {
+      SetupOtherL0FilesIfNeeded
+        SetupOtherInputsIfNeeded;
+      GetCompaction;
+    }
+    SetupOtherL0FilesIfNeeded -> {
+      GetOverlappingL0Files;
+    }
+    SetupOtherInputsIfNeeded -> {
+      SetupOtherInputs;
+      FilesRangeOverlapWithCompaction;
+      GetGrandparents;
+    }
+    GetCompaction -> {
+      RegisterCompaction;
+      ComputeCompactionScore;
+      MaxFileSizeForLevel;
+    }
+  }
+  subgraph cluster_LevelCompactionPicker {
+    graph[label="LevelCompactionPicker";fontsize=20;];
+    PickCompaction -> LevelCompactionBuilder_PickCompaction;
+  }
+}

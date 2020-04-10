@@ -16,12 +16,11 @@ digraph flush_queue_put_detail {
     FlushScheduler;
     SelectColumnFamiliesForAtomicFlush;
     TakeNextColumnFamily;
-    MaybeFlushStatsCF;
     SwitchMemtable;
     GenerateFlushRequest;
     SchedulePendingFlush;
     MaybeScheduleFlushOrCompaction;
-  }[color="#3f72af"]
+  }[color="#b83b5e"]
 
   SelectColumnFamiliesForAtomicFlush[shape="record";
     label="{{
@@ -42,7 +41,6 @@ digraph flush_queue_put_detail {
       生成FlushRequest\l
     }}";
   ];
-  GenerateFlushRequest -> GetLatestMemTableID;
   {
     edge[style=dashed;color=gray40];
   }
@@ -56,42 +54,6 @@ digraph flush_queue_put_detail {
       并创建新的memtable\l
     }}";
   ];
-  SwitchMemtable -> {
-    WriteRecoverableState;
-    ConstructNewMemtable;
-    CreateWAL;
-    SetMemtable;
-    MemTableList_Add;
-    alive_log_files_;
-  };
-
-  subgraph cluster_MemTableList {
-    graph[label="MemTableList";fontsize=20;];
-    MemTableList_Add[shape="record";
-        label="{{
-          MemTableList::Add|
-          将memtabl加到memtablelist中\l
-        }}";
-    ];
-    MemTableList_Add -> current_;
-    PickMemtablesToFlush -> current_;
-    PickMemtablesToFlush[shape="record";
-      label="{{
-        PickMemtablesToFlush|
-        遍历current list\l
-        返回要flush的memlist\l
-      }}";
-    ];
-    current_[shape="record";
-      fillcolor="#95e1d3"
-      style=filled;
-      label="{{
-        current_|
-        ColumnFamilyData\l 
-        对应的immtable list\l
-      }}";
-    ];
-  }
 
   subgraph cluster_MemTableInsert {
     graph[label="MemTableInserter";fontsize=20;];
@@ -148,6 +110,7 @@ digraph flush_queue_put_detail {
       }}";
     ];
   }
+  /*
   subgraph cluster_ColumnFamily {
     graph[label="ColumnFamily";fontsize=20;];
     GetColumnFamily[shape="record";
@@ -171,10 +134,10 @@ digraph flush_queue_put_detail {
       }
     }
   }
+  */
 
   subgraph cluster_DBImpl{
     graph[label="Dbimpl";fontsize=20;];
-    CreateWAL;
     MaybeScheduleFlushOrCompaction[
       shape="record";
       label="{{
@@ -188,12 +151,12 @@ digraph flush_queue_put_detail {
     PreprocessWrite;
     ScheduleFlushes;
     SelectColumnFamiliesForAtomicFlush;
-    MaybeFlushStatsCF;
     SchedulePendingFlush;
     GenerateFlushRequest;
-    flush_queue_[shape="record";
+    flush_queue_[
+      shape="record";
       style=filled
-      fillcolor="#3fc1c9"
+      fillcolor="#95e1d3"
       label="{{
         flush队列: flush_queue_|
           放入条件:cfd-\>imm()-\>IsFlushPending()\l|
@@ -202,7 +165,7 @@ digraph flush_queue_put_detail {
     ];
     FlushRequest[shape="record";
       style=filled
-      fillcolor="#3fc1c9"
+      fillcolor="#95e1d3"
       label="{{
         FlushRequest|
           A flush request specifies\l 
@@ -226,16 +189,8 @@ digraph flush_queue_put_detail {
 
   //data depends relationship
   {
-    /*
     edge[style=dashed;color=gray40];
     flush_queue_ -> BackgroundFlush;
-    {
-      SelectColumnFamiliesForAtomicFlush; 
-      TakeNextColumnFamily
-    } -> MaybeFlushStatsCF -> {
-      SwitchMemtable;
-      GenerateFlushRequest;
-    }*/
     GenerateFlushRequest -> SchedulePendingFlush;
     MaybeScheduleFlushOrCompaction -> BackgroundFlush;
     ScheduleWork -> TakeNextColumnFamily;

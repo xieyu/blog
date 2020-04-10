@@ -3,8 +3,7 @@ digraph ColumnFamily {
   newrank=true;
   rankdir=LR;
   edge[weight=5;color=gray40];
-//  splines = ortho;
-
+  splines = ortho;
 
   subgraph cluster_MemTable {
     graph[label="MemTable";fontsize=20;];
@@ -129,9 +128,13 @@ digraph ColumnFamily {
     Version:VesionStorageInfo -> VersionStorageInfo;
     
     VersionStorageInfo[shape="record";
+      fillcolor="#f38181";
+      style=filled;
       label="{{
         VersionStorageInfo|
-        <FileMetaData> std::vector\<FileMetaData\>* files_\l|
+        存储了各个level sstable\l 
+        文件的FileMetadata\l|
+        <FileMetaData> std::vector\<FileMetaData*\>* files_\l|
         <BlobFiles> BlobFiles blob_files_\l
       }}";
     ];
@@ -206,6 +209,8 @@ digraph ColumnFamily {
     graph[label="ColumnFamily";fontsize=20;];
     ColumnFamilyMemTables[
       shape="record";
+      fillcolor="#a8d8ea"
+      style=filled
       label="{{
         ColumnFamilyMemTables|
           virtual bool Seek(uint32_t column_family_id) = 0;\l|
@@ -249,6 +254,8 @@ digraph ColumnFamily {
       shape="record";
       label="{{
         ColumnFamilySet|
+          管理columnFamily\l 
+          name 到id到cfd的映射\l|
           std::unordered_map\<std::string, uint32_t\>\l column_families_;\l|
           <ColumnFamilyData> std::unordered_map\<uint32_t, ColumnFamilyData*\>\l column_family_data_;\l|
           uint32_t max_column_family_;\l|
@@ -265,6 +272,8 @@ digraph ColumnFamily {
 
     ColumnFamilyHandle[
       shape="record";
+      fillcolor="#a8d8ea"
+      style=filled
       label="{{
         ColumnFamilyHandle|
           virtual const std::string& GetName() const = 0;\l|
@@ -294,11 +303,15 @@ digraph ColumnFamily {
       }}";
     ];
     ColumnFamilyHandleInternal:ColumnFamilyData -> ColumnFamilyData;
-
     ColumnFamilyData[
       shape="record";
+      fillcolor="#f38181";
+      style=filled;
       label="{{
         ColumnFamilyData|
+        主要数据结构\l
+        将Memtable，Version\l 
+        等等关联起来\l|
           uint32_t id_;\l|
           const std::string name_;\l|
           Version* dummy_versions_;\l|
@@ -337,6 +350,4 @@ digraph ColumnFamily {
     DBImpl:ColumnFamilyMemTablesImpl -> ColumnFamilyMemTablesImpl[color="#3f72af"];
     DBImpl:ColumnFamilyHandleImpl -> ColumnFamilyHandleImpl[color="#3f72af"];
   };
-  {rank=same;MemTable;ColumnFamilyMemTables;Version;}
-  {rank=same;TableCache;VersionStorageInfo}
 }
