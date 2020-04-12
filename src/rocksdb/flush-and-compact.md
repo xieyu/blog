@@ -16,11 +16,11 @@
 
 ### 生成flushRequest放入flush队列中
 
-后台线程会去`flush_queue_`队列中去获取要flush的memtable, 向`flush_queue_`中放入FlushRequest流程如下:
+向`flush_queue_`中放入FlushRequest的数据流程如下:
 
 ![flush_queue_put](./flush_queue_put.svg)
 
-具体细节如下：
+具体函数调用细节如下：
 
 ![flush queue put detail](./flush_queue_put_detail.svg)
 

@@ -61,3 +61,11 @@ compaction job之间是怎么划分的？怎么让不同线程去compact不同�
 
 ## compaction picker
 
+
+## level compaction picker
+
+以下两张图摘自facebook wiki [leveled-compaction](https://github.com/facebook/rocksdb/wiki/Leveled-Compaction)
+
+![level 0 compaction ](./pre_l0_compaction.png)
+
+![level 1 compaction](./pre_l1_compaction.png)
