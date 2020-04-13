@@ -1,0 +1,14 @@
+digraph optimistic_transaction_commit {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_OptimisticTransaction {
+    graph[label="OptimisticTransaction";fontsize=20;];
+    Commit -> {
+      CommitWithParallelValidate;
+      CommitWithSerialValidate;
+    }
+    
+  } // end of OptimisticTran
+}
