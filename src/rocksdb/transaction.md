@@ -6,7 +6,16 @@
 
 
 ## 乐观事务
+在commit的时候才去检查key的冲突
 
-### Commit
+一些问题：
 
-![optimistic transaction commit]()
+1. 根据什么判断是否有冲突的？貌似是根据sequnceNumber，但是具体细节不太清楚
+2. `bucketed_locks_`的作用是啥？
+3. CommitWithSerialValidate和 CommitWithParallelValidate这两者区别是啥？
+
+![optimistic transaction commit](./optimistic-transaction-commit.svg)
+
+## 悲观事务
+
+![pessimistic transaction](./pessimistic-transaction.svg)

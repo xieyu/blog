@@ -1,0 +1,7 @@
+digraph begin_transaction {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  a->b
+}
