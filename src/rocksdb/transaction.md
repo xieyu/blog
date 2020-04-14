@@ -19,3 +19,7 @@
 ## 悲观事务
 
 ![pessimistic transaction](./pessimistic-transaction.svg)
+
+### TransactionLockMgr
+
+![transaction lock mgr](./transaction-lock-mgr.svg)
