@@ -18,23 +18,27 @@
 
 ## 悲观事务
 
+分为三种？
+1. writeCommitedTxn
+
+WriteCommitted, which means that the data is written to the DB, i.e., the memtable, only after the transaction is committed
+
+2. WritePrepared
+3. WriteUnpreparedTxnDB
+
 ![pessimistic transaction](./pessimistic-transaction.svg)
 
-### TransactionLockMgr
 
-lock level
+### Write Committed
 
-```cpp
-size_t LockMap::GetStripe(const std::string& key) const {
-  assert(num_stripes_ > 0);
-  return fastrange64(GetSliceNPHash64(key), num_stripes_);
-}
-```
+The default write policy in pessimistic transactions is WriteCommitted, which means that the data is written to the DB, i.e., the memtable, only after the transaction is committed.
 
-![transaction lock level](./transaction-lock-level.svg)
+![write commited](./write-committed.svg)
 
-![transaction lock mgr](./transaction-lock-mgr.svg)
+### WritePrepared
 
-dead lock detect
 
-![transaction lock mgr dead lock detect](./transaction-lock-mgr-deadlock-detect.svg)
+
+## 参考
+
+[Facebook WritePrepared](https://github.com/facebook/rocksdb/wiki/WritePrepared-Transactions)

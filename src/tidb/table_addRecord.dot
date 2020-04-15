@@ -1,0 +1,72 @@
+digraph table_add_record {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_kv {
+    graph[label="kv";fontsize=20;style=rounded];
+    txn_Set[label="Set"];
+
+  }
+  subgraph cluster_sessionCtx {
+    graph[label="sessionCtx";fontsize=20;style=rounded];
+    UpdateDeltaForTable;
+  }
+
+  subgraph cluster_tablecodec {
+    graph[label="tablecodec";fontsize=20;style=rounded];
+    EncodeRow;
+  }
+
+  subgraph cluster_Index {
+    graph[label="Index";fontsize=20;style=rounded]
+    Index_FetchValues[label="FetchValues"];
+    Index_Create[label="Create"];
+  }
+
+  subgraph cluster_tableCommon {
+    graph[label="tableCommon";fontsize=20;style=rounded];
+    Table_AddRecord[label="AddRecord"];
+    AllocHandle[label="AllocHandle\l为record分配一新的handle"];
+    addIndices[label="addIndices\l更新索引"];
+    WritableCols[label="WritableCols\l从schema中获取可写的colum"];
+    RecordKey[label="RecordKey\l根据recordkey和handle\l生成对应的key\l"];
+
+    Table_AddRecord -> {
+      AllocHandle;
+      addIndices;
+      WritableCols;
+      RecordKey;
+      EncodeRow;
+      addInsertBinlog;
+      UpdateDeltaForTable;
+    };
+    Table_AddRecord -> txn_Set[label="key=RecordKey\lvalue=encodeRow"]
+
+    addIndices -> {
+      Index_FetchValues;
+      Index_Create;
+    };
+
+    addInsertBinlog -> {
+      EncodeRow;
+    }
+  }
+
+
+
+  subgraph cluster_insert_values{
+    graph[label="InsertValues";fontsize=20;style=rounded];
+    batchCheckAndInsert -> addRecord;
+    addRecord -> {
+      Table_AddRecord;
+    }
+  }
+
+  subgraph cluster_InsertExec {
+    graph[label="InsertExec";fontsize=20;style=rounded];
+    InsertExec_exec[label="exec"];
+  }
+
+  InsertExec_exec -> batchCheckAndInsert;
+}

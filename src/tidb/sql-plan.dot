@@ -1,100 +1,77 @@
 digraph sql_plan {
-  node[shape=box];
+  node[shape=box;];
   newrank=true;
   rankdir=LR;
 
-  subgraph cluster_executor {
-    graph[label="executor/compiler.go";fontsize=20;];
+  execute -> {
+    Compile;
+  }
+
+  Compile -> {Preprocess, Optimize};
+  subgraph cluster_compiler {
+    graph[label="executor/compiler.go";fontsize=20;style=rounded]
     Compile[label="Compile\l制定查询计划以及优化"];
   }
   subgraph cluster_plan {
-    graph[label="planer";fontsize=20;];
-
+    graph[label="plan";fontsize=20;style=rounded]
     Preprocess[label="Preprocess\l一些合法性检查以及名字绑定"];
-    Optimize[label="Optimize\l制定查询计划并优化"];
-    PlanBuilder_Build[label="PlanBuilder.Build\l将astNode转换为LogicalPlan"]
-    Optimize -> {
-      TryFastPlan;
-      optimize;
-      GenHintsFromPhysicalPlan;
-      BindHint;
-    };
-    DoOptimize[label="DoOptimize\l基于规则和cost优化"];
-    optimize -> DoOptimize;
-    optimize -> PlanBuilder_Build;
-    PlanBuilder_Build-> {
-      buildAdmin;
-      buildLoadData;
-      buildExplain;
-      buildSelect;
-      buildInsert;
-      buildUpdate;
-      buildDelete;
-      buildDo;
-    };
-
-    buildSelect -> {
-      buildResultSetNode;
-      buildJoin;
-      buildLimit;
-      buildSort;
-      buildProjection;
-      buildDataSource;
-    };
-
+    Optimize[label="Optimize\l制定查询计划，并优化"];
+    DoOptimize[label="DoOptimize\loptimize a logical plan \lto a physical plan"]
+    Optimize -> optimize -> DoOptimize;
+    logicalOptimize[label="logicalOptimize\l遍历optRuleList, \l调用相应优化方法"]
+    phyicalOptimize[label="phyicalOptimize\l物理优化"]
     DoOptimize -> {
       logicalOptimize;
-      physicalOptimize;
+      phyicalOptimize;
       postOptimize;
     };
-    physicalOptimize[label="physicalOptimize\l物理优化"];
-    logicalOptimize[label="logicalOptimize\l遍历optRuleList\l调用相应优化方法"];
-    rule_optimize[label="rule.optimize\l基于规则的优化"];
 
-    logicalOptimize->rule_optimize;
-    rule_optimize -> {
-      columnPruner;
-      buildKeySolver;
-      decorrelateSolver;
-      aggregationEliminator;
-      projectionEliminator;
-      maxMinEliminator;
-      ppdSolver;
-      outerJoinEliminator;
-      partitionProcessor;
-      aggregationPushDownSolver;
-      pushDownTopNOptimizer;
-    };
-    task_plan[label="plan"];
-    task_cost[label="cost"];
+      // 基于规则的优化
+      rule_optimize[label="rule.optimize\l基于规则的优化"];
+      logicalOptimize -> rule_optimize;
+      rule_optimize -> {
+        columPruner;
+        buildKeySolver;
+        decorrelateSolver;
+        aggregationEliminator;
+        projectionEliminator;
+        maxMinEliminator;
+        ppdSolver;
+        outerJoinEliminator;
+        partitionProcessor;
+        aggregationPushDownSolver;
+        pushDownTopNOptimizer;
+        joinReOrderSolver;
+      };
 
-    physicalOptimize -> {
-      recursiveDeriveStats;
-      findBestTask;
-      preparePossibleProperties;
-      task_plan;
-      task_cost;
-    };
-    findBestTask[label="findBestTask\lconvert the logicalplan \lto physicalplan"];
+      findBestTask[label="findBestTask\lconverts the logical plan \lto the physical plan"];
 
-    findBestTask -> {
-      LogicalShow;
-      LogicalTableDual;
-      LogcalShowDDLJobs;
-      DataSource;
-      LogicalMemTable;
-      baseLogcalPlan;
-    };
+      phyicalOptimize -> {
+        recursiveDeriveStats;
+        findBestTask;
+        plan;
+      };
 
-    postOptimize -> {
-      eliminatePhysicalProjection;
-      injectExtraProjection;
-    };
-  }
+      postOptimize -> {
+        eliminatePhysicalProjection;
+        injectExtraProjection;
+      };
+      eliminatePhysicalProjection -> doPhysicalProjectionElimination;
 
-  Compile -> {
-    Preprocess;
-    Optimize;
+      subgraph cluster_find_best_task {
+        graph[label="find_best_task.go";fontsize=20;style=rounded]
+        LogicalShow;
+        LogicalShowDDLJobs;
+        baseLogicalPlan;
+        Datasource;
+      }
+
+      findBestTask -> {
+        LogicalShow;
+        LogicalShowDDLJobs;
+        baseLogicalPlan;
+        Datasource;
+      };
   }
 
 }

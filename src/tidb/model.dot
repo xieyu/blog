@@ -1,0 +1,169 @@
+digraph model {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  FKInfo[
+    shape="record";
+    label="{{
+      FKInfo|
+	    ID       int64\l|
+	    Name     CIStr\l|
+	    RefTable CIStr\l|
+	    RefCols  []CIStr\l|
+	    Cols     []CIStr\l|
+	    OnDelete int\l|
+	    OnUpdate int\l|
+	    State    SchemaState \l
+    }}";
+  ]
+
+
+  ColumnInfo[
+    shape="record";
+    label="{{
+      ColumnInfo|
+      ID int64\l|
+      Name CIStr\l|
+      types.FieldType \l|
+      DefaultValueBit     []byte\l|
+      State SchemaState\l|
+      Comment string \l|
+      Version uint64 \l
+    }}";
+  ]
+
+  tableCommon[
+    shape="record";
+    label="{{
+      tableCommon|
+	    tableID int64\l|
+	    physicalTableID int64\l|
+	    <columns> Columns         []*table.Column\l|
+	    publicColumns   []*table.Column\l|
+	    writableColumns []*table.Column\l|
+	    writableIndices []table.Index\l|
+	    <index> indices         []table.Index\l|
+	    meta            *model.TableInfo\l|
+	    alloc           autoid.Allocator\l|
+	    recordPrefix kv.Key\l|
+	    indexPrefix  kv.Key\l
+    }}";
+  ];
+
+
+  Table [
+    shape="record";
+    label="{{
+      Table |
+      <tableCommon> tableCommon \l
+    }}";
+  ];
+
+  index [
+    shape="record";
+    label="{{
+      index |
+        idxInfo *model.IndexInfo\l|
+        tblInfo *model.TableInfo\l|
+        prefix  kv.Key\l
+    }}";
+  ]
+
+  Column[
+    shape="record";
+    label="{{
+      Column|
+      <columenInfo> *model.ColumnInfo\l|
+      GeneratedExpr ast.ExprNode\l
+    }}";
+  ]
+  Column:columenInfo -> ColumnInfo;
+  tableCommon:index -> index;
+
+  Table:tableCommon -> tableCommon;
+  tableCommon:columns ->Column;
+
+
+  TableInfo[
+    shape="record";
+    label="{{
+      TableInfo|
+      ID int64\l|
+      <Columns> Columns []*ColumnInfo \l|
+      <Indices> Indices     []*IndexInfo \l|
+      <ForeignKeys> ForeignKeys []*FKInfo\l|
+      State SchemaState \l
+    }}";
+  ];
+
+  IndexInfo [
+    shape="record";
+    label="{{
+      IndexInfo |
+      ID int64\l |
+      Name CIStr\l|
+      Table CIStr\l|
+      <Columns> Columns []*IndexColumn\l|
+      Unique bool \l|
+      Primary bool\l |
+      State SchemaState \l|
+      Comment string\l|
+      Tp IndexType \l
+    }}";
+  ];
+
+  IndexColumn[
+    shape="record";
+    label="{{
+      IndexColumn|
+      Name CIStr \l|
+      Offset int \l|
+      Length int \l
+    }}";
+  ];
+
+  DBInfo[
+    shape="record";
+    label="{{
+      DBInfo|
+      ID int64\l|
+      Name CIStr\l|
+      Charset string \l|
+      Collate string \l|
+      <Tables> Tables []*TableInfo\l|
+      State SchemaState \l
+    }}";
+  ];
+
+  schemaTables [
+    shape="record";
+    label="{{
+      schemaTables |
+	    <dbInfo> dbInfo *model.DBInfo\l|
+      <tables> tables map[string]table.Table\l|
+    }}";
+  ];
+
+  infoSchema [
+    shape="record";
+    label="{{
+      infoSchema |
+        <schemaMap> schemaMap map[string]*schemaTables\l|
+        sortedTablesBuckets []sortedTables\l|
+        schemaMetaVersion int64\l
+    }}";
+  ]
+
+  infoSchema:schemaMap -> schemaTables;
+  schemaTables:tables -> Table;
+
+  schemaTables:dbInfo -> DBInfo;
+
+
+  DBInfo:Tables -> TableInfo;
+  IndexInfo:Columns -> IndexColumn;
+  TableInfo:Columns -> ColumnInfo;
+  TableInfo:Indices -> IndexInfo;
+  TableInfo:ForeignKeys -> FKInfo;
+}

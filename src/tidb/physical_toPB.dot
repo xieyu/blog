@@ -1,0 +1,14 @@
+digraph physical_toPB {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  {
+    PhysicalTableScan
+    PhysicalIndexScan
+    PhysicalSelection
+    PhysicalTopN 
+    PhysicalLimit
+    PhysicalHashAgg
+    PhysicalStreamAgg
+  } -> Executor;
+}

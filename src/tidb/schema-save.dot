@@ -1,0 +1,45 @@
+digraph schema_save {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  meta [
+    shape="record";
+    label="{{
+      meta \l封装对DBInfo/tableInfo的增删改\l封装key的prefix|
+      ListDatabases\l|
+      GetDatabase\l|
+      DropDatabase\l|
+      CreateDatabase\l|
+      CreateTableOrView\l|
+      DropTableOrView\l|
+      ListTables\l|
+      EnQueueDDLJob\l|
+      DeQueueDDLJob\l|
+      ...\l
+    }}";
+  ];
+
+  structure[
+    shape="record";
+    label="{{
+      structure\l在kv基础上提供\lstring/hash/list等基本数据结构|
+      hash\l|
+      string\l|
+      list\l
+    }}";
+  ];
+
+  kv[
+    shape="record";
+    label="{{
+      kv \l提供对key/value GET/Set等操作\l|
+      Get\l|
+      Iter\l|
+      IterReverse\l|
+      Set\l|
+      Delete\l
+    }}";
+  ]
+  meta -> structure[label="DBInfo/TableInfo\ltableKey/dbKey"];
+  structure -> kv[label="key/value"];
+}

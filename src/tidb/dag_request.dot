@@ -1,0 +1,156 @@
+digraph dag_request {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  DAGRequest[
+    shape="record";
+    label="{{
+      DAGRequest|
+      StartTs uint64\l|
+      <Executor> Executors []*Executor\l|
+      SqlMode\l|
+      CollectRangeCounts\l|
+      ...
+    }}";
+  ];
+
+  Executor[
+    shape="record";
+    label="{{
+      Executor|
+      <ExecType> Tp ExecType\l|
+	    <TableScan> TblScan          *TableScan  \l| 
+	    <IndexScan> IdxScan          *IndexScan  \l| 
+	    <Selection> Selection        *Selection  \l| 
+	    <Aggregation> Aggregation      *Aggregation\l| 
+	    <TopN> TopN             *TopN       \l| 
+	    <Limit> Limit            *Limit      \l| 
+	    <StreamAgg> StreamAgg        *Aggregation\l| 
+    }}";
+  ];
+
+  Selection [
+    shape="record";
+    label="{{
+      Selection |
+        <Expr> Conditions       []*Expr\l 
+    }}";
+  ];
+
+  Expr[
+    shape="record";
+    label="{{
+      Expr|
+	    Tp               ExprType     \l| 
+	    Val              []byte       \l| 
+	    Children         []*Expr      \l| 
+	    Sig              ScalarFuncSig\l| 
+	    FieldType        *FieldType   \l
+    }}";
+  ];
+
+  TableScan[
+    shape="record";
+    label="{{
+      TableScan|
+        TableId          int64        \l| 
+        <ColumnInfo> Columns          []*ColumnInfo\l
+    }}";
+  ];
+
+  IndexScan[
+    shape="record";
+    label="{{
+      IndexScan|
+        TableId          int64        \l| 
+        IndexId          int64 \l|
+        <ColumnInfo> Columns          []*ColumnInfo\l
+    }}";
+  ];
+
+  ColumnInfo[
+    shape="record";
+    label="{{
+      ColumnInfo|
+	      ColumnId         int64   \l| 
+	      Tp               int32   \l| 
+	      Collation        int32   \l| 
+	      ColumnLen        int32   \l| 
+	      Decimal          int32   \l| 
+	      Flag             int32   \l| 
+	      Elems            []string\l| 
+	      DefaultVal       []byte  \l| 
+    }}";
+  ];
+
+  Aggregation[
+    shape="record";
+    label="{{
+      Aggregation|
+	      <GroupBy> GroupBy []*Expr\l|
+	      <AggFunc> AggFunc []*Expr\l|
+	      Streamed         bool\l|
+    }}";
+  ];
+
+  TopN[
+    shape="record";
+    label="{{
+      TopN|
+        <OrderBy> OrderBy          []*ByItem \l| 
+        Limit            uint64   \l|
+    }}";
+  ];
+
+  Limit[
+    shape="record";
+    label="{{
+      Limit|
+      limit uint64\l
+    }}"
+  ];
+
+  ByItem[
+    shape="record";
+    label="{{
+      ByItem|
+      <Expr> Expr *Expr\l|
+      Desc bool \l
+    }}";
+  ];
+
+  ExecType[
+    shape="record";
+    label="{{
+      ExecType|
+	      ExecType_TypeTableScan    = 0\l|
+	      ExecType_TypeIndexScan    = 1\l|
+	      ExecType_TypeSelection    = 2\l|
+	      ExecType_TypeAggregation  = 3\l|
+	      ExecType_TypeTopN         = 4\l|
+	      ExecType_TypeLimit        = 5\l|
+	      ExecType_TypeStreamAgg    = 6\l
+    }}";
+  ];
+
+  DAGRequest:Executor -> Executor;
+  Executor:ExecType -> ExecType;
+  Executor:Selection -> Selection;
+  Executor:TableScan -> TableScan;
+  Executor:IndexScan -> IndexScan;
+  Executor:Aggregation -> Aggregation;
+  Executor:StreamAgg -> Aggregation;
+  Executor:TopN -> TopN;
+  Executor:Limit -> Limit;
+
+  TopN:OrderBy -> ByItem;
+
+  TableScan:ColumnInfo -> ColumnInfo;
+  IndexScan:ColumnInfo -> ColumnInfo;
+  ByItem:Expr -> Expr;
+
+  Selection:Expr -> Expr;
+
+  Aggregation:GroupBy -> Expr;
+  Aggregation:AggFunc -> Expr;
+}

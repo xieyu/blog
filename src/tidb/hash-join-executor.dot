@@ -1,157 +1,142 @@
-digraph hash_join_executor {
-  node[shape=box];
+digraph hash_join_exeuctor {
+  node[shape=box;];
   newrank=true;
   rankdir=TD;
 
-  //channels;
-  joinResultCh[
-    fillcolor="#95e1d3"
-    style=filled;
-    shape=box3d;
-    label="joinResultCh *hashjoinWorkerResult"
-  ];
-  buildSideResultCh[
-    fillcolor="#95e1d3"
-    style=filled;
-    shape=box3d;
-    label="buildSideResultCh"
-  ];
-  probeResultChs[
-    fillcolor="#95e1d3"
-    style=filled;
-    shape=box3d;
-    label="probeResultChs"
-  ];
-  joinChkResourceCh[
-    fillcolor="#95e1d3"
-    style=filled;
-    shape=box3d;
-    label="joinChkResourceCh[workerID]"
-  ];
+  HashJoinExec_Next -> fetchAndBuildHashTable[label="go util.WithRecovery"];
+  HashJoinExec_Next -> {
+    fetchAndProbeHashTable;
+  }
 
-  //goroutines
+  //channels
+  joinResultCh[fillcolor="#95e1d3";style=filled;label="joinResultCh\l存放结果channel"]
+  buildSideResultCh[fillcolor="#95e1d3";style=filled;shape="box3d"];
+  probeResultChs[fillcolor="#95e1d3";style=filled;shape="box3d";label="probeResultChs"];
+  joinChkResourceCh[fillcolor="#95e1d3";style=filled;shape="box3d";label="joinChkResourceCh[WokrerID]"];
+
+  // goroutines
   fetchAndBuildHashTable[
     fillcolor="#f38181";
     style=filled;
-    shape=doubleoctagon;
-    label="fetchAndBuildHashTable\l读取Inner表数据并构建hash表"
+    shape="doublecircle";
+    label="fetchAndBuildHashTable\l读取Inner表数据\l并根据Inner表构造哈希表"
   ];
   fetchBuildSideRows[
     fillcolor="#f38181";
     style=filled;
-    shape=doubleoctagon;
+    shape="doublecircle";
     label="fetchBuildSideRows"
   ];
   fetchProbeSideChunks[
     fillcolor="#f38181";
     style=filled;
-    shape=doubleoctagon;
+    shape="doublecircle";
     label="fetchProbeSideChunks"
   ];
   runJoinWorker[
     fillcolor="#f38181";
     style=filled;
-    shape=doubleoctagon;
-    label="runJoinWorker[WorkerID]"
+    shape="doublecircle";
+    label="runJoinWorker"
   ];
-  waitJoinWorkersAndCloseResultChan[
-    fillcolor="#f38181";
-    style=filled;
-    shape=doubleoctagon;
-    label="waitJoinWorkersAndCloseResultChan"
-  ];
-
-  subgraph cluster_HashJoinExec {
-    graph[label="HashJoinExec";fontsize=20;];
-    HashJoinExec_Next[label="Next"]
-  };
-
-  subgraph cluster_joiner {
-    graph[label="joiner";fontsize=20;];
-    tryToMatchOuters;
-    tryToMatchInners;
-    onMissMatch;
-  }
-
-  subgraph cluster_hashRowContainer {
-    graph[label="hashRowContainer";fontsize=20;];
-    rowContainer;
-    GetMatchedRowsAndPtrs -> matchJoinKey -> EqualChunkRow;
-  }
-
-  subgraph cluster_datasource {
-    graph[label="datasource";fontsize=20;style=filled;fillcolor="#eaffd0"];
-    {
-      buildSideExec_Next;
-      probeSideExec_Next;
-    } -> distSQL -> tikv;
-  }
-
-  HashJoinExec_Next -> {
-    fetchAndBuildHashTable;
-    fetchAndProbeHashTable;
-  }
-  // 使用inner构建hash表
-  fetchAndBuildHashTable -> {
-    fetchBuildSideRows;
-    buildHashTableForList;
-  };
-  fetchBuildSideRows -> {
-    buildSideResultCh;
-    buildSideExec_Next;
-  }
-
-  buildSideResultCh -> buildHashTableForList[label="取数据"];
-  buildHashTableForList -> rowContainer;
-
-  fetchAndProbeHashTable -> {
-    runJoinWorker;
-    fetchProbeSideChunks;
-    waitJoinWorkersAndCloseResultChan;
-  };
-
-  fetchProbeSideChunks -> {
-    probeSideExec_Next;
-    probeResultChs;
-  };
-
-  probeResultChs -> runJoinWorker;
-
-  runJoinWorker -> {
-    joinResultCh;
-    joinChkResourceCh;
-    getNewJoinResult;
-    join2Chunk;
-    join2ChunkForOuterHashJoin;
-  }
-  joinResultCh -> HashJoinExec_Next;
-  joinChkResourceCh -> getNewJoinResult;
-
-  join2Chunk -> {
-    joinMatchedProbeSideRow2Chunk;
-    HashChunkSelected;
-    VectorizedFilter;
-  };
-
-  joinMatchedProbeSideRow2Chunk -> {
-    tryToMatchInners;
-    onMissMatch;
-    GetMatchedRowsAndPtrs;
-  };
-
-  join2ChunkForOuterHashJoin -> {
-    joinMatchedProbeSideRow2ChunkForOuterHashJoin;
-    HashChunkColumns;
-  };
-
-  joinMatchedProbeSideRow2ChunkForOuterHashJoin -> {
-    tryToMatchOuters;
-    GetMatchedRowsAndPtrs;
-  };
 
   waitJoinWorkersAndCloseResultChan -> {
     handleUnmatchedRowsFromHashTableInDisk;
     handleUnmatchedRowsFromHashTableInMemory;
-  } -> getNewJoinResult;
+  }
+  runJoinWorker -> getNewJoinResult;
+
+  handleUnmatchedRowsFromHashTableInMemory -> getNewJoinResult;
+  handleUnmatchedRowsFromHashTableInDisk -> getNewJoinResult;
+  getNewJoinResult -> joinChkResourceCh[label="获取Jion结果"];
+
+  subgraph cluster_datasource {
+    graph[label="datasource\l数据源";fontsize=20;style=filled;fillcolor="#eaffd0"];
+    buildSideExec_Next;
+    probeSideExec_Next;
+    distsql;
+    tikv;
+  }
+
+  HashJoinExec_Next -> joinResultCh[label="拉取数据";color="#f38181"];
+
+  fetchAndBuildHashTable -> {
+    buildHashTableForList;
+  }
+
+
+  buildHashTableForList -> buildSideResultCh[label="取inner数据"];
+  fetchAndBuildHashTable -> fetchBuildSideRows[label="go"];
+  fetchAndBuildHashTable -> buildSideResultCh[label="等待"];
+  fetchBuildSideRows -> buildSideResultCh[label="放inner表chunk数据"];
+  fetchBuildSideRows -> {buildSideExec_Next;}
+
+
+  fetchAndProbeHashTable -> {
+    fetchProbeSideChunks;
+    waitJoinWorkersAndCloseResultChan;
+  }
+  rowContainer[label="HashJoinExec.rowContainer"];
+  buildHashTableForList -> NewConcurrentBitmap;
+  buildHashTableForList ->  newHashRowContainer -> rowContainer;
+  buildHashTableForList -> rowContainer[label="PutChunkSelected"];
+
+  runJoinWorker -> {
+    join2ChunkForOuterHashJoin;
+    join2Chunk;
+    joinChkResourceCh;
+    joinResultCh;
+  };
+  subgraph cluster_hashRowContainer {
+    graph[label="hashRowContainer";fontsize=20;style=rounded];
+    rowContainer;
+    GetMatchedRowsAndPtrs;
+    GetMatchedRowsAndPtrs -> matchJoinKey;
+    matchJoinKey -> EqualChunkRow;
+  }
+
+  fetchAndProbeHashTable -> runJoinWorker[label="go routine"];
+  fetchAndProbeHashTable -> fetchProbeSideChunks[label="go routine"];
+  fetchProbeSideChunks -> probeResultChs[label="put数据"];
+  fetchProbeSideChunks -> probeSideExec_Next[label="Next取数据"];
+
+  joinChkResourceCh[shape="box3d"];
+  joinResultCh[shape="box3d"];
+  probeResultChs[shape="box3d"];
+
+  runJoinWorker -> probeResultChs[label="取数据WorkerID"];
+  join2ChunkForOuterHashJoin -> {
+    joinMatchedProbeSideRow2ChunkForOuterHashJoin;
+    HashChunkColumns;
+  }
+  join2Chunk -> {
+    VectorizedFilter;
+    HashChunkSelected;
+    joinMatchedProbeSideRow2Chunk;
+  }
+  joinMatchedProbeSideRow2Chunk -> {
+    GetMatchedRowsAndPtrs;
+    onMissMatch;
+    NewIterator4Slice;
+    tryToMatchInners;
+  }
+  joinMatchedProbeSideRow2Chunk -> joinResultCh[label="放结果"];
+  joinMatchedProbeSideRow2ChunkForOuterHashJoin -> {
+    GetMatchedRowsAndPtrs;
+    tryToMatchOuters;
+  }
+  joinMatchedProbeSideRow2ChunkForOuterHashJoin  -> joinResultCh[label="放结果"];
+  joinMatchedProbeSideRow2ChunkForOuterHashJoin -> rowContainer[label="GetMatchedRowsAndPtrs"];
+
+  subgraph cluster_joiner {
+    graph[label="joiner interface";fontsize=20;style=rounded];
+    tryToMatchInners;
+    tryToMatchOuters;
+    onMissMatch;
+  }
+  buildSideExec_Next[label="buildSideExec_Next\l去tikv取build表数据"];
+  probeSideExec_Next[label="probeSideExec_Next\l去tikv取probe表数据"];
+
+  {buildSideExec_Next, probeSideExec_Next} -> distsql -> tikv;
 
 }

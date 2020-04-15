@@ -1,0 +1,124 @@
+digraph schema_load {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_sync_atomic {
+    graph[label="sync/atomic/value.go";fontsize=20;style=rounded]
+    Atomic_Value_Store[label="Store"];
+    Atomic_Value_Load[label="Load"];
+  }
+
+  subgraph cluster_tables {
+    graph[label="table/tables/tables";fontsize=20;style=rounded]
+    tables_tableFromMeta[label="TableFromMeta"];
+  }
+
+  subgraph cluster_meta_meta_go {
+    graph[label="meta/meta.go";fontsize=20;style=rounded]
+    ListDatabases;
+    ListTables;
+  }
+  subgraph cluster_infoschema_builder {
+    graph[label="infoschema/builder.go";fontsize=20;style=rounded]
+    InitWithOldInfoSchema;
+    InitWithDBInfos;
+    Builder [
+      shape="record";
+      label="{{
+        Builder |
+        is *infoSchema\l|
+        handle *Handle\l|
+        func\l|
+        <Build> Build\l
+      }}";
+    ];
+    NewBuilder -> Builder[label="handle"];
+    Build -> Atomic_Value_Store;
+
+    ApplyDiff -> {
+      applyDropTable;
+      applyCreateTable;
+      copySchemaTables;
+      copySortedTables;
+      applyCreateSchema;
+    }
+    InitWithDBInfos -> {
+      createSchemaTablesForDB;
+      createSchemaTablesForInfoSchemaDB;
+    }
+
+    createSchemaTablesForDB -> {
+      tables_tableFromMeta;
+      NewAllocator;
+    }
+  };
+
+  subgraph cluster_infoschema{
+    graph[label="infoSchema/infoschema.go";fontsize=20;style=rounded]
+    subgraph cluster_Handle {
+      graph[label="Handle";fontsize=20;style=rounded];
+      NewHandle;
+      Handle_Get[label="Get"];
+      Handle_Get -> Atomic_Value_Load;
+    }
+  };
+
+  subgraph cluster_domain_map {
+    graph[label="session/tidb.go";fontsize=20;style=rounded]
+    subgraph cluster_domainMap {
+      graph[label="domainMap";fontsize=20;style=rounded];
+      domainmap_Get[label="Get"];
+    }
+  }
+
+  subgraph cluster_session_session {
+    graph[label="session/session.go";fontsize=20;style=rounded]
+    GetDomain -> domainmap_Get[label="store"];
+    createSession -> domainmap_Get;
+    BootstrapSession -> createSession;
+    BootstrapSession -> runInBootstrapSession;
+    createSessionFunc -> createSession;
+    runInBootstrapSession -> createSession;
+  }
+
+  domainmap_Get -> {
+    NewDomain;
+    Domain_Init;
+  };
+
+  subgraph cluster_domain {
+    graph[label="domain/domain.go";fontsize=20;style=rounded]
+    Domain_Init[label="Init"];
+    NewDomain -> NewHandle;
+    Domain_Init -> {
+      loadSchemaInLoop;
+      topNSlowQueryLoop;
+      infoSyncerKeeper;
+    }[label="goroutine"];
+
+    loadSchemaInLoop -> Reload[label="tiker=(lease/2)"];
+    loadSchemaInLoop -> {
+      WatchGlobalSchemaVer;
+      mustRestartSyncer;
+    }
+
+    Reload -> loadInfoSchema[label="do.infoHandle"];
+    loadInfoSchema ->{
+      tryLoadSchemaDiffs;
+      fetchAllSchemasWithTables;
+      InitWithDBInfos;
+      Build;
+    };
+    loadInfoSchema -> NewBuilder[label="handle"];
+
+    fetchAllSchemasWithTables -> {
+      ListDatabases;
+      fetchSchemasWithTables;
+    };
+    fetchSchemasWithTables -> ListTables;
+
+  }
+  tryLoadSchemaDiffs -> InitWithOldInfoSchema -> Handle_Get
+  tryLoadSchemaDiffs -> ApplyDiff;
+}

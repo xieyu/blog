@@ -1,0 +1,45 @@
+digraph sql_distsql_coptask {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  SQL[label="SQL语句"];
+  copTask1[
+    shape="record";
+    label="{{
+      coptask|
+      region RegionVerID\l|
+      ranges *copRanges \l
+    }}";
+  ];
+
+  copTask2[
+    shape="record";
+    label="{{
+      coptask|
+      region RegionVerID\l|
+      ranges *copRanges \l
+    }}";
+  ];
+
+  copTaskN[
+    shape="record";
+    label="{{
+      coptask|
+      region RegionVerID\l|
+      ranges *copRanges \l
+    }}";
+  ];
+  RegionRequestSender[label="RegionRequestSender \l向tikv发送grpc请求\l处理错误，重试等\l"];
+
+  SQL -> TableReaderExecutor1;
+  SQL -> TableReaderExecutor2;
+  SQL -> TableReaderExecutorN;
+  TableReaderExecutor1 -> distSQL1[label="table1"];
+
+  distSQL1 -> CopClient;
+  CopClient -> copTask1[label="Region1"];
+  CopClient -> copTask2[label="Region2"];
+  CopClient -> copTaskN[label="RegionN..."];
+  copTask1 -> copIteratorWork[label="execute by"];
+  copIteratorWork -> RegionRequestSender;
+}
