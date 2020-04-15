@@ -22,4 +22,19 @@
 
 ### TransactionLockMgr
 
+lock level
+
+```cpp
+size_t LockMap::GetStripe(const std::string& key) const {
+  assert(num_stripes_ > 0);
+  return fastrange64(GetSliceNPHash64(key), num_stripes_);
+}
+```
+
+![transaction lock level](./transaction-lock-level.svg)
+
 ![transaction lock mgr](./transaction-lock-mgr.svg)
+
+dead lock detect
+
+![transaction lock mgr dead lock detect](./transaction-lock-mgr-deadlock-detect.svg)

@@ -3,6 +3,25 @@ digraph tranaction_lock_mgr {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
+  subgraph cluster_PessimisticTransaction {
+    graph[label="PessimisticTransaction";fontsize=20;];
+    ClearWaitingTxn -> {
+      waiting_txn_ids_;
+      wait_mutex_;
+    };
+    SetWaitingTxn -> {
+      waiting_cf_id_;
+      wait_mutex_;
+      waiting_txn_ids_;
+    };
+    GetID[
+      shape="record";
+      label="{{
+        GetID|
+        获取事务ID\l
+      }}";
+    ];
+  } // end of PessimisticTransaction
 
   subgraph cluster_TransactionOptions {
     graph[label="TransactionOptions";fontsize=20;];
@@ -13,6 +32,17 @@ digraph tranaction_lock_mgr {
   subgraph cluster_LockMap {
     graph[label="LockMap";fontsize=20;];
     GetStripe -> num_stripes_;
+    lock_maps_cache_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        lock_maps_cache_|
+          std::unique_ptr\<ThreadLocalPtr\>\l lock_maps_cache_;\l
+      }}"
+    ];
+    lock_maps_cache_ -> LockMaps;
+    LockMaps -> LockMap;
     LockMap[
       shape="record";
       fillcolor="#95e1d3"
@@ -71,7 +101,6 @@ digraph tranaction_lock_mgr {
         uint64_t expiration_time;\l
       }}"
     ];
-    GetStripe -> LockMapStripe[style=dashed];
   }
   subgraph cluster_TransactionLockMgr {
     graph[label="TransactionLockMgr";fontsize=20;];
@@ -99,8 +128,6 @@ digraph tranaction_lock_mgr {
       }}";
     ];
 
-    GetLockMap -> GetStripe[style=dashed];
-    //LockMapStripe -> AcquireWithTimeout[style=dashed];
     AcquireWithTimeout[
       shape="record";
       label="{{
@@ -168,7 +195,6 @@ digraph tranaction_lock_mgr {
     ];
 
     IsLockExpired -> {
-      TryStealingExpiredTransactionLocks;
       LockInfo;
     }
     GetLockMap[
@@ -176,47 +202,16 @@ digraph tranaction_lock_mgr {
       label="{{
         GetLockMap|
         根据column_family_id\l 
-        从ThreadLocal中获取相应的\l
-        LocksMap,如果不存在就新建一个\l
+        从ThreadLocal cache中获取lockmap\l
+        失败就用mutex去全局获取lockmap并更新cache\l
       }}";
     ];
 
     GetLockMap -> {
       lock_maps_cache_;
-      GetLockMap_insert;
       LockMaps;
     }
-    GetLockMap_insert[
-      shape="record";
-      label="{{
-        GetLockMap_insert|
-        将新建的LockMaps插入cache中\l
-        key为column faimly id\l
-      }}";
-    ];
-    GetLockMap_insert -> lock_maps_cache_;
 
-    lock_maps_cache_[
-      shape="record";
-      fillcolor="#95e1d3"
-      style=filled;
-      label="{{
-        lock_maps_cache_|
-          std::unique_ptr\<ThreadLocalPtr\>\l lock_maps_cache_;\l
-      }}"
-    ];
-    lock_maps_cache_ -> LockMaps;
-    LockMaps[
-      shape="record"
-      label="{{
-        LockMaps|
-          using LockMaps =\l 
-          // Map of ColumnFamilyId to locked key info\l|
-          std::unordered_map\<uint32_t, \l 
-          std::shared_ptr\<LockMap\>\>;\l
-      }}"
-    ];
-    LockMaps -> LockMap;
 
     IsDeadlockDetect[
       shape="record";
@@ -234,60 +229,35 @@ digraph tranaction_lock_mgr {
         Deadlock检测？
       }}";
     ];
-    IncrementWaiters -> {
-      GetID;
-      GetDeadlockDetectDepth;
-      wait_txn_map_mutex_;
-      wait_txn_map_;
-      wait_txn_map_Insert;
+    DecrementWaiters; 
+
+    // Unlock
+    Unlock[
+      shape="record";
+      label="{{
+        Unlock|
+        释放掉txn对应的keys锁\l
+      }}";
+    ];
+    Unlock -> {
+      GetLockMap;
+      GetStripe
+      UnLockKey;
+      TransactionDBCondVar;
+      TransactionDBMutex;
+    }[color="#17b978"];
+
+    UnLockKey[
+      shape="record";
+      label="{{
+        UnLockKey|
+        将事务从key对应的\l 
+        LockInfo的txn_ids中去掉\l
+      }}";
+    ];
+
+    UnLockKey -> {
+      LockMapStripe:LockInfo;
     }
-
-    wait_txn_map_mutex_[
-      shape="record";
-      label="{{
-        wait_txn_map_mutex_|
-        用于guard访问\l
-        wait_txn_map_\l
-      }}";
-    ];
-    GetID[
-      shape="record";
-      label="{{
-        GetID|
-        获取事务ID\l
-      }}";
-    ];
-
-
-    wait_txn_map_Insert -> wait_txn_map_;
-    wait_txn_map_[
-      shape="record";
-      fillcolor="#95e1d3"
-      style=filled;
-      label="{{
-        wait_txn_map_|
-          <TrackedTrxInfo> HashMap\<TransactionID, TrackedTrxInfo\>\l wait_txn_map_;
-      }}";
-    ];
-    wait_txn_map_ -> TrackedTrxInfo;
-    TrackedTrxInfo[
-      shape="record";
-      label="{{
-        TrackedTrxInfo|
-          autovector\<TransactionID\> m_neighbors;\l|
-          uint32_t m_cf_id;\l|
-          bool m_exclusive;\l|
-          std::string m_waiting_key;\l
-      }}";
-    ];
-
-    DecrementWaiters -> {
-      wait_txn_map_mutex_;
-      DecrementWaitersImpl;
-    }
-    DecrementWaitersImpl -> {
-      wait_txn_map_Delete;
-    }
-    wait_txn_map_Delete -> wait_txn_map_;
   }
 }
