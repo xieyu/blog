@@ -1,0 +1,26 @@
+digraph check_key_conflict {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    GetAndRefSuperVersion;
+    GetEarliestMemTableSequenceNumber;
+    ReturnAndCleanupSuperVersion;
+    GetLatestSequenceForKey;
+  }
+  subgraph cluster_TransactionUtil {
+    graph[label="TransactionUtil";fontsize=20;];
+    CheckKeyForConflicts -> {
+      GetAndRefSuperVersion;
+      GetEarliestMemTableSequenceNumber;
+      CheckKey;
+      ReturnAndCleanupSuperVersion;
+    };
+
+    CheckKey -> {
+      GetLatestSequenceForKey;
+    }
+  }
+}

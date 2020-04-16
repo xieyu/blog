@@ -1,0 +1,76 @@
+digraph optimistic_transaction {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    DBImpl_Write;
+    DBImpl_WriteWithCallback;
+  }
+  subgraph cluster_OptimisticTransactionDB {
+    graph[label="OptimisticTransactionDB";fontsize=20;];
+    BeginTransaction -> {
+      ReinitializeTransaction;
+    }
+    GetLockBucketsSize;
+    LockBucket;
+  }
+  BeginTransaction -> OptimisticTransaction;
+  tracked_keys_ -> CheckKeyForConflicts[style=dashed];
+
+  subgraph cluster_TransactionBaseImpl {
+    graph[label="TransactionBaseImpl";fontsize=20;];
+    GetTrackedKeys -> tracked_keys_;
+    tracked_keys_[
+      shape="record"
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        tracked_keys_|
+          TransactionKeyMap tracked_keys_;
+      }}"
+    ];
+    TransactionBaseImpl_Clear;
+  }
+
+  subgraph cluster_TransactionUtil {
+    graph[label="TransactionUtil";fontsize=20;];
+    CheckKeyForConflicts[
+      shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        CheckKeyForConflicts|
+        检查key冲突
+      }}";
+    ];
+  }
+
+  subgraph cluster_OptimisticTransaction {
+    graph[label="OptimisticTransaction";fontsize=20;];
+    OptimisticTransaction -> Initialize -> SetSnapshot;
+    Commit -> {
+      CommitWithParallelValidate;
+      CommitWithSerialValidate;
+    };
+
+    CommitWithParallelValidate -> {
+      GetLockBucketsSize;
+      GetTrackedKeys;
+      LockBucket;
+      CheckKeyForConflicts;
+      DBImpl_Write;
+      TransactionBaseImpl_Clear;
+    };
+
+    CommitWithSerialValidate -> {
+      DBImpl_WriteWithCallback;
+      OptimisticTransactionCallback;
+    }
+    DBImpl_WriteWithCallback -> OptimisticTransactionCallback[style=dashed];
+    OptimisticTransactionCallback -> CheckTransactionForConflicts -> CheckKeyForConflicts;
+  }
+
+}

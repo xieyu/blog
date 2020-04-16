@@ -1,0 +1,190 @@
+digraph track_key {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_TransactionBaseImpl {
+    graph[label="TransactionBaseImpl";fontsize=20;];
+    GetTrackedKeys -> tracked_keys_;
+    TrackKey[
+      shape="record"
+      label="{{
+        TrackKey|
+        向tracked_keys_中插入key,\l
+        seq, readonly, excluesive等信息\l
+      }}"
+    ];
+    TrackKey -> tracked_keys_[color=red;style=dashed];
+
+    tracked_keys_[
+      shape="record"
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        tracked_keys_|
+          TransactionKeyMap tracked_keys_;
+      }}"
+    ];
+
+    tracked_keys_ -> TransactionKeyMap;
+    TransactionKeyMap[
+      shape="record"
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        TransactionKeyMap|
+          从column family id到key的映射\l|
+          乐观事务表示提交时需要check conflict的key\l|
+          悲观事务表示list of locked key\l|
+          using TransactionKeyMap =\l
+          std::unordered_map\<uint32_t,\l
+          std::unordered_map\<std::string, TransactionKeyMapInfo\>\>;
+      }}"
+    ];
+    TransactionKeyMap -> TransactionKeyMapInfo;
+
+    TransactionKeyMapInfo[
+      shape="record"
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        TransactionKeyMapInfo|
+          SequenceNumber seq;\l|
+          uint32_t num_writes;\l|
+          uint32_t num_reads;\l|
+          bool exclusive;\l
+      }}"
+    ];
+    TransactionBaseImpl_TryLock[
+      shape="record"
+      label="{{
+        TryLock|
+        TryLock虚函数\l|
+        乐观事务记录事务涉及的key\l|
+        悲观事务还会去获取key lock\l
+      }}"
+    ];
+    subgraph cluster_KvOperation {
+      graph[label="KV Write 操作";fontsize=20;];
+      GetForUpdate;
+      MultiGetForUpdate;
+      Put;
+      Merge;
+      Delete;
+    }
+
+    {
+      GetForUpdate;
+      MultiGetForUpdate;
+      Put;
+      Merge;
+      Delete;
+    } -> {
+      TransactionBaseImpl_TryLock;
+      GetBatchForWrite;
+    }
+
+    GetBatchForWrite -> write_batch_;
+    GetBatchForWrite[
+      shape="record"
+      label="{{
+        GetBatchForWrite|
+        写操作会先写到writeBatch中
+      }}"
+    ];
+    write_batch_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        write_batch_|
+          WriteBatchWithIndex write_batch_;\l|
+          struct Rep\l|
+          std::unique_ptr<Rep> rep;\l
+      }}"
+    ];
+  }
+  TransactionBaseImpl_TryLock -> {
+    PessimisticTransaction_TryLock;
+    OptimisticTransaction_TryLock;
+  }
+
+  subgraph cluster_OptimisticTransaction {
+    graph[label=" OptimisticTransaction";fontsize=20;];
+    OptimisticTransaction_TryLock -> TrackKey;
+    OptimisticTransaction_TryLock[
+      shape="record"
+      label="{{
+        TryLock
+      }}"
+    ];
+  }
+
+  subgraph cluster_TransactionLockMgr {
+    graph[label="TransactionLockMgr";fontsize=20;];
+    TransactionLockMgr_TryLock[
+      shape="record"
+      label="{{
+        TryLock
+      }}"
+    ];
+    TransactionLockMgr_TryLock -> lock_maps_cache_;
+    lock_maps_cache_ -> LockInfo[style=dashed];
+    lock_maps_cache_[
+      shape="record";
+      label="{{
+        lock_maps_cache_|
+          对LockMaps的ThreadLocal Cache\l|
+          在cache中找不到的\l 
+          使用mutex访问\l
+          全局LockMaps并\l 
+          更新线程局部cache\l|
+          std::unique_ptr\<ThreadLocalPtr\>\l lock_maps_cache_;\l
+      }}";
+    ];
+    LockInfo[
+      shape="record"
+      fillcolor="#95e1d3"
+      style=filled;
+        label="{{
+          LockInfo\l|
+          保存了key对应的lock信息\l
+          是否是排他锁\l 
+          持有该key 的事务id\l 
+          过期时间\l|
+            bool exclusive;\l|
+            autovector\<TransactionID\> txn_ids;\l|
+            uint64_t expiration_time;\l
+        }}"
+    ];
+  } // end of TransactionLockMgr
+
+  subgraph cluster_PessimisticTransactionDB {
+    graph[label="PessimisticTransactionDB";fontsize=20;];
+    PessimisticTransactionDB_TryLock[
+      shape="record"
+      label="{{
+        TryLock
+      }}"
+    ];
+    PessimisticTransactionDB_TryLock -> TransactionLockMgr_TryLock;
+    
+  }
+
+  subgraph cluster_PessimisticTransaction {
+    graph[label="PessimisticTransaction";fontsize=20;];
+    PessimisticTransaction_TryLock -> {
+      GetTrackedKeys;
+      PessimisticTransactionDB_TryLock;
+      TrackKey;
+    }[color="#3f72af"];
+
+    PessimisticTransaction_TryLock[
+      shape="record"
+      label="{{
+        TryLock
+      }}"
+    ];
+  }
+}

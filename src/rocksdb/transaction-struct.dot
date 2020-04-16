@@ -98,7 +98,7 @@ digraph transaction_struct {
     shape="record";
     label="{{
       PessimisticTransactionDB|
-        TransactionLockMgr lock_mgr_;\l|
+        <TransactionLockMgr> TransactionLockMgr lock_mgr_;\l|
         InstrumentedMutex column_family_mutex_;\l|
         std::mutex map_mutex_;\l|
         std::unordered_map\<TransactionID, PessimisticTransaction*\>\l|
@@ -107,6 +107,7 @@ digraph transaction_struct {
         std::unordered_map\<TransactionName, Transaction*\> transactions_\l
     }}";
   ];
+  PessimisticTransactionDB:TransactionLockMgr -> TransactionLockMgr;
 
   DB -> StackableDB -> TransactionDB -> PessimisticTransactionDB;
   StackableDB -> OptimisticTransactionDB;
@@ -158,4 +159,17 @@ digraph transaction_struct {
     }}";
   ];
   TransactionKeyMapInfo -> SequenceNumber;
+
+  TransactionLockMgr[
+    shape="record"
+    label="{{
+      TransactionLockMgr|
+        InstrumentedMutex lock_map_mutex_;\l|
+        LockMaps lock_maps_;\l|
+        std::unique_ptr<ThreadLocalPtr> lock_maps_cache_;\l|
+        std::unique_ptr<ThreadLocalPtr> lock_maps_cache_;\l|
+        ...
+    }}"
+  ];
+
 }
