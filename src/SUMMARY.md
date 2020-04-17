@@ -70,7 +70,7 @@
   - [Leveled Compaction Picker](./rocksdb/leveled-compaction-picker.md)
   - [read 流程](./rocksdb/read.md)
   - [事务](./rocksdb/transaction.md)
-    - [OptimisticTransaction](./rocksdb/optimistic-transaction.md)
+    - [乐观事务: Optimistic Transaction](./rocksdb/optimistic-transaction.md)
     - [Transaction lock mgr](./rocksdb/transaction-lock-mgr.md)
 
 - [TiDB](./tidb/index.md)

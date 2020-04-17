@@ -1,7 +1,19 @@
-# OptimisticTransaction
+# Optimistic Transaction
 
+## Questions
+
+1. key冲突检测是咋搞的
+2. 并行和顺序这个是怎么弄的
+
+乐观事务在commit前，Write操作只会记录事务有哪些key, 不需要做加锁和key冲突检测，适合事务之间
+write key重叠比较低的场景。
+
+在commit时候进行key的冲突检测。
 
 ![optimistic transaction](./optimistic-transaction.svg)
+
+
+key冲突检测
 
 ![check key conflict](./check-key-conflict.svg)
 
