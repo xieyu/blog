@@ -72,8 +72,7 @@
   - [事务](./rocksdb/transaction.md)
     - [Optimistic Transaction](./rocksdb/optimistic-transaction.md)
     - [Transaction lock mgr](./rocksdb/transaction-lock-mgr.md)
-    - [Write commited txn](./rocksdb/write-commited.md)
-    - [两阶段提交](./rocksdb/two-phase-commit.md)
+    - [two phase commit](./rocksdb/two-phase-commit.md)
 
 - [TiDB](./tidb/index.md)
   - [tidb学习资料整理](./tidb/note.md)

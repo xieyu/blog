@@ -3,6 +3,9 @@ digraph two_phase_commit_write_batch {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
+  subgraph cluster_PrepasePhase {
+    graph[label="PrepasePhase";fontsize=20;];
+  } // end of PrepasePhase
 
   subgraph cluster_DBImpl {
     graph[label="DBImpl";fontsize=20;];
@@ -31,6 +34,9 @@ digraph two_phase_commit_write_batch {
       }}"
     ];
   }
+
+  WAL_REP -> WriteImplWALOnly[style=dashed];
+
   subgraph cluster_WriteBatchInternal {
     graph[label="WriteBatchInternal";fontsize=20;];
     MarkEndPrepare[
@@ -47,12 +53,14 @@ digraph two_phase_commit_write_batch {
       kTypeEndPrepareXID;
       PutLengthPrefixedSlice;
       content_flags_;
+      WAL_REP;
     }[color="#b83b5e"];
 
     MarkCommit -> {
       kTypeCommitXID;
       PutLengthPrefixedSlice;
       content_flags_;
+      WAL_REP:commit;
     }[color="#3f72af"];
 
     MarkRollback -> {
@@ -76,6 +84,22 @@ digraph two_phase_commit_write_batch {
         PutLengthPrefixedSlice|
         向writeBatch的rep_中写入xid
       }}"
+    ];
+
+    WAL_REP[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        Write batch Rep_|
+          Seq\l|
+          ktypeBeginPrepare(xid)\l|
+          put(key1, value1)\l|
+          delete(key2, value2)\l|
+          ...\l|
+          kTypeEndPrepareXID(xid)\l|
+          <commit> kTypeCommitXID(xid)\l
+      }}";
     ];
   }
 
