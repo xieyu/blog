@@ -1,5 +1,8 @@
 # Transaction lock mgr
 
+TransactionLockMgr 用于管理悲观事务的key lock，所有的悲观事务，通过`txn_db_impl->lock_mgr_`指针共享
+同一个lockmgr
+
 ### LockMap
 
 rocksdb中对于key lock做了多种优化

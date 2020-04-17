@@ -173,6 +173,16 @@ digraph write_committed {
         MarkRollback;
         WriteImpl_Rollback_Marker;
       }[color="#17b978"];
+      WriteCommittedTxn;
+    }
+    WriteCommittedTxn -> PessimisticTransaction;
+    PessimisticTransaction -> Initialize;
+  }
+
+  subgraph cluster_WriteCommittedTxnDB {
+    graph[label="WriteCommittedTxnDB";fontsize=20;];
+    BeginTransaction -> {
+      WriteCommittedTxn;
     }
   }
 }

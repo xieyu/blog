@@ -42,16 +42,6 @@ WriteCommitted, which means that the data is written to the DB, i.e., the memtab
 ![pessimistic transaction](./pessimistic-transaction.svg)
 
 
-### Write Committed
-
-The default write policy in pessimistic transactions is WriteCommitted, which means that the data is written to the DB, i.e., the memtable, only after the transaction is committed.
-
-![write commited](./write-committed.svg)
-
-### WritePrepared
-
-
-
 ## 参考
 
 [Facebook WritePrepared](https://github.com/facebook/rocksdb/wiki/WritePrepared-Transactions)

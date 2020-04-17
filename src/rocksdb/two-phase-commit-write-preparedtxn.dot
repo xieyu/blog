@@ -1,0 +1,120 @@
+digraph write_prepared_txn {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    WriteImpl_Prepare;
+  }
+
+  subgraph cluster_WriteBatchInternal {
+    graph[label="WriteBatchInternal";fontsize=20;];
+    MarkEndPrepare[
+      shape="record"
+      label="{{
+        MarkEndPrepare|
+        1.开始时rep_[12]这个char是TypeNoop\l
+        2.将rep_[12]这个地方写入kTypeBeginPrepareXID\l
+        3.在rep_结尾写入kTypeEndPrepareXID\l
+      }}"
+    ];
+    MarkEndPrepare -> {
+      kTypeBeginPrepareXID;
+      kTypeEndPrepareXID;
+      PutLengthPrefixedSlice;
+      content_flags_;
+    }[color="#b83b5e"];
+
+    MarkCommit -> {
+      kTypeCommitXID;
+      PutLengthPrefixedSlice;
+      content_flags_;
+    }[color="#3f72af"];
+
+    MarkRollback -> {
+      kTypeRollbackXID;
+      PutLengthPrefixedSlice;
+      content_flags_;
+    }[color="#17b978"];
+
+    content_flags_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        content_flags_|
+          mutable std::atomic\<uint32_t\>\l content_flags_;
+      }}"
+    ];
+    PutLengthPrefixedSlice[
+      shape="record"
+      label="{{
+        PutLengthPrefixedSlice|
+        向writeBatch的rep_中写入xid
+      }}"
+    ];
+  }
+  subgraph cluster_WritePreparedTxnDB {
+    graph[label="WritePreparedTxnDB";fontsize=20;];
+    AddPrepared -> {
+      prepared_txns_;
+      CheckPreparedAgainstMax;
+    }
+    prepared_txns_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        prepared_txns_
+      }}"
+    ];
+
+
+    AddCommitted -> {
+      CheckAgainstSnapshots;
+      AddCommitted;
+      AdvanceMaxEvictedSeq;
+    }
+    RemovePrepared -> {
+      delayed_prepared_empty_;
+    }
+
+    CheckAgainstSnapshots -> {
+      MaybeUpdateOldCommitMap;
+    }
+  }
+  subgraph cluster_WritePreparedTxn {
+    graph[label="WritePreparedTxn";fontsize=20;];
+    PrepareInternal -> {
+      MarkEndPrepare;
+      WriteImpl_Prepare;
+    }
+    PrepareInternal -> AddPreparedCallback[style=dashed];
+    WriteImpl_Prepare -> AddPreparedCallback;
+    AddPreparedCallback -> {
+      AddPrepared;
+      prepared_txns_;
+    }
+
+
+    CommitInternal -> {
+      MarkCommit;
+    }
+    CommitInternal -> {
+      WritePreparedCommitEntryPreReleaseCallback;
+      AddPreparedCallback;
+      WriteImpl_Commited;
+    }[style=dashed];
+
+    WriteImpl_Commited -> {
+      WritePreparedCommitEntryPreReleaseCallback;
+      AddPreparedCallback;
+    }
+    WritePreparedCommitEntryPreReleaseCallback -> {
+      AddCommitted;
+      RemovePrepared;
+    }
+  }
+}

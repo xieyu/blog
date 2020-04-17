@@ -1,0 +1,146 @@
+digraph two_phase_commit_write_batch {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    WriteImpl_Prepare -> WriteImplWALOnly;
+    WriteImpl_Prepare[
+      shape="record"
+      label="{{
+        WriteImpl|
+        只将writebatch写入WAL日志中\l
+        不插入mem表中\l
+      }}"
+    ];
+    WriteImpl_Commited[
+      shape="record"
+      label="{{
+        WriteImpl|
+        Commit标记写入WAL日志中\l|
+        WriteBatch插入mem表中\l
+      }}"
+    ];
+    WriteImpl_Rollback[
+      shape="record"
+      label="{{
+        WriteImpl_Rollback|
+        Rollback
+      }}"
+    ];
+  }
+  subgraph cluster_WriteBatchInternal {
+    graph[label="WriteBatchInternal";fontsize=20;];
+    MarkEndPrepare[
+      shape="record"
+      label="{{
+        MarkEndPrepare|
+        1.开始时rep_[12]这个char是TypeNoop\l
+        2.将rep_[12]这个地方写入kTypeBeginPrepareXID\l
+        3.在rep_结尾写入kTypeEndPrepareXID\l
+      }}"
+    ];
+    MarkEndPrepare -> {
+      kTypeBeginPrepareXID;
+      kTypeEndPrepareXID;
+      PutLengthPrefixedSlice;
+      content_flags_;
+    }[color="#b83b5e"];
+
+    MarkCommit -> {
+      kTypeCommitXID;
+      PutLengthPrefixedSlice;
+      content_flags_;
+    }[color="#3f72af"];
+
+    MarkRollback -> {
+      kTypeRollbackXID;
+      PutLengthPrefixedSlice;
+      content_flags_;
+    }[color="#17b978"];
+
+    content_flags_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        content_flags_|
+          mutable std::atomic\<uint32_t\>\l content_flags_;
+      }}"
+    ];
+    PutLengthPrefixedSlice[
+      shape="record"
+      label="{{
+        PutLengthPrefixedSlice|
+        向writeBatch的rep_中写入xid
+      }}"
+    ];
+  }
+
+  subgraph cluster_PessimisticTransactionDB {
+    graph[label="PessimisticTransactionDB";fontsize=20;];
+    RegisterTransaction -> {
+      transactions_;
+      name_map_mutex_;
+    }
+    transactions_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        transactions_|
+          std::unordered_map\<TransactionName, Transaction*\>\l  transactions_;\l
+      }}"
+    ];
+    name_map_mutex_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        name_map_mutex_|
+          std::mutex name_map_mutex_;
+      }}"
+    ];
+  }
+  subgraph cluster_PessmisticTransaction {
+    graph[label="PessimisticTransaction";fontsize=20;];
+    subgraph cluster_Transaction {
+      graph[label="Transaction";fontsize=20;];
+      name_[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          name_|
+          事务id
+        }}"
+      ];
+      name_ -> PutLengthPrefixedSlice[style=dashed];
+    }
+    SetName -> {
+      name_;
+      RegisterTransaction;
+    }
+  }
+
+  subgraph cluster_WriteCommittedTxn {
+    graph[label="WriteCommittedTxn";fontsize=20;];
+    PrepareInternal -> { 
+      MarkEndPrepare;
+      WriteImpl_Prepare;
+    }[color="#b83b5e"];
+
+    CommitInternal -> {
+      MarkCommit;
+      WriteImpl_Commited;
+    }[color="#3f72af"];
+
+    RollbackInternal -> {
+      MarkRollback 
+      WriteImpl_Rollback;
+    } [color="#17b978"];
+  }
+
+}

@@ -18,6 +18,7 @@ digraph check_key_conflict {
     MemTable_Get;
   } // end of MemTable
 
+  tracked_keys_ -> CheckKeyForConflicts[style=dashed];
   subgraph cluster_TransactionBaseImpl {
     graph[label=" TransactionBaseImpl";fontsize=20;];
     tracked_keys_[
@@ -51,15 +52,29 @@ digraph check_key_conflict {
           bool exclusive;\l
       }}";
     ];
-    
   } // end of  TransactionBaseImpl
+  subgraph cluster_Version {
+    graph[label="Version";fontsize=20;];
+    LastSequence;
+    Version_Get[
+      shape="record"
+      label="{{
+        Version_Get|
+        从当前version中查找key\l
+      }}"
+    ];
+  }
+  subgraph cluster_MemList {
+    graph[label="MemList";fontsize=20;];
+    MemTableList_Get;
+    MemTableList_GetFromHistory;
+  }
 
   subgraph cluster_DBImpl {
     graph[label="DBImpl";fontsize=20;];
     GetAndRefSuperVersion;
     GetEarliestMemTableSequenceNumber;
     ReturnAndCleanupSuperVersion;
-    GetLatestSequenceForKey;
     SuperVersion[
       shape="record";
       fillcolor="#95e1d3"
@@ -79,12 +94,39 @@ digraph check_key_conflict {
     GetAndRefSuperVersion -> SuperVersion;
     GetEarliestMemTableSequenceNumber -> GetEarliestSequenceNumber;
 
+    GetLatestSequenceForKey[
+      shape="record"
+      label="{{
+        GetLatestSequenceForKey|
+        获取key的最新seq\l
+        分别从mem, imm, 和\l 
+        current levelfiles中查找\l
+      }}"
+    ];
     GetLatestSequenceForKey -> {
       LastSequence;
       LookupKey;
       MemTable_Get;
+      MemTableList_GetFromHistory
+      MemTableList_Get;
+      Version_Get;
       GetEarliestSequenceNumber;
     }
+    LookupKey[
+      shape="record"
+      label="{{
+        LookupKey|
+        将key转换为查找key
+      }}"
+    ];
+    LastSequence -> LookupKey[style=dashed];
+    LookupKey -> {
+      MemTable_Get;
+      MemTableList_GetFromHistory
+      MemTableList_Get;
+      Version_Get;
+    }[style=dashed];
+
   }
   subgraph cluster_TransactionUtil {
     graph[label="TransactionUtil";fontsize=20;];
@@ -95,6 +137,16 @@ digraph check_key_conflict {
       ReturnAndCleanupSuperVersion;
     };
     TransactionKeyMapInfo:seq -> CheckKey[style=dashed];
+
+    CheckKey[
+      shape="record"
+      label="{{
+        CheckKey|
+        查询该key在db中的最新seq\l
+        如果key存在，比较seq\l
+        TODO：具体逻辑还没理清
+      }}"
+    ];
     CheckKey -> {
       GetLatestSequenceForKey;
     }
