@@ -65,6 +65,7 @@
 - [RocksDB](./rocksdb/index.md)
   - [draft](./rocksdb/draft.md)
   - [主要struct引用关系](./rocksdb/column-family.md)
+  - [Write Ahead Log](./rocksdb/wal.md)
   - [write 并发控制](./rocksdb/write.md)
   - [后台flush和compact线程](./rocksdb/flush-and-compact.md)
   - [Leveled Compaction Picker](./rocksdb/leveled-compaction-picker.md)

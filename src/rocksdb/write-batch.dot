@@ -119,113 +119,8 @@ digraph write_batch {
     WriteBatchWithIndex_Rep -> ReadableWriteBatch;
   };
   WriteBatch_Rep -> ReadRecordFromWriteBatch[style=dashed;color=gray];
-  subgraph cluster_FlushScheduler {
-    graph[label="TrimHistoryScheduler";fontsize=20;style=rounded];
-    ScheduleWork -> {
-    cfds_
-    }
-    cfds_ -> TakeNextColumnFamily 
-  };
 
-  subgraph cluster_ColumnFamily {
-    graph[label="ColumnFamily";fontsize=20;style=rounded];
-    ColumnFamilyMemTables_GetMemTable[
-      shape="record";
-      label="{{
-        GetMemTable|
-        获取ColumnFamily对应的table\l
-      }}";
-    ];
-    ColumnFamilyMemTables_GetColumnFamilyHandle;
-    SeekToColumnFamily;
-  };
 
-  subgraph cluster_MembleInsertor {
-    graph[label="MemTableInsertor";fontsize=20;style=rounded];
-    MemTableInserter_PutCFImpl; 
-    MemTableInserter_PutCFImpl[
-      shape="record";
-      label="{{
-        PutCFImpl
-      }}";
-    ];
-    CheckMemtableFull[
-      shape="record";
-      label="{{
-        CheckMemtableFull|
-        检查Memtable是否\l 
-        超过预期大小\l
-      }}";
-    ];
-    CheckMemtableFull -> {
-      ScheduleWork;
-      MarkTrimHistoryNeeded;
-      ShouldScheduleFlush;
-      MarkFlushScheduled;
-    };
-  };
-  PutCF -> MemTableInserter_PutCFImpl;
-  MemTableInserter_PutCFImpl -> {
-    Put;
-    ColumnFamilyMemTables_GetMemTable;
-    ColumnFamilyMemTables_GetColumnFamilyHandle;
-    SeekToColumnFamily;
-    MemTable_Add;
-    MemTable_Update;
-    MemTable_UpdateCallback;
-    MaybeAdvanceSeq;
-    CheckMemtableFull;
-  }[color="#e23e57"];
-
-  subgraph cluster_MemeTableRep {
-    graph[label="MemeTableRep";fontsize=20;style=rounded];
-    MemeTableRep -> {
-      VectorRep;
-      SkipListRep;
-    }
-    MemeTableRep_InsertKey -> SkipListRep_InsertKey;
-    MemeTableRep_InsertKeyWithHint -> SkipListRep_InsertWithHint;
-
-    subgraph cluster_SkipListRep {
-      graph[label="SkipListRep";fontsize=20;style=rounded];
-      SkipListRep;
-      SkipListRep_InsertKey;
-      SkipListRep_InsertWithHint;
-      
-    };
-  };
-  subgraph cluster_MemeTable {
-    graph[label="MemeTable";fontsize=20;style=rounded];
-    MemeTable[
-      shape="record";
-      label="{{
-        MemeTable|
-          <MemeTableRep> std::unique_ptr\<MemTableRep\> table_;
-      }}";
-    ];
-    MemTable_Add[
-      fillcolor="#f38181";
-      style=filled;
-      shape="record";
-      label="{{
-        MemTable::Add
-      }}";
-    ];
-    MemeTable:MemeTableRep -> MemeTableRep;
-    MemTable_Add -> {
-      MemeTable;
-      MemeTableRep_InsertKey;
-      MemeTableRep_InsertKeyWithHint;
-    }
-    MemTable_Add;
-    MemTable_Update;
-    MemTable_UpdateCallback;
-  };
-
-  subgraph cluster_WriteBatch_Handler {
-    graph[label="WriteBatch::Handler";fontsize=20;style=rounded];
-    PutCF;
-  };
 
   WriteBatch_Rep -> Contents[style=dashed;color=gray];
   subgraph cluster_WriteBatchInternal {
@@ -300,16 +195,9 @@ digraph write_batch {
     }[color="#364f6b"];
     Iterate -> {
       ReadRecordFromWriteBatch;
-      PutCF;
     }[color="#f08a5d"];
   };
-  subgraph cluster_log_writer {
-    graph[label="log_writer";fontsize=20;style=rounded];
-    log_Writer_AddRecord -> {
-      WritableFileWriter_AddRecord;
-      WritableFileWriter_Flush;
-    }
-  };
+
   subgraph cluster_DBImpl {
     graph[label="DBImpl";fontsize=20;style=rounded];
     DBImpl_Write[
@@ -341,7 +229,6 @@ digraph write_batch {
     }
     WriteToWAL -> {
       Contents;
-      log_Writer_AddRecord;
     }[color="#3ec1d3"];
   };
   subgraph cluster_DB {
@@ -353,12 +240,8 @@ digraph write_batch {
 
   {
     edge[style=dashed;color=gray];
-    WriteBatch_Put -> {
-      WriteToWAL;
-      InsertInto;
-    }
-    Contents -> log_Writer_AddRecord;
+
   }
   {rank=same;DB_Put;WriteBatchBase}
-  {rank=same;Iterate;WriteBatch_Rep;PutCF;MemTableInserter_PutCFImpl}
+  {rank=same;Iterate;WriteBatch_Rep;}
 }
