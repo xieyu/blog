@@ -1,0 +1,107 @@
+digraph write_to_wal {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_log_writer {
+    graph[label="log_writer";fontsize=20;];
+    AddRecord[
+      shape="record";
+      label="{{
+        AddRecord|
+        将logentry按照kblockSize分片\l
+        写入日志中\l
+      }}";
+    ];
+    AddRecord -> {
+      EmitPhysicalRecord;
+      Flush;
+    }
+    EmitPhysicalRecord[
+      shape="record";
+      label="{{
+        EmitPhysicalRecord|
+          构造crc和size header\l
+          然后将整条record写入文件中\l
+      }}";
+    ];
+    EmitPhysicalRecord -> {
+      EncodeFixed32;
+      Append;
+      crc32c_Extend;
+      dest_;
+    }
+    crc32c_Extend[
+      shape="record";
+      label="{{
+        crc32c_Extend|
+        计算crc32c
+      }}";
+    ];
+    dest_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        dest_|
+          std::unique_ptr\<WritableFileWriter\> dest_;
+      }}";
+    ];
+    subgraph cluster_WritableFileWriter {
+      graph[label="WritableFileWriter";fontsize=20;];
+      Append;
+    } // end of WritableFileWriter
+    EmitPhysicalRecord -> Record;
+    subgraph cluster_LogFileFormat {
+      graph[label="LogFileFormat";fontsize=20;];
+      LogFile[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          LogFile|
+          {<r>r0|r1|pading}|
+          {r2:full|r3:full|<r4>r4:first}|
+          {r4:mid}|
+          {r4:last|r5}|
+          kBlockSize..
+        }}";
+      ];
+      LogFile:r4 -> Record;
+      Record[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          Record|
+          CRC (4B)\l|
+          Size (2B) \l|
+          <Type> Type (1B)\l|
+          Payload\l
+        }}";
+      ];
+      Record:Type -> Type
+
+      Type[
+        shape="record";
+        label="{{
+          Type|
+            kZeroType\l|
+            kFullType\l|
+            kFirstType\l|
+            kLastType\l|
+            kMiddleType\l
+        }}";
+      ];
+    } // end of LogFileFormat
+  } // end of log_writer
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    WriteToWAL -> {
+      AddRecord;
+      alive_log_files_;
+      logfile_number_;
+    }
+  } // end of DBImpl
+}

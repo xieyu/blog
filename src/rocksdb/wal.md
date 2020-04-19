@@ -53,3 +53,11 @@ enum ValueType : unsigned char {
 MemTableInsertor 遍历writeBatch，将记录插入到memtable中,使用MemTableRep封装了skiplist和VectorRep这两种类型的memtable;
 
 ![write batch iter](./write-batch-iter.svg)
+
+### WriteToWAL
+
+日志会被分片为固定大小kBlocksize, 太小的会被填充padding,太大的会被切分为first/mid/last等分片record
+
+固定大小这个有什么优势吗？
+
+![write to wal](./write-to-wal.svg)
