@@ -1,0 +1,94 @@
+digraph blob_log_format {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  BlobLogHeaderFormat[
+    shape="record"
+    label="{{
+      BlobLogHeaderFormat|
+        magic Number: Fixed32\l|
+        Version: fixed32\l|
+        cf id: fixed32 \l|
+        compression: char \l|
+        expiration range: Fixed64 Fixed64\l
+    }}"
+  ];
+  BlobLogHeaderFormat -> BlobLogHeader;
+  BlobLogHeader[
+    shape="record"
+    label="{{
+      BlobLogHeader|
+        uint32_t version = kVersion1;\l|
+        uint32_t column_family_id = 0;\l|
+        CompressionType compression = kNoCompression;\l|
+        bool has_ttl = false;\l|
+        ExpirationRange expiration_range;\l
+    }}"
+  ];
+
+  BlobLogFooterFormat[
+    shape="record"
+    label="{{
+      BlobLogFooterFormat|
+      magic number: Fixed32\l|
+      blob count: Fixed64\l|
+      expiration range: Fixed64 Fixed64\l|
+      footer CRC: Fixed32\l
+    }}"
+  ];
+  BlobLogFooterFormat -> BlobLogFooter;
+  BlobLogFooter[
+    shape="record"
+    label="{{
+      BlobLogFooter|
+        uint64_t blob_count = 0;\l|
+        ExpirationRange expiration_range\l|
+        uint32_t crc = 0;\l
+    }}"
+  ];
+
+  BlobRecordFormat[
+    shape="record"
+    label="{{
+      BlobRecordFormat|
+      key length: Fixed64\l|
+      value length: Fixed64\l|
+      expiration: Fixed64\l|
+      header CRC: Fixed32\l|
+      blob CRC: Fixed32\l|
+      key: key len\l|
+      value: value len\l
+    }}"
+  ];
+  BlobRecordFormat -> BlobRecord;
+  BlobRecord[
+    shape="record"
+    label="{{
+      BlobRecord|
+        uint64_t key_size = 0;\l|
+        uint64_t value_size = 0;\l|
+        uint64_t expiration = 0;\l|
+        uint32_t header_crc = 0;\l|
+        uint32_t blob_crc = 0;\l|
+        Slice key;\l|
+        Slice value;\l|
+        std::unique_ptr\<char[]\> key_buf;\l|
+        std::unique_ptr\<char[]\> value_buf;\l
+    }}"
+  ];
+  BlobFormat[
+    shape="record"
+    label="{{
+      BlobFormat|
+        <Header> BlobHeader\l|
+        <Record>BlobRecord\l|
+        ...\l|
+        BlobRecord\l|
+        <Footer>BlobFooter\l
+    }}"
+  ];
+  BlobFormat:Header -> BlobLogHeaderFormat;
+  BlobFormat:Record -> BlobRecordFormat;
+  BlobFormat:Footer -> BlobLogFooterFormat;
+}

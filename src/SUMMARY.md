@@ -35,7 +35,6 @@
   - [Context](./golang/context.md)
   - [defer-panic-recover](./golang/defer-panic-recover.md)
 
-
 - [Kafka](./kafka/index.md)
   - [client: producer](./kafka/client-producer.md)
   - [group coordinator](./kafka/group-coordinator.md)
@@ -70,10 +69,14 @@
   - [后台flush和compact线程](./rocksdb/flush-and-compact.md)
   - [Leveled Compaction Picker](./rocksdb/leveled-compaction-picker.md)
   - [read 流程](./rocksdb/read.md)
+  - [Blob](./rocksdb/blob.md)
   - [事务](./rocksdb/transaction.md)
     - [Optimistic Transaction](./rocksdb/optimistic-transaction.md)
     - [Transaction lock mgr](./rocksdb/transaction-lock-mgr.md)
     - [two phase commit](./rocksdb/two-phase-commit.md)
+
+- [mit6.824: 分布式系统](./mit6-824/index.md)
+  - [GFS](./mit6-824/gfs.md)
 
 - [TiDB](./tidb/index.md)
   - [tidb学习资料整理](./tidb/note.md)

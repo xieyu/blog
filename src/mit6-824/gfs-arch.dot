@@ -1,0 +1,140 @@
+digraph gfs_arch {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Client {
+    graph[label="Client";fontsize=20;];
+    Client[
+      shape="record"
+      label="{{
+        Client|
+        App: 使用client 封装好的接口\l|
+        GFS client code\l
+        封装和master/chunk server通信\l
+        1.client和master通信获取Metadata\l
+        2.client和chunk server通信读写数据\l
+        3.client会缓存 (filename,chunkindex) -\> chunkhandle信息\l
+        减小和master的通信负担\l
+      }}"
+    ];
+    Client -> Cache;
+    client_req -> Cache[style=dashed];
+  }
+  subgraph cluster_Server {
+    graph[label="Server";fontsize=20;];
+
+    subgraph cluster_Master {
+      graph[label="Master";fontsize=20;];
+      Master[
+        shape="record"
+        label="{{
+          Master|
+          Master Server维护系统的metadata:\l
+          1.namespace, access control\l
+          2.map from files to chunks\l
+          3.locations of chunks\l
+          4.chunk lease management\l
+          5.gc of orphaned chunks\l
+          6.chunk migration\l
+        }}"
+      ];
+      Master -> {
+        Namespace;
+        FileToChunkMapping;
+        ChunkLocation;
+      }
+      {
+        FileToChunkMapping;
+        Namespace
+      } -> OperationLog;
+      master_chunk -> ChunkLocation[style=dashed];
+      OperationLog[
+        shape="record"
+        label="{{
+          OperationLog|
+          通过Operationlog\l 
+          持久化存储在\l
+          local disk并复制\l 
+          到remote server上\l
+        }}"
+      ];
+      ChunkLocation[
+        shape="record"
+        label="{{
+          ChunkLocation|
+          master通过询问chunk server\l
+          获取chunk location信息\l
+        }}"
+      ];
+    }
+    subgraph cluster_ChunkServers {
+      graph[label="ChunkServers";fontsize=20;];
+      ChunkServer1;
+      ChunkServer2;
+      ChunkServerN;
+      ChunkServer1 -> {
+        ChunkFile1;
+        ChunkFile2;
+        ChunkFileN;
+      }
+      subgraph cluster_Linux_fs {
+        graph[label="Linux fs";fontsize=20;];
+        ChunkFile1;
+        ChunkFile2;
+        ChunkFileN;
+        ChunkFile1[
+          shape="record"
+          label="{{
+            ChunkFile1|
+            每个chunk文件64M\l
+          }}"
+        ];
+      }
+    }
+    Master -> master_chunk ->{
+      ChunkServer1;
+      ChunkServer2;
+      ChunkServerN;
+    };
+    master_chunk[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        master和chunk之间通信\l|
+        1.master发送心跳信息和指令\l|
+        2.收集chunk server信息\l
+      }}"
+    ];
+  }
+  Client -> client_req ->  Master;
+  client_req[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      client和master通信|
+      req:\l
+      filename\l
+      chunk index\l|
+      resp:\l
+      chunk handle\l
+      chunk location\l
+    }}"
+  ];
+
+  Client -> {ChunkServer1};
+  Client -> data ->  ChunkServer1[color="#17b978"];
+  data[
+    shape="record"
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      client 和chunk之间通信|
+      req: chunk handle, byte range\l|
+      resp: chunk数据\l
+    }}"
+  ];
+  {rank=same;data;client_req};
+}

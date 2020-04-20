@@ -46,7 +46,7 @@ Status WriteBatchInternal::MarkEndPrepare(WriteBatch* b, const Slice& xid,
 没有commit，就把数据insert到db中，有以下几个问题需要解决:
 
 * How do we identify the key/values in the DB with transactions that wrote them?
-* How do we figure if a key/value written by transaction `Txn_w` is in the read snapshot of the reading transaction Txn_r?
+* How do we figure if a key/value written by transaction `Txn_w` is in the read snapshot of the reading transaction `Txn_r`?
 * How do we rollback the data written by aborted transactions?
 
 在prepare阶段就插入memtalbe中.
@@ -57,4 +57,7 @@ CommitCache 用于判断是否提交了
 
 
 ## Write unprepared txn
+
+## TODO:
+1. write prepared txn和write unprepared txn这个具体逻辑还不是很清楚，只知道是把commit放到了一个cache里面。
 
