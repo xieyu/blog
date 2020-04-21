@@ -5,18 +5,37 @@ digraph gfs_arch {
   rankdir=LR;
   subgraph cluster_Client {
     graph[label="Client";fontsize=20;];
+    AppCode[
+      shape="record";
+      label="{{
+        AppCode|
+        使用封装好的GFS接口\l
+        create/delete/open/close\l
+        read/write\l
+      }}";
+    ];
+    AppCode -> Client;
     Client[
       shape="record"
       label="{{
-        Client|
-        App: 使用client 封装好的接口\l|
-        GFS client code\l
+        GFS Client lib|
         封装和master/chunk server通信\l
         1.client和master通信获取Metadata\l
         2.client和chunk server通信读写数据\l
-        3.client会缓存 (filename,chunkindex) -\> chunkhandle信息\l
+        3.处理chunk边界等问题\l
+        4.client会缓存 (filename,chunkindex) -\> chunkhandle信息\l
         减小和master的通信负担\l
       }}"
+    ];
+    Cache[
+      shape="record";
+      style=filled
+      fillcolor="#a6b1e1"
+      label="{{
+        Cache|
+        缓存Master返回的chunk信息\l
+        避免每次都要去master获取信息\l
+      }}";
     ];
     Client -> Cache;
     client_req -> Cache[style=dashed];
@@ -47,32 +66,82 @@ digraph gfs_arch {
       {
         FileToChunkMapping;
         Namespace
-      } -> OperationLog;
+      } -> Persistent;
+      Namespace[
+        shape="record";
+        style=filled
+        fillcolor="#a6b1e1"
+        label="{{
+          Namespace|
+          文件树
+        }}";
+      ];
+      FileToChunkMapping[
+        shape="record";
+        style=filled
+        fillcolor="#a6b1e1"
+        label="{{
+          FileToChunkMapping|
+          每个文件由哪些\l 
+          chunkHanle组成\l
+        }}";
+      ];
       master_chunk -> ChunkLocation[style=dashed];
-      OperationLog[
+      Persistent[
         shape="record"
         label="{{
-          OperationLog|
+          Persistent|
           通过Operationlog\l 
+          和checkPoint\l
           持久化存储在\l
           local disk并复制\l 
-          到remote server上\l
+          到remote server上\l|
+          先持久化，再响应客户请求\l
         }}"
+      ];
+      Persistent -> {
+        OperationLog;
+        CheckPoint;
+      };
+      OperationLog[
+        shape="record";
+        style=filled;
+        fillcolor="#d2c6b2"
+        label="{{
+          OperationLog|
+          记录操作, master\l 
+          通过replay恢复\l
+        }}";
+      ];
+      CheckPoint[
+        shape="record";
+        style=filled;
+        fillcolor="#d2c6b2"
+        label="{{
+          CheckPoint|
+          降低master starup从\l 
+          operation log恢复时间\l
+        }}";
       ];
       ChunkLocation[
         shape="record"
         label="{{
           ChunkLocation|
-          master通过询问chunk server\l
+          master通过定期询问chunk server\l
           获取chunk location信息\l
+          并重建文件-chunk映射表\l
         }}"
       ];
     }
     subgraph cluster_ChunkServers {
-      graph[label="ChunkServers";fontsize=20;];
-      ChunkServer1;
-      ChunkServer2;
-      ChunkServerN;
+      graph[label="ChunkServer1";fontsize=20;];
+      ChunkServer1[
+        shape="record";
+        label="{{
+          ChunkServer1|
+          存储Chunk数据
+        }}";
+      ];
       ChunkServer1 -> {
         ChunkFile1;
         ChunkFile2;
@@ -85,6 +154,8 @@ digraph gfs_arch {
         ChunkFileN;
         ChunkFile1[
           shape="record"
+          style=filled;
+          fillcolor="#d2c6b2"
           label="{{
             ChunkFile1|
             每个chunk文件64M\l
@@ -92,11 +163,46 @@ digraph gfs_arch {
         ];
       }
     }
+
+    subgraph cluster_ChunkServer2 {
+      graph[label="ChunkServer2";fontsize=20;];
+      ChunkServer2[
+        shape="record";
+        label="{{
+          ChunkServer2|
+          存储Chunk数据
+        }}";
+      ];
+      ChunkServer2 -> {
+        ChunkFile2_1;
+        ChunkFile2_1;
+        ChunkFile2_N;
+      }
+      subgraph cluster_Linux_fs {
+        graph[label="Linux fs";fontsize=20;];
+        ChunkFile2_1;
+        ChunkFile2_1;
+        ChunkFile2_N;
+        ChunkFile2_1[
+          shape="record"
+          style=filled;
+          fillcolor="#d2c6b2"
+          label="{{
+            ChunkFile2_1|
+            每个chunk文件64M\l
+            chunkfile1副本\l
+          }}"
+        ];
+      }
+    }
+
+    ChunkFile1 -> ChunkFile2_1[style=dashed];
+
     Master -> master_chunk ->{
       ChunkServer1;
-      ChunkServer2;
-      ChunkServerN;
+      ChunkServer2
     };
+
     master_chunk[
       shape="record";
       fillcolor="#95e1d3"
@@ -124,7 +230,6 @@ digraph gfs_arch {
     }}"
   ];
 
-  Client -> {ChunkServer1};
   Client -> data ->  ChunkServer1[color="#17b978"];
   data[
     shape="record"
