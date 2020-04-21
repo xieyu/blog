@@ -67,6 +67,7 @@ digraph gfs_arch {
         FileToChunkMapping;
         Namespace
       } -> Persistent;
+
       Namespace[
         shape="record";
         style=filled
@@ -83,9 +84,24 @@ digraph gfs_arch {
         label="{{
           FileToChunkMapping|
           每个文件由哪些\l 
-          chunkHanle组成\l
+          chunkHanle组成\l|
+          file -\> []chunkHandle\l
         }}";
       ];
+      FileToChunkMapping -> ChunkHandle;
+      ChunkHandle[
+        shape="record";
+        style=filled
+        fillcolor="#a6b1e1"
+        label="{{
+          ChunkHandle|
+          list of chunk servers (v)\l|
+          version num (nv):需要持久化\l|
+          primary (v)\l|
+          lease experation (v)\l
+        }}";
+      ];
+      ChunkHandle -> ChunkLocation;
       master_chunk -> ChunkLocation[style=dashed];
       Persistent[
         shape="record"

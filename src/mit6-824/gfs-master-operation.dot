@@ -1,0 +1,11 @@
+digraph master_operation {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  MasterOperation -> {
+    Namespace;
+    ChunkReplicas;
+    PlacementDecisions;
+  }
+}

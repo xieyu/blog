@@ -1,0 +1,40 @@
+digraph snapshotcow {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_copy_on_write {
+    graph[label="copy on write";fontsize=20;];
+    Client -> req1 -> Master;
+    req1[
+      shape="record"
+      label="{{
+        write|
+        client 发送写请求\l
+        由于lease过期，所以需要向master\l
+        查询新的拥有lease的primary\l
+      }}"
+    ];
+    Master[
+      shape="record"
+      label="{{
+        Master|
+        1.master发现chunk引用计数\>1\l
+        2.master block client的请求\l
+        3.master新建一个chunk c'\l
+        4.让所有拥有该chunk的chunkServer\l 
+        复制出一份新的chunk c'\l
+        5.master reply client请求 chunk c'\l
+      }}"
+    ];
+    Master -> ChunkServer;
+    ChunkServer[
+      shape="record"
+      label="{{
+        ChunkServer|
+        本地将chunk c复制\l 
+        一份新的chunk c'\l
+      }}"
+    ];
+  }
+}
