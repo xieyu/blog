@@ -77,6 +77,7 @@
 
 - [mit6.824: 分布式系统](./mit6-824/index.md)
   - [GFS](./mit6-824/gfs.md)
+  - [Raft](./mit6-824/raft.md)
 
 - [TiDB](./tidb/index.md)
   - [tidb学习资料整理](./tidb/note.md)
