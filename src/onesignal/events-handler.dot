@@ -1,0 +1,83 @@
+digraph events_handler {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Notification -> OneSignalSDK;
+  Notification[
+    shape="record"
+    label="{{
+      Notification|
+      通知数据通过各种push渠道\l
+      push到设备上\l
+    }}"
+  ];
+  subgraph cluster_OneSignalSDK {
+    graph[label="OneSignalSDK";fontsize=20;];
+    OneSignalSDK -> Events;
+    OneSignalSDK -> FireBaseSDK;
+    Events -> {
+      NotificationReceivedHandler;
+      NotificationOpenedHandler
+      addPermissionObserver;
+      addSubscriptionObserver;
+    }
+    Events[
+      shape="record"
+      label="{{
+        Events|
+        用户的各种操作,onesignal\l 
+        sdk会调用相应的回调\l
+      }}"
+    ];
+  }
+  subgraph cluster_AnalyticsPlatform {
+    graph[label="AnalyticsPlatform";fontsize=20;];
+    GoogleAnalytics;
+    subgraph cluster_ase {
+      graph[label="FireBase";fontsize=20;];
+      FireBase -> {
+        RealTimeDatabase;
+        CloudStorage;
+      } -> AdminSDK;
+    }
+  }
+
+  subgraph cluster_OneSignalPlatform {
+    graph[label="OneSignalPlatform";fontsize=20;];
+    AdminSDK -> OneSignalPlatform;
+    OneSignalPlatform[
+      shape="record"
+      label="{{
+        OneSignalPlatform|
+        使用firebase的adminSDK\l 
+        去firebase中取数据？\l
+      }}"
+    ];
+  }
+
+
+  subgraph cluster_AppIntegrationCode {
+    graph[label="AppIntegrationCode";fontsize=20;];
+    {
+      NotificationReceivedHandler;
+      NotificationOpenedHandler
+      addPermissionObserver;
+      addSubscriptionObserver;
+    } -> CustomHandler;
+    CustomHandler[
+      shape="record"
+      label="{{
+        CustomHandler|
+        用户监听这些事件，将事件\l 
+        数据上传到第三方分析平台\l
+      }}"
+    ];
+    CustomHandler -> {
+      GoogleAnalytics;
+      FireBase;
+    }
+  }
+
+  FireBaseSDK -> FireBase[style=dashed];
+}

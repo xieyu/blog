@@ -1,0 +1,406 @@
+digraph onesignal_api {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RestfulApi -> {
+    Notification;
+    App;
+    Device;
+    Segment;
+  }
+
+  subgraph cluster_App {
+    graph[label="App";fontsize=20;];
+    App -> {
+      ViewApps;
+      ViewAnApp;
+      CreateAnApp;
+      UpdateAnApp;
+    } -> AppDetail;
+
+    CreateAnApp[
+      shape="record"
+      label="{{
+        CreateAnApp|
+        Post /api/v1/apps\l
+      }}"
+    ];
+    UpdateAnApp[
+      shape="record"
+      label="{{
+        UpdateAnApp|
+        Put /api/v1/apps/:id
+      }}"
+    ];
+    AppDetail -> {
+      AppId;
+      AppName;
+      Players;
+      messageable_players;
+      app_created_at;
+      app_updated_at;
+      app_chrome;
+      apn;
+      app_safari;
+      basic_auth_key;
+      site_name;
+    }
+    apn -> {
+      apns_env;
+      apns_certificates;
+    }
+    app_chrome -> {
+      gcm_key;
+      chrome_key;
+      chrome_web_origin;
+      chrome_web_gcm_sender_id;
+      chrome_web_default_notification_icon;
+      chrome_web_sub_domain;
+    }
+    app_safari -> {
+      safari_apns_certificate;
+      safari_site_origin;
+      safari_push_id;
+      safari_icon;
+    }
+    safari_icon -> {
+      safari_icon_16_16;
+      safari_icon_32_32;
+      safari_icon_64_64;
+      safari_icon_128_128;
+      safari_icon_256_256;
+    }
+
+    subgraph cluster_Segment {
+      graph[label="Segment";fontsize=20;];
+      Segment -> {
+        CreateSegment;
+        DeleteSegment;
+      }
+      Segment[
+        shape="record"
+        label="{{
+          Segment|
+          group your users by data\l 
+          collected and sent to OneSignal\l
+        }}"
+      ];
+      CreateSegment[
+        shape="record"
+        label="{{
+          CreateSegment|
+          post api/v1/apps/:app_id/segments\l|
+        }}"
+      ];
+      CreateSegment -> {
+        segment_uuid;
+        segment_name;
+        filters;
+        segment_key;
+        field;
+        value;
+        relation;
+      }
+      filters -> FilterType -> {
+        FirstSession;
+        LastSession;
+        SessionCount;
+        UsageDuration;
+        AmountSpent;
+        PurchasedItem;
+        Language;
+        AppVersion;
+        DeviceType;
+        UserTag;
+        Location;
+        Rooted;
+        Subscription;
+        Email;
+        Country;
+        TestUsers;
+      };
+    }
+  }
+  subgraph cluster_Notification {
+    graph[label="Notification";fontsize=20;];
+    Notification -> {
+      CreateNotification;
+      CancelNotification;
+      ViewNotification;
+      ViewNotifications;
+      NotificationHistory;
+    } -> NotificationDetail;
+
+    CancelNotification[
+      shape="record"
+      label="{{
+        CancelNotification|
+        Delete /api/v1/notifications/:id?app_id=:app_id|
+        Used to stop a scheduled or\l 
+        currently outgoing notification.\l|
+        取消正在调度推送的消息\l
+        已经推送的就没法取消了吧\l
+      }}"
+    ];
+    NotificationDetail -> {
+      AppId;
+      Idempotency;
+      Content;
+      EmailContent;
+      Attachment;
+      ActionButton;
+      Appearance;
+      Delivery;
+      GroupCollapsing;
+      PlatformToDeliverTo;
+    }
+    Content -> {
+      contents;
+      headings;
+      subtitle;
+      template_id;
+      content_available;
+      mutable_content;
+    }
+    EmailContent -> {
+      email_subject;
+      email_body;
+      email_from_name;
+      email_from_address;
+    }
+    Attachment -> {
+      data;
+      url;
+      web_url;
+      app_url;
+      big_picture;
+      ios_attachments;
+      adm_big_picture;
+      chrome_web_image;
+      chrome_big_picture
+    };
+    Delivery -> {
+      send_after;
+      delayed_option;
+      ttl;
+      delivery_time_of_day;
+      priority;
+      apns_push_type_override;
+    }
+    GroupCollapsing -> {
+      android_group;
+      android_group_message;
+      adm_group;
+      adm_group_message;
+      thread_id;
+      summary_arg;
+      summary_arg_count;
+    }
+    PlatformToDeliverTo -> {
+      isIOS;
+      isAndroid;
+      isAnyWeb;
+      isEmail;
+      isChromeWeb;
+      isFirefox;
+      isSafari;
+      isWP_WNS;
+      isChrome;
+      channel_for_external_user_ids;
+    }
+  }
+
+  subgraph cluster_Device {
+    graph[label="Device";fontsize=20;];
+    Device -> {
+      ViewDevices;
+      ViewDevice;
+      AddADevice;
+      EditDevice;
+      NewSession;
+      NewPurChase;
+      IncrementSessionLength;
+    } -> DeviceDetail;
+    AddADevice[
+      shape="record"
+      label="{{
+        AddADevice|
+        POST /api/v1/players|
+        Register a new device \l 
+        to one of your OneSignal apps\l
+      }}"
+    ];
+    ViewDevice[
+      shape="record"
+      label="{{
+        ViewDevice|
+        GET api/v1/players/:id\l|
+        View the details of an existing\l 
+        device in one of your OneSignal apps\l
+      }}"
+    ];
+    EditDevice[
+      shape="record"
+      label="{{
+        EditDevice|
+        PUT api/v1/players/:id\l
+      }}"
+    ];
+    ViewDevices[
+      shape="record"
+      label="{{
+        ViewDevices|
+        Get /api/v1/players?\l |
+        参数:\l
+        app_id=:app_id\l 
+        limit=:limit\l 
+        offset=:offset\l
+      }}"
+    ];
+
+    DeviceDetail -> {
+      AppId;
+      DeviceType;
+      Identifier;
+      TimeZone;
+      email_auth_hash;
+      language;
+      game_version;
+      device_model;
+      device_os;
+      ad_id;
+      sdk;
+      session_count;
+      tags;
+      amount_spent;
+      device_created_at
+      playtime;
+      last_active;
+      notification_types;
+      test_type;
+      long;
+      lat; 
+      deivce_country;
+      external_user_id;
+    }
+    TimeZone[
+      shape="record"
+      label="{{
+        TimeZone|
+        Number of seconds away from UTC\l
+      }}"
+    ];
+    Identifier[
+      shape="record"
+      label="{{
+        Identifier|
+        Google/App的notification id\l
+      }}"
+    ];
+    DeviceType[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        DeviceType|
+        0 = iOS\l|
+        1 = ANDROID\l|
+        2 = AMAZON\l|
+        3 = WINDOWSPHONE (MPNS)\l|
+        4 = CHROME APPS / EXTENSIONS\l|
+        5 = CHROME WEB PUSH\l|
+        6 = WINDOWS (WNS)\l|
+        7 = SAFARI\l|
+        8 = FIREFOX\l|
+        9 = MACOS\l|
+        10 = ALEXA\l|
+        11 = EMAIL\l
+      }}"
+    ];
+
+
+    //Session
+    NewSession[
+      shape="record"
+      label="{{
+        NewSession|
+        post api/v1/players/:id/on_session\l|
+        更新session信息\l
+      }}"
+    ];
+    NewSession -> {
+      DeviceType;
+      TimeZone;
+      language;
+      Identifier;
+      game_version;
+      device_os;
+      ad_id;
+      sdk;
+      tags;
+    }[color="#b83b5e"]
+    NewPurChase[
+      shape="record"
+      label="{{
+        NewPurChase|
+        post api/v1/players/:id/on_purchase\l|
+        This will increment the player's amount_spent\l
+        Track a new purchase in your app\l
+      }}"
+    ];
+    NewPurChase -> {
+      purchases;
+    }
+    purchases[
+      shape="record"
+      label="{{
+        purchases|
+        purchase数组
+      }}"
+    ];
+    purchases -> {
+      sku;
+      amount;
+      currency_code;
+    }
+    sku[
+      shape="record"
+      label="{{
+        sku|
+        The unique identifier\l 
+        of the purchased item\l
+      }}"
+    ];
+    currency_code[
+      shape="record"
+      label="{{
+        currency_code|
+        货币代码
+      }}"
+    ];
+    amount[
+      shape="record"
+      label="{{
+        amount|
+        the amount, in USD, \l 
+        spent purchasing the item\l
+      }}"
+    ];
+    IncrementSessionLength[
+      shape="record"
+      label="{{
+        IncrementSessionLength|
+        POST /api/v1/players/:id/on_focus\l
+        Update a device's session \l 
+        length upon app resuming\l
+        用户使用app时长？\l|
+        state: ping\l
+        active_time: \l 
+        1. on_focus was last called\l
+        2. on_session or the device first registered (POST /players)\l
+      }}"
+    ];
+  }
+
+}
