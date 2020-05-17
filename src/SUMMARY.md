@@ -75,6 +75,10 @@
     - [Transaction lock mgr](./rocksdb/transaction-lock-mgr.md)
     - [two phase commit](./rocksdb/two-phase-commit.md)
 
+- [Raft](./raft/index.md)
+  - [raft paper](./raft/raft.md)
+  - [pingcap talent plan raft lab](./raft/raft-lab.md)
+
 - [mit6.824: 分布式系统](./mit6-824/index.md)
   - [GFS](./mit6-824/gfs.md)
   - [Raft](./mit6-824/raft.md)
