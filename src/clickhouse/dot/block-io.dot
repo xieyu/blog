@@ -3,37 +3,6 @@ digraph blockIO {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
-  subgraph cluster_PipelineExecutor {
-    graph[label="PipelineExecutor";fontsize=20;];
-    PipelineExecutor[
-      shape="record";
-      label="{{
-        PipelineExecutor|
-        构造函数
-      }}";
-    ];
-    PipelineExecutor -> {
-      buildGraph;
-    }
-    buildGraph -> addEdges;
-    addEdges -> add_edge;
-    executeStep -> executeStepImpl -> addJob -> executeJob;
-  }
-  subgraph cluster_QueryPipeline {
-    graph[label="QueryPipeline";fontsize=20;];
-    pipeline_execute[
-      shape="record";
-      label="{{
-        pipeline_execute|
-        创建executor?
-      }}";
-    ];
-    pipeline_execute -> {
-      PipelineExecutor;
-      processors_get;
-      process_list_elem;
-    }
-  }
   subgraph cluster_PullingPipelineExecutor {
     graph[label="PullingPipelineExecutor";fontsize=20;];
     execute_pull[
@@ -43,11 +12,6 @@ digraph blockIO {
         执行？step?
       }}";
     ];
-    execute_pull -> {
-      getChunk;
-      pipeline_execute;
-      executeStep;
-    }
   }
   subgraph cluster_PipelineExecutingBlockInputStream {
     graph[label="PipelineExecutingBlockInputStream";fontsize=20;];
@@ -65,11 +29,12 @@ digraph blockIO {
       pipline_get_header;
     }
     readPrefixImpl -> createExecutor;
-    readImpl -> createExecutor;
     readImpl -> {
       execute_pull;
       async_execute_get_header;
-    }
+      createExecutor;
+    }[color="#b83b5e"];
+
     createExecutor -> {
       pipeline_getNumThreads;
       PullingAsyncPipelineExecutor;

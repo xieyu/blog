@@ -9,7 +9,7 @@ digraph pulling_async_pipeline_executor {
     pipelineExecutor_execute[
       shape="record";
       label="{{
-        execute|
+        execute
       }}";
     ];
     PipelineExecutor;
@@ -29,12 +29,19 @@ digraph pulling_async_pipeline_executor {
         IProcessor::getPort
       }}";
     ];
-    
+    lazy_format_getPort -> getHeader[style=dashed];
   }
   subgraph cluster_QueryPipeline{
     graph[label="QueryPipeline";fontsize=20;];
+    pipeline_execute[
+      shape="record";
+      label="{{
+        execute|
+        创建PipelineExecutor
+      }}";
+    ];
     pipeline_execute -> PipelineExecutor;
-    pipeline_getHeader -> lazy_format;
+    //pipeline_getHeader -> lazy_format;
     
   }
   subgraph cluster_PullingAsyncPipelineExecutor {
@@ -45,6 +52,13 @@ digraph pulling_async_pipeline_executor {
         pull|
         bool pull_chunk\l 
         (Chunk& chunk, uint64_t milliseconds)\l
+      }}";
+    ];
+    threadFunction[
+      shape="record";
+      label="{{
+        threadFunction|
+        在线程池中执行
       }}";
     ];
     pull_chunk -> {
@@ -59,9 +73,24 @@ digraph pulling_async_pipeline_executor {
       detachQueryIfNotDetached;
       pipelineExecutor_execute;
       finish_event_set;
-    }
+    }[color="#3f72af"];
+
     subgraph cluster_finish_event {
       graph[label="finish_event";fontsize=20;];
+      finish_event_tryWait[
+        shape="record";
+        label="{{
+          tryWait|
+          等待finish event执行完成\l
+        }}";
+      ];
+      finish_event_set[
+        shape="record";
+        label="{{
+          set|
+          设置已完成执行
+        }}";
+      ];
       finish_event_set -> finish_event_tryWait[style=dashed];
     }
 
@@ -82,8 +111,11 @@ digraph pulling_async_pipeline_executor {
     ];
     pull_block -> {
       pull_chunk;
+      getHeader;
       lazy_format_getPort;
       getChunkInfo;
-    };
+      lazy_format;
+    }[color="#17b978"];
+
   }
 }
