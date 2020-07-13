@@ -77,6 +77,7 @@ digraph pipeline_executor {
       从task_queue中取出job并执行\l
     }}";
   ];
+  executeStep -> executeStepImpl;
   executeStepImpl -> {
     task_queue;
     wakeUpExecutor;
@@ -167,5 +168,10 @@ digraph pipeline_executor {
   depgraph -> addChildlessProcessorsToStack;
   processors -> depgraph[style=dashed];
   depgraph -> task_queue[style=dashed];
-  {rank=same;execute;PipelineExecutor};
+  {
+    rank=same;
+    execute;
+    PipelineExecutor;
+    executeStep;
+  };
 }

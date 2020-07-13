@@ -14,7 +14,7 @@
 ![server-main](./dot/server-main.svg)
 
 
-### SQL 执行流程
+### SQL 解析执行流程
 
 一条Query SQL在clickhouse中执行流程如下:
 
@@ -64,15 +64,54 @@ protected:
 
 ![transform](./dot/transform.svg)
 
+### Executor: 执行pipeline
+
 #### PipelineExecutor
 
 使用线程池执行pipline
 
 ![pipeline-executor](./dot/pipeline-executor.svg)
 
+
+#### PullingPipelineExecutor
+
+单线程同步执行？
+
+```cpp
+/// Pulling executor for QueryPipeline. Always execute pipeline in single thread.
+/// Typical usage is:
+///
+/// PullingPipelineExecutor executor(query_pipeline);
+/// while (executor.pull(chunk))
+///     ... process chunk ...
+```
+
+![pulling-pipeline-executor](./dot/pulling-pipeline-executor.svg)
+
+#### PullingAsyncPipelineExecutor
+
+多线程异步执行
+
+
+```cpp
+/// Asynchronous pulling executor for QueryPipeline.
+/// Always creates extra thread. If query is executed in single thread, use PullingPipelineExecutor.
+/// Typical usage is:
+///
+/// PullingAsyncPipelineExecutor executor(query_pipeline);
+/// while (executor.pull(chunk, timeout))
+///     ... process chunk ...
+```
+
+![pulling-async-pipeline-executor](./dot/pulling-async-pipeline-executor.svg)
+
+
+### BlockIO
 block-io getInputStream，读数据时执行plan
 ![block-io](./dot/block-io.svg)
 
 ## Ref
 
-[Clickhouse源码导读: 网络IO](https://cloud.tencent.com/developer/article/1602664)
+1. [Clickhouse源码导读: 网络IO](https://cloud.tencent.com/developer/article/1602664)
+2. [Clickhouse源码导读](http://sineyuan.github.io/post/clickhouse-source-guide/)
+
