@@ -1,0 +1,60 @@
+digraph execute_flow {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  SQL[
+    shape="record";
+    label="{{
+      SQL|
+      客户端的SQL\l 
+      语句字符串\l
+    }}";
+  ];
+  AST[
+    shape="record";
+    label="{{
+      AST|
+      通过parseQuery解析为\l 
+      interpreter\l
+    }}";
+  ];
+  Interpreters[
+    shape="record";
+    label="{{
+      interpreter|
+      interpreter execute时候\l
+      拆解为一堆QueryPlanStep\l
+    }}";
+  ];
+  QueryPlanStep[
+    shape="record";
+    label="{{
+      QueryPlanStep|
+      在buildpipeline时候，将planstep\l
+      转变为Processors\l
+      并连接依赖的Processors的输入输出\l
+    }}";
+  ];
+  PipelineExecutor[
+    shape="record";
+    label="{{
+      PipelineExecutor|
+      将processors转换为DAG\l 
+      依赖图并在线程池中执行\l
+    }}";
+  ];
+  PipelineProcessors[
+    shape="record";
+    label="{{
+      PipelineProcessors|
+      每个processor有\l 
+      input和output\l
+      以及prepare/work虚函数\l 
+      用于执行具体功能\l
+    }}";
+  ];
+  SQL -> AST[label="parseQuery"];
+  AST -> Interpreters -> QueryPlanStep -> PipelineProcessors;
+  PipelineProcessors -> PipelineExecutor;
+}

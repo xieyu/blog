@@ -1,0 +1,110 @@
+digraph blockIO {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PipelineExecutor {
+    graph[label="PipelineExecutor";fontsize=20;];
+    PipelineExecutor[
+      shape="record";
+      label="{{
+        PipelineExecutor|
+        构造函数
+      }}";
+    ];
+    PipelineExecutor -> {
+      buildGraph;
+    }
+    buildGraph -> addEdges;
+    addEdges -> add_edge;
+    executeStep -> executeStepImpl -> addJob -> executeJob;
+  }
+  subgraph cluster_QueryPipeline {
+    graph[label="QueryPipeline";fontsize=20;];
+    pipeline_execute[
+      shape="record";
+      label="{{
+        pipeline_execute|
+        创建executor?
+      }}";
+    ];
+    pipeline_execute -> {
+      PipelineExecutor;
+      processors_get;
+      process_list_elem;
+    }
+  }
+  subgraph cluster_PullingPipelineExecutor {
+    graph[label="PullingPipelineExecutor";fontsize=20;];
+    execute_pull[
+      shape="record";
+      label="{{
+        pull|
+        执行？step?
+      }}";
+    ];
+    execute_pull -> {
+      getChunk;
+      pipeline_execute;
+      executeStep;
+    }
+  }
+  subgraph cluster_PipelineExecutingBlockInputStream {
+    graph[label="PipelineExecutingBlockInputStream";fontsize=20;];
+    PipelineExecutingBlockInputStream;
+    PipelineExecutingBlockInputStream[
+      shape="record";
+      label="{{
+        PipelineExecutingBlockInputStream|
+        构造函数
+      }}";
+    ];
+    getHeader -> {
+      execute_get_header;
+      async_execute_get_header;
+      pipline_get_header;
+    }
+    readPrefixImpl -> createExecutor;
+    readImpl -> createExecutor;
+    readImpl -> {
+      execute_pull;
+      async_execute_get_header;
+    }
+    createExecutor -> {
+      pipeline_getNumThreads;
+      PullingAsyncPipelineExecutor;
+      PullingPipelineExecutor;
+    }
+  }
+  subgraph cluster_BlockIO {
+    graph[label="BlockIO";fontsize=20;];
+    getInputStream -> {
+      PipelineExecutingBlockInputStream;
+    };
+  }
+  subgraph cluster_TcpHandler {
+    graph[label="TcpHandler";fontsize=20;];
+    runImpl -> executeQuery -> getInputStream;
+    runImpl[
+      shape="record";
+      label="{{
+        runImpl|
+        主循环
+      }}";
+    ];
+    runImpl -> processOrdinaryQuery -> {
+      getHeader;
+      readPrefix;
+      sendData;
+      read;
+    }
+    subgraph cluster_AsynchronousBlockInputStream {
+      graph[label="AsynchronousBlockInputStream";fontsize=20;];
+      readPrefix;
+      read;
+    }
+    readPrefix -> readPrefixImpl;
+    read -> readImpl;
+  }
+  
+}

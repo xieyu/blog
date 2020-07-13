@@ -1,0 +1,288 @@
+digraph startmain {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_grpcio_rs {
+    graph[label="grpcio_rs";fontsize=20;];
+    completion_queues;
+    builder_register_service -> hanlders_extend -> handlers;
+    builder_register_service[
+      shape="record";
+      label="{{
+        register_service|
+        将服务注册到handlers中
+      }}";
+    ];
+    grpc_server_start[
+      shape="record";
+      label="{{
+        start|
+        开始grpc服务
+      }}";
+    ];
+    request_call[
+      shape="record";
+      label="{{
+        request_call|
+        像完成队列中\l 
+        添加requests\l
+      }}";
+    ];
+    grpc_server_start -> {
+      grpc_sys_grpc_server_start;
+      request_call;
+      handlers;
+      grpc_sys_grpc_server_start;
+      completion_queues;
+      request_call;
+      RequestCallContext;
+    }
+    request_call -> grpcwrap_server_request_call;
+  }
+  subgraph cluster_snapWorker {
+    graph[label="snapWorker";fontsize=20;];
+    snap_worker_start -> {
+      DefaultRunnerWithTimer;
+      start_with_timer;
+    };
+  }
+  subgraph cluster_KvService {
+    graph[label="KvService";fontsize=20;];
+    KvService_new[
+      shape="record";
+      label="{{
+        KvService::new|
+        实现kv接口的struct
+      }}";
+    ];
+    KvService_new -> KvService;
+    KvService[
+      shape="record";
+      label="{{
+        KvService|
+          gc_worker: GcWorker\<E\>\l|
+          storage: Storage\<E, L\>\l|
+          cop: Endpoint\<E\>\l|
+          ch: T\l|
+          snap_scheduler: Scheduler\<SnapTask\>\l|
+          enable_req_batch: bool\l|
+          req_batch_wait_duration: Option\<Duration\>\l|
+          timer_pool: Arc\<Mutex\<ThreadPool\>\>\l|
+          grpc_thread_load: Arc\<ThreadLoad\>\l|
+          readpool_normal_thread_load: Arc\<ThreadLoad\>\l|
+          security_mgr: Arc\<SecurityManager\>\l
+      }}"
+    ];
+    
+  }
+
+  subgraph cluster_TiKvServer{
+    graph[label="TiKvServer";fontsize=20;];
+    grpc_server_start[
+      shape="record";
+      label="{{
+        grpc_server_start|
+        开始GRPC服务
+      }}";
+    ];
+
+    build_and_bind -> {
+      sb_build;
+      bind_addrs;
+    };
+    init_servers -> {
+      Server_new;
+    }
+    Server_new -> {
+      KvService_new;
+      register_service;
+      create_tikv;
+    }
+    register_service[
+      shape="record";
+      label="{{
+        register_service|
+        注册GRPC服务
+      }}";
+    ];
+    register_services[
+      shape="record";
+      label="{{
+        register_services|
+        创建注册各种grpc服务
+      }}";
+    ];
+    register_services -> {
+      register_service;
+      create_import_sst;
+      create_debug;
+      create_diagnostics;
+      create_deadlock;
+      create_backup;
+      create_change_data;
+      log_mgr_start;
+      backup_scheduler;
+      backup_worker_start_with_timer;
+    }
+    register_service -> builder_register_service;
+    create_import_sst -> ImportSstTrait;
+    create_diagnostics -> DiagnosticsTrait;
+    create_deadlock -> DeadLockTrait;
+    create_backup -> BackupTrait;
+    create_change_data -> ChangeDataTrait;
+    create_tikv -> TiKVTrait;
+    create_debug -> DebugTrait;
+
+    TiKVTrait[
+      shape="record";
+      label="{{
+        TiKVTrait|
+      fn kv_get\l|
+      fn kv_scan\l|
+      fn kv_prewrite\l|
+      fn kv_pessimistic_lock
+      fn kv_pessimistic_rollback\l|
+      fn kv_txn_heart_beat\l|
+      fn kv_check_txn_status\l|
+      fn kv_commit\l|
+      fn kv_import\l|
+      fn kv_cleanup\l|
+      fn kv_batch_get\l|
+      fn kv_batch_rollback\l|
+      fn kv_scan_lock\l|
+      fn kv_resolve_lock\l|
+      fn kv_gc\l|
+      fn kv_delete_range\l|
+      fn raw_get\l|
+      fn raw_batch_get\l|
+      fn raw_put\l|
+      fn raw_batch_put\l|
+      fn raw_delete\l|
+      fn raw_batch_delete\l|
+      fn raw_scan\l|
+      fn raw_delete_range\l|
+      fn raw_batch_scan\l|
+      fn ver_get\l|
+      fn ver_batch_get\l|
+      fn ver_mut\l|
+      fn ver_batch_mut\l|
+      fn ver_scan\l|
+      fn ver_delete_range\l|
+      fn unsafe_destroy_range\l|
+      fn register_lock_observer\l|
+      fn check_lock_observer\l|
+      fn remove_lock_observer\l|
+      fn physical_scan_lock\l|
+      fn coprocessor\l|
+      fn coprocessor_stream\l|
+      fn batch_coprocessor\l|
+      fn raft\l|
+      fn batch_raft\l|
+      fn snapshot\l|
+      fn split_region\l|
+      fn read_index\l|
+      fn mvcc_get_by_key\l|
+      fn mvcc_get_by_start_ts\l
+      }}";
+    ];
+
+    ImportSstTrait[
+      shape="record";
+      label="{{
+        ImportSstTrait|
+        fn swith_mode\l|
+        fn upload\l|
+        fn ingest\l|
+        fn compact\l|
+        fn set_download_speed_limit\l|
+        fn download\l|
+        fn write\l
+      }}";
+    ];
+
+    DebugTrait[
+      shape="record";
+      label="{{
+        DebugTrait|
+        fn get\l|
+        fn raft_log\l|
+        fn region_info\l|
+        fn region_size\l|
+        fn scan_mvcc\l|
+        fn compact\l|
+        fn inject_fail_point\l|
+        fn recover_fail_point\l|
+        fn list_fail_points\l|
+        fn get_metrics\l|
+        fn check_region_consistency\l|
+        fn modify_tikv_config\l|
+        fn get_region_properties\l|
+        fn get_store_info\l|
+        fn get_cluster_info\l
+      }}";
+    ];
+    DiagnosticsTrait[
+      shape="record";
+      label="{{
+        Diagnostics|
+        fn search_log\l|
+        fn server_info\l
+      }}";
+    ];
+    DeadLockTrait[
+      shape="record";
+      label="{{
+        DeadLockTrait|
+        fn get_wait_for_entries\l|
+        fn detect\l
+      }}";
+    ];
+    BackupTrait[
+      shape="record";
+      label="{{
+        BackupTrait|
+        fn backup\l
+      }}";
+    ];
+    ChangeDataTrait[
+      shape="record";
+      label="{{
+        ChangeDataTrait|
+        fn event_feed\l
+      }}";
+    ];
+    run_status_server;
+    run_server -> {
+      server_start;
+      build_and_bind;
+    }
+    server_start[
+      shape="record";
+      label="{{
+        start
+      }}";
+    ];
+    build_and_bind[
+      shape="record";
+      label="{{
+        build_and_bind|
+        绑定到host:port上\l
+      }}";
+    ];
+    server_start -> {
+      grpc_server_start;
+      stats_pool;
+      grpc_server_start;
+      snap_worker_start;
+    }
+  }
+
+  run_tikv -> {
+    run_server;
+    run_status_server;
+    register_services;
+    init_servers;
+  }
+}

@@ -1,0 +1,33 @@
+digraph iprocessor {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  IProcessor[
+    shape="record";
+    label="{{
+      IProcessor|
+      <InputPort> InputPorts inputs;\l|
+      <OutputPort> OutputPorts outputs\l
+    }}";
+  ];
+  Port[
+    shape="record";
+    label="{{
+      Port|
+      port代表了processor的输入和输出\l|
+      对应字段:\l
+      Block header;\l|
+      std::shared_ptr\<State\> state;\l
+      State::DataPtr data\l|
+    }}";
+  ];
+  Port:DataPtr -> Chunk;
+  Port -> {
+    InputPort;
+    OutputPort;
+  }[color="#b83b5e"]
+
+  IProcessor:InputPort -> InputPort;
+  IProcessor:OutputPort -> OutputPort;
+}

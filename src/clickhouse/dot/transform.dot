@@ -1,0 +1,185 @@
+digraph transform {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  IProcessor[
+    shape="record";
+    label="{{
+      IProcessor|
+      Processor is an element of \l 
+      a query execution pipeline\l
+      It has zero or more input ports \l
+      and zero or more output ports\l
+    }}";
+  ];
+  IProcessor -> {
+    ISimpleTransform;
+    ISink;
+    ISource;
+    NullSink;
+    ForkProcessor;
+    LimitTransform;
+    OffsetTransform;
+    ResizeProcessor;
+    ConcatProcessor;
+    ISimpleTransform;
+    IOutputFormat;
+    DelayedSource;
+    StrictResizeProcessor;
+    CopyTransform;
+    IInflatingTransform;
+    DelayedPortsProcessor;
+    SortingTransform;
+    IAccumulatingTransform;
+    IMergingTransformBase;
+    AggregatingTransform;
+    CreatingSetsTransform;
+    AggretatingInOrderTransform;
+    ConvertingAggregatedToChunksTransform;
+    GroupingAggregatedTransform;
+    SortingAggregatedTransform;
+  };
+
+  ISimpleTransform[
+    shape="record";
+    label="{{
+      ISimpleTransform|
+      has single input and \l 
+      single output port\l
+      pulls data, transform it \l
+      and pushes to output\l
+    }}";
+  ];
+  ConcatProcessor[
+    shape="record";
+    label="{{
+      ConcatProcessor|
+      Has many inputs and only one putput\l
+      Pulls all data from first input util \l
+      it is exhausted\l
+      then all data from second input etc\l
+      and pushed all data to output\l
+    }}";
+  ];
+  ISink [
+    shape="record";
+    label="{{
+      ISink |
+      Has single input port and not putput ports\l
+      Consumes data that has passed to its input port\l
+    }}";
+  ];
+  ISource[
+    shape="record";
+    label="{{
+      ISource|
+      Has no input ports and single output put\l
+      Generates data itself and pushed it to \l
+      its output port\l
+    }}";
+  ];
+
+  NullSink[
+    shape="record";
+    label="{{
+      NullSink|
+      Consumes data and does nothing\l
+    }}";
+  ];
+  ForkProcessor[
+    shape="record";
+    label="{{
+      ForkProcessor|
+      Has one input and many outputs\l
+      Pulls data from input nand copies \l
+      it to all outputs\l
+    }}";
+  ];
+
+  ISimpleTransform -> {
+    FilterTransform;
+    ReverseTransform;
+    FillingTransform;
+    LimitByTransform;
+    ExtremesTransform;
+    DistinctTransform;
+    ExpressionTransform;
+    ConvertingTransform;
+    AddingMissedTransform;
+    TotalsHavingTransform;
+    MasterializingTransform;
+    PartialSortingTransform;
+    LimitsCheckingTransform;
+    AddingSelectorTransform;
+    LimitsCheckingTransform;
+    AddingSelectorTransform;
+    AddingConstColumnTransform;
+    FinalizingSimpleTransform;
+    InflatingExpressionTransform;
+    MergingAggregatedBucketTransform;
+  };
+
+  ISink -> {
+    EmptySink;
+    ExternalTableDataSink;
+    SinkToOutputStream;
+  }
+
+  ISource -> {
+    NullSource;
+    IInputFormat;
+    RemoteTotalsSource;
+    RemoteExtremesSource;
+    ISourceWithProgress;
+    MergeSorterSource;
+    SourceFfromNativeStream;
+    ConvertingAggregatedToChunkedSource;
+  }
+
+  IAccumulatingTransform -> {
+    CubeTransform;
+    RollupTransform;
+    BufferingToFileTransform;
+    MergingAggregatedTransform;
+  }
+
+  IMergingTransformBase -> IMergingTransform -> {
+    SummingSortedTransform;
+    MergingSortedTransform;
+    ReplacingSortedTransform;
+    CollapsingSortedTransform;
+    AggregatingSortedTransform;
+    VersionedCollapsingTransform;
+    GraphiteRollupSortedTransform;
+  };
+
+  IOutputFormat[
+    shape="record";
+    label="{{
+      IOutputFormat|
+      有三个inputs没有outputs??\l
+      1: for main resultset\l|
+      2: totals
+      3: extremes
+    }}";
+  ];
+
+  IOutputFormat -> {
+    LazyOutputFormat;
+    IRowOutputFormat;
+    NullOutputFormat;
+    PullingOutputFormat;
+    MYSQLOutputFormat;
+    ORCBlockOutputFormat;
+    ArrowBlockOutputFormat;
+    PrettyBlockOutputFormat;
+    PrettyBlockOutputFormat;
+    TemplateBlockOutputFormat;
+    PostgresBlockOutputFormat;
+    ParquetBlockOutputFormat;
+    ODBCDriverBlockOutputFormat;
+    NativeOutputFormatFromNativeBlockOutputFormat;
+    ODBCDriver2BlockOutputFormat;
+  }
+}

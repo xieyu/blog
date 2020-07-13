@@ -1,0 +1,184 @@
+digraph server_main {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Server {
+    graph[label="Server";fontsize=20;];
+    Server_main -> {
+      registerFunctions;
+      registerAggregateFunctions;
+      registerTableFunctions;
+      registerStorages;
+      registerDictionaries;
+      registerDisks;
+      create_server;
+      waitForTerminationRequest;
+      Poco_Net_TcpServer_start;
+    };
+    Poco_Net_TcpServer_start -> createConnection[style=dashed];
+    createConnection[
+      shape="record";
+      label="{{
+        createConnection|
+        创建conn
+      }}";
+    ];
+    createConnection -> TcpHandler;
+    Poco_Net_TcpServer_start[
+      shape="record";
+      label="{{
+        Poco_Net_TcpServer_start|
+        开始TcpServer服务\l
+      }}";
+    ];
+    create_server -> {
+      createHandlerFactory;
+      TCPHandlerFactory;
+      MySQLHandlerFactory;
+      PostgreSQLHandlerFactory;
+      socket_bind_listen;
+    }
+  }
+  TCPHandlerFactory -> TcpHandler;
+
+
+  subgraph cluster_TcpHandler {
+    graph[label="TcpHandler";fontsize=20;];
+    runImpl[
+      shape="record";
+      label="{{
+        runImpl|
+        主循环,从tcp中readPacket,\l 
+        执行然后返回结果\l
+      }}";
+    ];
+    TcpHandler[
+      shape="record";
+      label="{{
+        TcpHandler|
+        处理TCP连接
+      }}";
+    ];
+    closeIdleConn[
+      shape="record";
+      label="{{
+        closeIdleConn|
+        关闭空闲Conn
+      }}";
+    ];
+    TcpHandler -> run -> runImpl -> {
+      closeIdleConn;
+      receiveHello;
+      sendHello;
+      receivePacket;
+      sendData;
+      sendLogs;
+      sendEndOfStream;
+      executeQuery;
+      execute;
+      processInsertQuery;
+      processOrdinaryQuery;
+      processOrdinaryQueryWithProcessors;
+      setInputBlocksReaderCallback;
+      setExternalTablesInitializer;
+    }[color="#b83b5e"];
+
+    executeQuery -> state_io;
+    state_io -> {
+      processOrdinaryQueryWithProcessors;
+      processInsertQuery;
+      processOrdinaryQuery;
+    }[style=dashed];
+
+    processOrdinaryQuery[
+      shape="record";
+      label="{{
+        processOrdinaryQuery|
+        pull query execution result\l
+        if exists send it to network\l|
+        pull时候会去执行plan pipline\l
+      }}";
+    ];
+    processOrdinaryQuery -> {
+      sendData;
+      getHeader;
+    }
+    readDataNext -> receivePacket;
+
+    sendData[
+      shape="record";
+      label="{{
+        sendData|
+        发送数据给client\l
+      }}";
+    ];
+    processInsertQuery -> {
+      sendData;
+    }
+    processOrdinaryQueryWithProcessors -> {
+      sendData;
+      getHeader;
+    }
+    setExternalTablesInitializer -> readData;
+    setInputBlocksReaderCallback -> readDataNext;
+    executeQuery[
+      shape="record";
+      label="{{
+        executeQuery|
+        将SQL转变为plan pipeline
+      }}";
+    ];
+    readData -> readDataNext;
+    readDataNext[
+      shape="record";
+      label="{{
+        readDataNext|
+        从socket中读取数据\l
+        会有receive_timeout\l
+      }}";
+    ];
+    execute[
+      shape="record";
+      label="{{
+        execute|
+        pipeline_execute
+      }}";
+    ];
+    receiveHello[
+      shape="record";
+      label="{{
+        receiveHello|
+        读取client信息，user/password等
+      }}";
+    ];
+    sendHello[
+      shape="record";
+      label="{{
+        sendHello|
+        发送版本等信息\l
+      }}";
+    ];
+    ContextAccess_setUser[
+      shape="record";
+      label="{{
+        ContextAccess_setUser|
+        做Access auth\l
+      }}";
+    ];
+    receiveHello -> ContextAccess_setUser;
+    receivePacket[
+      shape="record";
+      label="{{
+        receivePacket|
+        从tcp中读取数据包
+      }}";
+    ];
+    receivePacket -> {
+      receiveQuery;
+      receiveData;
+      processTablesStatusRequest;
+    }
+  }
+
+}

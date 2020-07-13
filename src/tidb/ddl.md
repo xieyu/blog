@@ -1,6 +1,5 @@
 # TiDB Schema
 
-
 ## schema 作用
 
 ![schema-curd-to-kv](./schema-curd-to-kv.svg)

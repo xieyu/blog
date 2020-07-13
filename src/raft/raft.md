@@ -1,6 +1,6 @@
 # Raft
 
-## 主要元素
+## Leader Election
 
 在raft中，主要有leader, candidate, follower三种状态, 一个cluster只有一个leader, leader负责处理client的写请求，然后
 leader将日志push给各个follower。
@@ -35,22 +35,16 @@ candidate的election timout是个随机值，可以在很大程度上保证一�
 
 ![raft server state](./raft-server-state.svg)
 
-## Raft子问题
+## Log Replication
+
+一条日志，只有被复制到cluster中大部分server上时候，才会被认为是commited。被commited日志才能apply 到raft的state machine上。
+leader自己的日志只能append,不能rewrite，不然后面的commited index就没啥用了。
+
+leaderr发送给follower的心跳请求中带了当前leaderCommited index， follower根据这个信息来判断一条日志能安全的apply 到statemachine上。
+
+每条日志都有term和index，如果两条日志的term和index是一致的，那么这两条日志就被认为是一致的。
+新leader当选后，需要向follower push自己的日志。leader需要找到和follower日志共同的起点，然后从该点同步follower日志。
+
+Leader维护了一个NextIndex数组，NextIndex[i]表示下一次要向follower发送日志的index。
+
 ![raft sub problem](./raft-sub-problem.svg)
-
-## Raft server state
-
-
-![raft](./raft.svg)
-
-## AppendEntries请求
-
-
-
-### Pre vote
-raft中一个机器频繁掉线下
-假设有三个server, s1, s2,s3, 其中s2为old leader, s1，s3是follower，s1和s2,s3之间网络频繁掉线。
-1. election timeout , s1 进入candidate状态, s1将自己的term ++
-2. s1和s2,s3之间通信恢复了，s1收到s2(leader)的AE请求，S1拒绝了S2 AE请求, s2成为follower
-3. 
-

@@ -75,6 +75,9 @@
     - [Transaction lock mgr](./rocksdb/transaction-lock-mgr.md)
     - [two phase commit](./rocksdb/two-phase-commit.md)
 
+- [TiKV](./tikv/index.md)
+  - [draft](./tikv/draft/index.md)
+
 - [Raft](./raft/index.md)
   - [raft paper](./raft/raft.md)
   - [pingcap talent plan raft lab](./raft/raft-lab.md)
@@ -92,6 +95,13 @@
   - [ddl](./tidb/ddl.md)
   - [table](./tidb/table.md)
 
+- [ClickHouse](./clickhouse/index.md)
+  - [Server main](./clickhouse/server-main.md)
+
+- [Godot](./godot/index.md)
+  - [godot 学习笔记](./godot/learning-note.md)
+
+
 - [tokio](./tokio/index.md)
     - [Executor](./tokio/executor.md)
       - [Park](./tokio/park.md)
@@ -101,3 +111,6 @@
     - [codec](./tokio/codec.md)
     - [channel](./tokio/channel.md)
     - [waker](./tokio/waker.md)
+
+- [python](./python/index.md)
+  - [records](./python/records/records.md)
