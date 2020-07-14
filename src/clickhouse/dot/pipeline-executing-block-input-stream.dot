@@ -69,7 +69,13 @@ digraph blockIO {
   }
   subgraph cluster_PipelineExecutingBlockInputStream {
     graph[label="PipelineExecutingBlockInputStream";fontsize=20;];
-    PipelineExecutingBlockInputStream;
+    PipelineExecutingBlockInputStream[
+      shape="record";
+      label="{{
+        PipelineExecutingBlockInputStream|
+        Implement IBlockInputStream for QueryPipeline
+      }}";
+    ];
     PipelineExecutingBlockInputStream[
       shape="record";
       label="{{
@@ -110,35 +116,36 @@ digraph blockIO {
       PullingPipelineExecutor;
     }
   }
-  subgraph cluster_BlockIO {
-    graph[label="BlockIO";fontsize=20;];
-    getInputStream -> {
-      PipelineExecutingBlockInputStream;
-    };
-  }
-  subgraph cluster_TcpHandler {
-    graph[label="TcpHandler";fontsize=20;];
-    runImpl -> executeQuery -> getInputStream;
-    runImpl[
+  subgraph cluster_IBlockInputStream {
+    graph[label="IBlockInputStream";fontsize=20;];
+    read -> readImpl;
+    IBlockInputStream -> PipelineExecutingBlockInputStream[label=derive];
+    IBlockInputStream[
       shape="record";
       label="{{
-        runImpl|
-        主循环
+        IBlockInputStream|
+        the stream interface for reading\l
+        data by blocks from the database\l
       }}";
     ];
-    runImpl -> processOrdinaryQuery -> {
-      getHeader;
-      readPrefix;
-      sendData;
-      read;
-    }
-    subgraph cluster_AsynchronousBlockInputStream {
-      graph[label="AsynchronousBlockInputStream";fontsize=20;];
-      readPrefix;
-      read;
-    }
+    read[
+      shape="record";
+      label="{{
+      read|
+      Read next block\l
+      if there no more blocks\l
+      return an empty block\l
+      }}";
+    ];
     readPrefix -> readPrefixImpl;
-    read -> readImpl;
+    readPrefix[
+      shape="record";
+      label="{{
+      readPrefix
+      read something before\l 
+      starting all data or after\l 
+      the end of all data\l
+      }}";
+    ];
   }
-  
 }

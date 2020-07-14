@@ -77,8 +77,20 @@ AddChild(node);
 
 可以在editor中connect. 也可以在代码中connect 信号和handler 
 
-### Connect signal
+带参数的Signal
 ```
+extends Node
+
+signal my_signal(value, other_value)
+
+func _ready():
+    emit_signal("my_signal", true, 42)
+```
+
+### Connect signal
+
+```
+// <source_node>.connect(<signal_name>, <target_node>, <target_function_name>)
 extends Node2D
 
 
@@ -103,3 +115,7 @@ signal my_signal
 func _ready():
     emit_signal("my_signal")
 ```
+
+### AnimatedSprite
+
+![](./dot/animated-sprite.svg)
