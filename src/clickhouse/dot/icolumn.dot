@@ -1,0 +1,28 @@
+digraph icolumn {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  IColumn[
+    shape="record";
+    label="{{
+      IColumn
+    }}";
+  ];
+  IColumn -> {
+    IColumnDummy;
+    IColumnUnique;
+    ColumnVectorHelper;
+    ColumnTuple;
+    ColumnArray;
+    ColumnString;
+    ColumnFunction;
+    ColumnNullable;
+    ColumnLowCardinality;
+    ColumnAggregateFunction;
+    ColumnComposition;
+  }
+  IColumnUnique -> ColumnUnique;
+  IColumnDummy -> ColumnSet;
+  IColumnDummy -> ColumnNothing;
+}
