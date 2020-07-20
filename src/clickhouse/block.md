@@ -5,7 +5,9 @@
 
 ## Block
 
-最基本的数据处理单元, 有点类似于Pandas的dataframe
+> A Block is a container that represents a subset (chunk) of a table in memory. It is just a set of triples: (IColumn, IDataType, column name). During query execution, data is processed by Blocks. If we have a Block, we have data (in the IColumn object), we have information about its type (in IDataType) that tells us how to deal with that column, and we have the column name. It could be either the original column name from the table or some artificial name assigned for getting temporary results of calculations.
+
+最基本的数据处理单元, 有点类似于Pandas的dataframe, 对应的基本操作有insert/erase
 
 ```cpp
 /** Container for set of columns for bunch of rows in memory.
@@ -35,6 +37,16 @@
 
 ## IColumn
 
+Cow: Copy on write shared Ptr
+
+ICoumn存储数据
+
+icolumn和idatatype 比较类似？他们两者分别负责什么功能?
+
 ![iclolumn](./dot/icolumn.svg)
 
 ## IDataType
+
+数据的序列化和反序列化
+
+![idatatype](./dot/idatatype.svg)
