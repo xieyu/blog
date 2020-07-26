@@ -1,0 +1,43 @@
+digraph IBlockOutputStream {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+  label=<<B>IBlockOutputStream</B>>
+
+  IBlockOutputStream -> {
+    HDFSBLockOutputStream;
+    StorageURLBLockOutputStream;
+    MemoryBlockOutputStream;
+    MemoryBlockOutputStream;
+    SetOrJoinBlockOutputStream;
+    LogBlockOutputStream;
+    BufferBlockOutputStream;
+    StorageFileBlockOutputStream;
+    StorageS3BlockOutputStream;
+    StorageMySQLBlockOutputStream;
+    NullBlockOutputStream;
+    TinyLogBlockOutputStream;
+    RemoteBlockOutputStream;
+    NativeBlockOutputStream;
+    PDBCBlocOutputStream;
+    ODBcBlockOutputStream;
+    KafkaBlockOutputStream;
+    StripeLogBlockOutputStream;
+    CoutingBlockOutputStream;
+    SquashingBlockOutputStream;
+    IMergedBlockOutputStream;
+    LiveViewBlockOutputStream;
+    RabbitMQBlockOutputStream;
+    OutputStreamToOutputStream;
+    MergeTreeBlockOutputStream;
+    AddingDefaultBlockOutputStream;
+    MaterializingBlockOutputStream;
+    PushingToViewsBlockOutputStream;
+    InternalTextLogsRowOutputStream;
+    DistictSortedBlockOutputStream;
+    CheckConstraintsBlockOutputStream;
+    ReplicatedMergeTreeBlockOutputSream;
+  }
+}

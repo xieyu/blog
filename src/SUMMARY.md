@@ -98,6 +98,7 @@
 - [ClickHouse](./clickhouse/index.md)
   - [Server main](./clickhouse/server-main.md)
   - [block](./clickhouse/block.md)
+  - [blockio](./clickhouse/blockio.md)
 
 - [Godot](./godot/index.md)
   - [godot 学习笔记](./godot/learning-note.md)
