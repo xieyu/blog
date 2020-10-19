@@ -1,0 +1,256 @@
+digraph sprite_render_graph {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  subgraph cluster_PassNode {
+    graph[label="PassNode";fontsize=20;];
+    PassNode_update;
+    
+  }
+  subgraph cluster_Stage {
+    graph[label="Stage";fontsize=20;];
+    ASSET_EVENTS ->  RENDER_RESOURCE -> RENDER_GRAPH_SYSTEMS -> DRAW -> RENDER -> POST_RENDER;
+    ASSET_EVENTS -> asset_event_system;
+    RENDER_RESOURCE[
+      shape="record";
+      label="{{
+        RENDER_RESOURCE|
+        Stage where srender resource are setup
+      }}";
+    ];
+
+    RENDER_GRAPH_SYSTEMS -> {
+      render_graph_schedule_executor_system;
+    }
+    RENDER -> {
+      render_system_thread_local_system;
+    }
+
+    POST_RENDER -> {
+      clear_shader_defs_system;
+    }
+    clear_shader_defs_system[
+      shape="record";
+      label="{{
+        clear_shader_defs_system|
+        清理所有RenderPiplines的shader_defs
+      }}";
+    ];
+
+    subgraph cluster_DRAW {
+      graph[label="DRAW";fontsize=20;];
+      DRAW -> {
+        draw_render_pipelines_system;
+      }
+      draw_render_pipelines_system -> {
+        set_pipeline;
+        set_bind_groups_from_bindings;
+        set_vertex_buffers_from_bindings;
+        draw_indexed;
+      } -> render_command -> render_commands;
+      render_commands -> PassNode_update;
+    }
+
+    subgraph cluster_RENDER_RESOUCE {
+      graph[label="RENDER_RESOUCE";fontsize=20;];
+      RENDER_RESOURCE -> {
+        mesh_resource_provider_system;
+        texture_resource_system;
+      }
+      texture_resource_system[
+        shape="record";
+        label="{{
+          texture_resource_system|
+          查询AssertEvent\<Texture\>\l
+          创建或者删除texture descriptor\l
+          和Sampler\l
+        }}";
+      ];
+
+      texture_resource_system -> {
+        remove_current_texture_resources;
+        create_texture;
+        create_sampler;
+        RenderResourceContext;
+        set_asset_resource;
+      }
+
+      mesh_resource_provider_system[
+        shape="record";
+        label="{{
+          mesh_resource_provider_system|
+          查询Events\<AssetEvent\<Mesh\>\>\>\l
+          更新vertexbufer和index buffer\l
+        }}";
+      ];
+
+      mesh_resource_provider_system -> {
+        remove_current_mesh_resources;
+        create_buffer_with_data;
+        RenderResourceContext;
+        set_asset_resource;
+      }
+    }
+  }
+
+  subgraph cluster_RenderPipelines {
+    graph[label="RenderPipelines";fontsize=20;];
+    RenderPlugin_Build -> draw_render_pipelines_system;
+    
+  }
+  subgraph cluster_RenderGraph {
+    graph[label="RenderGraph";fontsize=20;];
+    add_system_node -> {
+      add_system_to_stage;
+      RenderResourceNode;
+      AssetRenderResourcesNode;
+    }
+    RenderResourceNode-> render_resources_node_system;
+    render_resources_node_system[
+      shape="record";
+      label="{{
+        render_resources_node_system|
+        update时候会回调它
+      }}";
+    ];
+    render_resources_node_system[
+      shape="record";
+      label="{{
+        render_resources_node_system|
+        这个貌似吧资源通过attirbute上传到gpu上
+      }}";
+    ];
+    render_resources_node_system -> {
+      prepare_uniform_buffers;
+      setup_uniform_texture_resources;
+      resize_buffer_arrays;
+      resize_staging_buffer;
+      map_buffer;
+      write_mapped_buffer;
+      write_uniform_buffers;
+    }
+    AssetRenderResourcesNode -> {
+      asset_render_resources_node_system;
+    }
+    asset_render_resources_node_system ->{
+      setup_uniform_texture_resources;
+      write_mapped_buffer;
+      asset_bindings;
+    }
+    write_mapped_buffer -> asset_handle;
+  }
+
+    subgraph cluster_SpriteRenderGraphBuilder {
+      graph[label="SpriteRenderGraphBuilder";fontsize=20;];
+      add_sprite_graph -> {
+        add_system_node;
+        add_node_edge;
+        build_sprite_pipeline;
+        build_sprite_sheet_pipeline;
+      }
+
+      build_sprite_pipeline -> SPRITE_PIPELINE_HANDLE;
+      build_sprite_sheet_pipeline -> SPRITE_SHEET_PIPELINE_HANDLE;
+
+      build_sprite_pipeline -> {
+        PipelineDescriptor;
+        RasterizationStateDescriptor;
+        DepthStencilStateDescriptor;
+        ColorStateDescriptor;
+        ShaderStages;
+      }
+      ShaderStages -> {
+        Shader_from_glsl;
+      }
+      Shader_from_glsl -> {
+        sprite_vert;
+        sprite_frag;
+      }
+
+      sprite_vert[
+        shape="record";
+        label="{{
+          sprite_vert|
+          sprite的vertex shader
+        }}";
+      ];
+      sprite_vert -> {
+        ViewProj;
+        Model;
+        Sprite_size;
+      }
+      sprite_frag[
+        shape="record";
+        label="{{
+          sprite_frag|
+          sprite的fragment shader
+        }}";
+      ];
+      sprite_frag -> {
+        ColorMaterial_texture;
+        ColorMaterial_texture_sampler;
+        ColorMaterial_color;
+      };
+
+      subgraph cluster_renderGraph {
+        graph[label="renderGraph";fontsize=20;];
+        COLOR_MATERIAL[
+          shape="record";
+          label="{{
+            COLOR_MATERIAL|
+            AssetRenderResourcesNode\<ColorMaterial\>
+          }}";
+        ];
+        SPRITE[
+          shape="record";
+          label="{{
+            SPRITE|
+            RenderResourceNode\<Sprite\>
+          }}";
+        ];
+        SPRITE_SHEET[
+          shape="record";
+          label="{{
+            SPRITE_SHEET|
+            AssetRenderResourcesNode\<TextureAtlas\>
+          }}";
+        ];
+        SPRITE_SHEET_SPRITE[
+          shape="record";
+          label="{{
+            SPRITE_SHEET_SPRITE|
+            RenderResourceNode\<TextureAtlas\>
+          }}";
+        ];
+        SPRITE_SHEET_SPRITE;
+        COLOR_MATERIAL -> MAIN_PASS;
+        SPRITE -> MAIN_PASS;
+    }
+  }
+
+  subgraph cluster_SpritePlugin {
+    graph[label="SpritePlugin";fontsize=20;];
+    SpritePlugin_build -> {
+      add_sprite_graph;
+      add_asset_Color_Materials;
+      add_asset_TextureAtals;
+      add_system_to_stage;
+      asset_shader_defs_system;
+      QUAD_HANDLE;
+    }
+  }
+  subgraph cluster_SpriteComponents {
+    graph[label="SpriteComponents";fontsize=20;];
+    mesh -> QUAD_HANDLE;
+    render_pipelines -> SPRITE_PIPELINE_HANDLE;
+  }
+  subgraph cluster_SpriteSheetComponents {
+    graph[label="SpriteSheetComponents";fontsize=20;];
+    sheet_mesh -> QUAD_HANDLE;
+    render_pipelines -> SPRITE_SHEET_PIPELINE_HANDLE;
+  }
+
+}

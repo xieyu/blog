@@ -1,5 +1,7 @@
 # Raft
 
+<!-- toc -->
+
 ## Leader Election
 
 在raft中，主要有leader, candidate, follower三种状态, 一个cluster只有一个leader, leader负责处理client的写请求，然后
@@ -13,25 +15,26 @@ leader通过心跳机制告诉follower自己还活着，当follower有一段时�
 在Raft中，任期扮演着逻辑时钟的角色，节点之间的请求和返回中都带上node当前的term。node在处理请求时，发现请求中的term比自己大，就
 将自己term 改为该值，如果比自己小，就拒绝请求，并返回带上自己term。 
 
-leader发送给follower的心跳中，如果收到了term比自己大的回复，那么leader就知道自己stale了，就会step down.
+leader发送给follower的心跳中，如果收到的回复中, follower term比自己大，那么leader就知道自己stale了，就会step down.
 
-candidate在发起requestforvote时候，会将自己term +=1 , 然后经过一轮处理后，整个集群term
+candidate在发起RequestForVote时候，会将自己term +=1 , 然后经过一轮处理后，整个集群term都会增加。
 
 ### AppendEntries
 
-AppendEntries 是由leader发送给follower的RPC请求，一方面用于同步日志，另一方面AppendEntries的log entriy可以为空，扮演着心跳的角色，
-而心跳用于抑制follower 转变为candidate。
+AppendEntries 是由leader发送给follower的RPC请求，主要有两个作用:
+1. 同步日志。
+2. AppendEntries的log entriy可以为空，扮演着心跳的角色，心跳用于抑制follower转变为candidate。
 
 
-### RequestForVote
+### Majority Vote
 
 follower 变为candidate之后，会将自己term + 1, 并且会发送RequestForVote请求给所有成员，开始选举，如果收到了大部分成员的投票，则成为
-新的任期的leader。
+新的任期的leader。 SplitVote是选举中要解决的主要问题。
 
-### SplitVote
+#### SplitVote
 
-为了解决有多个candidate 同时发起投票，然后每个candidate获得的选票都达不到大多数的问题，Raft采用了 random election timeout的机制，每个
-candidate的election timout是个随机值，可以在很大程度上保证一段时间内只有一个candidate在request for vote
+多个candidate 同时发起投票时候，可能每个candidate可能获得的选票都达不到大多数，为了解决这个问题，Raft采用了random election timeout的机制，每个
+candidate的election timout是个随机值，可以在很大程度上保证一段时间内只有一个candidate在request for vote。
 
 ![raft server state](./raft-server-state.svg)
 
@@ -40,7 +43,7 @@ candidate的election timout是个随机值，可以在很大程度上保证一�
 一条日志，只有被复制到cluster中大部分server上时候，才会被认为是commited。被commited日志才能apply 到raft的state machine上。
 leader自己的日志只能append,不能rewrite，不然后面的commited index就没啥用了。
 
-leaderr发送给follower的心跳请求中带了当前leaderCommited index， follower根据这个信息来判断一条日志能安全的apply 到statemachine上。
+leader发送给follower的心跳请求中带了当前leader commited index， follower根据这个信息来判断一条日志能安全的apply 到statemachine上。
 
 每条日志都有term和index，如果两条日志的term和index是一致的，那么这两条日志就被认为是一致的。
 新leader当选后，需要向follower push自己的日志。leader需要找到和follower日志共同的起点，然后从该点同步follower日志。

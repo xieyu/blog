@@ -1,0 +1,183 @@
+digraph godot_trait {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Instanciable[
+    shape="record";
+    label="{{
+      trait Instanciable|
+      construct
+    }}";
+  ];
+  NativeClass[
+    shape="record";
+    label="{{
+      trait NativeClass|
+        type Base: GodotObject;\l|
+        type UserData: UserData\<Target = Self\>;\l
+        fn class_name() -\> \&\'static str;\l|
+        fn init(owner: &Self::Base) -\> Self;\l|
+        fn register_properties(_builder: &ClassBuilder\<Self\>)\l|
+        fn new_instance() -\> Instance\<Self, Unique\>
+    }}";
+  ];
+  Instance[
+    shape="record";
+    label="{{
+      struct Instance\<\l 
+        T: NativeClass,\l
+        Access: ThreadAccess\>|
+        owner: Ref\<T::Base, Access\>\l|
+        script: T::UserData,\l|
+    }}";
+  ];
+  RefInstance[
+    shape="record";
+    label="{{
+        struct RefInstance\<\'a,\l 
+        T: NativeClass,\l 
+        Access: ThreadAccess\>\l |
+        owner: TRef\<'a, T::Base, Access\>\l|
+        script: T::UserData\l
+    }}";
+  ];
+  GodotObject[
+    shape="record";
+    label="{{
+      GodotObject|
+        type RefKind: RefKind;\l|
+        fn class_name() -\> &'static str;\l|
+        fn null() -\> Null\<Self\>\l|
+        fn new() -\> Ref\<Self, Unique\>\l|
+        fn cast\<T\>(&self) -\> Option\<&T\>\l|
+        fn upcast\<T\>(&self) -\> &T\l|
+        pub fn cast_instance\<C\>(self) -\>\l 
+          Option\<RefInstance\<'a, C, Access\>\>\l
+    }}";
+  ];
+  TRef[
+    shape="record";
+    label="{{
+      TRef\<'a, T: GodotObject,\l Access: ThreadAccess = Shared\>\l|
+        obj: &'a T\l|
+        _marker: PhantomData\<Access\>\l|
+    }}";
+  ];
+  NativeClassMethods[
+    shape="record";
+    label="{{
+      trait NativeClassMethods|
+        fn register(builder: &ClassBuilder\<Self\>)
+    }}";
+  ];
+  UserData[
+    shape="record";
+    label="{{
+      trait UserData|
+        fn new(val: Self::Target) -\> Self;\l|
+        fn into_user_data(self) -\>\l 
+        *const libc::c_void;
+        unsafe fn consume_user_data_unchecked\l 
+        (ptr: *const libc::c_void) -\> Self;\l|
+        unsafe fn clone_from_user_data_unchecked\l 
+        (ptr: *const libc::c_void) -\> Self;
+    }}";
+  ];
+  RwLockData[
+    shape="record";
+    label="{{
+      RwLockData|
+        lock: Arc\<RwLock\<T\>\>\l
+        _marker: PhantomData\<OPT\>\l
+    }}";
+  ];
+  MutexData[
+    shape="record";
+    label="{{
+      MutexData|
+        lock: Arc\<Mutex\<T\>\>\l
+        _marker: PhantomData\<OPT\>\l
+    }}";
+  ];
+  ArcData[
+    shape="record";
+    label="{{
+      ArcData|
+      Arc\<T\>
+    }}";
+  ];
+  Ref[
+    shape="record";
+    label="{{
+      struct Ref\<\l 
+      T: GodotObject,\l 
+      Access: ThreadAccess = Shared\>\l|
+      ptr: \<T::RefKind as RefKindSpec\>::PtrWrapper,\l
+        _marker: PhantomData\<(*const T, Access)\>,\l
+    }}";
+  ];
+  QueueFree[
+    shape="record";
+    label="{{
+      trait QueueFree: GodotObject|
+        unsafe fn godot_queue_free\l 
+        (sys: *mut sys::godot_object);
+    }}";
+  ];
+  UserData -> {
+    Map;
+    MapMut;
+    MutexData;
+    RwLockData;
+    ArcData;
+  }
+
+  TRef -> GodotObject;
+  Instance -> {
+    NativeClass;
+    Ref;
+  }
+  RefInstance -> {
+    UserData;
+    NativeClass;
+    TRef;
+  }
+  GodotObject -> {
+    SubClass;
+    Instanciable;
+    QueueFree;
+    UserData;
+  }
+  construct -> class_name_new;
+  Instance_new[
+    shape="record";
+    label="{{
+      Instance::new|
+      1.获取class构造函数\l
+    }}";
+  ];
+  Instance_new -> {
+    godot_method_bind_ptrcall;
+    object_set_script;
+    set_library;
+    set_class_name;
+    godot_nativescript_get_userdata;
+  }
+  godot_nativescript_get_userdata[
+    shape="record";
+    label="{{
+      godot_nativescript_get_userdata|
+      获取userdata
+    }}";
+  ];
+
+  object_set_script[
+    shape="record";
+    label="{{
+      object_set_script|
+      将script指针attach到\l
+      object上\l
+    }}";
+  ];
+}

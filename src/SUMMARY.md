@@ -99,9 +99,9 @@
   - [Server main](./clickhouse/server-main.md)
   - [block](./clickhouse/block.md)
   - [blockio](./clickhouse/blockio.md)
-
-- [Godot](./godot/index.md)
-  - [godot 学习笔记](./godot/learning-note.md)
+  - [Storage](./clickhouse/storage.md)
+    - [MergeTreeData](./clickhouse/merge-tree-data.md)
+    - [StorageMergeTree](./clickhouse/storage-merge-tree.md)
 
 
 - [tokio](./tokio/index.md)
@@ -116,3 +116,13 @@
 
 - [python](./python/index.md)
   - [records](./python/records/records.md)
+
+- [Godot](./godot/index.md)
+  - [godot 学习笔记](./godot/learning-note.md)
+  - [gdquest tutorial](./godot/gdquest.md)
+
+- [Bevy](./bevy/index.md)
+    - [bevy draft](./bevy/first-impression-draft.md)
+
+- [Blender](./blender/Readme.md)
+    - [blender manual notes](./blender/manual-notes.md)

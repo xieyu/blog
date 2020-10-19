@@ -1,0 +1,232 @@
+digraph stream {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_WriteBufferFromFileDescriptor {
+    graph[label="WriteBufferFromFileDescriptor";fontsize=20;];
+    fd_sync[
+      shape="record";
+      label="{{
+        sync
+      }}";
+    ];
+    fsync[
+      shape="record";
+      label="{{
+        fsync|
+        系统调用，将数据刷到磁盘上
+      }}";
+    ];
+    fd_nextImpl[
+      shape="record";
+      label="{{
+        nextImpl
+      }}";
+    ];
+    fd_write[
+      shape="record";
+      label="{{
+        write|
+        将working_buffer的\l 
+        数据写入fd中\l
+      }}";
+    ];
+    fd_sync -> fsync;
+    fd_nextImpl -> fd_write;
+    WriteBufferFromFileDescriptor;
+  }
+
+  subgraph cluster_WriteBufferFromS3 {
+    graph[label="WriteBufferFromS3";fontsize=20;];
+    WriteBufferFromS3_next -> WriteBufferFromS3_nextImpl;
+    WriteBufferFromS3_swap[shape="record";label="{{swap}}";];
+    WriteBufferFromS3[
+      shape="record";
+      label="{{
+        WriteBufferFromS3|
+        负责向s3写入数据
+      }}";
+    ];
+    WriteBufferFromS3_next[
+      shape="record";
+      label="{{
+        next
+      }}";
+    ];
+    WriteBufferFromS3_nextImpl[
+      shape="record";
+      label="{{
+        nextImpl
+      }}";
+    ];
+    WriteBufferFromS3_nextImpl -> {
+      writePart;
+    }
+    writePart[
+      shape="record";
+      label="{{
+        writePart|
+        Aws::S3::Model::UploadPartRequest\l|
+        向s3发送write数据\l 
+      }}";
+    ];
+  }
+
+  subgraph cluster_WriteIndirectBufferFromS3{
+    graph[label="WriteIndirectBufferFromS3";fontsize=20;];
+    s3_sync[
+      shape="record";
+      label="{{
+        sync
+      }}";
+    ];
+    s3_nextImpl[
+      shape="record";
+      label="{{
+        nextImpl
+      }}";
+    ];
+
+    s3_sync -> metadata_save;
+    s3_nextImpl -> {
+      WriteBufferFromS3_next;
+      WriteBufferFromS3_swap;
+    }
+    WriteIndirectBufferFromS3 -> {
+      WriteBufferFromS3;
+    };
+    metadata_save -> fd_sync;
+    metadata_save -> WriteBufferFromFile;
+    WriteBufferFromFile -> WriteBufferFromFileDescriptor;
+    WriteBufferFromFile[
+      shape="record";
+      label="{{
+        WriteBufferFromFile|
+        从WriteBufferFromFileDescriptor中派生
+      }}";
+    ];
+  }
+
+  subgraph cluster_WriteBufferFromFileBase {
+    graph[label="WriteBufferFromFileBase";fontsize=20;];
+    WriteBufferFromFileBase -> {
+      WriteBufferFromFileDescriptor;
+      WriteIndirectBufferFromS3;
+      WriteIndirectBuffer;
+      WriteBufferAIO;
+    }
+    base_sync[
+      shape="record";
+      label="{{
+        sync|
+        sync虚函数
+      }}";
+    ];
+    base_sync ->{
+      fd_sync;
+      s3_sync;
+    }
+  }
+
+  subgraph cluster_WriteBuffer {
+    graph[label="WriteBuffer";fontsize=20;];
+    WriteBuffer_next[
+      shape="record";
+      label="{{
+        WriteBuffer::next|
+        WriteBuffer基类的next方法
+      }}";
+    ];
+    nextImpl[
+      shape="record";
+      label="{{
+        nextImpl|
+        WriteBuffer子类需要\l 
+        实现的虚函数\l
+      }}";
+    ];
+    WriteBuffer_next -> nextImpl;
+    nextImpl -> {
+      s3_nextImpl;
+      fd_nextImpl;
+    }
+  }
+  subgraph cluster_MergeTreeDataPartWriterOnDiskStream {
+    graph[label="MergeTreeDataPartWriterOnDisk::Stream";fontsize=20;];
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    plain_file[
+      shape="record";
+      label="{{
+        plain_file|
+        std::unique_ptr\<WriteBufferFromFileBase\>\l 
+        plain_file;\l
+      }}";
+    ];
+    marks_file[
+      shape="record";
+      label="{{
+        marks_file|
+        std::unique_ptr\<WriteBufferFromFileBase\>\l 
+        marks_file;\l
+      }}";
+    ];
+    marks[
+      shape="record";
+      label="{{
+        marks|
+        HashingWriteBuffer
+      }}";
+    ];
+    compressed[
+      shape="record";
+      label="{{
+        compressed|
+        HashingWriteBuffer
+      }}";
+    ];
+    compressed_buf[
+      shape="record";
+      label="{{
+      compressed_buf|
+        CompressedWriteBuffer: 数据成员\l|
+          WriteBuffer & out;\l|
+          CompressionCodecPtr codec;\l|
+          PODArray\<char\> compressed_buffer;\l
+      }}";
+    ];
+    plain_hashing[
+      shape="record";
+      label="{{
+        plain_hashing|
+      }}";
+    ];
+    compressed -> compressed_buf -> plain_hashing -> plain_file;
+    marks -> marks_file;
+    node[shape=box;style=stroke;];
+    {rank=same; sync;finalize}
+    sync -> {
+      plain_file_sync;
+      marks_file_sync;
+    }
+    plain_file_sync -> plain_file;
+    marks_file_sync -> marks_file;
+
+    finalize -> {
+      compressed_next;
+      marks_next;
+      plain_file_next;
+    }
+    compressed_next -> compressed;
+    marks_next -> marks;
+    plain_file_next -> plain_file;
+    plain_file_sync -> base_sync;
+    marks_file_sync -> base_sync;
+
+    plain_file_next -> WriteBuffer_next;
+    marks_next -> WriteBuffer_next;
+    compressed_next -> WriteBuffer_next;
+
+    {marks_file;plain_file} -> WriteBufferFromFileBase
+  }
+}

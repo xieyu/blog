@@ -1,0 +1,96 @@
+digraph Asset {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Assets {
+    graph[label="Assets";fontsize=20;];
+    ResMut_Assets_set[
+      shape="record";
+      label="{{
+        ResMut\<Assets\<T\>\>::set|
+        设置全局变量Assets handler\l|
+        对应的asset\l
+      }}";
+    ];
+    ResMut_Assets_set -> send;
+    send[
+      shape="record";
+      label="{{
+        send|
+        发送AssetEvent::Created\l|
+        或者AssetEvent::Modified\l
+      }}";
+    ];
+  }
+
+  subgraph cluster_AssetServer {
+    graph[label="AssetServer";fontsize=20;];
+    load -> load_untyped;
+    load_untyped -> {
+      task_pool;
+      watch_path_for_changes;
+    }
+    task_pool -> handle_request[style=dashed]
+    asset_channel[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="asset_channel"
+    ];
+    asset_channel_send -> asset_channel;
+    asset_channel -> asset_channel_receiver;
+    asset_channel_receiver -> update_asset_storage_system[style=dashed];
+    stage_LOAD_ASSETS -> update_asset_storage_system;
+    update_asset_storage_system -> {
+      set_load_state;
+      ResMut_Assets_set;
+    }
+    set_load_state -> asset_info;
+    asset_info[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        asset_info|
+          RwLock\<HashMap\<HandleId, AssetInfo\>\>
+      }}";
+    ];
+    load_asset[
+      shape="record";
+      label="{{
+        load_asset|
+        读取path对应文件，\l 
+        根据资源path后缀名\l
+        获取对应的loader\l
+        然后加载Resource\l
+      }}";
+    ];
+    loader_from_byes[
+      shape="record";
+      label="{{
+        loader::from_bytes|
+        调用各种loader的\l 
+        from_bytes方法\l
+      }}";
+    ];
+    handle_request -> {
+      load_asset;
+      asset_channel_send;
+    }
+    load_asset -> loader_from_byes;
+    subgraph cluster_ChannelAssetHandler {
+      graph[label="ChannelAssetHandler";fontsize=20;];
+      load_asset;
+      loader_from_byes;
+    }
+
+    loader_from_byes -> {
+      ImageTextureLoader_from_bytes;
+      GltfLoader_from_bytes;
+      SceneLoader_from_bytes;
+      HdrTextureLoader_from_bytes;
+    }
+  }
+}

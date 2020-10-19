@@ -1,0 +1,82 @@
+digraph merge {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_TTLMergeSelector {
+    graph[label="TTLMergeSelector";fontsize=20;];
+    TTLMergeSelector_select[label="select"];
+  }
+  subgraph cluster_SimpleMergeSelector {
+    graph[label="SimpleMergeSelector";fontsize=20;];
+    SimpleMergeSelector_select[label="select"]
+
+  }
+
+  subgraph cluster_MergeTreeDataMergerMutator {
+    graph[label="MergeTreeDataMergerMutator";fontsize=20;];
+    selectPartsToMerge -> {
+      getDataPartsVector;
+      TTLMergeSelector_select;
+      SimpleMergeSelector_select;
+    }
+    mergePartsToTemporaryPart -> {
+      extractMergingAndGatheringColumns;
+      chooseCompressionCodec;
+      createDirectories;
+      merged_transform;
+      hasSecondaryIndices;
+      MergedBlockOutputStream;
+    }
+    merged_transform[
+      shape="record";
+      label="{{
+        merged_transform|
+        根据mergin_params.mode\l 
+        选择相应的merge 算法\l
+      }}";
+    ];
+    merged_transform -> {
+      MergingSortedTransform;
+      CollapsingSortedTransform;
+      SummingSortedTransform;
+      AggregatingSortedTransform;
+      ReplacingSortedTransform;
+      GraphiteRollupSortedTransform;
+      VersionedCollapsingTransform;
+    }
+    
+  }
+  subgraph cluster_StorageMergeTree {
+    graph[label="StorageMergeTree";fontsize=20;];
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    future_part;
+    new_part;
+    merge_entry;
+    node[shape=box;style=stroke;];
+    merge -> {
+      getInMemoryMetadataPtr;
+      can_merge;
+      selectPartsToMerge;
+      selectAllPartsFromPartition;
+      writePartLog;
+      merge_entry;
+      mergePartsToTemporaryPart;
+      renameMergedTemporaryPart;
+    }[color="#b83b5e"];
+
+    can_merge -> {
+      getCurrentMutationVersion;
+    }
+
+    edge[style=dashed]
+    {selectAllPartsFromPartition; selectPartsToMerge} -> future_part;
+    mergePartsToTemporaryPart -> new_part -> renameMergedTemporaryPart;
+    future_part -> {
+      mergePartsToTemporaryPart;
+      renameMergedTemporaryPart;
+      merge_entry;
+    }
+    merge_entry -> writePartLog;
+  }
+}

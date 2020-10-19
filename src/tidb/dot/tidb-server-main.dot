@@ -1,0 +1,139 @@
+digraph tidb_main_server {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_main {
+    graph[label="tidb-server/main.go";fontsize=20;];
+    main ->{
+      runServer;
+      createServer;
+    };
+  };
+  runServer -> server_Run;
+
+  subgraph cluster_server {
+    graph[label="server/server.go";fontsize=20;];
+    subgraph cluster_forloop {
+      graph[label="loop";fontsize=20;]
+      onConn[
+        shape="record";
+        label="{{
+          onConn|
+          启动一个goroutine来处理\l
+          这个connection\l
+        }}";
+      ];
+      listener_Accept[label="listener.Accept"];
+      listener_Accept[
+        shape="record";
+        label="{{
+          listener_Accept|
+          监听接受connection
+        }}";
+      ];
+    }
+    server_Run[label="Run"];
+    server_Run -> onConn[label="go routine"];
+    server_Run -> {
+      listener_Accept;
+    };
+  };
+
+  onConn -> conn_Run;
+  subgraph cluster_conn {
+    graph[label="conn";fontsize=20;]
+    conn_Run[label="Run"];
+    conn_Run[
+      shape="record";
+      label="{{
+        conn_Run|
+        处理客户端conn\l
+        读取packet\l
+        处理请求\l
+        回写返回数据\l
+      }}";
+    ];
+    dispatch[
+      shape="record";
+      label="{{
+        dispatch|
+        根据mysql cmd\l
+        分发给不同的handler处理\l
+      }}";
+    ];
+    writeError -> writePacket;
+    readPacket[
+      shape="record";
+      label="{{
+        readPacket|
+        读取网络请求包
+      }}";
+    ];
+    writePacket[
+      shape="record";
+      label="{{
+        writePacket|
+        向conn写入返回数据
+      }}";
+    ];
+    conn_Run -> {
+      dispatch;
+      writeError;
+      readPacket;
+    };
+
+    dispatch -> {
+      handleQuery;
+      handleStmtPrepare;
+      handleStmtExecute;
+      handleStmtClose;
+    };
+    writeResultset[label="writeResultset\l 调用ResultSet Next获取结果"];
+    handleQuery[
+      shape="record";
+      label="{{
+        handleQuery|
+        执行SQL语句\l
+        返回结果集\l
+      }}";
+    ];
+
+    Parse[
+      shape="record";
+      label="{{
+        Parse|
+        将sql语句解析为smt\l
+      }}";
+    ];
+    handleQuery -> {
+      Parse;
+      handleStmt;
+    }
+    handleStmt -> {
+      ExecuteStmt;
+      writeResultset;
+    }
+    ExecuteStmt -> {
+      Compile;
+      runStmt;
+    }
+    Compile[
+      shape="record";
+      label="{{
+        Compile|
+        将stmt的ast tree转换为\l
+        physical plan\l
+      }}";
+    ];
+    runStmt[
+      shape="record";
+      label="{{
+        runStmt|
+        执行statement\l
+        成功了commit\l
+        失败了rollback\l
+      }}";
+    ];
+  }
+}

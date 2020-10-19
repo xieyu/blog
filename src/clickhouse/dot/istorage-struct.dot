@@ -1,0 +1,81 @@
+digraph istorageStruct {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  IStorage[
+    shape="record";
+    label="{{
+      IStorage|
+        StorageID storage_id;\l|
+        mutable std::mutex id_mutex;\l|
+        MultiVersionStorageMetadataPtr metadata;\l|
+    }}";
+  ];
+  IStorage -> MultiVersionStorageMetadataPtr;
+
+  MultiVersionStorageMetadataPtr -> {
+    MultiVersion;
+    StorageInMemoryMetadata;
+  }
+  StorageInMemoryMetadata[
+    shape="record";
+    label="{{
+      StorageInMemoryMetadata|
+        ColumnsDescription columns;\l|
+        IndicesDescription secondary_indices;\l|
+        ConstraintsDescription constraints;\l|
+        KeyDescription partition_key;\l|
+        KeyDescription primary_key;\l|
+        KeyDescription sorting_key;\l|
+        KeyDescription sampling_key;\l|
+        TTLColumnsDescription column_ttls_by_name;\l|
+        TTLTableDescription table_ttl;\l|
+        ASTPtr settings_changes;\l|
+        SelectQueryDescription select;\l
+    }}";
+  ];
+
+  StorageInMemoryMetadata -> {
+    ColumnsDescription;
+    IndicesDescription;
+    ConstraintsDescription;
+    KeyDescription;
+    TTLColumnsDescription;
+    TTLTableDescription;
+    ASTPtr;
+    SelectQueryDescription;
+  }
+  ColumnsDescription -> ColumnDescription;
+
+  ColumnDescription[
+    shape="record";
+    label="{{
+    ColumnDescription|
+      String name;\l|
+      DataTypePtr type;\l|
+      ColumnDefault default_desc;\l|
+      String comment;\l|
+      CompressionCodecPtr codec;\l
+    }}";
+  ];
+
+  IndicesDescription -> IndexDescription;
+  IndexDescription[
+    shape="record";
+    label="{{
+      IndexDescription|
+        ASTPtr definition_ast;\l|
+        ASTPtr expression_list_ast;\l|
+        String name;\l|
+        String type;\l|
+        ExpressionActionsPtr expression;\l|
+        FieldVector arguments;\l|
+        Names column_names;\l|
+        DataTypes data_types;\l|
+        Block sample_block;\l|
+        size_t granularity;\l
+    }}";
+  ];
+
+}

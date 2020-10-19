@@ -1,0 +1,68 @@
+digraph title {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  WriteBuffer -> {
+      PacketPayloadWriteBuffer;
+      HashingWriteBuffer;
+      NullWriteBuffer;
+      WriteBufferFromPocoSocket;
+      WriteBufferFromHTTPServerResponse;
+      WriteBufferAIO;
+      ReadWriteBufferFromHTTP;
+      PooledReadWriteBufferFromHTTP;
+      WriteIndirectBuffer;
+      WriteBufferFromOwnString;
+      WriteBufferFromFileBase;
+      CompressedWriteBuffer;
+      WriteBufferFromS3;
+      WriteBufferFromVector;
+      CascadeWriteBuffer;
+      WriteBufferFromFileDescriptorDiscardOnFailure;
+      BrotliWriteBuffer;
+      WriteBufferFromFileDescriptor;
+      WriteBufferFromArena;
+      MemoryWriteBuffer;
+      AsynchronousWriteBuffer;
+      ZlibDeflatingWriteBuffer;
+      WriteBufferFromHTTP;
+      WriteBufferFromHDFS;
+      WriteBufferFromTemporaryFile;
+      WriteBufferFromOStream;
+      WriteBufferValidUTF8;
+      HexWriteBuffer;
+      WriteBufferFromFile;
+      WriteBufferToRabbitMQProducer;
+      WriteBufferToKafkaProducer;
+      WriteIndirectBufferFromS3
+  }
+  WriteBufferFromFile -> {
+      WriteBufferAIO;
+      WriteIndirectBuffer;
+      WriteBufferFromFileDescriptor;
+      WriteBufferFromFileDescriptorDiscardOnFailure;
+      WriteBufferFromTemporaryFile;
+      WriteIndirectBufferFromS3
+  }
+  WriteBufferFromFileDescriptor -> {
+      WriteBufferFromFileDescriptorDiscardOnFailure;
+      WriteBufferFromFile
+  }
+  WriteBufferFromOStream -> {
+      WriteBufferFromHTTP
+  }
+  WriteBufferFromHTTP -> {
+      ReadWriteBufferFromHTTP;
+      PooledReadWriteBufferFromHTTP
+  }
+  ReadWriteBufferFromHTTP -> {
+      PooledReadWriteBufferFromHTTP
+  }
+  WriteBufferFromFileBase -> {
+      WriteBufferAIO;
+      WriteIndirectBuffer;
+      WriteBufferFromFileDescriptor;
+      WriteIndirectBufferFromS3
+  }
+}

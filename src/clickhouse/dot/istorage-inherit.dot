@@ -1,0 +1,565 @@
+digraph istorageInheirt {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  IStorage -> {
+    StorageTinyLog;
+    StorageView;
+    StorageMaterializedView;
+    StorageNull;
+    StorageFile;
+    StorageS3;
+    StorageMySQL;
+    StorageXDBC;
+    StorageGenerateRandom;
+    StorageHDFS;
+    StorageMemory;
+    StorageMongoDB;
+    StorageLog;
+    IStorageURLBase;
+    StorageURL;
+    StorageInput;
+    StorageStripeLog;
+    StorageDistributed;
+    StorageBuffer;
+    StorageValues;
+    StorageSetOrJoinBase;
+    StorageDictionary;
+    StorageMerge;
+    StorageLiveView;
+    StorageBlocks;
+    StorageRabbitMQ;
+    StorageSystemRoleGrants;
+    StorageSystemDistributionQueue;
+    StorageSystemBuildOptions;
+    StorageSystemQuotasUsage;
+    StorageSystemQuotas;
+    StorageSystemColumns;
+    StorageSystemCurrentRoles;
+    StorageSystemSettingsProfileElements;
+    StorageSystemDictionaries;
+    StorageSystemMetrics;
+    StorageSystemReplicationQueue;
+    StorageSystemStoragePolicies;
+    StorageSystemReplicas;
+    StorageSystemSettings;
+    StorageSystemQuotaLimits;
+    StorageSystemPrivileges;
+    StorageSystemZooKeeper;
+    StorageSystemPartsBase;
+    StorageSystemStackTrace;
+    StorageSystemMerges;
+    StorageSystemMutations;
+    StorageSystemEvents;
+    SystemMergeTreeSettings;
+    StorageSystemRoles;
+    StorageSystemMacros;
+    StorageSystemDatabases;
+    StorageSystemZeros;
+    StorageSystemClusters;
+    StorageSystemEnabledRoles;
+    StorageSystemTables;
+    StorageSystemRowPolicies;
+    StorageSystemOne;
+    IStorageSystemOneBlock;
+    StorageSystemFunctions;
+    StorageSystemFormats;
+    StorageSystemProcesses;
+    StorageSystemNumbers;
+    StorageSystemGrants;
+    StorageSystemQuotaUsage;
+    StorageSystemUsers;
+    StorageSystemDisks;
+    StorageSystemModels;
+    StorageSystemSettingsProfiles;
+    StorageSystemGraphite;
+    StorageFromMergeTreeDataPart;
+    MergeTreeData;
+    StorageKafka;
+    StorageDistributedFake
+  }[color="#b83b5e"]
+
+  MergeTreeData -> {
+    StorageMergeTree;
+    StorageReplicatedMergeTree;
+    IMergeTreeDataPart;
+    MergeTreeDataPartWriterOnDisk;
+    MergeTreeDataPartWriterInMemory;
+    MergeTreeDataPartInMemory;
+    StorageFromMergeTreeDataPart;
+    MergeTreeDataPartWriterWide;
+    MergeTreeDataPartWide;
+    MergeTreeDataPartWriterCompact;
+    MergeTreeDataPartCompact
+  }[color="#3f72af"]
+
+  MergeTreeDataPartWriterOnDisk -> {
+    MergeTreeDataPartWriterWide;
+    MergeTreeDataPartWriterCompact
+  }
+  IMergeTreeDataPart -> {
+    MergeTreeDataPartWriterOnDisk;
+    MergeTreeDataPartWriterInMemory;
+    MergeTreeDataPartInMemory;
+    MergeTreeDataPartWide;
+    MergeTreeDataPartCompact
+  }
+  IStorageSystemOneBlock -> {
+      StorageSystemRoleGrants;
+      StorageSystemDistributionQueue;
+      StorageSystemMetrics;
+      StorageSystemBuildOptions;
+      StorageSystemQuotasUsage;
+      StorageSystemCurrentRoles;
+      StorageSystemSettings;
+      StorageSystemQuotas;
+      StorageSystemDictionaries;
+      StorageSystemReplicationQueue;
+      StorageSystemQuotaLimits;
+      StorageSystemMutations;
+      StorageSystemStackTrace;
+      StorageSystemZooKeeper;
+      StorageSystemSettingsProfileElements;
+      StorageSystemMerges;
+      StorageSystemPrivileges;
+      StorageSystemDatabases;
+      StorageSystemEvents;
+      SystemMergeTreeSettings;
+      StorageSystemRoles;
+      StorageSystemMacros;
+      StorageSystemClusters;
+      StorageSystemEnabledRoles;
+      StorageSystemRowPolicies;
+      StorageSystemFormats;
+      StorageSystemFunctions;
+      StorageSystemProcesses;
+      StorageSystemGrants;
+      StorageSystemQuotaUsage;
+      StorageSystemUsers;
+      StorageSystemModels;
+      StorageSystemGraphite;
+      StorageSystemSettingsProfiles
+  }[color="#3fc1c9"]
+
+  StorageSystemQuotas -> {
+      StorageSystemQuotasUsage
+  }
+  StorageSystemSettings -> {
+      StorageSystemSettingsProfileElements;
+      StorageSystemSettingsProfiles
+  }
+  StorageSystemOne -> {
+      StorageSystemRoleGrants;
+      StorageSystemBuildOptions;
+      StorageSystemDistributionQueue;
+      StorageSystemQuotasUsage;
+      StorageSystemQuotas;
+      StorageSystemMetrics;
+      StorageSystemReplicationQueue;
+      StorageSystemSettings;
+      StorageSystemDictionaries;
+      StorageSystemCurrentRoles;
+      StorageSystemQuotaLimits;
+      StorageSystemMutations;
+      StorageSystemPrivileges;
+      StorageSystemZooKeeper;
+      StorageSystemStackTrace;
+      StorageSystemMerges;
+      StorageSystemSettingsProfileElements;
+      StorageSystemDatabases;
+      StorageSystemEvents;
+      SystemMergeTreeSettings;
+      StorageSystemMacros;
+      StorageSystemRoles;
+      StorageSystemClusters;
+      StorageSystemEnabledRoles;
+      StorageSystemRowPolicies;
+      StorageSystemFunctions;
+      StorageSystemFormats;
+      StorageSystemGrants;
+      StorageSystemProcesses;
+      StorageSystemUsers;
+      StorageSystemModels;
+      StorageSystemQuotaUsage;
+      StorageSystemSettingsProfiles;
+      StorageSystemGraphite
+    }
+    StorageSystemPartsBase -> {
+        StorageSystemParts
+    }
+    StorageMerge -> {
+        StorageMergeTree
+    }
+    StorageSetOrJoinBase -> {
+        StorageSet;
+        StorageJoin
+    }
+    StorageSet -> {
+        StorageJoin
+    }
+    StorageDistributed -> {
+        StorageDistributedFake
+    }
+    IStorageURLBase -> {
+        StorageXDBC
+    }
+    IStorageURLBase -> {
+        StorageXDBC;
+        StorageURL
+    }
+
+    StorageSystemOne[
+      shape="record";
+      label="{{
+        StorageSystemOne|
+        Implements storage \l 
+        for the system table One.\l
+        The table contains a single \l 
+        column of dummy UInt8 and\l 
+        a single row with a value of 0.\l
+      }}";
+    ];
+
+    IStorageSystemOneBlock[
+      shape="record";
+      label="{{
+        IStorageSystemOneBlock|
+          Base class for system\l 
+          tables whose all columns\l 
+          have String type.\l
+      }}";
+    ];
+
+    StorageSystemColumns[
+      shape="record";
+      label="{{
+        StorageSystemColumns|
+        implments system table 'columns'\l
+        that allows to get information\l 
+        about columns for every table.\l
+      }}";
+    ];
+
+    MergeTreeData[
+      shape="record";
+      label="{{
+        MergeTreeData|
+            Data structure for \l 
+            *MergeTree engines.\l
+            Merge tree is used for\l 
+            incremental sorting of data.
+      }}";
+    ];
+    
+    StorageTinyLog[
+      shape="record";
+      label="{{
+        StorageTinyLog|
+            Implements a table engine\l 
+            that is suitable for small\l 
+            chunks of the log. It differs\l
+            from StorageLog in the absence \l 
+            of mark files.
+          field \l
+      }}";
+    ];
+    StorageStripeLog[
+      shape="record";
+      label="{{
+        StorageStripeLog|
+            Implements a table engine that is\l 
+            suitable for small chunks of the log.\l
+            In doing so, stores all the columns \l 
+            in a single Native file, with a nearby index.\l
+      }}";
+    ];
+
+    StorageLog[
+      shape="record";
+      label="{{
+        StorageLog|
+            Implements simple table engine\l 
+            without support of indices.\l
+            The data is stored in a \l
+            compressed form.\l
+      }}";
+    ];
+
+    StorageMemory[
+      shape="record";
+      label="{{
+        StorageMemory|
+          Implements storage in the RAM.\l
+          Suitable for temporary data.\l
+          It does not support keys.\l
+          Data is stored as a set of\l 
+          blocks and is not stored anywhere else.\l
+      }}";
+    ];
+
+    StorageBlocks[
+      shape="record";
+      label="{{
+        StorageBlocks|
+            Storage based on the prepared\l 
+            streams that already contain data blocks.\l
+            Used by Live Views to complete stored\l
+            query based on the mergeable blocks.
+      }}";
+    ];
+    StorageMySQL[
+      shape="record";
+      label="{{
+        StorageMySQL|
+          Implements storage\l 
+          in the MySQL database.\l
+          Use ENGINE = mysql(host_port, \l 
+          database_name, table_name, \l 
+          user_name, password)\l
+          Read only.\l
+      }}";
+    ];
+
+    StorageMongoDB[
+      shape="record";
+      label="{{
+        StroageMongoDB|
+           Implements storage in the\l 
+           MongoDB database.\l
+           Use ENGINE = mysql(host_port,\l 
+           database_name, table_name,\l 
+           user_name, password)\l
+      }}";
+    ];
+
+    StorageS3[
+      shape="record";
+      label="{{
+        StorageS3|
+          This class represents table\l 
+          engine for external S3 urls.\l
+          It sends HTTP GET to server \l 
+          when select is called and\l
+          HTTP PUT when insert is called.
+      }}";
+    ];
+    StorageHDFS[
+      shape="record";
+      label="{{
+        StorageHDFS|
+          This class represents table \l 
+          engine for external hdfs files.\l
+          Read method is supported for now.\l
+      }}";
+    ];
+
+    StorageInput[
+      shape="record";
+      label="{{
+        StorageInput|
+          Internal temporary \l 
+          storage for table \l 
+          function input(...)\l
+      }}";
+    ];
+
+    IStorageURLBase[
+      shape="record";
+      label="{{
+        IStorageURLBase|
+            This class represents \l 
+            table engine for external urls.\l
+            It sends HTTP GET to server when\l 
+            select is called and\l
+            HTTP POST when insert is called.\l 
+            In POST request the data is send\l
+            using Chunked transfer encoding, \l 
+            so server have to support it.\l
+      }}";
+    ];
+
+    StorageXDBC[
+      shape="record";
+      label="{{
+        StorageXDBC|
+            Implements storage in the XDBC database.\l
+            Use ENGINE = xdbc(connection_string, table_name)\l
+            Example ENGINE = odbc('dsn=test', table)\l
+            Read only.\l
+      }}";
+    ];
+
+    StorageKafka[
+      shape="record";
+      label="{{
+        StorageKafka|
+          Implements a Kafka queue table\l
+          engine that can be used as a \l 
+          persistent queue / buffer,\l
+           or as a basic building block\l 
+           for creating pipelines with\l 
+           a continuous insertion / ETL.
+      }}";
+    ];
+
+    StorageGenerateRandom[
+      shape="record";
+      label="{{
+        StorageGenerateRandom|
+          Generates random data for\l 
+          given schema.
+      }}";
+    ];
+
+    StorageBuffer[
+      shape="record";
+      label="{{
+      StorageBuffer\l|
+          During insertion, buffers\l 
+          the data in the RAM until\l
+          certain thresholds are exceeded\l
+          When thresholds are exceeded,\l
+          flushes the data to another table\l
+      }}";
+    ];
+
+    StorageMerge[
+      shape="record";
+      label="{{
+        StorageMerge|
+          A table that represents\l 
+          the union of an arbitrary\l 
+          number of other tables.\l
+          All tables must have the same structure.\l
+      }}";
+    ];
+
+    StorageValues[
+      shape="record";
+      label="{{
+        StorageValues\l|
+           One block storage used \l 
+           for values table function\l
+           It's structure is similar \l 
+           to IStorageSystemOneBlock\l
+      }}";
+    ];
+
+    StorageSystemZooKeeper[
+      shape="record";
+      label="{{
+        StorageSystemZooKeeper|
+          Implements `zookeeper` system table,\l
+          which allows you to view the data\l
+          in ZooKeeper for debugging purposes.\l
+      }}";
+    ];
+    StorageSystemStackTrace[
+      shape="record";
+      label="{{
+        StorageSystemStackTrace\l
+            Allows to introspect stack \l 
+            trace of all server threads.\l
+            It acts like an embedded debugger.\l
+            More than one instance of this\l 
+            table cannot be used.
+      }}";
+    ];
+    StorageSystemProcesses[
+      shape="record";
+      label="{{
+        StorageSystemProcesses|
+          Implements `processes` system table,\l 
+          which allows you to get information \l 
+          about the queries that are currently executing.\l
+      }}";
+    ];
+
+    subgraph cluster_StorageSystem {
+      graph[label="StorageSystem";fontsize=20;];
+      StorageSystemStackTrace;
+        StorageSystemRoleGrants;
+        StorageSystemDistributionQueue;
+        StorageSystemBuildOptions;
+        StorageSystemQuotasUsage;
+        StorageSystemQuotas;
+        StorageSystemColumns;
+        StorageSystemCurrentRoles;
+        StorageSystemSettingsProfileElements;
+        StorageSystemDictionaries;
+        StorageSystemMetrics;
+        StorageSystemReplicationQueue;
+        StorageSystemStoragePolicies;
+        StorageSystemReplicas;
+        StorageSystemSettings;
+        StorageSystemQuotaLimits;
+        StorageSystemPrivileges;
+        StorageSystemZooKeeper;
+        StorageSystemPartsBase;
+        StorageSystemStackTrace;
+        StorageSystemMerges;
+        StorageSystemMutations;
+        StorageSystemEvents;
+        SystemMergeTreeSettings;
+        StorageSystemRoles;
+        StorageSystemMacros;
+        StorageSystemDatabases;
+        StorageSystemZeros;
+        StorageSystemClusters;
+        StorageSystemEnabledRoles;
+        StorageSystemTables;
+        StorageSystemRowPolicies;
+        StorageSystemOne;
+        IStorageSystemOneBlock;
+        StorageSystemFunctions;
+        StorageSystemFormats;
+        StorageSystemProcesses;
+        StorageSystemNumbers;
+        StorageSystemGrants;
+        StorageSystemQuotaUsage;
+        StorageSystemUsers;
+        StorageSystemDisks;
+        StorageSystemModels;
+        StorageSystemSettingsProfiles;
+        StorageSystemGraphite;
+        StorageFromMergeTreeDataPart;
+    }
+
+    subgraph cluster_StorageExternalData {
+      graph[label="StorageExternalData";fontsize=20;];
+      StorageKafka;
+      StorageHDFS;
+      StorageMySQL;
+      StorageS3;
+      StorageRabbitMQ;
+      StorageMongoDB;
+      StorageFile;
+      IStorageURLBase;
+      StorageXDBC;
+    }
+
+    subgraph cluster_StorageLog {
+      graph[label="StorageLog";fontsize=20;];
+      StorageTinyLog;
+      StorageStripeLog;
+      StorageLog;
+    }
+
+    subgraph cluster_StorageMergeTree {
+      graph[label="StorageMergeTree";fontsize=20;];
+      StorageMergeTree;
+      StorageReplicatedMergeTree;
+      IMergeTreeDataPart;
+      MergeTreeDataPartWriterOnDisk;
+      MergeTreeDataPartWriterInMemory;
+      MergeTreeDataPartInMemory;
+      StorageFromMergeTreeDataPart;
+      MergeTreeDataPartWriterWide;
+      MergeTreeDataPartWide;
+      MergeTreeDataPartWriterCompact;
+      MergeTreeDataPartCompact
+      MergeTreeData;
+    }
+
+}

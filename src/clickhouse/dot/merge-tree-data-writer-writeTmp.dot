@@ -1,0 +1,205 @@
+digraph merge_tree_data_writer_WriteTempPart {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_IMergeTreeDataPart {
+    graph[label="IMergeTreeDataPart";fontsize=20;];
+    setColumns;
+  }
+
+  subgraph cluster_MergeTreeData {
+    graph[label="MergeTreeData";fontsize=20;];
+    createPart;
+  }
+
+  subgraph cluster_BlocksWithPartition {
+    graph[label=" BlocksWithPartition";fontsize=20;];
+    BlocksWithPartition;
+  }
+
+  subgraph cluster_StorageInMemoryMetadata {
+    graph[label="StorageInMemoryMetadata";fontsize=20;];
+    getPartitionKey;
+  }
+
+  subgraph cluster_MergeTreeDataPartWriterOnDisk {
+    graph[label=" MergeTreeDataPartWriterOnDisk";fontsize=20;];
+    disk_write;
+    MergeTreeDataPartWriterOnDisk;
+  }
+  IMergeTreeDataPartWriter -> MergeTreeDataPartWriterOnDisk -> {
+    MergeTreeDataPartWriterWide;
+    MergeTreeDataPartWriterCompact;
+  }
+
+  subgraph cluster_IMergeTreeDataPartWriter {
+    graph[label="IMergeTreeDataPartWriter";fontsize=20;];
+    writer_write -> {disk_write};
+    writer_calculateAndSerializeSkipIndices;
+    writer_calculateAndSerializePrimaryIndex
+    writer_next;
+    IMergeTreeDataPartWriter;
+  }
+
+  subgraph cluster_MergeTreeDataPartWide {
+    graph[label="MergeTreeDataPartWide";fontsize=20;];
+    wide_getWriter -> {
+      MergeTreeDataPartWriterWide
+    };
+    MergeTreeDataPartWide;
+  }
+  subgraph cluster_MergeTreeDataPartInMemory{
+    graph[label="MergeTreeDataPartInMemory";fontsize=20;];
+    MergeTreeDataPartInMemory;
+    mem_getWriter -> {
+      MergeTreeDataPartWriterInMemory;
+    };
+  }
+  subgraph cluster_MergeTreeDataPartCompact {
+    graph[label="MergeTreeDataPartCompact";fontsize=20;];
+    MergeTreeDataPartCompact;
+    compact_getWriter -> {
+      MergeTreeDataPartWriterCompact;
+    };
+  }
+
+  {
+    compact_getWriter;
+    wide_getWriter
+    mem_getWriter
+  }-> writer;
+
+  subgraph cluster_MergedBlockOutputStream {
+    graph[label="MergedBlockOutputStream";fontsize=20;];
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    writer[
+      shape="record";
+      label="{{
+        writer|
+          data_part-\>getWriter
+      }}";
+    ];
+    node[shape=box;style=stroke;];
+    MergedBlockOutputStream -> {
+      writer;
+    }
+    writePrefix;
+    writeWithPermutation;
+    writeSuffixAndFinalizePart;
+    writeWithPermutation -> {
+      writeImpl;
+    }
+    writeImpl -> {
+      writer_write;
+      writer_calculateAndSerializeSkipIndices;
+      writer_calculateAndSerializePrimaryIndex
+      writer_next;
+    }
+
+    edge[style=dashed]
+    writer -> writeImpl;
+  }
+
+  subgraph cluster_MergeTreeDataWriter {
+    graph[label="MergeTreeDataWriter";fontsize=20;];
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    block_copy;
+    partition_columns;
+    node[shape=box;style=stroke;];
+    writeTempPart -> {
+      MergeTreePartition;
+      createPart;
+      setColumns;
+      getMoveTTLs;
+      updateTTL;
+      createDirectories;
+      getSortingKeyAndSkipIndicesExpression;
+      stableGetPermutation;
+      writePrefix;
+      writeWithPermutation;
+      writeSuffixAndFinalizePart;
+      MergedBlockOutputStream;
+    }[color="#17b978"];
+
+    createPart -> {
+      MergeTreeDataPartInMemory;
+      MergeTreeDataPartWide;
+      MergeTreeDataPartCompact;
+    }[color="#3f72af"];
+
+    splitBlockIntoParts[
+      shape="record";
+      label="{{
+        splitBlockIntoParts|
+        将blocks分区
+      }}";
+    ];
+    splitBlockIntoParts -> {
+        BlocksWithPartition;
+        getPartitionKey;
+        partition_key_expression_execute;
+    }
+    edge[style=dashed]
+    getPartitionKey -> partition_key_expression_execute -> block_copy -> partition_columns;
+  }
+  subgraph cluster_PartLog {
+    graph[label="PartLog";fontsize=20;];
+    addNewPart;
+  }
+  subgraph cluster_StorageMergeTree {
+    graph[label="StorageMergeTree";fontsize=20;];
+    mergeMutateTask;
+  }
+  signalReadyToRun -> mergeMutateTask;
+
+  subgraph cluster_BackgroundProcessingPoolTaskInfo {
+    graph[label=" BackgroundProcessingPoolTaskInfo";fontsize=20;];
+    signalReadyToRun;
+    signalReadyToRun[
+      shape="record";
+      label="{{
+        signalReadyToRun|
+        通知后台线程开始merge
+      }}";
+    ];
+  }
+  subgraph cluster_MergeTreeData {
+    graph[label="MergeTreeData";fontsize=20;];
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    out_covered_parts;
+    node[shape=box;style=stroke;];
+
+    renameTempPartAndAdd -> {
+      renameTempPartAndReplace;
+    }
+    renameTempPartAndReplace -> {
+      modifyPartState;
+      getActivePartsToReplace;
+      out_transaction_precommited_parts_insert;
+      out_covered_parts;
+    }
+  }
+
+  subgraph cluster_MergeTreeBlockOutputStream {
+    graph[label="MergeTreeBlockOutputStream";fontsize=20;];
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    part_blocks;
+    node[shape=box;style=stroke;];
+    write -> {
+      splitBlockIntoParts;
+      writeTempPart;
+      renameTempPartAndAdd;
+      addNewPart;
+      signalReadyToRun;
+    }[color="#b83b5e"]
+
+
+    edge[style=dashed]
+    splitBlockIntoParts -> part_blocks;
+    part_blocks -> {
+      writeTempPart;
+      renameTempPartAndAdd;
+    }
+  }
+}

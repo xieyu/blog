@@ -135,8 +135,8 @@ block-io getInputStream，读数据时执行plan
 
 ![block-io](./dot/block-io.svg)
 
-## Ref
+## 参考资料
 
 1. [Clickhouse源码导读: 网络IO](https://cloud.tencent.com/developer/article/1602664)
 2. [Clickhouse源码导读](http://sineyuan.github.io/post/clickhouse-source-guide/)
-
+3. [ClickHouse 源码阅读 —— SQL的前世今生](https://developer.aliyun.com/article/765184)

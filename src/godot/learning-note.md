@@ -119,3 +119,70 @@ func _ready():
 ### AnimatedSprite
 
 ![](./dot/animated-sprite.svg)
+
+
+## KinematicBody2D
+
+控制角色运动和碰撞检测， 和RigionBody2D有什么区别？
+
+1. CollisionShape2D: 碰撞检测, Geometric Shape: New RectTangeShape2D
+2. Modulation: 调制，在inspector中可以改变collisionShape的颜色, 在debug模式比较有用.
+3. Sprite, render顺序，从上到下，下面的覆盖上面的.
+4. snaping feature: 用于精确放置图片到0点, snap to grid, 快捷键G Snap to pixel
+5. collision shape比sprite稍微小一点.
+6. Dector Monitorble是干啥的, 为啥要把Dector的physical Layer去掉？这样就不会发生碰撞检测了吗？只会做dector?
+7. stampdector检测的时候，比较global_y 来判断player是否不是在头顶
+8. player身上的enemyDector，jump更高一些, onAreaEnter和onBodyEnter有啥区别啊
+
+
+```
+src/Actors/Player.tscn
+```
+
+```
+func _physic_process(delta: float) -> void:
+  velocity.y = gravity * delta;
+  velocity.y = max(velocity.y, speed.y)
+  velocity = move_and_slide(velocity)
+
+```
+
+is_on_wall
+is_on_floor
+
+Actor.gd, player和enemy共享公用的代码
+
+
+## TileMap
+
+tileset.tres 这个制作细节需要去学习下
+
+Cell collision, 给每个cell添加collsion，这个画完tilemap之后，自动就有了collision.
+snapOptions: Step
+
+CellSize
+
+可以直接将Player drag到tilemap里面
+
+physics layers
+masks: 需要检测碰撞的layer
+
+Input Mapping
+
+get_action_strength
+
+
+## Camera2D控制
+Camera Limit: Top, left, Right, Bottom, Smoothed
+Drag Margin, H,V enable
+
+
+### LevelTemplate
+
+rules: pixels, shiyong rules来衡量位置，然后修改camera的limit
+
+## Background
+
+TextureRectangle, Layout, FullRect
+
+CanvasLayer-> Background, Layer -100, 

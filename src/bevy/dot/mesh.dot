@@ -1,0 +1,618 @@
+digraph Mesh {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  NodeComponents[
+    shape="record";
+    label="{{
+      NodeComponents|
+        pub node: Node,\l|
+        pub style: Style,\l|
+        pub mesh: Handle\<Mesh\>\l|
+        pub material: Handle\<ColorMaterial\>,\l|
+        pub draw: Draw,\l|
+        pub render_pipelines: RenderPipelines,\l|
+        pub transform: Transform,\l|
+        pub global_transform: GlobalTransform,\l
+    }}";
+  ];
+  Style[
+    shape="record";
+    label="{{
+      Style|
+        pub display: Display,\l|
+        pub position_type: PositionType,\l|
+        pub direction: Direction,\l|
+        pub flex_direction: FlexDirection,\l|
+        pub flex_wrap: FlexWrap,\l|
+        ...
+    }}";
+  ];
+  Node_[
+    shape="record";
+    label="{{
+      Node_|
+      pub size: Vec2;\l
+    }}";
+  ];
+  NodeComponents -> {
+    RenderPipelines;
+    Style;
+    Draw;
+    Node_;
+    ColorMaterial;
+    Transform;
+    GlobalTransform;
+  }
+  Transform[
+    shape="record";
+    label="{{
+      Transform|
+        value: Mat4\l
+    }}";
+  ];
+  GlobalTransform[
+    shape="record";
+    label="{{
+      GlobalTransform|
+        value: Mat4\l
+    }}";
+  ];
+  ColorMaterial[
+    shape="record";
+    label="{{
+      ColorMaterial|
+        pub color: Color\l|
+        pub texture: Option\<Handle\<Texture\>\>\l
+    }}";
+  ];
+  ColorMaterial -> {
+    Color;
+    Texture;
+  }
+  Texture[
+    shape="record";
+    label="{{
+      Texture|
+        pub data: Vec\<u8\>,\l|
+        pub size: Vec2,\l|
+        pub format: TextureFormat,\l
+    }}";
+  ];
+  Color[
+    shape="record";
+    label="{{
+      Color|
+    pub r: f32,\l|
+    pub g: f32,\l|
+    pub b: f32,\l|
+    pub a: f32,\l
+    }}";
+  ];
+  Draw[
+    shape="record";
+    label="{{
+      Draw|
+        pub is_visible: bool\l|
+        pub is_transparent: bool\l|
+        pub render_commands: Vec\<RenderCommand\>\l
+    }}";
+  ];
+  Draw -> RenderCommand;
+  RenderCommand -> {
+    SetPipeline
+    SetVertexBuffer
+    SetIndexBuffer
+    SetBindGroup
+    DrawIndexed
+    Draw_
+  };
+  SetPipeline[
+    shape="record";
+    label="{{
+      SetPipeline|
+        pipeline: Handle\<PipelineDescriptor\>
+    }}";
+  ];
+  SetVertexBuffer[
+    shape="record";
+    label="{{
+      SetVertexBuffer|
+        slot: u32,\l|
+        buffer: BufferId,\l|
+        offset: u64,\l
+    }}";
+  ];
+
+  SetIndexBuffer[
+    shape="record";
+    label="{{
+      SetIndexBuffer|
+        buffer: BufferId\l|
+        offset: u64\l
+    }}";
+  ];
+  SetBindGroup[
+    shape="record";
+    label="{{
+      SetBindGroup|
+        index: u32\l|
+        bind_group: BindGroupId\l|
+        dynamic_uniform_indices: Option\<Arc\<[u32]\>\l
+    }}";
+  ];
+  DrawIndexed[
+    shape="record";
+    label="{{
+      DrawIndexed|
+        indices: Range\<u32\>,\l|
+        base_vertex: i32,\l|
+        instances: Range\<u32\>,\l
+    }}";
+  ];
+  Draw_[
+    shape="record";
+    label="{{
+      Draw|
+        vertices: Range\<u32\>,\l|
+        instances: Range\<u32\>,\l
+    }}";
+  ];
+
+  SetPipeline -> PipelineDescriptor;
+
+  RenderPipelines[
+    shape="record";
+    label="{{
+      RenderPipelines|
+        pub pipelines: Vec\<RenderPipeline\>,\l|
+        pub bindings: RenderResourceBindings,\l
+    }}";
+  ];
+  RenderPipelines -> RenderPipeline;
+
+  RenderPipeline[
+    shape="record";
+    label="{{
+      RenderPipeline|
+        pub pipeline: Handle\<PipelineDescriptor\>,\l|
+        pub specialization: PipelineSpecialization\l
+    }}";
+  ];
+  RenderPipeline -> {
+    PipelineDescriptor;
+    PipelineSpecialization;
+  }
+  PipelineSpecialization[
+    shape="record";
+    label="{{
+      PipelineSpecialization|
+        pub shader_specialization: ShaderSpecialization\l|
+        pub primitive_topology: PrimitiveTopology\l|
+        pub dynamic_bindings: Vec\<DynamicBinding\>\l|
+        pub index_format: IndexFormat\l|
+        pub sample_count: u32\l
+    }}";
+  ];
+
+  PipelineSpecialization -> {
+    PrimitiveTopology;
+    DynamicBinding;
+    ShaderSpecialization;
+  }
+  ShaderSpecialization[
+    shape="record";
+    label="{{
+      ShaderSpecialization|
+        pub shader_defs: HashSet\<String\>\l
+    }}";
+  ];
+  DynamicBinding[
+    shape="record";
+    label="{{
+      DynamicBinding|
+        pub bind_group: u32,\l|
+        pub binding: u32,\l
+    }}";
+  ];
+
+  NodeComponents -> Mesh;
+
+  Mesh[
+    shape="record";
+    label="{{
+      Mesh|
+        pub primitive_topology: PrimitiveTopology\l|
+        pub attributes: Vec\<VertexAttribute\>\l|
+        pub indices: Option\<Indices\>\l
+    }}";
+  ];
+  Mesh -> VertexAttribute;
+  Mesh -> PrimitiveTopology;
+  PrimitiveTopology[
+    shape="record";
+    label="{{
+      PrimitiveTopology|
+        PointList = 0,\l|
+        LineList = 1,\l|
+        LineStrip = 2,\l|
+        TriangleList = 3,\l|
+        TriangleStrip = 4,\l
+    }}";
+  ];
+  VertexAttribute[
+    shape="record";
+    label="{{
+      VertexAttribute|
+        pub name: Cow<'static, str>\l|
+        pub values: VertexAttributeValues\l|
+    }}";
+  ];
+  VertexAttribute -> VertexAttributeValues;
+  VertexAttributeValues[
+    shape="record";
+    label="{{
+      VertexAttributeValues|
+        Float(Vec\<f32\>),\l|
+        Float2(Vec\<[f32; 2]\>),\l|
+        Float3(Vec\<[f32; 3]\>),\l|
+        Float4(Vec\<[f32; 4]\>),\l
+    }}";
+  ];
+
+  PipelineDescriptor[
+    shape="record";
+    label="{{
+      PipelineDescriptor|
+        pub name: Option\<String\>,\l|
+        pub layout: Option\<PipelineLayout\>,\l|
+        pub shader_stages: ShaderStages,\l|
+        pub rasterization_state: Option\<RasterizationStateDescriptor\>,\l|
+        pub primitive_topology: PrimitiveTopology,\l|
+        pub color_states: Vec\<ColorStateDescriptor\>,\l|
+        pub depth_stencil_state: Option\<DepthStencilStateDescriptor\>,\l|
+        pub index_format: IndexFormat,\l|
+        pub sample_count: u32,\l|
+        pub sample_mask: u32,\l|
+        pub alpha_to_coverage_enabled: bool,\l
+    }}";
+  ];
+  PipelineDescriptor -> {
+    PipelineLayout;
+    PrimitiveTopology;
+    ColorStateDescriptor;
+    RasterizationStateDescriptor;
+    ShaderStages;
+    DepthStencilStateDescriptor;
+  }
+  ColorStateDescriptor[
+    shape="record";
+    label="{{
+      ColorStateDescriptor|
+        pub format: TextureFormat,\l|
+        pub alpha_blend: BlendDescriptor,\l|
+        pub color_blend: BlendDescriptor,\l|
+        pub write_mask: ColorWrite,\l
+    }}";
+  ];
+  ColorStateDescriptor -> BlendDescriptor;
+
+  BlendDescriptor[
+    shape="record";
+    label="{{
+      BlendDescriptor|
+        pub src_factor: BlendFactor,\l|
+        pub dst_factor: BlendFactor,\l|
+        pub operation: BlendOperation,\l
+    }}";
+  ];
+  RasterizationStateDescriptor[
+    shape="record";
+    label="{{
+      RasterizationStateDescriptor|
+        pub front_face: FrontFace,\l|
+        pub cull_mode: CullMode,\l|
+        pub depth_bias: i32,\l|
+        pub depth_bias_slope_scale: f32,\l|
+        pub depth_bias_clamp: f32,\l|
+        pub clamp_depth: bool,\l
+    }}";
+  ];
+  RasterizationStateDescriptor -> {
+    FrontFace;
+    CullMode;
+  }
+  FrontFace[
+    shape="record";
+    label="{{
+      FrontFace|
+    Ccw = 0,\l|
+    Cw = 1,\l
+    }}";
+  ];
+  CullMode[
+    shape="record";
+    label="{{
+      CullMode|
+    None = 0,\l|
+    Front = 1,\l|
+    Back = 2,\l
+    }}";
+  ];
+
+  DepthStencilStateDescriptor[
+    shape="record";
+    label="{{
+      DepthStencilStateDescriptor|
+        pub format: TextureFormat,\l|
+        pub depth_write_enabled: bool,\l|
+        pub depth_compare: CompareFunction,\l|
+        pub stencil: StencilStateDescriptor,\l
+    }}";
+  ];
+
+  DepthStencilStateDescriptor -> StencilStateDescriptor;
+  StencilStateDescriptor[
+    shape="record";
+    label="{{
+      StencilStateDescriptor|
+        pub front: StencilStateFaceDescriptor,\l|
+        pub back: StencilStateFaceDescriptor,\l|
+        pub read_mask: u32,\l|
+        pub write_mask: u32,\l
+    }}";
+  ];
+  StencilStateDescriptor -> StencilStateFaceDescriptor;
+
+  StencilStateFaceDescriptor[
+    shape="record";
+    label="{{
+      StencilStateFaceDescriptor|
+        pub compare: CompareFunction,\l|
+        pub fail_op: StencilOperation,\l|
+        pub depth_fail_op: StencilOperation,\l|
+        pub pass_op: StencilOperation,\l
+    }}";
+  ];
+
+
+  ShaderStages[
+    shape="record";
+    label="{{
+      ShaderStages|
+    pub vertex: Handle\<Shader\>\l|
+    pub fragment: Option\<Handle\<Shader\>\>\l
+    }}";
+  ];
+  ShaderStages -> Shader;
+  Shader[
+    shape="record";
+    label="{{
+      Shader|
+      pub source: ShaderSource,\l|
+      pub stage: ShaderStage,\l
+    }}";
+  ];
+  Shader -> {
+    ShaderSource;
+    ShaderStage;
+  }
+  ShaderSource[
+    shape="record";
+    label="{{
+      ShaderSource|
+        Spirv(Vec\<u32\>),\l|
+        Glsl(String),\l
+    }}";
+  ];
+  ShaderStage -> {
+    Vertex
+    Fragment
+    Compute
+  }
+
+  PipelineLayout[
+    shape="record";
+    label="{{
+      PipelineLayout|
+    pub bind_groups: Vec\<BindGroupDescriptor\>\l|
+    pub vertex_buffer_descriptors: Vec\<VertexBufferDescriptor\>\l
+    }}";
+  ];
+  PipelineLayout -> VertexBufferAttribute;
+  PipelineLayout -> BindGroupDescriptor;
+
+  BindGroupDescriptor[
+    shape="record";
+    label="{{
+      BindGroupDescriptor|
+        pub index: u32\l|
+        pub bindings: Vec\<BindingDescriptor\>\l|
+        pub id: BindGroupDescriptorId\l
+    }}";
+  ];
+  BindGroupDescriptor -> BindingDescriptor;
+
+  BindingDescriptor[
+    shape="record";
+    label="{{
+      BindingDescriptor|
+        pub name: String\l|
+        pub index: u32\l|
+        pub bind_type: BindType\l
+        pub shader_stage: BindingShaderStage\l
+    }}";
+  ];
+
+  BindingDescriptor -> BindType;
+  BindingDescriptor -> BindingShaderStage;
+  BindingShaderStage -> {
+    VERTEX;
+    FRAGMEN;
+    COMPUTE;
+  };
+
+  BindType -> {
+    Uniform;
+    StorageBuffer;
+    Sampler;
+    SampledTexture;
+    StorageTexture;
+  }
+  Uniform[
+    shape="record";
+    label="{{
+      Uniform|
+        dynamic: bool\l|
+        property: UniformProperty\l
+    }}";
+  ];
+  StorageBuffer[
+    shape="record";
+    label="{{
+      StorageBuffer|
+        dynamic: bool,\l|
+        readonly: bool,\l
+    }}";
+  ];
+  Sampler[
+    shape="record";
+    label="{{
+      Sampler|
+        comparison: bool\l
+    }}";
+  ];
+  SampledTexture[
+    shape="record";
+    label="{{
+      SampledTexture|
+        multisampled: bool,\l|
+        dimension: TextureViewDimension,\l|
+        component_type: TextureComponentType,\l
+    }}";
+  ];
+  StorageTexture[
+    shape="record";
+    label="{{
+      StorageTexture|
+        dimension: TextureViewDimension\l|
+        format: TextureFormat\l|
+        readonly: bool\l
+    }}";
+  ];
+
+
+
+  VertexBufferAttribute[
+    shape="record";
+    label="{{
+      VertexBufferAttribute|
+        pub name: Cow<'static, str>,\l|
+        pub stride: u64,\l|
+        pub step_mode: InputStepMode,\l|
+        pub attributes: Vec\<VertexAttributeDescriptor\>\l
+    }}";
+  ];
+  VertexBufferAttribute -> VertexAttributeDescriptor;
+
+  VertexAttributeDescriptor[
+    shape="record";
+    label="{{
+      VertexAttributeDescriptor|
+        pub name: Cow\<'static, str\>\l|
+        pub offset: u64\l|
+        pub format: VertexFormat\l|
+        pub shader_location: u32\l|
+    }}";
+  ];
+  VertexAttributeDescriptor -> VertexFormat;
+  VertexFormat[
+    shape="record";
+    label="{{
+      VertexFormat|
+      数据类型
+      Uchar2/Uchar4/...Float2/Int2.
+    }}";
+  ];
+
+  RenderResourceBinding[
+    shape="record";
+    label="{{
+      RenderResourceBinding
+    }}";
+  ];
+  RenderResourceBinding -> {
+    Buffer;
+    Texture;
+    Sampler;
+  }
+  Buffer[
+    shape="record";
+    label="{{
+      Buffer|
+        buffer: BufferId,
+        range: Range\<u64\>,
+        dynamic_index: Option\<u32\>,
+    }}";
+  ];
+
+  Camera[
+    shape="record";
+    label="{{
+      Camera|
+        pub projection_matrix: Mat4,\l|
+        pub name: Option\<String\>,\l|
+        pub window: WindowId,\l|
+        pub depth_calculation: DepthCalculation,\l
+    }}";
+  ];
+  Camera -> Mat4;
+  Camera -> WindowId;
+  WindowId[
+    shape="record";
+    label="{{
+      WindowId|
+      struct WindowId(Uuid)\l
+    }}";
+  ];
+  DepthCalculation[
+    shape="record";
+    label="{{
+      DepthCalculation|
+      Distance\l|
+      ZDifference\l
+    }}";
+  ];
+
+  CameraProjection -> {
+    PerspectiveProjection;
+    OrthographicProjection;
+  };
+
+  PerspectiveProjection[
+    shape="record";
+    label="{{
+      PerspectiveProjection|
+        pub fov: f32,\l|
+        pub aspect_ratio: f32,\l|
+        pub near: f32,\l|
+        pub far: f32,\l
+    }}";
+  ];
+  OrthographicProjection[
+    shape="record";
+    label="{{
+      OrthographicProjection|
+        pub left: f32,\l|
+        pub right: f32,\l|
+        pub bottom: f32,\l|
+        pub top: f32,\l|
+        pub near: f32,\l|
+        pub far: f32,\l|
+        pub window_origin: WindowOrigin,\l
+    }}";
+  ];
+
+}

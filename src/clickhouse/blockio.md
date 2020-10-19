@@ -1,5 +1,7 @@
 # BlockIO
 
+<!-- toc -->
+
 
 Block的输入输出, 主要有BlockInputStream 和
 BlockOutputStream, 输入输出的基本单位为Block
@@ -10,7 +12,6 @@ getHeader header的作用是啥？表明data的schema吗?
 ![blockio](./dot/blockio.svg)
 
 ## IBlockInputStream
-
 
 > The stream interface for reading data by blocks from the database.
 > Relational operations are supposed to be done also as implementations of this interface.
@@ -24,10 +25,29 @@ IBlockInputStream 主要接口 read, readPrefix, readSuffix
 
 ![iblock-inputstream-func](./dot/iblock-inputstream-func.svg)
 
-IBlockInputStream 继承关系
+### IBlockInputStream 继承关系
 
 ![iblockinputstream](./dot/iblockinputstream.svg)
 
+#### AsynchronousBlockInputStream
+
+
+> Executes another BlockInputStream in a separate thread.
+> This serves two purposes:
+> 1. Allows you to make the different stages of the query execution pipeline work in parallel.
+> 2. Allows you not to wait until the data is ready, and periodically check their readiness without blocking.
+>    This is necessary, for example, so that during the waiting period you can check if a packet
+>     has come over the network with a request to interrupt the execution of the query.
+>    It also allows you to execute multiple queries at the same time.
+
+![asynchronousBlockInputStream](./dot/asynchronous-block-inputstream.svg)
+
+#### PipelineExecutingBlockInputStream
+
+> Implement IBlockInputStream from QueryPipeline.
+> It's a temporary wrapper.
+
+![pipelineExecutingBlockInputStream](./dot/pipeline-executing-block-input-stream.svg)
 
 TODO:
 1. TypePromotion 模板

@@ -8,7 +8,7 @@
 
 对于Query语句，会session.Execute生成一个执行器，返回一个resultSet, 最后调用``writeResultset``, 从ResultSet.Next中获取结果，然后将结果返回给客户端。
 
-![tidb server main](./tidb-server-main.svg)
+![tidb server main](./dot/tidb-server-main.svg)
 
 ### 处理conn loop
 
