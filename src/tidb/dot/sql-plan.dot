@@ -1,0 +1,104 @@
+digraph sql_plan {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  Compile[
+    shape="record";
+    label="{{
+      Compile|
+      置定并优化查询计划
+    }}";
+  ];
+
+  Compile -> {
+    Preprocess;
+    Optimize;
+    GetInfoSchema;
+  };
+  Preprocess[
+    shape="record";
+    label="{{
+    Preprocess\l|
+      一些合法性检查以及名字绑定
+    }}";
+  ];
+
+  Optimize[
+    shape="record";
+    label="{{
+      Optimize|
+      制定并优化查询计划\l
+    }}";
+  ];
+  DoOptimize[label="DoOptimize\loptimize a logical plan \lto a physical plan"]
+  DoOptimize[
+    shape="record";
+    label="{{
+      DoOptimize|
+      将逻辑计划转换为物理计划\l
+    }}";
+  ];
+  Optimize -> optimize;
+  optimize -> {
+    PlanBuilder_Build;
+    DoOptimize;
+  }
+  subgraph cluster_PlanBuilder {
+    graph[label="PlanBuilder";fontsize=20;];
+    PlanBuilder_Build[
+      shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        PlanBuilder.Build\l|
+        Builds the ast node to a logical plan\l
+      }}";
+    ];
+    PlanBuilder_Build -> {
+      buildInsert;
+      buildDelete;
+      buildSelect;
+      buildPrepare;
+    }
+  }
+  logicalOptimize[label="logicalOptimize\l遍历optRuleList, \l调用相应优化方法"]
+  phyicalOptimize[label="phyicalOptimize\l物理优化"]
+  DoOptimize -> {
+    logicalOptimize;
+    phyicalOptimize;
+    postOptimize;
+  };
+
+  // 基于规则的优化
+  rule_optimize[label="rule.optimize\l基于规则的优化"];
+  logicalOptimize -> rule_optimize;
+  findBestTask[label="findBestTask\lconverts the logical plan \lto the physical plan"];
+
+  phyicalOptimize -> {
+    recursiveDeriveStats;
+    findBestTask;
+    plan;
+  };
+
+  postOptimize -> {
+    eliminatePhysicalProjection;
+    injectExtraProjection;
+  };
+  eliminatePhysicalProjection -> doPhysicalProjectionElimination;
+
+  subgraph cluster_find_best_task {
+    graph[label="find_best_task.go";fontsize=20;style=rounded]
+    LogicalShow;
+    LogicalShowDDLJobs;
+    baseLogicalPlan;
+    Datasource;
+  }
+
+  findBestTask -> {
+    LogicalShow;
+    LogicalShowDDLJobs;
+    baseLogicalPlan;
+    Datasource;
+  };
+}

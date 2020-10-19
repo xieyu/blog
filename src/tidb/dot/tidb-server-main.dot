@@ -89,7 +89,24 @@ digraph tidb_main_server {
       handleStmtExecute;
       handleStmtClose;
     };
-    writeResultset[label="writeResultset\l 调用ResultSet Next获取结果"];
+    writeResultset[
+      shape="record";
+      label="{{
+        writeResultset|
+        将结果写回客户端
+      }}";
+    ];
+    writeResultset -> writeChunks -> rs_Next;
+    writeChunks -> writePacket;
+    rs_Next[
+      fillcolor="#f38181";
+      style=filled;
+      shape="record";
+      label="{{
+        resultSet Next|
+        结果集Next，驱动execturo执行\l
+      }}";
+    ];
     handleQuery[
       shape="record";
       label="{{
@@ -98,9 +115,10 @@ digraph tidb_main_server {
         返回结果集\l
       }}";
     ];
-
     Parse[
       shape="record";
+      fillcolor="#f38181";
+      style=filled;
       label="{{
         Parse|
         将sql语句解析为smt\l
@@ -118,12 +136,24 @@ digraph tidb_main_server {
       Compile;
       runStmt;
     }
+    runStmt -> buildExecutor[style=dashed]
+    buildExecutor[
+      shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        buildExecutor|
+        将plan转换为executor\l
+      }}";
+    ];
     Compile[
       shape="record";
+      fillcolor="#f38181";
+      style=filled;
       label="{{
         Compile|
-        将stmt的ast tree转换为\l
-        physical plan\l
+        将stmt的ast tree转换为 physical plan\l
+        制定查询计划并优化\l
       }}";
     ];
     runStmt[

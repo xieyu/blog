@@ -1,72 +1,172 @@
 # TiDB Server Main Loop
 
-跟着官方的tidb源码阅读博客，看了TiDB main函数，大致了解了一个SQL的处理过程
+<!-- toc -->
 
-## conn accept
+跟着官方的[tidb源码阅读博客](https://pingcap.com/blog-cn/tidb-source-code-reading-3/)，看了TiDB main函数，大致了解了一个SQL的处理过程
+
+## conn session
 
 下图显示了TiDB中Accept一个mysql连接的处理流程，对于每个新的conn, TiDB会启动一个goroutine来处理这个conn, 并按照Mysql协议，处理不同的mysql cmd。
+每个conn在server端会有个对应的session.
 
 对于Query语句，会session.Execute生成一个执行器，返回一个resultSet, 最后调用``writeResultset``, 从ResultSet.Next中获取结果，然后将结果返回给客户端。
 
 ![tidb server main](./dot/tidb-server-main.svg)
 
-### 处理conn loop
+一个sql语句执行过程中经过以下几个过程:
 
+1. `ParseSQL` 将SQL语句解析为stmt ast tree
+2. `Compile` 将stmt ast tree 转换为physical plan
+3. `BuildExecutor` 创建executor
+4. `resultSet.Next` 驱动executor执行
+
+![sql-to-resultset](./dot/sql-to-resultset.svg)
+
+## ParseSQL
+
+### StmtNodes
+
+StmtNode 接口定义
 ```go
-// Run reads client query and writes query result to client in for loop, if there is a panic during query handling,
-// it will be recovered and log the panic error.
-// This function returns and the connection is closed if there is an IO error or there is a panic.
-func (cc *clientConn) Run(ctx context.Context) {
-//other code..
-for {
-    // other code ...
-		data, err := cc.readPacket()
-
-    // other code ...
-		if err = cc.dispatch(ctx, data); err != nil {
-      // other code ...
-    }
-    // other code ...
+// Node is the basic element of the AST.
+// Interfaces embed Node should have 'Node' name suffix.
+type Node interface {
+	// Restore returns the sql text from ast tree
+	Restore(ctx *format.RestoreCtx) error
+	// Accept accepts Visitor to visit itself.
+	// The returned node should replace original node.
+	// ok returns false to stop visiting.
+	//
+	// Implementation of this method should first call visitor.Enter,
+	// assign the returned node to its method receiver, if skipChildren returns true,
+	// children should be skipped. Otherwise, call its children in particular order that
+	// later elements depends on former elements. Finally, return visitor.Leave.
+	Accept(v Visitor) (node Node, ok bool)
+	// Text returns the original text of the element.
+	Text() string
+	// SetText sets original text to the Node.
+	SetText(text string)
 }
+
+// StmtNode represents statement node.
+// Name of implementations should have 'Stmt' suffix.
+type StmtNode interface {
+	Node
+	statement()
 }
 ```
 
-### cmd dispatch
+stmtNode实现种类和继承关系
+
+![stmt-nodes](./dot/stmt-nodes.svg)
+
+## Compile
+
+
+![sql-plan](./dot/sql-plan.svg)
+
+### logical plan optimize
 
 ```go
-// dispatch handles client request based on command which is the first byte of the data.
-// It also gets a token from server which is used to limit the concurrently handling clients.
-// The most frequently used command is ComQuery.
-func (cc *clientConn) dispatch(ctx context.Context, data []byte) error {
-//other code ...
-	cmd := data[0]
-	data = data[1:]
-//other code ...
-	dataStr := string(hack.String(data))
-
-	switch cmd {
-	case mysql.ComQuery: // Most frequently used command.
-		if len(data) > 0 && data[len(data)-1] == 0 {
-			data = data[:len(data)-1]
-			dataStr = string(hack.String(data))
-		}
-		return cc.handleQuery(ctx, dataStr)
-    //other case ...
-  }
+var optRuleList = []logicalOptRule{
+	&gcSubstituter{},
+	&columnPruner{},
+	&buildKeySolver{},
+	&decorrelateSolver{},
+	&aggregationEliminator{},
+	&projectionEliminator{},
+	&maxMinEliminator{},
+	&ppdSolver{},
+	&outerJoinEliminator{},
+	&partitionProcessor{},
+	&aggregationPushDownSolver{},
+	&pushDownTopNOptimizer{},
+	&joinReOrderSolver{},
+	&columnPruner{}, // column pruning again at last, note it will mess up the results of buildKeySolver
 }
 ```
 
-## SQL Execute
+### task
 
-TiDB中SQL执行过程如下
+task分为rooTask和copTask, rootTask在TIDB端执行，
+copTask在kv层执行
 
-![sql-to-resultset](./sql-to-resultset.svg)
+#### rootTask
+```go
+// rootTask is the final sink node of a plan graph. It should be a single goroutine on tidb.
+type rootTask struct {
+	p   PhysicalPlan
+	cst float64
+}
+```
 
-### SQL Plan Optimize: 制定查询计划以及优化
+#### copTask 
+```go
+// copTask is a task that runs in a distributed kv store.
+// TODO: In future, we should split copTask to indexTask and tableTask.
+type copTask struct {
+	indexPlan PhysicalPlan
+	tablePlan PhysicalPlan
+	cst       float64
+	// indexPlanFinished means we have finished index plan.
+	indexPlanFinished bool
+	// keepOrder indicates if the plan scans data by order.
+	keepOrder bool
+	// doubleReadNeedProj means an extra prune is needed because
+	// in double read case, it may output one more column for handle(row id).
+	doubleReadNeedProj bool
 
-![sql-plan](./sql-plan.svg)
+	extraHandleCol   *expression.Column
+	commonHandleCols []*expression.Column
+	// tblColHists stores the original stats of DataSource, it is used to get
+	// average row width when computing network cost.
+	tblColHists *statistics.HistColl
+	// tblCols stores the original columns of DataSource before being pruned, it
+	// is used to compute average row width when computing scan cost.
+	tblCols           []*expression.Column
+	idxMergePartPlans []PhysicalPlan
+	// rootTaskConds stores select conditions containing virtual columns.
+	// These conditions can't push to TiKV, so we have to add a selection for rootTask
+	rootTaskConds []expression.Expression
 
-### SQL build executor
+	// For table partition.
+	partitionInfo PartitionInfo
+}
+```
+
+### ExecStmt
+
+```go
+// ExecStmt implements the sqlexec.Statement interface, it builds a planner.Plan to an sqlexec.Statement.
+type ExecStmt struct {
+	// GoCtx stores parent go context.Context for a stmt.
+	GoCtx context.Context
+	// InfoSchema stores a reference to the schema information.
+	InfoSchema infoschema.InfoSchema
+	// Plan stores a reference to the final physical plan.
+	Plan plannercore.Plan
+	// Text represents the origin query text.
+	Text string
+
+	StmtNode ast.StmtNode
+
+	Ctx sessionctx.Context
+
+	// LowerPriority represents whether to lower the execution priority of a query.
+	LowerPriority     bool
+	isPreparedStmt    bool
+	isSelectForUpdate bool
+	retryCount        uint
+	retryStartTime    time.Time
+
+	// OutputNames will be set if using cached plan
+	OutputNames []*types.FieldName
+	PsStmt      *plannercore.CachedPrepareStmt
+}
+```
+
+
+## build executor
 
 根据plan生成相应的executor
 
