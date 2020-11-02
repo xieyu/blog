@@ -78,6 +78,7 @@ TiDB 主要分为两个模块对计划进行优化[1](https://pingcap.com/blog-c
 
 
 ``findBestTask`` 将logicalPlan 转换为physical plan
+
 ```
 type LogicalPlan interface {
 	// findBestTask converts the logical plan to the physical plan. It's a new interface.

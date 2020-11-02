@@ -47,7 +47,7 @@ Value: null
 TiDB 使用Schema来将关系数据库中的table/index等映射到TiKV的kv存储中。 Schema本身也是以kv的形式保存在TiKV中的。
 TiDB是无状态的，而且在TiDB内存中也加载这一份Schema。所以存在schema异步更新的问题。
 
-![model](./model.svg)
+![model](./dot/model.svg)
 
 ## Schema 存储/加载/修改
 

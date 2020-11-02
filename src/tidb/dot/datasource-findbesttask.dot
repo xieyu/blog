@@ -1,0 +1,169 @@
+digraph datasource_findBestTask {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  findBestTask[
+    shape="record";
+    label="{{
+      DataSource.findBestTask
+    }}";
+  ];
+  findBestTask -> {
+    convertToIndexMergeScan;
+    convertToPointGet;
+    convertToBatchPointGet;
+    convertToTableScan;
+  }[color="#b83b5e"];
+
+  convertToIndexMergeScan -> {
+    convertToPartialTableScan;
+    convertToPartialIndexScan;
+    buildIndexMergeTableScan;
+    finishCopTask;
+    copTask;
+  }[color="#3f72af"]
+
+  convertToPartialIndexScan -> {
+    PhysicalSelection;
+    getOriginalPhysicalIndexScan;
+  }
+  getOriginalPhysicalIndexScan -> PhysicalIndexScan;
+
+  convertToPartialTableScan -> {
+    PhysicalSelection;
+    getOriginalPhysicalTableScan;
+  }
+  getOriginalPhysicalTableScan ->  PhysicalTableScan;
+  buildIndexMergeTableScan -> {
+    PhysicalTableScan;
+  }
+  convertToTableScan -> {
+    copTask;
+    getOriginalPhysicalIndexScan;
+    addPushedDownSelection;
+  }
+  {
+    PhysicalTableScan;
+    PhysicalIndexScan;
+  } -> copTask[style=dashed];
+
+  getOriginalPhysicalIndexScan -> PhysicalTableScan;
+
+  convertToPointGet -> {
+    PointGetPlan;
+    rootTask;
+  };
+  PointGetPlan -> rootTask[style=dashed];
+  BatchPointGetPlan -> rootTask[style=dashed];
+
+  convertToBatchPointGet ->{
+    rootTask;
+    BatchPointGetPlan;
+    PhysicalSelection;
+  }[color="#17b978"];
+
+  rootTask[
+    shape="record";
+    label="{{
+    rootTask|
+    在TiDB端执行\l
+    }}";
+  ];
+  copTask[
+    shape="record";
+    label="{{
+    copTask|
+    在TikV端执行\l
+    }}";
+  ];
+  addPushedDownSelection -> {
+    PhysicalSelection;
+  }
+
+  PhysicalIndexScan[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalIndexScan
+    }}";
+  ];
+  PhysicalTableScan[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalTableScan
+    }}";
+  ];
+  PhysicalSelection[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalSelection
+    }}";
+  ];
+  PointGetPlan[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PointGetPlan
+    }}";
+  ];
+  BatchPointGetPlan[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      BatchPointGetPlan
+    }}";
+  ];
+  finishCopTask[
+    shape="record";
+    label="{{
+    finishCopTask|
+    means we cose the copprocessor\l 
+    task and create a root task\l
+    }}";
+  ];
+  finishCopTask -> {
+    PhysicalIndexReader;
+    PhysicalTableReader;
+    buildIndexLookUpTask;
+    rootTask;
+  }[color="#e84545"];
+
+  PhysicalIndexLookUpReader[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalIndexLookUpReader|
+      index look up reader in tidb.\l 
+      It's used in case of double reading.\l
+    }}";
+  ];
+  PhysicalTableReader[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalTableReader
+    }}";
+  ];
+  PhysicalIndexReader[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalIndexReader
+    }}";
+  ];
+
+  buildIndexLookUpTask -> PhysicalIndexLookUpReader;
+  PhysicalIndexScan -> PhysicalIndexReader[style=dashed];
+  PhysicalTableScan -> PhysicalTableReader[style=dashed];
+}

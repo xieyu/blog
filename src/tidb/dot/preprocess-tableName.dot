@@ -1,0 +1,83 @@
+digraph preprocess_tablename {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Compile[
+    shape="record";
+    label="{{
+      Compile|
+      将stmt node解析为\l 
+      physical plan\l
+    }}";
+  ];
+  Compile -> Preprocess -> handleTableName;
+  Compile -> PlanBuilder_Build;
+  PlanBuilder_Build -> buildInsert;
+  PlanBuilder_Build[
+    shape="record";
+    label="{{
+      PlanBuilder.Build\l
+      创建Logical plan
+    }}";
+  ];
+  handleTableName -> {
+    TableByName;
+    SchemaByName;
+  }
+  subgraph cluster_InfoSchema {
+    graph[label="InfoSche";fontsize=20;];
+    schemaMap[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        schemaMap|
+        schemaMap map[string]*schemaTables;
+      }}";
+    ];
+    schemaTables[
+      shape="record";
+      label="{{
+        schemaTables|
+        dbInfo *model.DBInfo\l|
+        tables map[string]table.Table
+      }}";
+    ];
+    schemaTables -> TableInterface;
+    TableInterface[
+      shape="record";
+      label="{{
+        TableInterface|
+        Table interface
+      }}";
+    ];
+    TableInterface -> {
+      TableCommon;
+      partitionedTable;
+      partitionTableWithGivenSets;
+      perfSchemaTable;
+      metricSchemaTable;
+      infoschemaTable;
+      VirtualTable;
+    }[label=impl];
+    SchemaByName -> schemaMap;
+    schemaMap -> schemaTables;
+    TableByName[
+      shape="record";
+      label="{{
+        TableByName|
+        根据table名字找到tableInfo
+      }}";
+    ];
+    SchemaByName[
+      shape="record";
+      label="{{
+        schemaByName|
+        根据schema名字获取DbInfo
+      }}";
+    ];
+    TableByName -> schemaMap;
+    SchemaByName;
+  }
+}

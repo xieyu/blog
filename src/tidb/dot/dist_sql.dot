@@ -1,0 +1,136 @@
+digraph table_reader_executor {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_copprocessor {
+    graph[label="copprocessor";fontsize=20;];
+    taskCh[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="tashCh"
+    ];
+    copIterator_Next -> {
+      recvFromRespCh;
+      broadcastIfNeeded;
+    }
+    taskCh -> run;
+    copIterator_open ->  {
+      taskSender_run;
+      run;
+    }
+    taskSender_run -> sendToTaskCh;
+    run[
+      shape="record";
+      label="{{
+        run|
+        go worker.run()
+      }}";
+    ];
+    recvFromRespCh -> respCh;
+    respCh[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="respCh"
+    ];
+    sendToRespCh -> respCh;
+    batchCopIterator_Next;
+
+
+    subgraph cluster_copIteratorWorker {
+      graph[label="copIteratorWorker";fontsize=20;];
+      run -> handleTask -> {
+        sendToRespCh;
+        handleTaskOnce;
+      }
+      handleTaskOnce -> {
+        NewReplicaReadRequest;
+        SendReqCtx;
+        handleCopResponse;
+        handleCopStreamResult;
+      }[color="#3fc1c9"];
+
+      handleCopResponse -> sendToRespCh;
+      handleCopStreamResult -> {
+        handleBatchCopResponse;
+        buildCopTasksFromRemain;
+      }
+      SendReqCtx[
+        shape="record";
+        label="{{
+          SednReqCtx|
+          向tikv发送请求
+        }}";
+      ];
+      SendReqCtx -> {
+        NewRegionRequestSender;
+        RegionRequestSender_SendReqCtx;
+      }
+      RegionRequestSender_SendReqCtx -> sendReqToRegion;
+      sendReqToRegion[
+        shape="record";
+        label="{{
+          sendReqToRegion|
+          发送请求到Tikv
+        }}";
+      ];
+    }
+    copClient_Send -> {
+      copIterator_open;
+      buildCopTasks;
+    }
+    buildCopTasks -> taskCh[style=dashed];
+    sendToTaskCh -> taskCh;
+    finishCh[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="finishCh"
+    ];
+    finishCh -> {
+      recvFromRespCh;
+      sendToRespCh;
+      sendToTaskCh;
+    }[style=dashed];
+    copIterator_Close -> {
+      CancelAll;
+      finishCh;
+    }
+    CancelAll[
+      shape="record";
+      label="{{
+      CancelAll|
+      取消所有的rpc请求\l
+      }}";
+    ];
+    respCh[
+      shape="record";
+      label="{{
+        respCh|
+        worker向resp Channel中存放数据\l|
+        Next从channel中取数据\l
+      }}";
+    ];
+  }
+
+  subgraph cluster_distsql {
+    graph[label="distsql";fontsize=20;];
+    selectResult_Next -> {
+      fetchResp;
+    }
+    fetchResp -> kv_Response_Next;
+    kv_Response_Next -> {
+      copIterator_Next;
+      batchCopIterator_Next;
+    }
+    SelectWithRuntimeStats -> Select;
+    Select -> copClient_Send;
+    SelectResult;
+    selectResult_Close -> {
+      copIterator_Close;
+    };
+  }
+}

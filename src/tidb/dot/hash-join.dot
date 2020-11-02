@@ -1,0 +1,224 @@
+digraph hash_join {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  HashJoinExec -> {
+    Open;
+    Next;
+    Close;
+  }
+  joinResultCh[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      joinResultCh|
+      channel
+    }}";
+  ];
+  joinChkResourceCh[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      joinChkResourceCh|
+      channel
+    }}";
+  ];
+
+  Next -> {
+    fetchAndProbeHashTable;
+    fetchAndBuildHashTable;
+    joinResultCh;
+  }
+  Next[
+    shape="record";
+    label="{{
+      Next|
+      从joinResultCh chanel\l  
+      中取结果\l
+    }}";
+  ];
+  getNewJoinResult -> joinChkResourceCh;
+  fetchAndBuildHashTable[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+      fetchAndBuildHashTable|
+      goroutine
+    }}";
+  ];
+  fetchBuildSideRows[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+      fetchBuildSideRows\l|
+      goroutine\l|
+      fetches all rows from\l 
+      build side executor\l
+      and append them to \l 
+      e.buildSideResult\l
+    }}";
+  ];
+  buildSideResultCh[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      buildSideResultCh
+    }}";
+  ];
+  fetchBuildSideRows -> {
+    buildSideExec_Next;
+  }
+  buildSideResultCh -> buildHashTableForList;
+  fetchBuildSideRows -> buildSideResultCh;
+  buildHashTableForList -> {
+    rowContainer_PutChunk;
+    rowContainer_PutChunkSelected;
+  } -> rowContainer;
+
+  fetchAndBuildHashTable -> {
+    fetchBuildSideRows;
+    buildHashTableForList;
+  }
+
+  fetchAndProbeHashTable -> {
+    initializeForProbe;
+    joinWorkerWaitGroup_Add;
+    runJoinWorker;
+    waitJoinWorkersAndCloseResultChan;
+    fetchProbeSideChunks;
+  }
+  runJoinWorker[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+      runJoinWorker|
+      单独go routine 执行JoinWorker\l|
+      从probeResultChns取probe数据\l
+      将Join result的结果放到jionResultCh中\l
+      等Next去取|
+      可以并行跑多个joinWorker
+    }}";
+  ];
+  runJoinWorker -> {
+    getNewJoinResult;
+    join2ChunkForOuterHashJoin;
+    join2Chunk;
+  }
+  {
+    join2ChunkForOuterHashJoin;
+  } -> joinResultCh[style=dashed;color=red];
+  join2Chunk -> {
+    VectorizedFilter;
+    initHash;
+    HashChunkSelected;
+    joinMatchedProbeSideRow2Chunk;
+    getNewJoinResult;
+    joinResultCh;
+    rowContainer;
+  }[color="#3fc1c9"];
+
+  join2ChunkForOuterHashJoin[
+    shape="record";
+    label="{{
+      join2ChunkForOuterHashJoin|
+      join chunks when using the outer to\l
+      to build a hash table\l
+    }}";
+  ];
+
+  join2ChunkForOuterHashJoin -> {
+    initHash;
+    HashChunkColumns;
+    joinMatchedProbeSideRow2ChunkForOuterHashJoin;
+    getNewJoinResult;
+    joinResultCh;
+  }[color="#e84545"];
+
+  join2ChunkForOuterHashJoin -> {
+    joinMatchedProbeSideRow2ChunkForOuterHashJoin;
+  }
+  joinMatchedProbeSideRow2Chunk -> {
+    rowContainer;
+    buildSideRows;
+  }
+  rowContainer -> buildSideRows[style=dashed];
+
+  fetchProbeSideChunks[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+      fetchProbeSideChunks|
+      goroutine\l|
+      get chunks from fetches chunks\l 
+      from the big table in a \l 
+      background goroutine\l|
+      and sends the chunks to \l 
+      multiple channels which\l 
+      will be read by multiple join workers.\l
+    }}";
+  ];
+  fetchProbeSideChunks -> {
+    probeSideExec_Next;
+    probeResultChs;
+    wait4BuildSide;
+  }
+  wait4BuildSide[
+    shape="record";
+    label="{{
+      wait4BuildSide|
+      等待hashtable build结束
+    }}";
+  ];
+  buildFinished[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      buildFinished|
+      channel
+    }}";
+  ];
+  wait4BuildSide -> buildFinished;
+  fetchAndBuildHashTable -> buildFinished;
+  probeResultChs[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      probeResultChs|
+      probeResultChs[workerID]
+    }}";
+  ];
+  probeResultChs -> runJoinWorker;
+  initializeForProbe -> {
+    newFirstChunk;
+    joinChkResourceCh;
+  }
+  Close -> {
+    closeCh;
+    close_probeChkResourceCh;
+  }
+  buildSideExec_Next[
+    shape="record";
+    label="{{
+    buildSideExec_Next|
+    从buildSideExec child中取数据
+    }}";
+  ];
+  probeSideExec_Next[
+    shape="record";
+    label="{{
+      probeSideExec_Next|
+      从probeSideExec child中取数据
+    }}";
+  ];
+
+}

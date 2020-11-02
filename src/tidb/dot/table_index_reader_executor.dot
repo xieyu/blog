@@ -1,0 +1,33 @@
+digraph table_index_reader_exexutor {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Open -> {
+    rebuildIndexRanges;
+    buildPartitionTableKeyRanges;
+    buildKeyRanges;
+    IndexReaderExecutor_open;
+  }
+  IndexReaderExecutor_open -> {
+    constructDistExec;
+    SelectResut;
+    Fetch;
+  }
+  Next -> selectResult_Next;
+  Close -> selectResult_Close;
+  constructDistExec -> {
+    PhysicalPlan_ToPB;
+  }
+  subgraph cluster_distsql {
+    graph[label="distsql";fontsize=20;];
+    Fetch;
+    selectResult_Next;
+    SelectResut -> {
+      SelectWithRuntimeStats;
+      selectResultFunc;
+    }
+    SelectWithRuntimeStats -> Select;
+  }
+}

@@ -1,0 +1,82 @@
+digraph txn_commit {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Commit -> {
+    newTwoPhaseCommitter;
+    initKeysAndMutations;
+    twoPhaseCommitter_execute;
+    onCommitted;
+  }
+  initKeysAndMutations[
+    shape="record";
+    label="{{
+      initKeysAndMutations|
+      遍历membuf，变换为muations\l
+    }}";
+  ];
+  initKeysAndMutations -> {
+    GetMemBuffer;
+    NewCommiterMutations;
+    IterWithFlags;
+  }
+  NewCommiterMutations -> CommitterMutations;
+  CommitterMutations[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      CommitterMutations|
+	      ops               []pb.Op\l|
+	      keys              [][]byte\l|
+	      values            [][]byte\l|
+	      isPessimisticLock []bool\l
+    }}";
+  ];
+  twoPhaseCommitter_execute -> {
+    checkAsyncCommit;
+    prewriteBinlog;
+    prewriteMutations;
+    stripNoNeedCommitKeys;
+    getTimestampWithRetry;
+    checkSchemaValid;
+    getCommitTS;
+    commitTxn;
+  }
+  prewriteMutations -> doActionOnMutations
+  CommitterMutations -> prewriteMutations[style=dashed];
+  CommitterMutations -> commitMutations[style=dashed];
+  commitTxn -> {
+    commitMutations;
+  }
+  commitMutations -> doActionOnMutations;
+  doActionOnMutations -> {
+    groupMutations;
+    doActionOnGroupMutations;
+  }
+
+  doActionOnGroupMutations -> doActionOnBatches;
+  doActionOnBatches -> {
+    handleSingleBatch;
+    newBatchExecutor;
+    batchExecutor_process;
+  }
+  batchExecutor_process -> startWorker -> handleSingleBatch;
+
+  handleSingleBatch -> {
+    tikvrpc_NewRequest;
+    NewRegionRequestSender;
+    SendReq;
+    doActionOnGroupMutations;
+  }
+  SendReq[
+    shape="record";
+    label="{{
+      SendReq|
+      发送请求到tikv服务
+    }}";
+  ];
+  SendReq -> sendReqToRegion -> SendRequest
+}

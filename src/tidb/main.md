@@ -62,11 +62,15 @@ stmtNode实现种类和继承关系
 
 ## Compile
 
+Compile中首先使用`planbuilder`，将stmt ast 树转换为logical plan, 
+然后`logicalOptimize`做基于规则的逻辑优化，`physicalOptimize`会根据
+cost选择最佳的physical plan. 最后`postOptimize`还会做一波优化。
 
 ![sql-plan](./dot/sql-plan.svg)
 
 ### logical plan optimize
 
+逻辑优化(Rule-based-Optimization, 简称RBO)，主要依据关系代数的等价交换规则做一些逻辑变换。
 ```go
 var optRuleList = []logicalOptRule{
 	&gcSubstituter{},
@@ -86,10 +90,65 @@ var optRuleList = []logicalOptRule{
 }
 ```
 
+### Physical Optimization
+
+物理优化，主要通过对查询的数据读取、表连接方式、表连接顺序、排序等技术进行优化。
+基于代价的优化（CBO), 依赖于统计信息的准确性与及时性，执行计划会及时的根据数据变换做对应的调整
+
+
+主要实现在函数`findBestTask`中，每个logical plan都实现了这个findBestTask接口, 具体实现在`planner/core/find_best_task.go`中
+其中`baseLogicalPlan.findBestTask` 为封装的基类函数
+在attach2Task中会更新task的cost
+
+#### findBestTask
+
+![](./dot/find-best-task.svg)
+
+
+```go
+	// findBestTask converts the logical plan to the physical plan. It's a new interface.
+	// It is called recursively from the parent to the children to create the result physical plan.
+	// Some logical plans will convert the children to the physical plans in different ways, and return the one
+	// With the lowest cost and how many plans are found in this function.
+	// planCounter is a counter for planner to force a plan.
+	// If planCounter > 0, the clock_th plan generated in this function will be returned.
+	// If planCounter = 0, the plan generated in this function will not be considered.
+	// If planCounter = -1, then we will not force plan.
+	findBestTask(prop *property.PhysicalProperty, planCounter *PlanCounterTp) (task, int64, error)
+
+	// attach2Task makes the current physical plan as the father of task's physicalPlan and updates the cost of
+	// current task. If the child's task is cop task, some operator may close this task and return a new rootTask.
+	attach2Task(...task) task
+```
+findBestTask最后的输出为task, 可以使用explain查看最后生成的task
+
+```sql
+>create table t (id varchar(31), name varchar(50), age int, key id_idx(id));
+>explain select name, age from t where age > 18;
++-----------------------+---------+-----------+---------------+--------------------------------+
+| id                    | estRows | task      | access object | operator info                  |
++-----------------------+---------+-----------+---------------+--------------------------------+
+| Projection_4          | 0.00    | root      |               | tests.t.name, tests.t.age      |
+| └─TableReader_7       | 0.00    | root      |               | data:Selection_6               |
+|   └─Selection_6       | 0.00    | cop[tikv] |               | eq(tests.t.id, "pingcap")      |
+|     └─TableFullScan_5 | 1.00    | cop[tikv] | table:t       | keep order:false, stats:pseudo |
++-----------------------+---------+-----------+---------------+--------------------------------+
+```
+
 ### task
 
-task分为rooTask和copTask, rootTask在TIDB端执行，
-copTask在kv层执行
+cop task 是指被下推到 KV 端分布式执行的计算任务，root task 是指在 TiDB 端单点执行的计算任务。
+
+```go
+type task interface {
+	count() float64
+	addCost(cost float64)
+	cost() float64
+	copy() task
+	plan() PhysicalPlan
+	invalid() bool
+}
+```
 
 #### rootTask
 ```go
@@ -136,6 +195,9 @@ type copTask struct {
 
 ### ExecStmt
 
+Compile后最后返回的数据结构为`ExecStmt`, 接下来会使用`buildExecutor`把ExecSmt
+转变为executor.
+
 ```go
 // ExecStmt implements the sqlexec.Statement interface, it builds a planner.Plan to an sqlexec.Statement.
 type ExecStmt struct {
@@ -166,14 +228,14 @@ type ExecStmt struct {
 ```
 
 
-## build executor
+## Executor
 
-根据plan生成相应的executor
+根据physical plan生成相应的executor, Executor interface如下, 使用了Volcano模型，接口用起来和迭代器差不多，采用Open-Next-Close套路来使用。
 
+* `Open`: 做一些初始化工作
+* `Next`: 执行具体操作 
+* `Close`: 做一些清理操作
 
-![sql-executor](./sql-executor.svg)
-
-Executor interface如下, 使用了Volcano模型，接口用起来和迭代器差不多，采用Open-Next-Close套路来使用。
 ```go
 // Executor is the physical implementation of a algebra operator.
 //
@@ -193,18 +255,27 @@ type Executor interface {
 	Schema() *expression.Schema
 }
 ```
+![sql-executor](./dot/sql-executor.svg)
 
-### executor Next
 
-#### handleNoDelay
+## RecordSet
 
-不需要返回结果的立即执行
+executor的next方法，将由recordset的next来驱动不断地执行。
 
-![sql-nodelay-next](./sql-nodelay-next.svg)
+下图摘自[2](https://pingcap.com/blog-cn/tidb-source-code-reading-3/)
+executor本身
 
-#### RecordSet driver
+![](./dot/executor-next.png)
 
-![sql-recordset-driver](./sql-recordset-driver.svg)
+### handleNoDelay
+
+Insert 这种不需要返回数据的语句，只需要把语句执行完成即可。这类语句也是通过 Next 驱动执行，驱动点在构造 recordSet 结构之前
+
+![sql-nodelay-next](./dot/sql-nodelay-next.svg)
+
+### RecordSet driver
+
+![sql-recordset-driver](./dot/sql-recordset-driver.svg)
 
 ```go
 // RecordSet is an abstract result set interface to help get data from Plan.
@@ -280,4 +351,7 @@ func (cc *clientConn) writeChunks(ctx context.Context, rs ResultSet, binary bool
 }
 ```
 
+## Ref
 
+1. [理解TIDB执行计划](https://www.bookstack.cn/read/pingcap-docs-cn/sql-understanding-the-query-execution-plan.md)
+2. [TiDB 源码阅读系列文章（三）SQL 的一生](https://pingcap.com/blog-cn/tidb-source-code-reading-3/)

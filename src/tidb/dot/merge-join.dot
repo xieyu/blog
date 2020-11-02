@@ -1,0 +1,131 @@
+digraph merge_join {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  MergeJoinExec -> {
+    Next;
+    Open;
+    Close;
+  }
+  Next -> {
+    fetchNextInnerGroup;
+    fetchNextOuterGroup;
+    compare;
+    onMissMatch;
+    tryToMatchInners;
+  }
+
+  compare -> {
+    compareFuncs;
+  }
+  compare[
+    shape="record";
+    label="{{
+      compare|
+      比较joinkey
+    }}";
+  ];
+
+  Open -> {
+    baseExecutor_Open;
+    init;
+  }
+  Close -> {
+    finish;
+  }
+
+  subgraph cluster_mergeJoinTable {
+    graph[label="mergeJoinTable";fontsize=20;];
+    init -> {
+      newVecGroupChecker;
+      NewIterator4Chunk;
+      NewRowContainer;
+    };
+    finish -> {
+      rowContainer_close;
+    };
+
+    fetchNextInnerGroup -> {
+      fetchNextChunk;
+      isExhausted;
+      NewIterator4Chunk;
+      splitIntoGroups;
+      selectNextGroup;
+      groupRowsIter_Begin;
+    }[color="#b83b5e"];
+
+    fetchNextOuterGroup -> {
+      isExhausted;
+      fetchNextChunk;
+      VectorizedFilter;
+      splitIntoGroups;
+      selectNextGroup;
+      groupRowsIter_Begin;
+    }[color="#17b978"];
+
+    subgraph cluster_vecGroupChecker {
+      graph[label="vecGroupChecker";fontsize=20;];
+      splitIntoGroups[
+        shape="record";
+        label="{{
+          splitIntoGroups|
+          split a chunk into muliple\l 
+          groups with the row \l
+          in the same group the same groupKey\l
+        }}";
+      ];
+      splitIntoGroups -> {
+        evalGroupItemsAndResolveGroups;
+      }
+      sameGroup[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          sameGroup []bool\l|
+            sameGroup is used to check \l 
+            whether the current row belongs\l 
+            to the same group as the previous row\l
+        }}";
+      ];
+      groupOffset[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          groupOffset []int|
+            groupOffset holds the \l 
+            offset of the last row \l 
+            in each group of the current chunk\l
+        }}";
+      ];
+      splitIntoGroups -> groupOffset;
+      evalGroupItemsAndResolveGroups -> sameGroup;
+      getNextGroup -> groupOffset;
+      isExhausted;
+    }
+
+    fetchNextChunk -> {
+      Next_MergeJoinExec_child_childIndex;
+    }
+    Next_MergeJoinExec_child_childIndex[
+      shape="record";
+      label="{{
+        Next(MergeJoinExec.child[childIndex]|
+        从left/right child的\l 
+        exec中读取数据\l|
+        可参照上面的TableReader和TableIndexReader\l
+      }}";
+    ];
+    selectNextGroup -> {
+      getNextGroup;
+    }
+  }
+  subgraph cluster_joinner {
+    graph[label="joinner";fontsize=20;];
+    onMissMatch;
+    tryToMatchInners;
+  }
+}

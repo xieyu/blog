@@ -53,6 +53,7 @@ digraph sql_plan {
       label="{{
         PlanBuilder.Build\l|
         Builds the ast node to a logical plan\l
+        根据节点类型，build 相应的Plan
       }}";
     ];
     PlanBuilder_Build -> {
@@ -62,8 +63,24 @@ digraph sql_plan {
       buildPrepare;
     }
   }
-  logicalOptimize[label="logicalOptimize\l遍历optRuleList, \l调用相应优化方法"]
-  phyicalOptimize[label="phyicalOptimize\l物理优化"]
+  logicalOptimize[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+      logicalOptimize|
+      基于规则的逻辑优化\l
+    }}";
+  ];
+  phyicalOptimize[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+    phyicalOptimize\l
+      物理优化
+    }}";
+  ];
   DoOptimize -> {
     logicalOptimize;
     phyicalOptimize;
@@ -80,25 +97,20 @@ digraph sql_plan {
     findBestTask;
     plan;
   };
+  postOptimize[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+    postOptimize
+    }}";
+  ];
 
   postOptimize -> {
     eliminatePhysicalProjection;
     injectExtraProjection;
+    eliminateUnionScanAndLock;
+    enableParallelApply;
   };
-  eliminatePhysicalProjection -> doPhysicalProjectionElimination;
 
-  subgraph cluster_find_best_task {
-    graph[label="find_best_task.go";fontsize=20;style=rounded]
-    LogicalShow;
-    LogicalShowDDLJobs;
-    baseLogicalPlan;
-    Datasource;
-  }
-
-  findBestTask -> {
-    LogicalShow;
-    LogicalShowDDLJobs;
-    baseLogicalPlan;
-    Datasource;
-  };
 }

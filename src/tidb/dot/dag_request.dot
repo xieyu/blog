@@ -25,7 +25,7 @@ digraph dag_request {
 	    <Aggregation> Aggregation      *Aggregation\l| 
 	    <TopN> TopN             *TopN       \l| 
 	    <Limit> Limit            *Limit      \l| 
-	    <StreamAgg> StreamAgg        *Aggregation\l| 
+	    <StreamAgg> StreamAgg        *Aggregation\l|
     }}";
   ];
 
@@ -33,7 +33,9 @@ digraph dag_request {
     shape="record";
     label="{{
       Selection |
-        <Expr> Conditions       []*Expr\l 
+        <Expr> Conditions       []*Expr\l |
+        <RpnExpr> RpnConditions []*RpnExpr \l|
+        <Child> Child *Executor \l
     }}";
   ];
 
@@ -54,6 +56,10 @@ digraph dag_request {
     label="{{
       TableScan|
         TableId          int64        \l| 
+        Desc bool \l|
+        PrimaryColumnIds \l|
+        NextReadEngine \l|
+        Ranges []KeyRange\l|
         <ColumnInfo> Columns          []*ColumnInfo\l
     }}";
   ];
@@ -65,6 +71,9 @@ digraph dag_request {
         TableId          int64        \l| 
         IndexId          int64 \l|
         <ColumnInfo> Columns          []*ColumnInfo\l
+        Desc bool \l|
+        Unique *bool \l|
+        PrimaryColumnIds []\l
     }}";
   ];
 
@@ -89,7 +98,10 @@ digraph dag_request {
       Aggregation|
 	      <GroupBy> GroupBy []*Expr\l|
 	      <AggFunc> AggFunc []*Expr\l|
+        RpnAggRunc []*RpnExpr \l|
+        RpnGroupBy [] *RpnExpr\l|
 	      Streamed         bool\l|
+        <Child> Child *Executor \l
     }}";
   ];
 
@@ -99,6 +111,7 @@ digraph dag_request {
       TopN|
         <OrderBy> OrderBy          []*ByItem \l| 
         Limit            uint64   \l|
+        <Child> Child *Executor \l
     }}";
   ];
 
@@ -106,7 +119,8 @@ digraph dag_request {
     shape="record";
     label="{{
       Limit|
-      limit uint64\l
+      limit uint64\l|
+      <Child> Child *Executor\l
     }}"
   ];
 
@@ -132,8 +146,23 @@ digraph dag_request {
 	      ExecType_TypeStreamAgg    = 6\l
     }}";
   ];
+  RpnExpr[
+    shape="record";
+    label="{{
+      RpnExpr|
+      Exprs []*Expr;
+      Expression organized in RPN form
+    }}";
+  ];
+  RpnExpr -> Expr;
+  {
+    Selection;
+    Aggregation;
+  }-> RpnExpr;
 
   DAGRequest:Executor -> Executor;
+
+  edge[color="#b83b5e"]
   Executor:ExecType -> ExecType;
   Executor:Selection -> Selection;
   Executor:TableScan -> TableScan;
@@ -142,6 +171,15 @@ digraph dag_request {
   Executor:StreamAgg -> Aggregation;
   Executor:TopN -> TopN;
   Executor:Limit -> Limit;
+  edge[color="#gray"]
+
+
+  edge[color="#3f72af"]
+  Selection:Child -> Executor;
+  Aggregation:Child -> Executor;
+  TopN:Child -> Executor;
+  Limit:Child -> Executor;
+  edge[color="#gray"]
 
   TopN:OrderBy -> ByItem;
 
