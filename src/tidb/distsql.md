@@ -184,10 +184,7 @@ type PhysicalPlan interface {
 }
 ```
 
-
-PhysicalPlan toPB
-
-![physical_toPB](./physical_toPB.svg)
+![to-pb](./dot/to-pd.svg)
 
 # ref
 [MPP and SMP in TiDB](https://github.com/pingcap/blog-cn/blob/master/mpp-smp-tidb.md)

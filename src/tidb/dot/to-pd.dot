@@ -1,0 +1,66 @@
+digraph ToPB {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PhysicalPlan {
+    graph[label="PhysicalPlan";fontsize=20;];
+    PhysicalIndexReader;
+    PhysicalTableReader;
+    PhysicalIndexMergeReader;
+    PhysicalIndexJoin; 
+    PhysicalIndexLookUpReader;
+  }
+  PhysicalIndexReader -> buildIndexReader;
+  PhysicalTableReader -> buildTableReader;
+  PhysicalIndexMergeReader -> buildIndexMergeReader -> buildNoRangeIndexMergeReader;
+  PhysicalIndexJoin -> IndexLookUpJoin -> fetchInnerResults[style=dashed];
+
+  fetchInnerResults -> buildExecutorForIndexJoin -> buildExecutorForIndexJoinInternal -> buildIndexReaderForIndexJoin;
+  buildExecutorForIndexJoinInternal -> buildTableReaderForIndexJoin;
+  PhysicalIndexLookUpReader -> buildIndexLookUpReader;
+  buildExecutorForIndexJoinInternal -> {
+    buildIndexLookUpReaderForIndexJoin;
+  }
+
+  {
+    buildIndexLookUpReaderForIndexJoin ;
+    buildIndexLookUpReader;
+    buildCheckTable;
+  }-> buildNoRangeIndexLookUpReader
+  {
+    buildIndexReader;
+    buildIndexReaderForIndexJoin;
+  } -> buildNoRangeIndexReader;
+  {
+    buildTableReader;
+    buildTableReaderForIndexJoin;
+  } -> buildNoRangeTableReader;
+
+  {
+    buildNoRangeIndexLookUpReader;
+    buildNoRangeIndexMergeReader;
+  } -> buildIndexReq;
+
+  {
+    buildNoRangeIndexMergeReader;
+  } -> buildTableReq
+
+  {
+    buildNoRangeTableReader;
+    buildNoRangeIndexReader;
+    buildIndexReq;
+    buildTableReq;
+  } -> constructDAGReq;
+
+  constructDAGReq -> {
+    constructDistExecForTiFlash;
+    constructDistExec;
+  }
+  constructDistExec -> {
+    ToPB;
+  }
+  constructDistExecForTiFlash -> {
+    ToPB;
+  }
+}
