@@ -1,0 +1,84 @@
+digraph schema_meta {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ddl_worker[
+    shape="record";
+    label="{{
+      ddl_worker|
+      由owner节点串行执行DDLJOB\l
+      runDDLJob\l
+    }}";
+  ];
+  ddl_worker -> Meta[label=write];
+  ddl_worker[
+    shape="record";
+    label="{{
+      ddl_worker|
+      TiDB集群中的owner节点\l|
+      负责从job队列中 取ddljob\l 
+      然后调用runDDLJob 修改schema\l
+      这样保证只有一个节点在修改schema\l|
+      每执行一次DDLJob会wait 2*lease time\l
+      等待TiDB服务都更新完了schema\l
+    }}";
+  ];
+  loadInfoSchema -> Meta[label=read];
+  loadInfoSchema[
+    shape="record";
+    label="{{
+      loadInfoSchema|
+      每个TiDB server有个go routine\l|
+      每隔lease/2时间加载一次schema\l
+    }}";
+  ];
+  Meta[
+    shape="record";
+    label="{{
+      Meta|
+      在TxSttructure基础上封装\l 
+      一些创建数据库，表等方法\l 
+      还有计算dbKey/tableKey方法\l |
+      + txn * structure.TxStructure\l|
+      + StartTS uint64\l|
+      + jobListKey JobListKeyType\l|
+      - CreateDatabase\l|
+      - DropDatabase\l|
+      - GenAutoRandomID\l|
+      - GetAutoTableID\l|
+      - CreateTableOrView\l
+    }}";
+  ];
+  TxStructure[
+    shape="record";
+    label="{{
+      TxStructure|
+      支持事务的\l
+      string/hash/list等数据结构\l|
+      + reader kv.Retriever\l|
+      + readWriter kv.RetrieverMutator\l|
+      + prefix []byte\l|
+      - HSet\l|
+      - HGet\l|
+      - HDel\l
+    }}";
+  ];
+  Mutator[
+    shape="record";
+    label="{{
+      Mutator|
+      - Set(k Key, v []byte)\l|
+      - Delete(k Key) error\l
+    }}";
+  ];
+  tikvTxn[
+    shape="record";
+    label="{{
+      tikvTxn|
+      tikvTxn implements kv.Transaction\l
+    }}";
+  ];
+  TxStructure -> Mutator -> tikvTxn;
+  Meta -> TxStructure;
+}

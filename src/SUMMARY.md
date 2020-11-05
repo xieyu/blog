@@ -93,10 +93,10 @@
   - [Select 语句](./tidb/select.md)
   - [数据类型](./tidb/types.md)
   - [distsql](./tidb/distsql.md)
+  - [ddl](./tidb/ddl.md)
   - [Schema](./tidb/schema.md)
   - [Plan](./tidb/plan.md)
   - [Hash Join (draft)](./tidb/hash-join.md)
-  - [ddl](./tidb/ddl.md)
   - [table](./tidb/table.md)
 
 - [ClickHouse](./clickhouse/index.md)

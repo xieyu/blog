@@ -3,6 +3,15 @@ digraph ToPB {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
+  ToPB[
+    shape="record";
+    label="{{
+      ToPB|
+      生成physcial plan的\l
+      TiKV端对应的executor tree\l
+    }}";
+  ];
+
   subgraph cluster_PhysicalPlan {
     graph[label="PhysicalPlan";fontsize=20;];
     PhysicalIndexReader;
@@ -10,6 +19,22 @@ digraph ToPB {
     PhysicalIndexMergeReader;
     PhysicalIndexJoin; 
     PhysicalIndexLookUpReader;
+  }
+
+  subgraph cluster_LogicalPlan {
+    graph[label="LogicalPlan";fontsize=20;];
+    DataSource -> {
+      PhysicalTableReader;
+      PhysicalIndexReader;
+      PhysicalIndexMergeReader;
+    }
+    LogicalJoin -> {
+      PhysicalIndexJoin;
+      PhysicalIndexHashJoin;
+      PhysicalHashJoin;
+      PhysicalBroadCastJoin;
+      PhysicalIndexMergeJoin;
+    }
   }
   PhysicalIndexReader -> buildIndexReader;
   PhysicalTableReader -> buildTableReader;

@@ -184,8 +184,15 @@ type PhysicalPlan interface {
 }
 ```
 
+调用ToPB流程
+
 ![to-pb](./dot/to-pd.svg)
 
-# ref
-[MPP and SMP in TiDB](https://github.com/pingcap/blog-cn/blob/master/mpp-smp-tidb.md)
-[TiKV 源码解析系列文章（十四）Coprocessor 概览](https://pingcap.com/blog-cn/tikv-source-code-reading-14/)
+physical plan 的toPB方法，可以看到基本TableScan和IndexScan是作为叶子节点的.
+其他的比如PhysicalLimit, PhyscialTopN, PhyscialSelection 都用child executor.
+
+![to-pb](./dot/to-pb2.svg)
+
+# 参考
+1. [MPP and SMP in TiDB](https://github.com/pingcap/blog-cn/blob/master/mpp-smp-tidb.md)
+2. [TiKV 源码解析系列文章（十四）Coprocessor 概览](https://pingcap.com/blog-cn/tikv-source-code-reading-14/)
