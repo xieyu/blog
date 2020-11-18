@@ -1,0 +1,40 @@
+digraph decorrelateSolver {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  optimize -> {
+    extractCorColumnsBySchema4LogicalPlan;
+    case_LogicalSelection;
+    case_LogicalMaxOneRow;
+    case_LogicalProjection;
+    case_LogicalAggregation;
+    case_LogicalSort;
+  }
+  case_LogicalSelection -> {
+    AttachOnConds;
+    newConds;
+  };
+  case_LogicalMaxOneRow -> {
+    MaxOneRow;
+    optimize;
+  }
+  case_LogicalProjection -> {
+    MergeSchema;
+  }
+  case_LogicalAggregation -> {
+    canPullUpAgg;
+    canPullUp;
+    Column2Exprs;
+    AggFuncs;
+    optimize;
+    extractCorColumnsBySchema4LogicalPlan;
+    aggDefaultValueMap;
+    resetNotNullFlag;
+  }
+  case_LogicalSort -> {
+    SetChild;
+    optimize;
+  }
+}

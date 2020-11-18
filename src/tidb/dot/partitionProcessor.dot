@@ -1,0 +1,78 @@
+digraph partitionProcessor {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  node[shape=record;style=filled;fillcolor="turquoise"];
+  PartitionInfo;
+  LogicalPartitionUnionAll;
+  LogicalTableDual;
+  LogicalUnionScan;
+  node[shape=box;style=stroke;fontcolor=black];
+
+  optimize -> rewriteDataSource;
+  rewriteDataSource -> {
+    prune;
+    LogicalUnionScan;
+    rewriteDataSource;
+  }
+  prune -> {
+    GetPartitionInfo;
+    processHashPartition;
+    processRangePartition;
+    makeUnionAllChildren;
+  }
+  GetPartitionInfo -> PartitionInfo;
+  PartitionInfo[
+    shape="record";
+    label="{{
+      PartitionInfo|
+	      Type    PartitionType\l|
+	      Expr    string\l|
+	      Columns []CIStr\l|
+        Enable bool\l|
+	      Definitions []PartitionDefinition\l|
+        AddingDefinitions []PartitionDefinition\l|
+        DroppingDefinitions []PartitionDefinition\l|
+        Num                 uint64\l
+    }}"];
+  processHashPartition -> {
+    pruneHashPartition;
+    makeUnionAllChildren;
+    LogicalTableDual;
+  }
+  pruneHashPartition -> {
+    findUsedPartitions;
+  }
+  findUsedPartitions -> {
+    generateHashPartitionExpr;
+    DetachCondAndBuildRangeForPartition;
+  }
+  processRangePartition -> {
+    pruneRangePartition;
+    makeUnionAllChildren;
+  }
+  pruneRangePartition -> {
+    pruneRangeColumnsPartition;
+    makePartitionByFnCol;
+    fullRange;
+    partitionRangeForCNFExpr;
+  }
+  makeUnionAllChildren[
+    shape="record";
+    label="{{
+      makeUnionAllChildren|
+      遍历PartionRangeOr\l
+      对每个range生成一个ds\l
+      然后用LoigcalParitionUnionAll\l
+      作为他们的父节点\l
+    }}"];
+  makeUnionAllChildren -> {
+    findByName;
+    partitionNameSet;
+    resolveOptimizeHint;
+    checkHintsApplicable;
+    LogicalTableDual;
+    LogicalPartitionUnionAll;
+  }
+}

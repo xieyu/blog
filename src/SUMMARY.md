@@ -94,6 +94,8 @@
   - [数据类型](./tidb/types.md)
   - [distsql](./tidb/distsql.md)
   - [ddl](./tidb/ddl.md)
+  - [逻辑优化](./tidb/logical-optimize.md)
+  - [统计信息](./tidb/stat.md)
   - [Schema](./tidb/schema.md)
   - [Plan](./tidb/plan.md)
   - [Hash Join (draft)](./tidb/hash-join.md)

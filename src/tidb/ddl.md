@@ -124,6 +124,10 @@ owner 节点的ddl worker handleDDLJobQueue 主要调用关系如下图所示：
 
 ![ddl worker](./dot/ddl_worker.svg)
 
+#### Owner 选举
+
+![owner campaign](./dot/campaign-owner.svg)
+
 
 
 ### TiDB load schema
@@ -153,4 +157,4 @@ TiDB 在同一时刻，只允许一个节点执行 DDL 操作。用户可以把�
 
 1. [TiDB 源码阅读系列文章（十七）DDL 源码解析](https://pingcap.com/blog-cn/tidb-source-code-reading-17/)
 2. [TiDB 的异步 schema 变更实现](https://github.com/ngaut/builddatabase/blob/master/f1/schema-change-implement.md)
-3. [异步 schema 变更](https://github.com/ngaut/builddatabase/blob/master/f1/schema-change.md)
+3. [TiDB 异步Schema 变更优化](http://zimulala.github.io/2017/12/24/optimize/)

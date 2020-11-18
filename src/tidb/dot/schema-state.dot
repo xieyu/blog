@@ -16,7 +16,6 @@ digraph schema_state {
       we're waiting tiflash\l 
       replica to be finished\l
     }}"];
-
   StateDeleteOnly[
     shape="record";
     label="{{

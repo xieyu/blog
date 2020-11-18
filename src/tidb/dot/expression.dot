@@ -1,0 +1,106 @@
+digraph expression {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Expression[
+    shape="record";
+    label="{{
+      Expression interface|
+	      fmt.Stringer\l|
+	      goJSON.Marshaler\l|
+	      VecExpr\l|
+	      ReverseExpr\l|
+	      CollationInfo\l|
+        Eval\l|
+        ...
+    }}"];
+  ScalarFunction[
+    shape="record";
+    label="{{
+      ScalarFunction struct|
+	      FuncName model.CIStr\l|
+	      RetType  *types.FieldType\l|
+	      <builtinFunc> Function builtinFunc\l|
+	      hashcode []byte\l
+    }}"];
+
+  builtinFunc[
+    shape="record";
+    label="{{
+      builtinFunc interface|
+        <vecBuiltinFunc>vecBuiltinFunc\l|
+        reverseBuiltinFunc\l|
+        evalInt(row chunk.Row)(...)\l|
+        evalTime\l|
+        evalJsonn\l|
+        ...\l|
+    }}"];
+  vecBuiltinFunc[
+    shape="record";
+    label="{{
+      vecBuiltinFunc interface|
+      contains al vectorized methods\l 
+      for builtin function\l|
+      vectorized() bool\l|
+      vecEvalInt(input *chunk.Chunk, result *chunk.Column) error\l
+    }}"];
+  Column[
+    shape="record";
+    label="{{
+      Column|
+      RetType *types.FieldType\l|
+      ID int64\l|
+      UniqueID int64\l|
+      Index int\l|
+      hashcode []byte]\l|
+      VirtualExpr Expression\l|
+      OrigName string\l|
+      IsHidden bool\l|
+      collationInfo\l
+    }}"];
+  CorrelatedColumn[
+    shape="record";
+    label="{{
+      CorrelatedColumn struct|
+      stands for a column\l 
+      in a correlated sub query\l|
+      Column\l|
+      Data *types.Datum\l
+    }}"];
+  Constant[
+    shape="record";
+    label="{{
+      Constant struct|
+      stands for a constant value\l|
+	      Value   types.Datum\l|
+	      RetType *types.FieldType\l|
+	      DeferredExpr Expression\l|
+	      ParamMarker *ParamMarker\l|
+	      hashcode    []byte\l|
+	      collationInfo\l
+    }}"];
+
+  ScalarFunction:builtinFunc -> builtinFunc;
+  builtinFunc:vecBuiltinFunc -> vecBuiltinFunc;
+  Column -> CorrelatedColumn[label="sub"];
+  VecExpr[
+    shape="record";
+    label="{{
+      VecExpr interface|
+      Vectorized() bool\l|
+      VecEvalInt(..) error\l|
+      ...\l|
+    }}"];
+
+  VecExpr -> Expression[label="sub"];
+
+  Expression -> {
+    ScalarFunction;
+    Column;
+    Constant;
+  }[label="impled by";color="#b83b5e"];
+
+  edge[style=dashed];
+}
