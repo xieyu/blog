@@ -1,0 +1,175 @@
+digraph query_feedback_collect {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_SessionStatsCollector {
+    graph[label="SessionStatsCollector";fontsize=20;style="rounded,dashed";color="slategrey"]
+    StoreQueryFeedback -> {
+      RecalculateExpectCount;
+      QueryFeedback_CalcErrorRate;
+      feedback_Append;
+    }
+    feedback_Append -> QueryFeedbackMap_append;
+  }
+
+  subgraph cluster_session {
+    graph[label="session";fontsize=20;style="rounded,dashed";color="slategrey"]
+    session_StoreQueryFeedback[
+      shape="record";
+      label="{{
+        StoreQueryFeedback
+      }}"];
+    session_StoreQueryFeedback ->  StoreQueryFeedback;
+  }
+
+  subgraph cluster_distsql {
+    graph[label="distsql";fontsize=20;style="rounded,dashed";color="slategrey"]
+    TableRangesToKVRanges;
+    IndexRangesToKVRanges;
+    IndexRangesToKVRangesForTables;
+  }
+
+  subgraph cluster_TableReaderExecutor {
+    graph[label="TableReaderExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    TableReaderExecutor_Feedback[
+      shape="record";
+      label="{{
+        Feedback
+      }}"];
+    TableReaderExecutor_Close[
+      shape="record";
+      label="{{
+        Close
+      }}"];
+    TableReaderExecutor_buildResp[
+      shape="record";
+      label="{{
+        buildResp
+      }}"];
+    TableReaderExecutor_Open[
+      shape="record";
+      label="{{
+        Open|
+        TableReaderExecutor send DAG reqeust\l
+        andd read table data from kv layer\l
+      }}"];
+    TableReaderExecutor_Open
+      -> TableReaderExecutor_buildResp 
+      -> SetTableRanges
+      -> TableRangesToKVRanges
+      -> TableReaderExecutor_Feedback
+      -> TableReaderExecutor_Close
+      -> session_StoreQueryFeedback;
+  }
+
+
+  subgraph cluster_IndexReaderExecturor {
+    graph[label="IndexReaderExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    IndexReaderExecutor_Open[
+      shape="record";
+      label="{{
+        Open|
+        IndexReaderExecutor sends dag reuest\l
+        and reads index data from kv layer\l
+      }}"];
+    IndexReaderExecutor_buildKeyRanges[
+      shape="record";
+      label="{{
+        buildKeyRanges
+      }}"];
+    IndexReaderExecutor_Feedback[
+      shape="record";
+      label="{{
+        Feedback
+      }}"];
+    IndexReaderExecutor_Close[
+      shape="record";
+      label="{{
+        Close
+      }}"];
+
+    IndexReaderExecutor_Open
+      -> IndexReaderExecutor_buildKeyRanges 
+      -> IndexRangesToKVRanges
+      -> IndexRangesToKVRangesForTables
+      -> IndexReaderExecutor_Feedback
+      -> IndexReaderExecutor_Close
+      -> session_StoreQueryFeedback;
+  }
+
+
+  subgraph cluster_IndexLookUpExecutor {
+    graph[label="IndexLookUpExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    IndexLookUpExecutor_Open[
+      shape="record";
+      label="{{
+        Open|
+        implments double read for index scan\l|
+        通过索引获得rowID\l
+        然后通过rowID获取数据\l
+      }}"];
+    IndexLookUpExecutor_Feedback[
+      shape="record";
+      label="{{
+        Feedback
+      }}"];
+    IndexLookUpExecutor_Close[
+      shape="record";
+      label="{{
+        Close
+      }}"];
+    IndexLookUpExecutor_startIndexWorker[
+      shape="record";
+      label="{{
+        startIndexWorker
+      }}"];
+    IndexLookUpExecutor_Open -> IndexRangesToKVRanges;
+    IndexRangesToKVRangesForTables
+      -> IndexLookUpExecutor_Feedback
+      -> {
+        IndexLookUpExecutor_startIndexWorker;
+        IndexLookUpExecutor_Close;
+      } -> session_StoreQueryFeedback;
+  }
+
+  subgraph cluster_IndexMergeReaderExecutor {
+    graph[label="IndexMergeReaderExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    IndexMergeReaderExecutor_Open[
+      shape="record";
+      label="{{
+        Open|
+        acesses a table with\l 
+        multiple index/table scan\l
+      }}"];
+    IndexLookUpExecutor_startIndexWorker[
+      shape="record";
+      label="{{
+        startIndexWorker
+      }}"];
+    IndexMergeReaderExecutor_startPartialTableWorker[
+      shape="record";
+      label="{{
+        startPartialTableWorker
+      }}"];
+    IndexMergeReaderExecutor_Feedback[
+      shape="record";
+      label="{{
+        Feedback
+      }}"];
+    IndexMergeReaderExecutor_startPartialTableWorker -> session_StoreQueryFeedback;
+    IndexMergeReaderExecutor_Open -> IndexRangesToKVRanges;
+    IndexRangesToKVRangesForTables
+      -> IndexMergeReaderExecutor_Feedback
+      -> IndexMergeReaderExecutor_startPartialTableWorker;
+  }
+  {
+    rank=same;
+    TableReaderExecutor_Open;
+    IndexReaderExecutor_Open;
+    IndexMergeReaderExecutor_Open;
+    IndexLookUpExecutor_Open;
+  }
+}
