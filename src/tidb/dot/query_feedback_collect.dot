@@ -29,6 +29,21 @@ digraph query_feedback_collect {
     TableRangesToKVRanges;
     IndexRangesToKVRanges;
     IndexRangesToKVRangesForTables;
+    selectResult_Next-> fetchResp -> Feedback_Update;
+    streamResult_Next -> readDataFromResponse -> Feedback_Update;
+    IndexRangesToKVRangesForTables[
+      shape="record";
+      label="{{
+        IndexRangesToKVRangesForTables|
+        根据直方图切分查询范围
+      }}"];
+    Feedback_Update[
+      shape="record";
+      label="{{
+        Feedback_Update|
+        根据返回结果，更新feedback\l 
+        range对应的count\l
+      }}"];
   }
 
   subgraph cluster_TableReaderExecutor {

@@ -40,58 +40,7 @@ digraph QueryFeedback {
 
   updateStatsWorker -> {
     UpdateStatsByLocalFeedback;
-    DumpStatsDeltaToKV;
-    HandleDDLEvent;
-    FlushStats;
-    HandleUpdateStats;
-    DumpStatsFeedbackToKV;
-    GCStats;
-    onwer_ISowner;
   }[color="#3f72af"];
-  onwer_ISowner -> HandleUpdateStats[style=dashed;color=darkgreen];
-  onwer_ISowner -> GCStats;
-
-  HandleUpdateStats[
-    shape="record";
-    label="{{
-      HandleUpdateStats|
-      update stats using feedback
-    }}"];
-
-
-  HandleUpdateStats -> {
-    sql1;
-    handleSingleHistogramUpdate;
-  }
-  sql1[
-    shape="record";
-    label="{{
-      SELECT distinct table_id \l 
-      from mysql.stats_feedback\l
-    }}"];
-  sql2[
-    shape="record";
-    label="{{
-      select \l
-        table_id,\l
-        hist_id,\l
-        is_index,\l
-        feedback from mysql.stats_feedback \l
-        where table_id=%d \l
-        order by hist_id, is_index\l
-    }}"];
-  sql1 -> sql2 -> handleSingleHistogramUpdate[style=dashed;color=darkgreen];
-  handleSingleHistogramUpdate -> {
-    getTableByPhysicalID;
-    GetPartitionStats;
-    DecodeFeedback;
-    dumpStatsUpdateToKV;
-  }
-  dumpStatsUpdateToKV -> {
-    SaveStatsToStorage;
-    UpdateHistogram;
-  }
-  UpdateHistogram -> SaveStatsToStorage[style=dashed;color=darkgreen];
 
 UpdateStatsByLocalFeedback[
   shape="record";
@@ -100,6 +49,13 @@ UpdateStatsByLocalFeedback[
     根据feedback先更新\l
     本地的统计信息\l
   }}"];
+  UpdateHistogram[
+    shape="record";
+    label="{{
+      UpdateHistogram|
+      updates the histograms\l 
+      according buckets\l
+    }}"];
   UpdateStatsByLocalFeedback -> {
     getTableByPhysicalID;
     GetPartitionStats;
@@ -149,89 +105,6 @@ UpdateStatsByLocalFeedback[
       feedbacks and range feedbacks\l|
       equality feedbacks 传给UpdateCMSKetch\l
       range feedbacks 传给UpdateHistogram\l
-    }}"];
-
-  //DumpStatsDeltaToKV
-  DumpStatsDeltaToKV -> {
-    globalMap;
-    needDumpStatsDelta;
-    dumpTableStatCountToKV;
-    dumpTableStatColSizeToKV;
-  }
-  dumpTableStatCountToKV -> {
-    update_mysql_stats_meta;
-    execSQL;
-  }
-  dumpTableStatColSizeToKV -> {
-    insert_into_mysql_stats_histograms;
-  }
-  insert_into_mysql_stats_histograms[
-    shape="record";
-    label="{{
-      insert into mysql.stats_histograms\l 
-      (table_id, is_index, hist_id, distinct_count, tot_col_size) \l
-      ...\l
-      on duplicate key update ...\l
-    }}"];
-
-  //DumpStatsFeedbackToKV
-  DumpStatsFeedbackToKV -> {
-    DumpFeedbackToKV;
-    DumpFeedbackForIndex;
-    NewQueryFeedbackMap;
-  }
-  DumpFeedbackToKV -> {
-    EncodeFeedback;
-    insert_into_mysql_stats_feedback;
-  }
-  insert_into_mysql_stats_feedback[
-    shape="record";
-    label="{{
-      insert into mysql.stats_feedback\l 
-      (table_id, hist_id, is_index, feedback) values \l
-      ...\l
-    }}"];
-  EncodeFeedback -> insert_into_mysql_stats_feedback -> {sql1;sql2}[style=dashed;color=darkred];
-  DumpFeedbackForIndex -> {
-  }
-
-  FlushStats -> {
-    HandleDDLEvent;
-    DumpStatsDeltaToKV;
-    DumpStatsFeedbackToKV;
-  }
-  HandleDDLEvent[
-    shape="record";
-    label="{{
-      HandleDDLEvent|
-      处理DDL owner发送到\l 
-      statsHandle.DDLEventCh的事件\l
-    }}"];
-
-  HandleDDLEvent -> {
-    insertTableStats2KV;
-    insertColStats2KV;
-  }
-  insertTableStats2KV -> {
-    mysql_stats_meta;
-    mysql_stats_histograms;
-  }
-  insertColStats2KV -> {
-    mysql_stats_meta;
-    mysql_stats_histograms;
-  }
-  mysql_stats_meta[
-    shape="record";
-    label="{{
-      insert into mysql.stats_meta\l 
-      (version, table_id) values(%d, %d)\l
-    }}"];
-  mysql_stats_histograms[
-    shape="record";
-    label="{{
-      insert into mysql.stats_histograms \l 
-        (table_id, is_index, hist_id, distinct_count, version)\l 
-        values(%d, 1, %d, 0, %d)\l
     }}"];
 
   edge[style=dashed;color=darkblue]

@@ -1,0 +1,47 @@
+digraph UpdateHistogram {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  UpdateHistogram -> {
+    splitBuckets;
+    mergeBuckets;
+    buildNewHistogram;
+  }[color="#b83b5e"];
+
+  splitBuckets -> {
+    buildBucketFeedback;
+    getSplitCount;
+    splitBucket;
+  }
+  buildBucketFeedback -> {
+    chunk_Compare;
+    adjustFeedbackBoundaries;
+    CompareDatum;
+  }
+
+  mergeBuckets -> {
+    getBucketScore;
+    Sort;
+  }
+  getBucketScore -> {
+    calcFraction4Datums;
+    bucketScore;
+  }
+
+  buildNewHistogram -> {
+    NewHistogram;
+    AppendBucket;
+  }
+
+  splitBucket -> {
+    getBoundaries;
+    getOverlapFraction;
+    refineBucketCount;
+    setNextValue;
+  }
+
+  edge[style=dashed;color=darkblue];
+  splitBuckets -> mergeBuckets -> buildNewHistogram;
+}

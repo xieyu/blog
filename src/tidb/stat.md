@@ -20,14 +20,68 @@ Count-Min Sketch 是一种可以处理等值查询，Join 大小估计等的数�
 
 ## TiDB中实现
 
+### Histogram
+
+一个Histogram对应一个column或者index的统计信息。
+
+```go
+// Histogram represents statistics for a column or index.
+type Histogram struct {
+	ID        int64 // Column ID.
+	NDV       int64 // Number of distinct values.
+	NullCount int64 // Number of null values.
+	// LastUpdateVersion is the version that this histogram updated last time.
+	LastUpdateVersion uint64
+
+	Tp *types.FieldType
+
+	// Histogram elements.
+	//
+	// A bucket bound is the smallest and greatest values stored in the bucket. The lower and upper bound
+	// are stored in one column.
+	//
+	// A bucket count is the number of items stored in all previous buckets and the current bucket.
+	// Bucket counts are always in increasing order.
+	//
+	// A bucket repeat is the number of repeats of the bucket value, it can be used to find popular values.
+	Bounds  *chunk.Chunk
+	Buckets []Bucket
+
+	// Used for estimating fraction of the interval [lower, upper] that lies within the [lower, value].
+	// For some types like `Int`, we do not build it because we can get them directly from `Bounds`.
+	scalars []scalar
+	// TotColSize is the total column size for the histogram.
+	// For unfixed-len types, it includes LEN and BYTE.
+	TotColSize int64
+
+	// Correlation is the statistical correlation between physical row ordering and logical ordering of
+	// the column values. This ranges from -1 to +1, and it is only valid for Column histogram, not for
+	// Index histogram.
+	Correlation float64
+}
+
+// Bucket store the bucket count and repeat.
+type Bucket struct {
+	Count  int64
+	Repeat int64
+}
+
+type scalar struct {
+	lower        float64
+	upper        float64
+	commonPfxLen int // commonPfxLen is the common prefix length of the lower bound and upper bound when the value type is KindString or KindBytes.
+}
+```
+
 ### 统计信息存储
 
 在TiDB中统计信息会存在几个表中
-``mysql.stats_meta`` 
-`mysql.stats_histograms`
-``mysql.stats_buckets``
-``mysql.stats_feedback`` 
-``mysql.stats_extended``
+
+* `mysql.stats_meta`: 统计信息元信息
+* `mysql.stats_histograms`: 统计信息直方图
+* `mysql.stats_buckets` : 统计信息桶
+* `mysql.stats_extended`
+* `mysql.stats_feedback` : 收集的stats feedback， 会被定期apply到上面的表中
 
 
 ```sql
@@ -113,6 +167,12 @@ Count-Min Sketch 是一种可以处理等值查询，Join 大小估计等的数�
 
 #### 更新和使用相关Table
 
+每个TiDB启动后，会调用UpdateTableStatsLoop，分别使用一个goroutine执行如下任务:
+
+1. `autoAnalzeWorker` 定时触发autoAnaly worker, 根据一定规则触发执行`analyze table xxx`, 执行AnlyzeExec,会后将结果写入`mysql.stats_*`中。
+2. `loadStatsWorker` 把`mysql.stat_*`信息定期加载到本地缓存中。
+3. `updateStatsWorker` 将本地收集的feedback apply到自己的本地缓存上，并写入`mysql.stats_feedback`中，如果该节点是owner, 会将`mysql.stats_feedback`表中信息apply到 `mysql.stat_*`表中。
+
 ![](./dot/crud_mysql_stats.svg)
 
 ### 生成统计信息
@@ -137,7 +197,18 @@ Analyze 语句
 
 ##### 收集QueryFeedback
 
+Datasource对应的一些Executor: `TableReaderExecutor`, `IndexReaderExecutor`, 
+`IndexLookupExecutor`, `IndexMergeReaderExecutor`
+执行时候会生成一些feedback信息 
+
 ```go
+// Feedback represents the total scan count in range [lower, upper).
+type Feedback struct {
+	Lower  *types.Datum
+	Upper  *types.Datum
+	Count  int64
+	Repeat int64
+}
 // QueryFeedback is used to represent the query feedback info. It contains the query's scan ranges and number of rows
 // in each range.
 type QueryFeedback struct {
@@ -151,16 +222,69 @@ type QueryFeedback struct {
 	desc       bool  // desc represents the corresponding query is desc scan.
 }
 ```
+
 ![](./dot/query_feedback_collect.svg)
 
+###### TablesRangesToKVRanges
+```go
+// TablesRangesToKVRanges converts table ranges to "KeyRange".
+func TablesRangesToKVRanges(tids []int64, ranges []*ranger.Range, fb *statistics.QueryFeedback) []kv.KeyRange {
+	if fb == nil || fb.Hist == nil {
+		return tableRangesToKVRangesWithoutSplit(tids, ranges)
+	}
+	krs := make([]kv.KeyRange, 0, len(ranges))
+	feedbackRanges := make([]*ranger.Range, 0, len(ranges))
+	for _, ran := range ranges {
+		low := codec.EncodeInt(nil, ran.LowVal[0].GetInt64())
+		high := codec.EncodeInt(nil, ran.HighVal[0].GetInt64())
+		if ran.LowExclude {
+			low = kv.Key(low).PrefixNext()
+		}
+		// If this range is split by histogram, then the high val will equal to one bucket's upper bound,
+		// since we need to guarantee each range falls inside the exactly one bucket, `PrefixNext` will make the
+		// high value greater than upper bound, so we store the range here.
+		r := &ranger.Range{LowVal: []types.Datum{types.NewBytesDatum(low)},
+			HighVal: []types.Datum{types.NewBytesDatum(high)}}
+		feedbackRanges = append(feedbackRanges, r)
 
-query feedback map
+		if !ran.HighExclude {
+			high = kv.Key(high).PrefixNext()
+		}
+		for _, tid := range tids {
+			startKey := tablecodec.EncodeRowKey(tid, low)
+			endKey := tablecodec.EncodeRowKey(tid, high)
+			krs = append(krs, kv.KeyRange{StartKey: startKey, EndKey: endKey})
+		}
+	}
+	fb.StoreRanges(feedbackRanges)
+	return krs
+}
+```
+
+这些信息会先插入到一个QueryFeedbackMap的一个队列中，
+后面的`updateStatsWorker` 定期apply 这些feedback到自己的cache中。以及将这些
+feedback apply到`mysql.stats_*`中
+
 
 ![](./dot/query_feedback_map.svg)
 
-##### apply query locally
+##### apply feedback locally
 
 ![](./dot/QueryFeedback.svg)
+
+#### apply feedback 
+
+每个TiDB会将本地搜集到的feedback插到`mysql.stats_feedback`中，然后
+由owner将表`mysql.stats_feedback`插入
+`mysql.stats_histograms`, `msyql.stats_buckets`等表。
+
+![](./dot/QueryFeedback-global.svg)
+
+##### UpdateHistogram
+
+没怎么看明白这块算法。
+
+![](./dot/UpdateHistogram.svg)
 
 
 ### 使用统计信息
