@@ -1,0 +1,80 @@
+digraph convertToIndexScan {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_getOriginalPhysicalIndexScan{
+    graph[label="getOriginalPhysicalIndexScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    {
+      GetIndexAvgRowSize;
+      GetAvgRowSize;
+    } -> indexScanRowSize;
+    {
+      tableStats_RowCount;
+      tableStats_HistColl_Selectivity;
+    } -> CountAfterAccess;
+
+    indexScanRowSize -> rowSize;
+    {
+      CountAfterAccess;
+      crossEstimateIndexRowCount;
+    } -> rowCount;
+    {
+      rowCount;
+      rowSize;
+    } -> base_cost;
+    seekCost[
+      shape="record";
+      label="{{
+        seekCost|
+	      cost += \l 
+        float64(len(is.Ranges))\l 
+        * sessVars.SeekFactor\l
+      }}"];
+    base_cost[
+      shape="record";
+      label="{{
+	      cost := rowCount \l
+          * rowSize \l
+          * sessVars.ScanFactor\l
+      }}"];
+    isMatchProp -> matchCost;
+    matchCost[
+      shape="record";
+      label="{{
+        matchCost|
+          cost = rowCount\l 
+            * rowSize\l 
+            * sessVars.DescScanFactor\l
+      }}"];
+    {
+      base_cost;
+      seekCost;
+    } -> cost;
+    matchCost -> cost;
+  }
+
+  subgraph cluster_convertToIndexScan {
+    graph[label="convertToIndexScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    cost -> IndexScanCost;
+  }
+
+  subgraph cluster_convertToPartialTableScan {
+    graph[label="convertToPartialTableScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    cost -> partialCost;
+    partialCost[
+      shape="record";
+      label="{{
+      partialCost|
+		    partialCost += rowCount\l 
+          * sessVars.CopCPUFactor|
+		    partialCost += rowCount\l 
+          * rowSize\l 
+          * sessVars.NetworkFactor\l
+		     partialCost += rowCount\l|
+          * rowSize\l 
+          * sessVars.NetworkFactor\l
+      }}"];
+  }
+}

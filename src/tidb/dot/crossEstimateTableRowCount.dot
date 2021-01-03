@@ -1,0 +1,62 @@
+digraph crossEstimateTableRowCount {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  crossEstimateTableRowCount -> {
+    getMostCorrCol4Handle;
+    crossEstimateRowCount;
+  }
+
+  crossEstimateRowCount -> {
+    DetachCondsForColumn;
+    BuildColumnRange;
+    getColumnRangeCounts;
+    convertRangeFromExpectedCnt;
+    GetRowCountByIndexRanges;
+    GetRowCountByColumnRanges;
+  }
+
+  GetRowCountByIndexRanges -> {
+    GetRowCount;
+    getIndexRowCount;
+    GetIncreaseFactor;
+  }
+  GetRowCountByColumnRanges -> {
+    GetColumnRowCount;
+    GetIncreaseFactor;
+  }
+
+  getIndexRowCount -> {
+    enumRangeValues;
+    GetRowCount;
+    getEqualCondSelectivity;
+    GetRowCountByIndexRanges;
+    GetRowCountByColumnRanges;
+  }
+  GetColumnRowCount -> {
+    equalRowCount;
+    enumRangeValues;
+    outOfRangeEQSelectivity;
+  }
+  GetRowCount -> {
+    equalRowCount;
+    outOfRangeEQSelectivity;
+    BetweenRowCount;
+  }
+  equalRowCount -> {
+    outOfRangeEQSelectivity;
+    CMSketch_queryValue;
+    histogram_equalRowCount;
+  };
+  subgraph cluster_Histogram {
+    graph[label="Histogram";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BetweenRowCount -> lessRowCount;
+    lessRowCount -> LessRowCountWithBktIdx -> {
+      Buckets;
+      calcFraction;
+    }
+    histogram_equalRowCount;
+  }
+
+}

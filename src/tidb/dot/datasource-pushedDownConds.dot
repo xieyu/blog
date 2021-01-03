@@ -1,0 +1,262 @@
+digraph pushedDownConds {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  //fillIndexPath -> {
+  //  DetachCondAndBuildRangeForIndex;
+  //}
+  //DetachCondAndBuildRangeForIndex -> {
+  //  detachCNFCondAndBuildRangeForIndex;
+  //}
+
+  BuildTableRange -> buildColumnRange;
+
+
+  subgraph cluster_AcessPath {
+    graph[label="AccessPath";fontsize=20;style="rounded,dashed";color="slategrey"]
+    AccessConds;
+    TableFilters;
+    Ranges;
+    IndexFilters;
+  }
+  //DeriveStats -> generateAndPruneIndexMergePath -> generateIndexMergeOrPaths -> accessPathsForConds;
+
+  //{
+  //  DeriveStats;
+  //  accessPathsForConds;
+  //} -> deriveTablePathStats
+  //physicalOptimize -> recursiveDeriveStats;
+
+  //optimize -> FindBestPlan -> onPhaseImplementation ->implGroup -> fillGroupStats;
+  //{
+  //  fillGroupStats;
+  //  recursiveDeriveStats;
+  //}->  DeriveStats;
+  pushedDownConds[
+    shape="record";
+    label="{{
+      pushedDownConds|
+      逻辑优化中谓词下推到\l
+      DataSource节点的conds\l
+    }}"];
+  AccessConds[
+    shape="record";
+    label="{{
+      AccessConds|
+      后续会被转换为Ranges\l
+    }}"];
+  buildColumnRange[
+    shape="record";
+    label="{{
+      buildColumnRange|
+      builds range from CNF conditions\l
+    }}"];
+  findBestTask[
+    shape="record";
+    label="{{
+      findBestTask|
+      获取最优的物理查询计划\l
+    }}"];
+  convertToTableScan[
+    shape="record";
+    label="{{
+      convertToTableScan|
+      扫表\l
+    }}"];
+  convertToIndexScan[
+    shape="record";
+    label="{{
+      convertToIndexScan|
+      扫索引\l
+    }}"];
+  convertToIndexMergeScan[
+    shape="record";
+    label="{{
+      convertToIndexMergeScan|
+      先走索引,查到rowID\l 
+      然后在扫表\l
+      double read\l
+    }}"];
+
+  constructDistExec -> {
+    PhysicalSelection_ToPB;
+    PhysicalTableScan_ToPB;
+    PhysicalIndexScan_ToPB;
+  }[color="#b83b5e"];
+
+  PhysicalTableScan_ToPB -> {
+    TableRangesToKVRanges;
+    BuildTableScanFromInfos;
+  }
+  TableRangesToKVRanges[
+    shape="record";
+    label="{{
+      TableRangesToKVRanges|
+      将range信息中加上tid
+    }}"];
+  DetachCondsForColumn[
+    shape="record";
+    label="{{
+      DetachCondsForColumn|
+      将primary key column对应的\l
+      cond分离出来作为AccessConds\l
+    }}"];
+
+  BuildTableScanFromInfos -> tipb_TableScan;
+
+  subgraph cluster_tipb {
+    graph[label="tipb";fontsize=20;style="rounded,dashed";color="slategrey"]
+    tipb_TableScan[
+      shape="record";
+      label="{{
+        tipb.TableScan|
+        TableID int64\l|
+        Columns          []*ColumnInfo \l|
+        Desc             bool      \l|
+        NextReadEngine   EngineType\l|
+        <Ranges>Ranges           []KeyRange  \l|
+        PrimaryColumnIds []int64\l
+        }}"];
+
+    tipb_Selection[
+      shape="record";
+      label="{{
+        tipb.Selection|
+          <Conditions> Conditions       []*Expr\l|
+          RpnConditions    []*RpnExpr\l|
+          <Child> Child            *Executor\l
+      }}"];
+    tipb_IndexScan[
+      shape="record";
+      label="{{
+        tipb.IndexScan|
+          TableId          int64\l|
+          IndexId          int64\l|     
+          Columns          []*ColumnInfo\l|
+          Desc             bool\l|
+          Unique           *bool\l|
+          PrimaryColumnIds []int64\l
+      }}"];
+
+      tipb_Selection:Child -> {
+        tipb_TableScan;
+        tipb_IndexScan;
+      }[style=dashed;color=darkgreen];
+  }
+
+
+
+  subgraph cluster_PhysicalSelection {
+    graph[label="PhysicalSelection";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PhysicalSelection[
+      shape="record";
+      label="{{
+        PhysicalSelection|
+          Conditions []expression.Expression
+      }}"];
+    PhysicalSelection -> PhysicalSelection_ToPB;
+    PhysicalSelection_ToPB -> {
+      ExpressionsToPBList;
+      tipb_Selection;
+    }
+    PhysicalSelection_ToPB[
+      shape="record";
+      label="{{
+        ToPB
+      }}"];
+  }
+
+  convertToTableScan -> addPushedDownSelection;
+  subgraph cluster_PhysicalTableScan {
+    graph[label="PhysicalTableScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    addPushedDownSelection -> {
+      SplitSelCondsWithVirtualColumn;
+      PhysicalSelection;
+    };
+    PhysicalTableScan_ToPB[
+      shape="record";
+      label="{{
+        ToPB
+      }}"];
+    PhysicalTableScan[
+      shape="record";
+      label="{{
+        PhysicalTableScan|
+        Ranges []*ranger.Range\l|
+	      AccessCondition []expression.Expression\l|
+        filterCondition []expression.Expression\l
+      }}"];
+  }
+
+  convertToIndexScan -> PhysicalIndexScan_addPushedDownSelection;
+  subgraph cluster_PhysicalIndexScan {
+    graph[label="PhysicalIndexScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PhysicalIndexScan_addPushedDownSelection[
+      shape="record";
+      label="{{
+        addPushedDownSelection
+      }}"];
+    PhysicalIndexScan[
+      shape="record";
+      label="{{
+        PhysicalIndexScan|
+          AccessCondition []expression.Expression\l|
+          Ranges     []*ranger.Range\l
+      }}"];
+    PhysicalIndexScan -> PhysicalIndexScan_ToPB;
+    PhysicalIndexScan_ToPB[
+      shape="record";
+      label="{{
+        ToPB
+      }}"];
+    PhysicalIndexScan_ToPB -> tipb_IndexScan;
+    PhysicalIndexScan_addPushedDownSelection -> PhysicalSelection;
+  }
+  subgraph cluster_DataSource {
+    graph[label="DataSource";fontsize=20;style="rounded,dashed";color="slategrey"]
+    pushedDownConds;
+    findBestTask -> {
+      convertToTableScan;
+      convertToIndexScan;
+      convertToIndexMergeScan;
+    }
+    convertToIndexMergeScan -> {
+      convertToPartialIndexScan;
+      convertToPartialTableScan;
+      buildIndexMergeTableScan;
+    }
+    convertToPartialIndexScan -> PhysicalSelection;
+    convertToPartialTableScan -> PhysicalSelection;
+
+    deriveTablePathStats -> {
+      BuildTableRange;
+      DetachCondsForColumn;
+    }
+    DeriveStats -> deriveTablePathStats;
+  }
+
+  edge[style=dashed;color=darkblue]
+  ExpressionsToPBList -> tipb_Selection;
+  pushedDownConds -> {
+    //fillIndexPath;
+    deriveTablePathStats;
+  }
+  PhysicalTableScan -> PhysicalTableScan_ToPB;
+  DetachCondsForColumn -> {
+    TableFilters;
+    AccessConds;
+  }
+  IndexFilters -> PhysicalIndexScan_addPushedDownSelection;
+  IndexFilters -> convertToPartialIndexScan;
+
+  edge[style=dashed;color=darkgreen]
+  AccessConds -> BuildTableRange -> Ranges;
+  Ranges -> PhysicalTableScan;
+  Ranges -> TableRangesToKVRanges  -> tipb_TableScan:Ranges;
+
+  edge[style=dashed;color=darkred];
+  TableFilters -> buildIndexMergeTableScan -> PhysicalSelection;
+  TableFilters -> convertToPartialTableScan;
+  TableFilters -> splitIndexFilterConditions -> IndexFilters;
+}

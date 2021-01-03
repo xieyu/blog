@@ -1,0 +1,35 @@
+digraph build_index_lookup_executor {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  buildIndexLookUpReader -> {
+    refreshForUpdateTSForRC;
+    buildNoRangeIndexLookUpReader;
+    nextPartitionForIndexLookUp;
+    buildPartitionTable;
+    UseDynamicPartitionPrune;
+  }
+  buildNoRangeIndexLookUpReader -> {
+    buildIndexReq;
+    buildTableReq;
+  }
+  buildIndexReq -> {
+    IndexLookUpReader:dagPB;
+    IndexLookUpReader:indexStreaming;
+  }
+  buildTableReq -> {
+    IndexLookUpReader:tableRequest;
+    IndexLookUpReader:tableStreaming;
+  }
+
+  IndexLookUpReader[
+    shape="record";
+    label="{{
+      IndexLookUpReader|
+      <dagPB> dagPB *tipb.DAGRequest\l|
+      <indexStreaming> indexStreaming bool\l|
+	    <tableRequest> tableRequest    *tipb.DAGRequest\l|
+      <tableStreaming> tableStreaming bool\l
+    }}"];
+}

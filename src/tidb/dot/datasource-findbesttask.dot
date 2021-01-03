@@ -6,7 +6,9 @@ digraph datasource_findBestTask {
   findBestTask[
     shape="record";
     label="{{
-      DataSource.findBestTask
+      DataSource.findBestTask|
+      enumerate all the availabel indices\l
+      and choose a plan with lest cost\l
     }}";
   ];
   findBestTask -> {
@@ -14,7 +16,32 @@ digraph datasource_findBestTask {
     convertToPointGet;
     convertToBatchPointGet;
     convertToTableScan;
+    skylinePruning;
   }[color="#b83b5e"];
+  skylinePruning[
+    shape="record";
+    label="{{
+      skylinePruning|
+      prunes acces paths \l 
+      according to different factors\l|
+      遍历ds的possibleAccessPaths\l
+    }}"];
+  possibleAccessPaths[style=dashed];
+  possibleAccessPaths -> skylinePruning[style=dashed];
+
+  skylinePruning -> {
+    getIndexMergeCandidate;
+    getTableCandidate;
+    getIndexCandidate;
+  }
+
+  //DeriveStats -> generateAndPruneIndexMergePath -> generateIndexMergeOrPaths;
+  //generateIndexMergeOrPaths -> buildIndexMergePartialPath -> PartialIndexPaths;
+
+  PartialIndexPaths  -> {
+    convertToPartialTableScan;
+    convertToPartialIndexScan;
+  }
 
   convertToIndexMergeScan -> {
     convertToPartialTableScan;
@@ -125,16 +152,27 @@ digraph datasource_findBestTask {
     shape="record";
     label="{{
     finishCopTask|
-    means we cose the copprocessor\l 
-    task and create a root task\l
+    means we close the copprocessor\l 
+    task and create a root task\l|
+    计算从TiKV传数据到TiDB的cost\l
     }}";
   ];
   finishCopTask -> {
     PhysicalIndexReader;
     PhysicalTableReader;
+    PhysicalIndexMergeReader;
     buildIndexLookUpTask;
     rootTask;
+    finishIndexPlan;
   }[color="#e84545"];
+  PhysicalIndexMergeReader[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalIndexMergeReader|
+      using multiple indexs in tidb
+    }}"];
 
   PhysicalIndexLookUpReader[
     shape="record";
@@ -143,7 +181,9 @@ digraph datasource_findBestTask {
     label="{{
       PhysicalIndexLookUpReader|
       index look up reader in tidb.\l 
-      It's used in case of double reading.\l
+      It's used in case of double reading.\l|
+      通过索引数据解析到row ID\l
+      然后通过row ID获取数据\l
     }}";
   ];
   PhysicalTableReader[
@@ -151,7 +191,8 @@ digraph datasource_findBestTask {
     fillcolor="#95e1d3"
     style=filled;
     label="{{
-      PhysicalTableReader
+      PhysicalTableReader|
+      通过rowID读取数据\l
     }}";
   ];
   PhysicalIndexReader[
@@ -159,7 +200,8 @@ digraph datasource_findBestTask {
     fillcolor="#95e1d3"
     style=filled;
     label="{{
-      PhysicalIndexReader
+      PhysicalIndexReader\l
+      通过索引读取数据\l
     }}";
   ];
 

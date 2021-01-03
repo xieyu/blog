@@ -1,0 +1,116 @@
+digraph IndexLookUpExecutor {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Open -> {
+    getPhysicalTableID;
+    CommonHandleRangesToKVRanges;
+    IndexRangesToKVRanges;
+    open;
+  }
+  open -> {
+    constructDistExec;
+  }
+  constructDistExec -> ToPB;
+
+  Next -> {
+    startWorkers;
+    getResultTask;
+    req_AppendRow;
+    resultTask_cusor;
+  }[color="#b83b5e"];
+
+  getResultTask -> {
+  }
+
+  startWorkers -> {
+    startIndexWorker;
+    startTableWorker;
+  }
+
+  startIndexWorker -> {
+    fetchHandles;
+  }
+
+  startTableWorker -> {
+    pickAndExecTask;
+  }
+  pickAndExecTask[
+    shape="record";
+    label="{{
+      pickAndExecTask|
+      从workCh中获取task
+    }}"];
+  pickAndExecTask -> {
+    executeTask;
+  }
+  workCh[
+    shape="record";
+    label="{{
+      workCh|
+      \<- chan*lookupTableTask
+    }}"];
+
+  executeTask -> {
+    buildTblReader;
+    newFirstChunk;
+    Next_tableReader;
+  }
+  fetchHandles -> {
+    extractTaskHandles;
+    resultCh;
+    workCh;
+  }
+  extractTaskHandles -> {
+    getHandle;
+  }
+  buildTblReader -> buildFinalTableReader;
+  buildFinalTableReader -> buildTableReaderFromHandles;
+  req_AppendRow[
+    shape="record";
+    label="{{
+      req_AppendRow|
+      将结果放到Next的req参数中\l
+      req * chunk.Chunk\l
+    }}"];
+  executeTask[
+    shape="record";
+    label="{{
+      executeTask|
+      执行TableReader Executor\l
+      从Next中获取数据然后写到\l
+      task.rows中\l
+    }}"];
+
+  buildTableReaderFromHandles -> {
+    SetPartitionsAndHandles;
+    SetTableHandles;
+    buildTableReaderBase;
+  }
+  buildTableReaderBase -> {
+    SelectResult;
+    Fetch;
+  }
+  SelectResult[
+    shape="record";
+    label="{{
+      SelectResult|
+      从DistSQL中发送请求
+    }}"];
+
+  edge[style=dashed;color=darkblue]
+  {idxPlans;tblPlans} -> constructDistExec;
+  workCh -> pickAndExecTask;
+  resultCh -> getResultTask;
+  extractTaskHandles -> resultCh;
+  getResultTask -> {
+    req_AppendRow;
+    resultTask_cusor;
+  }
+  executeTask -> getResultTask;
+  executeTask -> task_rows;
+  buildTableReaderFromHandles -> Next_tableReader;
+  Next_tableReader -> task_rows -> resultTask_cusor;
+  resultTask_cusor -> req_AppendRow;
+}

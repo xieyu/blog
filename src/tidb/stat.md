@@ -338,6 +338,15 @@ type StatsNode struct {
 // And exprs must be CNF now, in other words, `exprs[0] and exprs[1] and ... and exprs[len - 1]` should be held when you call this.
 // Currently the time complexity is o(n^2).
 ```
+
+Selectivity: 
+1. 计算表达式的ranges: ExtractColumnsFromExpressions
+
+questions:
+1. correlated column 是什么意思？
+2. maskCovered作用是什么
+3. statsNode的作用是什么
+
 ![](./dot/selectivity.svg)
 
 ## 参考
