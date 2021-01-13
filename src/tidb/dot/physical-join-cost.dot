@@ -1,0 +1,225 @@
+digraph physicalJoinCost {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_baseLogicalPlan {
+    graph[label="baseLogicalPlan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    findBestTask;
+    enumeratePhysicalPlans4Task;
+  }
+  findBestTask -> enumeratePhysicalPlans4Task;
+  enumeratePhysicalPlans4Task -> {
+    PhysicalMergeJoin_attach2Task;
+    PhysicalHashJoin_attach2Task;
+    PhysicalIndexJoin_attach2Task;
+    PhysicalIndexHashJoin_attach2Task;
+    PhysicalIndexMergeJoin_attach2Task;
+  }
+  /*
+  subgraph cluster_task {
+    graph[label="task";fontsize=20;style="rounded,dashed";color="slategrey"]
+    finishCopTask -> {
+      ltask_cost;
+      rtask_cost;
+    } -> rootTask[style=dashed;color=darkblue]
+  }
+  */
+  subgraph cluster_fullJoinRowCountHelper {
+    graph[label="fullJoinRowCountHelper";fontsize=20;style="rounded,dashed";color="slategrey"]
+    fullJoinRowCountHelper_estimate[
+      shape="record";
+      label="{{
+        estimate\l|
+        估算join后的行数\l|
+        leftProfile.RowCount * rightProfile.RowCount\l
+        match.Max(leftKeyCardinality, rightKeyCardinality)\l
+      }}"];
+
+    fullJoinRowCountHelper_estimate -> getCardinality;
+    getCardinality -> StatsInfo;
+    StatsInfo[
+      shape="record";
+      label="{{
+        StatsInfo|
+        Cardinality map[int64]float64\l
+      }}"];
+    getCardinality[
+      shape="record";
+      label="{{
+        getCardinality|
+        return the Cardinality of\l 
+        a couple of columns\l|
+        使用最大column cardinality;\l
+      }}"];
+  }
+
+  subgraph cluster_sessVars {
+    graph[label="sessVars";fontsize=20;style="rounded,dashed";color="slategrey"]
+    CPUFactor;
+    MemoryFactor;
+    IndexJoinBatchSize;
+    IndexLookupJoinConcurrency;
+    DiskFactor;
+  }
+  subgraph cluster_globalVars {
+    graph[label="globalVars";fontsize=20;style="rounded,dashed";color="slategrey"]
+    SelectionFactor[
+      shape="record";
+      label="{{
+        SelectionFactor|
+        0.8
+      }}"];
+    distinctFactor[
+      shape="record";
+      label="{{
+        distinctFactor|
+        0.8
+      }}"];
+    GetBytesLimit;
+    ConcurrencyFactor;
+  }
+
+  subgraph cluster_PhysicalMergeJoin {
+    graph[label="PhysicalMergeJoin";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PhysicalMergeJoin_attach2Task[
+      shape="record";
+      label="{{
+        attach2Task
+      }}"];
+    PhysicalMergeJoin_GetCost[
+      shape="record";
+      label="{{
+        GetCost
+      }}"];
+
+    PhysicalMergeJoin_attach2Task -> {
+      PhysicalMergeJoin_GetCost;
+      /*
+      finishCopTask;
+      ltask_cost;
+      rtask_cost;
+      rootTask;
+      */
+    } [color="#3f72af"];
+
+    PhysicalMergeJoin_GetCost -> {
+      fullJoinRowCountHelper_estimate
+      getCardinality;
+      CPUFactor;
+      SelectionFactor;
+      MemoryFactor;
+    }[color="#3f72af"];
+  }
+  subgraph cluster_PhysicalHashJoin {
+    graph[label="PhysicalHashJoin";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PhysicalHashJoin_attach2Task[
+      shape="record";
+      label="{{
+        attach2Task
+      }}"];
+    PhysicalHashJoin_GetCost[
+      shape="record";
+      label="{{
+        GetCost
+      }}"];
+
+    PhysicalHashJoin_attach2Task -> {
+    /*
+      finishCopTask;
+      ltask_cost;
+      rtask_cost;
+      rootTask;
+      */
+      PhysicalHashJoin_GetCost;
+    };
+    PhysicalHashJoin_GetCost -> {
+      fullJoinRowCountHelper_estimate;
+      CPUFactor;
+      MemoryFactor;
+      DiskFactor;
+      SelectionFactor;
+      GetBytesLimit;
+    } [color="#b83b5e"];
+  }
+
+  subgraph cluster_PhysicalIndexJoin {
+    graph[label="PhysicalIndexJoin";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PhysicalIndexJoin_attach2Task[
+      shape="record";
+      label="{{
+        attach2Task
+      }}"];
+    PhysicalIndexJoin_GetCost[
+      shape="record";
+      label="{{
+        GetCost
+      }}"];
+
+    PhysicalIndexJoin_attach2Task -> {
+      PhysicalIndexJoin_GetCost;
+      /*
+      rootTask;
+      finishCopTask;
+      */
+    }
+    PhysicalIndexJoin_GetCost -> {
+      CPUFactor;
+      distinctFactor;
+      MemoryFactor;
+      ConcurrencyFactor;
+      IndexLookupJoinConcurrency;
+    }[color="#3fc1c9"];
+  }
+
+  subgraph cluster_PhysicalIndexHashJoin {
+    graph[label="PhysicalIndexHashJoin";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PhysicalIndexHashJoin_attach2Task[
+      shape="record";
+      label="{{
+        attach2Task
+      }}"];
+    PhysicalIndexHashJoin_GetCost[
+      shape="record";
+      label="{{
+        GetCost
+      }}"];
+    PhysicalIndexHashJoin_attach2Task -> {
+      PhysicalIndexHashJoin_GetCost;
+      /*
+      finishCopTask;
+      rootTask;
+      */
+    };
+    PhysicalIndexHashJoin_GetCost -> {
+      CPUFactor;
+      IndexJoinBatchSize;
+      MemoryFactor;
+      ConcurrencyFactor;
+      IndexLookupJoinConcurrency;
+    }
+  }
+
+  subgraph cluster_PhysicalIndexMergeJoin {
+    graph[label="PhysicalIndexMergeJoin";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PhysicalIndexMergeJoin_attach2Task[
+      shape="record";
+      label="{{
+        attach2Task
+      }}"];
+    PhysicalIndexMergeJoin_GetCost[
+      shape="record";
+      label="{{
+        GetCost
+      }}"];
+    PhysicalIndexMergeJoin_attach2Task -> {
+      PhysicalIndexMergeJoin_GetCost;
+      /*
+      finishCopTask;
+      rootTask;
+      */
+    }
+  }
+
+}

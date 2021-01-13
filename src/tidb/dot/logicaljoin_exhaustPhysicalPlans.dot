@@ -3,6 +3,7 @@ digraph logicaljoin_exhaustPhysicalPlans {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
+  findBestTask -> exhaustPhysicalPlans;
   exhaustPhysicalPlans[
     shape="record";
     label="{{
@@ -43,6 +44,43 @@ digraph logicaljoin_exhaustPhysicalPlans {
       PhysicalBroadCastJoin
     }}";
   ];
+  tryToGetChildReqProp[
+    shape="record";
+    label="{{
+      tryToGetChildReqProp|
+      mergejoin的leftChild和rightchild需要\l 
+      按照joinKey降序排序\l|
+	    lProp := property.NewPhysicalProperty(\l 
+        property.RootTaskType,\l
+        p.LeftJoinKeys,\l 
+        desc,\l 
+        math.MaxFloat64,\l
+        false)\l|
+      rProp := property.NewPhysicalProperty(\l
+        property.RootTaskType,\l
+        p.RightJoinKeys\l 
+        desc,\l 
+        math.MaxFloat64,l\
+        false)\l
+    }}"];
+
+  tryToGetChildReqProp -> PhysicalMergeJoin[style=dashed;color=blue];
+  basePhysicalJoin -> {
+    PhysicalMergeJoin;
+    PhysicalIndexJoin;
+    PhysicalHashJoin;
+    PhysicalBroadCastJoin;
+  }[style=dashed];
+  PhysicalIndexJoin -> {
+    PhysicalIndexMergeJoin;
+    PhysicalIndexHashJoin;
+  }
+  {
+    rank=same;
+    GetMergeJoin;
+    GetMergeJoin;
+    tryToGetIndexJoin;
+  }
 
 
   exhaustPhysicalPlans -> {
@@ -54,6 +92,7 @@ digraph logicaljoin_exhaustPhysicalPlans {
   GetMergeJoin -> {
     PhysicalMergeJoin;
     basePhysicalJoin;
+    tryToGetChildReqProp;
   };
   getHashJoins -> {
     getHashJoin;

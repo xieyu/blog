@@ -1,0 +1,150 @@
+digraph physical_join_inherit {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  basePhysicalPlan[
+    shape="record";
+    label="{{
+      basePhysicalPlan|
+      basePlan\l|
+      childrenReqProps []*property.PhysicalProperty\l|
+      self             PhysicalPlan\l|
+      children         []PhysicalPlan\l
+    }}"];
+  physicalSchemaProducer[
+    shape="record";
+    label="{{
+      physicalSchemaProducer|
+        schema *expression.Schema\l|
+        basePhysicalPlan\l
+    }}"];
+  basePhysicalJoin[
+    shape="record";
+    label="{{
+      basePhysicalJoin|
+	      physicalSchemaProducer\l|
+	      <JoinType> JoinType JoinType\l|
+	      LeftConditions  expression.CNFExprs\l|
+	      RightConditions expression.CNFExprs\l|
+	      OtherConditions expression.CNFExprs\l|
+	      InnerChildIdx int\l|
+	      OuterJoinKeys []*expression.Column\l|
+	      InnerJoinKeys []*expression.Column\l|
+	      LeftJoinKeys  []*expression.Column\l|
+	      RightJoinKeys []*expression.Column\l|
+	      IsNullEQ      []bool\l|
+	      DefaultValues []types.Datum\l
+    }}"];
+  PhysicalBroadCastJoin[
+    shape="record";
+    label="{{
+      PhysicalBroadCastJoin|
+	      basePhysicalJoin\l|
+        globalChildIndex int\l|
+        // PhysicalBroadCastJoin only works for \l 
+        TiFlash Engine, which broadcast the small\l
+        table to every replica of probe side of tables.\l
+    }}"];
+
+  JoinType[
+    shape="record";
+    label="{{
+      type JoinType int|
+	      InnerJoin JoinType = iota\l|
+	      LeftOuterJoin\l|
+	      RightOuterJoin\l|
+	      SemiJoin\l|
+	      AntiSemiJoin\l|
+	      LeftOuterSemiJoin\l|
+	      AntiLeftOuterSemiJoin\l
+    }}"];
+
+  PhysicalHashJoin[
+    shape="record";
+    label="{{
+      PhysicalHashJoin|
+      basePhysicalJoin\l|
+      Concurrency     uint\l|
+      EqualConditions []*expression.ScalarFunction\l|
+      UseOuterToBuild bool\l
+    }}"];
+  PhysicalMergeJoin[
+    shape="record";
+    label="{{
+      PhysicalMergeJoin|
+	      basePhysicalJoin\l|
+	      CompareFuncs []expression.CompareFunc\l|
+	      Desc bool\l
+    }}"];
+
+  PhysicalIndexJoin[
+    shape="record";
+    label="{{
+      PhysicalIndexJoin|
+	      basePhysicalJoin\l|
+	      outerSchema *expression.Schema\l|
+	      innerTask   task\l|
+	      Ranges []*ranger.Range\l|
+	      KeyOff2IdxOff []int\l|
+	      IdxColLens []int\l|
+	      CompareFilters *ColWithCmpFuncManager\l
+    }}"];
+
+  PhysicalIndexMergeJoin[
+    shape="record";
+    label="{{
+      PhysicalIndexMergeJoin|
+	      PhysicalIndexJoin\l|
+	      KeyOff2KeyOffOrderByIdx []int\l|
+	      CompareFuncs []expression.CompareFunc\l|
+	      OuterCompareFuncs []expression.CompareFunc\l|
+	      NeedOuterSort bool\l|
+	      Desc bool\l
+    }}"];
+  PhysicalIndexHashJoin[
+    shape="record";
+    label="{{
+      PhysicalIndexHashJoin|
+        PhysicalIndexJoin\l|
+	      KeepOuterOrder bool
+    }}"];
+  basePlan[
+    shape="record";
+    label="{{
+      basePlan|
+	      tp          string\l|
+	      id          int\l|
+	      ctx         sessionctx.Context\l|
+	      stats       *property.StatsInfo\l|
+	      blockOffset int\l
+    }}"];
+
+  PhysicalApply[
+    shape="record";
+    label="{{
+      PhysicalApply|
+        PhysicalHashJoin\l|
+	      CanUseCache bool\l|
+        Concurrency int\l|
+        OuterSchema []*expression.CorrelatedColumn\l
+    }}"];
+
+  basePlan -> basePhysicalPlan -> physicalSchemaProducer -> basePhysicalJoin;
+
+  basePhysicalJoin -> {
+    PhysicalHashJoin;
+    PhysicalIndexJoin;
+    PhysicalMergeJoin;
+    PhysicalBroadCastJoin;
+  }
+  basePhysicalJoin:JoinType -> JoinType;
+
+  PhysicalIndexJoin -> {
+    PhysicalIndexMergeJoin;
+    PhysicalIndexHashJoin;
+  }
+  PhysicalHashJoin -> PhysicalApply;
+
+
+}

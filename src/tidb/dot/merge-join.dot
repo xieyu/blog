@@ -19,6 +19,8 @@ digraph merge_join {
 
   compare -> {
     compareFuncs;
+    outerTable_joinKeys;
+    innerTable_joinKeys;
   }
   compare[
     shape="record";
@@ -46,6 +48,13 @@ digraph merge_join {
     finish -> {
       rowContainer_close;
     };
+    fetchNextChunk[
+      shape="record";
+      label="{{
+        fetchNextChunk|
+        从child Executor中\l
+        读取一批(chunk)数据\l
+      }}"];
 
     fetchNextInnerGroup -> {
       fetchNextChunk;
@@ -103,8 +112,21 @@ digraph merge_join {
       ];
       splitIntoGroups -> groupOffset;
       evalGroupItemsAndResolveGroups -> sameGroup;
-      getNextGroup -> groupOffset;
       isExhausted;
+      groupByItems[
+        shape=record;
+        style=filled;
+        fillcolor="#95e1d3"
+        label="{{
+          groupByItems\l|
+	        GroupByItems []expression.Expression\l
+        }}"
+      ];
+
+
+      edge[style=dashed];
+      newVecGroupChecker -> groupByItems -> splitIntoGroups;
+      groupOffset -> getNextGroup;
     }
 
     fetchNextChunk -> {
@@ -119,10 +141,49 @@ digraph merge_join {
         可参照上面的TableReader和TableIndexReader\l
       }}";
     ];
-    selectNextGroup -> {
-      getNextGroup;
-    }
+    innerTable_joinKeys[
+      shape="record";
+      label="{{
+      innerTable.joinKeys\l|
+	      joinKeys   []*expression.Column
+      }}"];
+    outerTable_joinKeys[
+      shape="record";
+      label="{{
+      outerTable.joinKeys\l|
+	      joinKeys   []*expression.Column
+      }}"];
+    VectorizedFilter[
+      shape="record";
+      label="{{
+        VectorizedFilter|
+          VectorizedFilter applies\l 
+          a list of filters to a Chunk and\l
+          returns a bool slice, which\l 
+          indicates whether a row is\l 
+          passed the filters.\l
+      }}"];
+    filtersSelected[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        filtersSelected
+      }}"
+    ];
+
+    edge[style=dashed;color=blue];
+    VectorizedFilter -> filtersSelected;
+    {
+      innerTable_joinKeys;
+      outerTable_joinKeys;
+    } -> newVecGroupChecker;
+    getNextGroup -> selectNextGroup;
+    fetchNextChunk -> splitIntoGroups;
   }
+  edge[style=dashed;color=blue]
+  filtersSelected -> Next;
+
   subgraph cluster_joinner {
     graph[label="joinner";fontsize=20;];
     onMissMatch;
