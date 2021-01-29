@@ -15,7 +15,7 @@ digraph merge_join {
     compare;
     onMissMatch;
     tryToMatchInners;
-  }
+  }[color="#3f72af"];
 
   compare -> {
     compareFuncs;
@@ -132,6 +132,16 @@ digraph merge_join {
     fetchNextChunk -> {
       Next_MergeJoinExec_child_childIndex;
     }
+    childChunk[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        childChunk|
+          childChunk *chunk.Chunk\l|
+          存放child数据\l
+      }}"
+    ];
     Next_MergeJoinExec_child_childIndex[
       shape="record";
       label="{{
@@ -168,7 +178,29 @@ digraph merge_join {
       style=filled;
       fillcolor="#95e1d3"
       label="{{
-        filtersSelected
+	      filtersSelected []bool\l|
+        for outer table save\l 
+        result of filters\l
+      }}"
+    ];
+    rowContainer[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        rowContainer|
+	        rowContainer *chunk.RowContainer\l|
+	          for inner table,\l
+            an unbroken group\l 
+            may refer many chunks\l
+      }}"
+    ];
+    groupRowsIter[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        groupRowsIter
       }}"
     ];
 
@@ -179,14 +211,34 @@ digraph merge_join {
       outerTable_joinKeys;
     } -> newVecGroupChecker;
     getNextGroup -> selectNextGroup;
-    fetchNextChunk -> splitIntoGroups;
+    fetchNextChunk -> childChunk -> splitIntoGroups;
+    childChunk -> VectorizedFilter;
+    childChunk -> rowContainer[label=Add];
+    rowContainer -> groupRowsIter[label=iter];
+    groupRowsIter -> groupRowsIter_Begin;
+    groupRowsIter -> Next;
   }
-  edge[style=dashed;color=blue]
-  filtersSelected -> Next;
+
 
   subgraph cluster_joinner {
     graph[label="joinner";fontsize=20;];
     onMissMatch;
     tryToMatchInners;
+    tryToMatchInners[
+      shape="record";
+      label="{{
+        tryToMatchInners|
+          tryToMatchInners(\l 
+            outer chunk.Row,\l
+            inners chunk.Iterator,\l 
+            chk *chunk.Chunk)\l 
+            (matched bool, isNull bool, err error)\l|
+          tries to joion an outer row with\l 
+          a batch of inner rows\l
+      }}"];
   }
+
+  edge[style=dashed;color=blue]
+  filtersSelected -> Next;
+  groupRowsIter -> tryToMatchInners;
 }

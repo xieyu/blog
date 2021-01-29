@@ -1,0 +1,93 @@
+digraph sum4Float64 {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_expression {
+    graph[label="expression";fontsize=20;style="rounded,dashed";color="slategrey"]
+    EvalReal;
+  }
+  subgraph cluster_chunk {
+    graph[label="chunk";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Chunk[
+      shape="record";
+      label="{{
+        Chunk|
+        <sel> sel []int\l|
+        <columns> columns []*Column\l|
+        numVirtualRows int\l|
+        capacity int\l|
+        requiredRows int
+      }}"];
+    AppendNull -> {
+      appendSel;
+      Column_AppendNull;
+      Chunk:columns;
+    }
+    appendSel -> Chunk:sel;
+    AppendFloat64 -> {
+      appendSel;
+      Column_AppendFloat64;
+    };
+    subgraph cluster_Column {
+      graph[label="Column";fontsize=20;style="rounded,dashed";color="slategrey"]
+      Column_AppendNull[
+        shape="record";
+        label="{{
+          AppendNull
+        }}"];
+      Column_AppendFloat64[
+        shape="record";
+        label="{{
+          AppendFloat64
+        }}"];
+    }
+  }
+
+  baseSum4Float64 -> sum4Float64 -> {
+    AllocPartialResult;
+    UpdatePartialResult;
+    MergePartialResult;
+    AppendFinalResult2Chunk;
+  }[color="#b83b5e"]
+  partialResult4SumFloat64[
+    shape="record";
+    label="{{
+      partialResult4SumFloat64|
+	      val float64\l|
+	      notNullRowCount int64\l
+    }}"];
+  AllocPartialResult -> {
+    partialResult4SumFloat64;
+  }
+  UpdatePartialResult[
+    shape="record";
+    label="{{
+      UpdatePartialResult|
+      对结果进行累加\l|
+		    p.val += input\l
+		    p.notNullRowCount++\l
+    }}"];
+  UpdatePartialResult -> {
+    partialResult4SumFloat64;
+    EvalReal;
+  }
+  MergePartialResult[
+    shape="record";
+    label="{{
+      MergePartialResult|
+      partialResult合并\l|
+      p2.val += p1.val\l
+      p2.notNullRowCount += p1.notNullRowCount\l
+    }}"];
+
+  AppendFinalResult2Chunk -> {
+    AppendNull;
+    AppendFloat64;
+  }
+  edge[style=dashed;color=blue];
+  rowsInGroup -> UpdatePartialResult;
+
+  edge[style=dashed;color=gray40];
+  AllocPartialResult -> UpdatePartialResult -> MergePartialResult -> AppendFinalResult2Chunk;
+}

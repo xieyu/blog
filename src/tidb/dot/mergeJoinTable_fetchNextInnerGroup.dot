@@ -1,0 +1,136 @@
+digraph mergeJoinTable_fetchNextInnerGroup {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Chunk {
+    graph[label="Chunk";fontsize=20;style="rounded,dashed";color="slategrey"]
+    SetSel -> sel;
+    sel[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        sel [] int;\l|
+        迭代时候只用\l 
+        标记为sel的row\l
+      }}"
+    ];
+    edge[style=dashed;color=blue];
+    sel -> GetRow;
+  }
+
+  subgraph cluster_vecGroupChecker {
+    graph[label="vecGroupChecker";fontsize=20;style="rounded,dashed";color="slategrey"]
+    splitIntoGroups;
+    isExhausted -> {
+      nextGroupID;
+      groupCount;
+    };
+    nextGroupID[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        nextGroupID
+      }}"
+    ];
+    groupCount[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        groupCount
+      }}"
+    ];
+    getNextGroup;
+
+    edge[style=dashed];
+    splitIntoGroups -> {
+      nextGroupID;
+      groupCount;
+      isFirstGroupSameAsPrev;
+    };
+    isFirstGroupSameAsPrev -> selectNextGroup;
+  }
+
+  subgraph cluster_iterator4RowContainer {
+    graph[label="iterator4RowContaine";fontsize=20;style="rounded,dashed";color="slategrey"]
+    NewIterator4RowContainer;
+    Next -> Current;
+
+    edge[style=dashed;color=blue];
+    GetRow -> Current;
+  }
+
+  childChunk[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      childChunk
+    }}"
+  ];
+  rowContainer[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      rowContainer
+    }}"
+  ];
+  groupRowsSelected[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      groupRowsSelected []int
+    }}"
+  ];
+  groupRowsIter[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      groupRowsIter|
+        groupRowsIter chunk.Iterator\l
+    }}"
+  ];
+
+  fetchNextInnerGroup -> {
+    childChunk;
+    rowContainer;
+    fetchNextChunk;
+    selectNextGroup;
+    isExhausted;
+    isFirstGroupSameAsPrev;
+  }
+  selectNextGroup -> {
+    getNextGroup;
+    groupRowsSelected;
+    hasNullInJoinKey;
+    SetSel;
+  }
+  groupRowsSelected -> SetSel;
+  rowContainer -> NewIterator4RowContainer -> groupRowsIter;
+  executed[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      executed\l|
+      控制取数据循环\l
+      t.executed = \l 
+      t.childChunk.NumRows() == 0\l
+    }}"
+  ];
+
+  edge[style=dashed];
+  fetchNextChunk -> childChunk -> rowContainer;
+  fetchNextChunk -> executed;
+  childChunk -> splitIntoGroups;
+  groupRowsSelected -> childChunk;
+  SetSel -> childChunk;
+  getNextGroup -> nextGroupID[label="++"];
+}

@@ -17,21 +17,12 @@ digraph hash_join {
       channel
     }}";
   ];
-  joinChkResourceCh[
-    shape="record";
-    fillcolor="#95e1d3"
-    style=filled;
-    label="{{
-      joinChkResourceCh|
-      channel
-    }}";
-  ];
 
   Next -> {
     fetchAndProbeHashTable;
     fetchAndBuildHashTable;
-    joinResultCh;
   }
+  Next -> joinResultCh[label="recv";color=blue];
   Next[
     shape="record";
     label="{{
@@ -40,7 +31,6 @@ digraph hash_join {
       中取结果\l
     }}";
   ];
-  getNewJoinResult -> joinChkResourceCh;
   fetchAndBuildHashTable[
     shape="record";
     fillcolor="#f38181";
@@ -74,12 +64,28 @@ digraph hash_join {
   fetchBuildSideRows -> {
     buildSideExec_Next;
   }
-  buildSideResultCh -> buildHashTableForList;
-  fetchBuildSideRows -> buildSideResultCh;
-  buildHashTableForList -> {
-    rowContainer_PutChunk;
-    rowContainer_PutChunkSelected;
-  } -> rowContainer;
+  buildHashTableForList[
+    shape="record";
+    label="{{
+      buildHashTableForList|
+      给buildSide所有rows\l
+      创建hash表\l
+    }}"];
+  rowContainer[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      rowContainer|
+      hashRowContainer
+      在runJoinWorker中会用来\l
+      获取和probeKey 匹配的buildSide\l
+      Rows\l
+    }}"
+  ];
+  rowContainer -> runJoinWorker[style=dashed];
+  buildSideResultCh -> buildHashTableForList -> rowContainer;
+  fetchBuildSideRows -> buildSideResultCh[color=red;label="send"];
 
   fetchAndBuildHashTable -> {
     fetchBuildSideRows;
@@ -87,12 +93,10 @@ digraph hash_join {
   }
 
   fetchAndProbeHashTable -> {
-    initializeForProbe;
-    joinWorkerWaitGroup_Add;
     runJoinWorker;
-    waitJoinWorkersAndCloseResultChan;
     fetchProbeSideChunks;
-  }
+  }[color="#b83b5e"];
+
   runJoinWorker[
     shape="record";
     fillcolor="#f38181";
@@ -107,48 +111,8 @@ digraph hash_join {
     }}";
   ];
   runJoinWorker -> {
-    getNewJoinResult;
-    join2ChunkForOuterHashJoin;
-    join2Chunk;
-  }
-  {
-    join2ChunkForOuterHashJoin;
-  } -> joinResultCh[style=dashed;color=red];
-  join2Chunk -> {
-    VectorizedFilter;
-    initHash;
-    HashChunkSelected;
-    joinMatchedProbeSideRow2Chunk;
-    getNewJoinResult;
     joinResultCh;
-    rowContainer;
-  }[color="#3fc1c9"];
-
-  join2ChunkForOuterHashJoin[
-    shape="record";
-    label="{{
-      join2ChunkForOuterHashJoin|
-      join chunks when using the outer to\l
-      to build a hash table\l
-    }}";
-  ];
-
-  join2ChunkForOuterHashJoin -> {
-    initHash;
-    HashChunkColumns;
-    joinMatchedProbeSideRow2ChunkForOuterHashJoin;
-    getNewJoinResult;
-    joinResultCh;
-  }[color="#e84545"];
-
-  join2ChunkForOuterHashJoin -> {
-    joinMatchedProbeSideRow2ChunkForOuterHashJoin;
-  }
-  joinMatchedProbeSideRow2Chunk -> {
-    rowContainer;
-    buildSideRows;
-  }
-  rowContainer -> buildSideRows[style=dashed];
+  }[color=red;label="send"];
 
   fetchProbeSideChunks[
     shape="record";
@@ -186,8 +150,8 @@ digraph hash_join {
       channel
     }}";
   ];
-  wait4BuildSide -> buildFinished;
-  fetchAndBuildHashTable -> buildFinished;
+  wait4BuildSide -> buildFinished[label="recv",color=blue];
+  fetchAndBuildHashTable -> buildFinished[label="send";color=red];
   probeResultChs[
     shape="record";
     fillcolor="#95e1d3"
@@ -198,10 +162,6 @@ digraph hash_join {
     }}";
   ];
   probeResultChs -> runJoinWorker;
-  initializeForProbe -> {
-    newFirstChunk;
-    joinChkResourceCh;
-  }
   Close -> {
     closeCh;
     close_probeChkResourceCh;

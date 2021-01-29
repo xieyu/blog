@@ -1,0 +1,121 @@
+digraph index_lookup_join_flow {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  {rank=same; Open;Next}
+  subgraph cluster_joiner {
+    graph[label="joiner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    onMissMatch;
+    tryToMatchInners;
+  }
+
+  Open -> {
+    startWorkers;
+  }
+  Next -> {
+    getFinishedTask;
+    onMissMatch;
+    tryToMatchInners;
+  }
+  Next[
+    shape=record;
+    style=filled;
+    fillcolor="#ff577f"
+    label="{{
+      Next|
+      main线程
+    }}"
+  ];
+
+ // handleTask -> {
+ //   fetchInnerResults;
+ //   buildLookUpMap;
+ // }
+
+  startWorkers -> {
+    newOuterWorker_run;
+    newInnerWorker_run;
+  }[label="go routine"];
+
+  newOuterWorker_run[
+    shape=record;
+    style=filled;
+    fillcolor="#ff577f"
+    label="{{
+      newOuterWorker.run|
+      启动一个OuterWorker
+    }}"
+  ];
+  newInnerWorker_run[
+    shape=record;
+    style=filled;
+    fillcolor="#ff577f"
+    label="{{
+      newInnerWorker.run|
+      启动多个InnerWorker\l|
+      从innerCh中去取task\l
+      然后执行，执行结束后\l
+      发消息给doneCh\l
+    }}"
+  ];
+  buildTask[
+    shape="record";
+    label="{{
+      buildTask|
+      builds a lookUpJoinTask\l 
+      and read outer rows\l
+    }}"];
+
+  task[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      task|
+        lookUpJoinTask\l
+    }}"
+  ];
+  buildTask -> task -> pushToChan;
+
+  newOuterWorker_run -> {
+    buildTask;
+    pushToChan;
+  }
+  pushToChan[
+    shape="record";
+    label="{{
+      pushToChan|
+      将Task放入resultCh\l
+      和innerCh中\l
+    }}"];
+  pushToChan -> {
+    innerCh;
+    resultCh;
+  }[label="send";color=red];
+
+  innerCh[
+    shape="record";
+    label="{{
+      innerCh|
+        taskCh      \<-chan *lookUpJoinTask
+    }}"];
+
+  newInnerWorker_run -> { task_doneCh;}[label="send";color=red];
+  newInnerWorker_run -> {innerCh;}[label="recv";color=blue];
+  newInnerWorker_run -> handleTask;
+  getFinishedTask[
+    shape="record";
+    label="{{
+      getFinishedTask|
+      从resultCh获取一个task\l
+      然后等待该task.doneCh\l
+    }}"];
+
+  getFinishedTask -> {
+    resultCh;
+    task_doneCh;
+  }[label="recv";color=blue;];
+  edge[style=dashed]
+  handleTask -> task_doneCh;
+}

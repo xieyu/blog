@@ -1,0 +1,63 @@
+digraph index_lookup_join_buildtask {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_task {
+    graph[label="task";fontsize=20;style="rounded,dashed";color="slategrey"]
+    outerResult[
+      shape=record;
+      style=filled;
+      fillcolor="#f6d887";
+      label="{{
+        outerResult|
+          outerResult *chunk.List\l
+      }}"
+    ];
+    outerMatch[
+      shape="record";
+      label="{{
+        outerMatch|
+          outerMatch  [][]bool
+      }}"];
+    encodedLookUpKeys[
+      shape="record";
+      label="{{
+        encodedLookUpKeys|
+        []*chunk.Chunk\l
+      }}"];
+  }
+  outerResult_Add[
+    shape="record";
+    label="{{
+      outerResult.Add
+    }}"];
+
+  ow_executor_Next[
+    shape="record";
+    label="{{
+      ow_executor_Next|
+      从outer executor中读取数据\l
+      放入task的outerResult中\l
+    }}"];
+
+  buildTask -> {
+    ow_executor_Next;
+    outerResult_Add;
+    VectorizedFilter;
+    NewChunkWithCapacity;
+    encodedLookUpKeys;
+  }[color="#b83b5e"];
+  VectorizedFilter[
+    shape="record";
+    label="{{
+      VectorizedFilter|
+      根据out filter过滤数据\l
+    }}"];
+
+  edge[style=dashed;color=blue]
+  ow_executor_Next -> Chunk -> outerResult_Add -> outerResult;
+  outerResult -> VectorizedFilter -> outerMatch;
+  outerResult -> NewChunkWithCapacity -> encodedLookUpKeys;
+}

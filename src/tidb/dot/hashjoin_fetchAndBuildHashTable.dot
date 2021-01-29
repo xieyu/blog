@@ -1,0 +1,70 @@
+digraph fetchAndBuildHashTable {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_hashRowContainer {
+    graph[label="hashRowContainer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    subgraph cluster_rowContainer {
+      graph[label="rowContainer";fontsize=20;style="rounded,dashed";color="slategrey"]
+      Add -> {
+        recordsInDisk_Add;
+        records_Add;
+      }
+      recordsInDisk_Add[
+        shape="record";
+        label="{{
+          recordsInDisk_Add|
+          加到磁盘列表中
+        }}"];
+      recordsInDisk_Add -> WriteTo;
+      subgraph cluster_chunkInDisk {
+        graph[label="chunkInDisk";fontsize=20;style="rounded,dashed";color="slategrey"]
+        WriteTo[
+          shape="record";
+          label="{{
+            WriteTo|
+            写入文件
+          }}"];
+        
+      }
+    }
+    PutChunk -> PutChunkSelected;
+    PutChunkSelected -> Add;
+  }
+
+  HashJoinExec_Next -> fetchAndBuildHashTable[label="go routine"];
+  fetchAndBuildHashTable[
+    shape="record";
+    label="{{
+      fetchAndBuildHashTable|
+      启动fetchBuildSideRows go routine\l|
+      读取数据放入buildSideResultCh中\l
+    }}"];
+  fetchAndBuildHashTable -> fetchBuildSideRows[label="go routine"];
+  fetchAndBuildHashTable ->  buildHashTableForList;
+  fetchAndBuildHashTable -> buildFinished[label="send"; color=red];
+  buildSideResultCh -> buildHashTableForList[style=dashed;color=blue];
+  buildHashTableForList -> {
+    PutChunk;
+    PutChunkSelected;
+  }
+  fetchAndBuildHashTable -> {
+    buildSideResultCh;
+    fetchBuildSideRowsOk;
+  }[label="recv";color=blue];
+
+  fetchBuildSideRows[
+    shape="record";
+    label="{{
+      fetchBuildSideRows|
+      读取buildSideExec中所有数据\l
+    }}"];
+  fetchBuildSideRows -> {
+    finish;
+    Next;
+  }
+  fetchBuildSideRows -> buildFinished[label="send error if any";color=red];
+  fetchBuildSideRows -> buildSideResultCh[label="send";color=red];
+  buildSideExec -> Next;
+}

@@ -106,3 +106,31 @@ type Range struct {
 	HighExclude bool // High value is exclusive.
 }
 ```
+
+## RowContainer
+
+```go
+// RowContainer provides a place for many rows, so many that we might want to spill them into disk.
+type RowContainer struct {
+	m struct {
+		// RWMutex guarantees spill and get operator for rowContainer is mutually exclusive.
+		sync.RWMutex
+		// records stores the chunks in memory.
+		records *List
+		// recordsInDisk stores the chunks in disk.
+		recordsInDisk *ListInDisk
+		// spillError stores the error when spilling.
+		spillError error
+	}
+
+	fieldType []*types.FieldType
+	chunkSize int
+	numRow    int
+
+	memTracker  *memory.Tracker
+	diskTracker *disk.Tracker
+	actionSpill *SpillDiskAction
+}
+```
+
+![](./dot/chunk_RowContainer.svg)

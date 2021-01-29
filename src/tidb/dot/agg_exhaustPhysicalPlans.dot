@@ -1,0 +1,43 @@
+digraph exhaustPhysicalPlans {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_sessionVars {
+    graph[label="sessionVars";fontsize=20;style="rounded,dashed";color="slategrey"]
+    AllowMPPExecution;
+    AllowDistinctAggPushDown;
+  }
+  subgraph cluster_plancodec {
+    graph[label="plancodec";fontsize=20;style="rounded,dashed";color="slategrey"]
+    TypeStreamAgg;
+    TypeHashAgg;
+  }
+
+  exhaustPhysicalPlans -> {
+    getHashAggs;
+    getStreamAggs;
+  }
+  getHashAggs -> {
+    AllowMPPExecution;
+    AllowDistinctAggPushDown;
+    NewPhysicalHashAgg;
+  }
+  NewPhysicalHashAgg -> {
+    basePhysicalAgg;
+    initForHash;
+  }
+  initForHash -> TypeHashAgg;
+
+  getStreamAggs -> {
+    GetGroupByCols;
+    GetAllPossibleChildTaskTypes;
+    SortItemsFromCols;
+    basePhysicalAgg;
+    initForStream;
+  }
+  initForStream -> {
+    PhysicalStreamAgg;
+    TypeStreamAgg;
+  }
+}
