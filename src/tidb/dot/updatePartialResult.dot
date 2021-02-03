@@ -1,0 +1,38 @@
+digraph updatePartialResult {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  updatePartialResult -> {
+    getGroupKey;
+    getPartialResult;
+    UpdatePartialResult;
+  }
+  aggFuncs -> getPartialResult;
+  partialResults[
+    shape="record";
+    label="{{
+      partialResults|
+      partialResults[i][j]\l
+      代表第i行，第j个agg函数\l 
+      中间结果\l||
+      <a> partialResults[a]|
+      <b> partialResults[b]|
+    }}"];
+  partialResults:a -> partialResults_i[label="group_key"];
+  partialResults:b -> partialResults_i[label="group_key"];
+  partialResults_i[
+    shape="record";
+    label="{{
+      partialResults_i|
+      拥有同样groupKey的指向同一个
+      partialResults 数组\l|
+      af1.AllocPartialResult|
+      af2.AllocPartialResult|
+      ...|
+      afj.AllocPartialResult|
+    }}"];
+  edge[style=dashed;color=blue]
+  getGroupKey -> groupKey -> getPartialResult -> partialResults;
+}

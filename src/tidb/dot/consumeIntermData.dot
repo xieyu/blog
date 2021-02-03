@@ -1,0 +1,76 @@
+digraph consumeIntermData {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  partialResultMap[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      partialResultMap
+    }}"
+  ];
+  HashAggFinalWorker_run -> {
+    consumeIntermData;
+    getFinalResult;
+  }
+  consumeIntermData -> {
+    getPartialInput;
+    getPartialResultBatch;
+    getPartialInput;
+    MergePartialResult;
+    groupSet;
+  };
+  getPartialResultBatch -> {
+    HashAggIntermData;
+  }
+  HashAggIntermData[
+    shape="record";
+    label="{{
+      HashAggIntermData|
+	      groupKeys        []string\l|
+	      cursor           int\l|
+	      partialResultMap aggPartialResultMapper\l|
+        从PartialWorker输出中间数据\l
+    }}"];
+
+  getFinalResult -> {
+    getPartialResult;
+    AppendFinalResult2Chunk;
+    receiveFinalResultHolder;
+  }
+
+  getPartialResult -> partialResultMap;
+  partialResultMap[
+    shape="record";
+    label="{{
+      partialResultMap|
+      finalWorker自己的map\l
+      用来存放merge之后的结果\l
+    }}"];
+  groupSet[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      groupSet|
+      set.StringSet
+    }}"
+  ];
+  result[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      result|
+      *chunk.Chunk\l
+    }}"
+  ];
+  edge[style=dashed;color=blue];
+  getPartialInput -> getPartialResultBatch -> MergePartialResult -> partialResultMap;
+  partialResultMap -> AppendFinalResult2Chunk;
+  groupSet -> getFinalResult;
+  receiveFinalResultHolder -> result;
+  AppendFinalResult2Chunk -> result;
+}

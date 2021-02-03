@@ -1,0 +1,24 @@
+digraph ToPB {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  constructDAGReq -> {
+    constructDistExecForTiFlash
+    constructDistExec;
+    PushDownFlags;
+  }
+  ToPB -> {
+    ExpressionsToPBList;
+    tipb_Aggregation;
+    AggFuncToPBExpr;
+  }
+
+  AggFuncToPBExpr -> {
+    NewPBConverter;
+    ExprToPB;
+    ExprType_SUM;
+    ExprType_Count;
+    ExprType_Avg;
+  }
+}

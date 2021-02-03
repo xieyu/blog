@@ -1,0 +1,279 @@
+digraph HashAggExec_Flow {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  af_UpdatePartialResult[
+    shape=record;
+    style=filled;
+    fontcolor=white;
+    fillcolor="#23689b"
+    label="{{
+      UpdatePartialResult|
+      AggFunc接口函数\l
+    }}"
+  ];
+  AllocPartialResult[
+    shape=record;
+    style=filled;
+    fontcolor=white;
+    fillcolor="#23689b"
+    label="{{
+      AllocPartialResult|
+      AggFunc接口函数\l
+    }}"
+  ];
+  MergePartialResult[
+    shape=record;
+    style=filled;
+    fontcolor=white;
+    fillcolor="#23689b"
+    label="{{
+      MergePartialResult|
+      AggFunc接口函数\l
+    }}"
+  ];
+  AppendFinalResult2Chunk[
+    shape=record;
+    style=filled;
+    fontcolor=white;
+    fillcolor="#23689b"
+    label="{{
+      AppendFinalResult2Chunk|
+      AggFunc接口函数\l
+    }}"
+  ];
+
+  Next -> {
+    parallelExec;
+  }
+
+  parallelExec -> {
+    prepare4ParallelExec;
+    finalOutputCh;
+  }
+
+  prepare4ParallelExec -> {
+    HashAggPartialWorker_run;
+    HashAggFinalWorker_run;
+    fetchChildData;
+  }[label="go routine"];
+  fetchChildData[
+    shape=record;
+    style=filled;
+    fillcolor="#ff577f"
+    label="{{
+      fetchChildData
+    }}"
+  ];
+  HashAggPartialWorker_run[
+    shape=record;
+    style=filled;
+    fillcolor="#ff577f"
+    label="{{
+      HashAggPartialWorker.run
+    }}"
+  ];
+  HashAggFinalWorker_run[
+    shape=record;
+    style=filled;
+    fillcolor="#ff577f"
+    label="{{
+      HashAggFinalWorker.run
+    }}"
+  ];
+
+  getPartialInput[
+    shape="record";
+    label="{{
+      getPartialInput|
+      从PartialWorker的输出\l 
+      ch中获取数据\l
+    }}"];
+  getPartialResult[
+    shape="record";
+    label="{{
+      getPartialResult|
+      根据groupKeys 去map中取partialResult\l
+      如果不存在，则创建一个\l
+    }}"];
+    getFinalResult[
+      shape="record";
+      label="{{
+        getFinalResult|
+        将最终结果写入outputCh\l
+      }}"];
+
+    HashAggFinalWorker_run -> {
+      consumeIntermData;
+      getFinalResult;
+    }
+    consumeIntermData[
+      shape="record";
+      label="{{
+        consumeIntermData|
+        调用MergeResult将\l 
+        partialWorker输出\l 
+        中间结果merge\l
+      }}"];
+    consumeIntermData -> {
+      getPartialInput;
+      getPartialResult;
+      MergePartialResult;
+    }[color="#3f72af"];
+
+    shuffleIntermData[
+      shape="record";
+      label="{{
+        shuffleIntermData|
+        遍历partialResultsMap\l
+        将groupkeys分为FinalConcurrency组\l
+        发送到输出的ch\l
+      }}"];
+
+    getFinalResult ->{
+      getPartialResult;
+      finalOutputCh;
+      AppendFinalResult2Chunk;
+    }
+
+  fetchChildData -> {
+    Next_children;
+  }
+  Next_children[
+    shape="record";
+    label="{{
+      Next_children|
+      从child executor中\l
+      读取数据\l
+      然后放入ch中\l
+    }}"];
+    HashAggPartialWorker_run -> {
+      shuffleIntermData;
+      getChildInput;
+      updatePartialResult;
+    }
+    getChildInput[
+      shape="record";
+      label="{{
+        getChildInput|
+        从worker 绑定的\l 
+        partialInputChs\l 
+        中获取数据,完毕后\l |
+        再放回到 inputCh中\l 
+        这样fetchChildData\l 
+        可以接着去取数据\l
+      }}"];
+    updatePartialResult -> {
+      getGroupKey;
+      getPartialResult;
+      af_UpdatePartialResult;
+    }
+    edge[style=dashed;color=blue];
+    getGroupKey  -> getPartialResult;
+  getPartialResult -> {
+    partialResultMap;
+    AllocPartialResult;
+  }
+  partialResultMap[
+    shape="record";
+    label="{{
+      partialResultMap|
+      aggPartialResultMapper\l
+      type aggPartialResultMapper\l
+      map[string][]aggfuncs.PartialResult|
+    }}"];
+  getGroupKey[
+    shape="record";
+    label="{{
+      getGroupKey|
+      evaluates the group items \l 
+      and args of aggregate function\l
+    }}"];
+
+  inputCh[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      inputCh\l|
+        chk *chunk.Chunk\l
+        giveBackCh chan\<- *chunk.Chunk\l|
+        用于fether和partialworker\l 
+        之间数据复用\l
+    }}"
+  ];
+  partialInputChs[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      partialInputChs|
+      每个worker绑定了一个\l
+      worker i 绑定了\l 
+      patialInputChans[i]\l
+    }}"
+  ];
+
+  finalOutputCh[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      finalOutputCh|
+        finalOutputCh    chan *AfFinalResult\l|
+        用于finalWorker和main thread\l
+        之间数据同步\l|
+        main读完数据后\l 
+        将chunk放回giveBackCh\l
+        用于数据复用\l
+    }}"
+  ];
+  finalOutputCh -> AfFinalResult;
+  AfFinalResult[
+    shape="record";
+    label="{{
+      AfFinalResult|
+	      chk        *chunk.Chunk\l|
+	      err        error\l|
+	      giveBackCh chan *chunk.Chunk\l
+    }}"];
+
+  partialOutputChs[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      partialOutputChs|
+	      []chan *HashAggIntermData\l
+    }}"
+  ];
+  partialOutputChs -> HashAggIntermData;
+  HashAggIntermData[
+    shape="record";
+    label="{{
+      HashAggIntermData|
+	      groupKeys        []string\l|
+	      cursor           int\l|
+	      partialResultMap aggPartialResultMapper\l
+    }}"];
+  prepare4ParallelExec[
+    shape="record";
+    label="{{
+      prepare4ParallelExec|
+      启动多个paritalWorker go routine\l
+      启动多个finalWorkers go routine\l
+      启动一个fetchChildData go routine\l
+    }}"];
+
+  edge[style=dashed;color=blue];
+  //inputCh:giveBackCh -> getChildInput;
+  //fetchChildData -> inputCh:giveBackCh;
+  fetchChildData -> partialInputChs -> getChildInput;
+  getChildInput -> updatePartialResult;
+  shuffleIntermData -> partialOutputChs -> getPartialInput;
+  partialResultMap-> shuffleIntermData;
+  getChildInput -> inputCh;
+  inputCh -> fetchChildData;
+}

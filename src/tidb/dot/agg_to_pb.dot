@@ -1,0 +1,66 @@
+digraph agg_to_pb {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  constructDAGReq -> {
+    constructDistExec;
+    constructDistExecForTiFlash;
+  } -> ToPB;
+  ToPB[
+    shape="record";
+    label="{{
+      ToPB|
+      PhysicalPlan.ToPB\l
+    }}"];
+  ToPB -> {
+    PhysicalStreamAgg_ToPB;
+    PhysicalHashAgg_ToPB;
+  }
+  PhysicalStreamAgg_ToPB[
+    shape="record";
+    label="{{
+      PhysicalStreamAgg.ToPB
+    }}"];
+
+  PhysicalHashAgg_ToPB[
+    shape="record";
+    label="{{
+      PhysicalStreamAgg.ToPB
+    }}"];
+
+  PhysicalStreamAgg_ToPB -> {
+    ExpressionsToPBList;
+    AggFuncToPBExpr;
+  }
+  GroupByItems -> ExpressionsToPBList;
+
+  PhysicalHashAgg_ToPB -> {
+    ExpressionsToPBList;
+    AggFuncToPBExpr;
+  }
+  AggFuncToPBExpr -> {
+    ExprType_Sum;
+    ExprType_Avg;
+    ExprType_Count;
+  }
+  ExpressionsToPBList -> {
+    ExprToPB;
+  }
+  subgraph cluster_tipb {
+    graph[label="tip";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ExprType_Sum;
+    ExprType_Avg;
+    ExprType_Count;
+  }
+  subgraph cluster_PBConverter {
+    graph[label="PBConverte";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ExprToPB -> {
+      conOrCorColToPBExpr;
+      conOrCorColToPBExpr;
+      scalarFuncToPBExpr;
+      columnToPBExpr;
+    }
+  }
+}

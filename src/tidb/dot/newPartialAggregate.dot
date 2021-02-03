@@ -1,0 +1,137 @@
+digraph newPartialAggregate {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  newPartialAggregate[
+    shape="record";
+    label="{{
+      newPartialAggregate|
+      返回partial和final Physical Plan\l
+    }}"];
+
+  newPartialAggregate -> {
+    CheckAggCanPushCop;
+    BuildFinalModeAggregation;
+    RemoveUnnecessaryFirstRow;
+    genFirstRowAggForGroupBy;
+  }
+  CheckAggCanPushCop[
+    shape="record";
+    label="{{
+      CheckAggCanPushCop|
+      检查是否能push到cop层处理\l
+    }}"];
+  CheckAggCanPushCop -> {
+    AggFuncToPBExpr;
+    CheckAggPushDown;
+    CanExprsPushDown;
+    ContainVirtualColumn;
+    ContainCorrelatedColumn;
+    CanExprsPushDown;
+  }
+  ContainVirtualColumn[
+    shape="record";
+    label="{{
+      ContainVirtualColumn|
+           can not be pushed down.\l
+    }}"];
+  ContainCorrelatedColumn[
+    shape="record";
+    label="{{
+      ContainCorrelatedColumn|
+           can not be pushed down.\l
+    }}"];
+  AggFuncToPBExpr[
+    shape="record";
+    label="{{
+      AggFuncToPBExpr|
+      检查Aggfunc能否\l 
+      转换成pb expr\l
+    }}"];
+  CheckAggPushDown[
+    shape="record";
+    label="{{
+      CheckAggPushDown|
+      checks whether an agg\l 
+      function can be pushed\l
+      to storage\l
+    }}"];
+  CheckAggPushFlash[
+    shape="record";
+    label="{{
+      CheckAggPushFlash|
+      检查能否push到flash storage
+    }}"];
+
+  CheckAggPushDown -> {
+    aggFunc_OrderByItems;
+    AggFuncApproxPercentile;
+    CheckAggPushFlash;
+    IsPushDownEnabled;
+  }
+  aggFunc_OrderByItems[
+    shape="record";
+    label="{{
+      aggFunc_OrderByItems|
+      如果有OrderByItems不能pushdown
+    }}"];
+  AggFuncApproxPercentile[
+    shape="record";
+    label="{{
+      AggFuncApproxPercentile|
+      这个函数也不能push down
+    }}"];
+  IsPushDownEnabled[
+    shape="record";
+    label="{{
+      IsPushDownEnabled|
+      检查是否在expr_pushdown_blacklist里面
+    }}"];
+  IsPushDownEnabled -> DefaultExprPushDownBlacklist;
+
+  BuildFinalModeAggregation[
+    shape="record";
+    label="{{
+      BuildFinalModeAggregation|
+      splits either logicalAggregation\l
+      for physicalAggregation to finalAgg\l
+      and prtial1Agg\l|
+      finalAgg的mode为FinalMode\l
+    }}"];
+
+  HasDistinct[
+    shape="record";
+    label="{{
+      HasDistinct|
+      对Distinct特殊处理\l
+    }}"];
+
+  BuildFinalModeAggregation -> {
+    HasDistinct;
+    NeedCount;
+    ast_AggFuncApproxCountDistinct;
+    case_ast_AggFuncAvg;
+    AggInfo;
+  }
+  AggInfo[
+    shape="record";
+    label="{{
+      AggInfo|
+	      AggFuncs     []*aggregation.AggFuncDesc\l|
+	      GroupByItems []expression.Expression\l|
+	      Schema       *expression.Schema\l
+    }}"];
+  case_ast_AggFuncAvg[
+    shape="record";
+    label="{{
+      case_ast_AggFuncAvg|
+      如果是Avg就拆分成sum和count
+    }}"];
+
+  NeedCount -> {
+    ast_AggFuncCount;
+    ast_AggFuncAvg;
+  }
+}

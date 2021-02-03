@@ -5,24 +5,98 @@ digraph exhaustPhysicalPlans {
   rankdir=LR;
   subgraph cluster_sessionVars {
     graph[label="sessionVars";fontsize=20;style="rounded,dashed";color="slategrey"]
+    AllowBCJ;
     AllowMPPExecution;
     AllowDistinctAggPushDown;
   }
+
+  subgraph cluster_TaskType {
+    graph[label="TaskType";fontsize=20;style="rounded,dashed";color="slategrey"]
+    CopSingleReadTaskType;
+    CopDoubleReadTaskType;
+    CopTiFlashLocalReadTaskType;
+    MPPTaskType
+    RootTaskType;
+  }
   subgraph cluster_plancodec {
     graph[label="plancodec";fontsize=20;style="rounded,dashed";color="slategrey"]
-    TypeStreamAgg;
-    TypeHashAgg;
+    {rank=same; TypeStreamAgg;TypeHashAgg};
   }
+  noCopPushDown[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      noCopPushDown\l
+      被设置为不能CopPushDown
+    }}"
+  ];
+  canChildPushDown[
+    shape="record";
+    label="{{
+      canChildPushDown|
+      DataSource可以pushDown\l
+      LogicalJoin, LogicalProjection\l
+      需要检查SessionVars\l
+    }}"];
+  preferAggToCop[
+    shape="record";
+    label="{{
+      preferAggToCop|
+      hints
+    }}"];
+  disableAggPushDownToCop -> noCopPushDown;
+  LogicalApply -> noCopPushDown;
+  findBestTask -> {
+    exhaustPhysicalPlans;
+    enumeratePhysicalPlans4Task;
+  }
+  enumeratePhysicalPlans4Task -> {
+    attach2Task;
+  }
+  attach2Task -> newPartialAggregate;
 
   exhaustPhysicalPlans -> {
     getHashAggs;
     getStreamAggs;
+    preferAggToCop;
+    canPushToCop;
+    ResetHintIfConflicted;
   }
+  canPushToCop -> {
+    canChildPushDown;
+    noCopPushDown;
+  }
+  canChildPushDown -> {
+    AllowBCJ;
+    AllowMPPExecution;
+  }
+
+  getHashAggs[
+    shape="record";
+    label="{{
+      getHashAggs|
+      根据sessionVars配置\l
+      找到可用的taskType\l|
+      对每种taskType都生成一个\l
+      PhysicalHashAgg\l
+    }}"];
+
+
   getHashAggs -> {
     AllowMPPExecution;
     AllowDistinctAggPushDown;
     NewPhysicalHashAgg;
-  }
+    IsFlashProp;
+    HashDistinct;
+    canPushToCop;
+    CopSingleReadTaskType;
+    CopDoubleReadTaskType;
+    CopTiFlashLocalReadTaskType;
+    MPPTaskType;
+    RootTaskType;
+  } [color="#b83b5e"];
+
   NewPhysicalHashAgg -> {
     basePhysicalAgg;
     initForHash;
@@ -30,14 +104,35 @@ digraph exhaustPhysicalPlans {
   initForHash -> TypeHashAgg;
 
   getStreamAggs -> {
+    IsFlashProp;
+    AllSameOrder;
     GetGroupByCols;
     GetAllPossibleChildTaskTypes;
     SortItemsFromCols;
     basePhysicalAgg;
     initForStream;
+    FinalMode;
+    canPushToCop;
+    HashDistinct;
+    AllowDistinctAggPushDown;
+  }[color="#3fc1c9"];
+
+  GetAllPossibleChildTaskTypes -> {
+    wholeTaskTypes;
   }
+  wholeTaskTypes -> {
+    CopSingleReadTaskType,
+    CopDoubleReadTaskType,
+    RootTaskType;
+  }
+
   initForStream -> {
     PhysicalStreamAgg;
     TypeStreamAgg;
   }
+
+  edge[style=dashed;color=blue]
+  preferAggToCop -> canPushToCop;
+  {AllowDistinctAggPushDown; HashDistinct}-> RootTaskType;
+  AllowBCJ -> CopTiFlashLocalReadTaskType;
 }

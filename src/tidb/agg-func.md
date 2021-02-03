@@ -2,42 +2,6 @@
 
 <!-- toc -->
 
-## AggFuncDesc
-
-```go
-type AggFuncDesc struct {
-	baseFuncDesc
-	// Mode represents the execution mode of the aggregation function.
-	Mode AggFunctionMode
-	// HasDistinct represents whether the aggregation function contains distinct attribute.
-	HasDistinct bool
-	// OrderByItems represents the order by clause used in GROUP_CONCAT
-	OrderByItems []*util.ByItems
-}
-```
-
-### AggFunctionMode
-```go
-// AggFunctionMode stands for the aggregation function's mode.
-type AggFunctionMode int
-
-// |-----------------|--------------|--------------|
-// | AggFunctionMode | input        | output       |
-// |-----------------|--------------|--------------|
-// | CompleteMode    | origin data  | final result |
-// | FinalMode       | partial data | final result |
-// | Partial1Mode    | origin data  | partial data |
-// | Partial2Mode    | partial data | partial data |
-// | DedupMode       | origin data  | origin data  |
-// |-----------------|--------------|--------------|
-const (
-	CompleteMode AggFunctionMode = iota
-	FinalMode
-	Partial1Mode
-	Partial2Mode
-	DedupMode
-)
-```
 
 
 ## AggFunc interface
@@ -115,3 +79,87 @@ type baseAggFunc struct {
 
 ![](./dot/agg_sum_distinct.svg)
 
+
+## AggFuncDesc
+
+```go
+type AggFuncDesc struct {
+	baseFuncDesc
+	// Mode represents the execution mode of the aggregation function.
+	Mode AggFunctionMode
+	// HasDistinct represents whether the aggregation function contains distinct attribute.
+	HasDistinct bool
+	// OrderByItems represents the order by clause used in GROUP_CONCAT
+	OrderByItems []*util.ByItems
+}
+```
+
+![](./dot/AggFuncDesc.svg)
+
+### AggFunctionMode
+```go
+// AggFunctionMode stands for the aggregation function's mode.
+type AggFunctionMode int
+
+// |-----------------|--------------|--------------|
+// | AggFunctionMode | input        | output       |
+// |-----------------|--------------|--------------|
+// | CompleteMode    | origin data  | final result |
+// | FinalMode       | partial data | final result |
+// | Partial1Mode    | origin data  | partial data |
+// | Partial2Mode    | partial data | partial data |
+// | DedupMode       | origin data  | origin data  |
+// |-----------------|--------------|--------------|
+const (
+	CompleteMode AggFunctionMode = iota
+	FinalMode
+	Partial1Mode
+	Partial2Mode
+	DedupMode
+)
+```
+![](./dot/AggFunctionMode.svg)
+
+不同mode，最后会生成不同的aggfunc, 在不同的phase执行。
+
+## AggFuncToPBExpr
+可以下推的agg func
+```go
+func AggFuncToPBExpr(sc *stmtctx.StatementContext, client kv.Client, aggFunc *AggFuncDesc) *tipb.Expr {
+//..
+	switch aggFunc.Name {
+	case ast.AggFuncCount:
+		tp = tipb.ExprType_Count
+	case ast.AggFuncApproxCountDistinct:
+		tp = tipb.ExprType_ApproxCountDistinct
+	case ast.AggFuncFirstRow:
+		tp = tipb.ExprType_First
+	case ast.AggFuncGroupConcat:
+		tp = tipb.ExprType_GroupConcat
+	case ast.AggFuncMax:
+		tp = tipb.ExprType_Max
+	case ast.AggFuncMin:
+		tp = tipb.ExprType_Min
+	case ast.AggFuncSum:
+		tp = tipb.ExprType_Sum
+	case ast.AggFuncAvg:
+		tp = tipb.ExprType_Avg
+	case ast.AggFuncBitOr:
+		tp = tipb.ExprType_Agg_BitOr
+	case ast.AggFuncBitXor:
+		tp = tipb.ExprType_Agg_BitXor
+	case ast.AggFuncBitAnd:
+		tp = tipb.ExprType_Agg_BitAnd
+	case ast.AggFuncVarPop:
+		tp = tipb.ExprType_VarPop
+	case ast.AggFuncJsonObjectAgg:
+		tp = tipb.ExprType_JsonObjectAgg
+	case ast.AggFuncStddevPop:
+		tp = tipb.ExprType_StddevPop
+	case ast.AggFuncVarSamp:
+		tp = tipb.ExprType_VarSamp
+	case ast.AggFuncStddevSamp:
+		tp = tipb.ExprType_StddevSamp
+	}
+
+```
