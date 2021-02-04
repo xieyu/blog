@@ -121,6 +121,7 @@ digraph HashAggExec_Flow {
       getPartialInput;
       getPartialResult;
       MergePartialResult;
+      finalWorker_partialResultMap;
     }[color="#3f72af"];
 
     shuffleIntermData[
@@ -172,14 +173,16 @@ digraph HashAggExec_Flow {
     }
     edge[style=dashed;color=blue];
     getGroupKey  -> getPartialResult;
-  getPartialResult -> {
-    partialResultMap;
-    AllocPartialResult;
-  }
+    getPartialResult -> {
+      partialResultMap;
+      finalWorker_partialResultMap;
+      AllocPartialResult;
+    }
   partialResultMap[
     shape="record";
     label="{{
       partialResultMap|
+      partialWorker\l|
       aggPartialResultMapper\l
       type aggPartialResultMapper\l
       map[string][]aggfuncs.PartialResult|

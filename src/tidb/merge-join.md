@@ -2,38 +2,6 @@
 
 <!-- toc -->
 
-## Sort MergeJoin 算法
-
-```
-function sortMerge(relation left, relation right, attribute a)
-    var relation output
-    var list left_sorted := sort(left, a) // Relation left sorted on attribute a
-    var list right_sorted := sort(right, a)
-    var attribute left_key, right_key
-    var set left_subset, right_subset // These sets discarded except where join predicate is satisfied
-    advance(left_subset, left_sorted, left_key, a)
-    advance(right_subset, right_sorted, right_key, a)
-    while not empty(left_subset) and not empty(right_subset)
-        if left_key = right_key // Join predicate satisfied
-            add cartesian product of left_subset and right_subset to output
-            advance(left_subset, left_sorted, left_key, a)
-            advance(right_subset, right_sorted,right_key, a)
-        else if left_key < right_key
-            advance(left_subset, left_sorted, left_key, a)
-        else // left_key > right_key
-            advance(right_subset, right_sorted, right_key, a)
-    return output
-
-// Remove tuples from sorted to subset until the sorted[1].a value changes
-function advance(subset out, sorted inout, key out, a in)
-    key := sorted[1].a
-    subset := emptySet
-    while not empty(sorted) and sorted[1].a = key
-        insert sorted[1] into subset
-        remove sorted[1] 
-```
-
-
 ## MergeJoinExec Struct 
 ```go
 // MergeJoinExec implements the merge join algorithm.

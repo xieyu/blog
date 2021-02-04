@@ -2,34 +2,6 @@
 
 <!-- toc -->
 
-## Hash join 算法
-
-```pascal
-/* Partition s */
-for each tuple ts in s do begin
-  i := h(ts[JoinAttrs]);
-  Hsi := Hsi ∪ {ts};
-end
-
-/* Partition r */
-for each tuple tr in r do begin
-  i := h(tr[JoinAttrs]);
-  Hri := Hri ∪ {tr};
-end
-
-/* Perform join on each partition */
-for i := 0 to nh do begin
-  read Hsi and build an in-memory hash index on it;
-  for each tuple tr in Hri do begin
-    probe the hash index on Hsi to locate all tuples ts
-    such that ts[JoinAttrs] = tr[JoinAttrs];
-    for each matching tuple ts in Hsi do begin
-      add tr ⋈ ts to the result;
-    end
-  end
-end
-```
-
 ## HashJoinExec struct 
 
 ![](./dot/hashjoinexecutor_struct.svg)
@@ -70,7 +42,7 @@ fetchProbeSideChunks get chunks from fetches chunks from the big table in a back
 
 ![](./dot/hashjoin_runJoinWorker.svg)
 
-### join
+## join2Chunk
 
 join2Chunk负责将probeResult和inner table做Join
 

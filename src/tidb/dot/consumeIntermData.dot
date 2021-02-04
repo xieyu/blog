@@ -21,10 +21,26 @@ digraph consumeIntermData {
     getPartialInput;
     MergePartialResult;
     groupSet;
-  };
+    getPartialResult;
+  }[color="#b83b5e"];
+
+  MergePartialResult[
+    shape="record";
+    label="{{
+      MergePartialResult|
+      调用af MergePartialResult接口\l
+      将partialWorker的partialResutMap\l
+      和finalWorker的合并\l
+    }}"];
   getPartialResultBatch -> {
     HashAggIntermData;
   }
+  getPartialResultBatch[
+    shape="record";
+    label="{{
+      getPartialResultBatch|
+      获取一批groupKey\l
+    }}"];
   HashAggIntermData[
     shape="record";
     label="{{
@@ -32,14 +48,31 @@ digraph consumeIntermData {
 	      groupKeys        []string\l|
 	      cursor           int\l|
 	      partialResultMap aggPartialResultMapper\l|
-        从PartialWorker输出中间数据\l
+        PartialWorker输出的中间数据\l
+        这里面的partialResultMap\l 
+        是PartialWorker的\l
     }}"];
 
   getFinalResult -> {
     getPartialResult;
     AppendFinalResult2Chunk;
     receiveFinalResultHolder;
-  }
+  }[color="#3f72af"]
+  receiveFinalResultHolder[
+    shape="record";
+    label="{{
+      receiveFinalResultHolder|
+      从ch中获取\l
+      输出result chunk指针\l
+    }}"];
+  parallelExec[
+    shape="record";
+    label="{{
+      parallelExec|
+      从finalOutputCh中获取result chunk\l
+      swap之后，再将result 放回到\l
+      finalResultHolderCh\l
+    }}"];
 
   getPartialResult -> partialResultMap;
   partialResultMap[
@@ -55,7 +88,8 @@ digraph consumeIntermData {
     fillcolor="#f6d887";
     label="{{
       groupSet|
-      set.StringSet
+      set.StringSet\l
+      用来最后遍历所有的groupKey\l
     }}"
   ];
   result[
@@ -67,10 +101,32 @@ digraph consumeIntermData {
       *chunk.Chunk\l
     }}"
   ];
+  getPartialInput[
+    shape="record";
+    label="{{
+      getPartialInput|
+      从inputCh中获取数据\l
+      获取从PartialWorker\l 
+      传过来的数据\l
+    }}"];
+  getFinalResult[
+    shape="record";
+    label="{{
+      getFinalResult|
+      遍历groupSet\l
+      获取所有分组结果\l|
+      从fianlResultHolderCh中获取一个\l
+      可写的result chunk\l|
+      调用AppendFinalResult2Chunk\l
+      将结果写入result chunk\l|
+      然后写入finalOutputCh 传给主线程\l
+    }}"];
   edge[style=dashed;color=blue];
   getPartialInput -> getPartialResultBatch -> MergePartialResult -> partialResultMap;
   partialResultMap -> AppendFinalResult2Chunk;
   groupSet -> getFinalResult;
   receiveFinalResultHolder -> result;
   AppendFinalResult2Chunk -> result;
+  finalOutputCh -> parallelExec -> finalResultHolderCh-> receiveFinalResultHolder;
+  getFinalResult -> finalOutputCh;
 }

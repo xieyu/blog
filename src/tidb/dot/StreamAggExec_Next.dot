@@ -1,0 +1,85 @@
+digraph StreamAgg_Next {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_vecGroupChecker {
+    graph[label="vecGroupChecker";fontsize=20;style="rounded,dashed";color="slategrey"]
+    splitIntoGroups;
+    getNextGroup;
+    isExhausted;
+  }
+  subgraph cluster_aggFunc {
+    graph[label="aggFunc";fontsize=20;style="rounded,dashed";color="slategrey"]
+    UpdatePartialResult;
+    AppendFinalResult2Chunk;
+    ResetPartialResult;
+  }
+  Next -> {
+    consumeOneGroup;
+  }
+  Next_child_0[
+    shape="record";
+    label="{{
+      Next_child_0|
+      从child[0]的executor\l 
+      中取一批数据\l
+      放入childResult中\l
+      child result是按照groupBy\l
+      排好序的\l
+    }}"];
+  partialResults[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      partialResults
+    }}"
+  ];
+  groupRows[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      groupRows
+    }}"
+  ];
+  childResult[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      childResult
+    }}"
+  ];
+  consumeOneGroup -> {
+    consumeCurGroupRowsAndFetchChild;
+    splitIntoGroups;
+    getNextGroup;
+    consumeGroupRows;
+    groupRows;
+    appendResult2Chunk;
+    isExhausted;
+  }[color="#b83b5e"];
+  appendResult2Chunk -> {
+    AppendFinalResult2Chunk;
+    ResetPartialResult;
+  }
+  consumeCurGroupRowsAndFetchChild -> {
+    consumeGroupRows;
+    Next_child_0;
+    appendResult2Chunk;
+    childResult;
+  }
+  consumeGroupRows -> {
+    UpdatePartialResult;
+  }
+
+  edge[style=dashed;color=blue];
+  Next_child_0 -> childResult;
+  childResult -> inputIter;
+  groupRows -> UpdatePartialResult -> partialResults;
+  childResult -> splitIntoGroups -> getNextGroup -> groupRows;
+  partialResults -> AppendFinalResult2Chunk;
+  groupRows -> consumeGroupRows;
+}
