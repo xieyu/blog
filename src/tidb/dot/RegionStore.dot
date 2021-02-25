@@ -1,0 +1,79 @@
+#include "styles.h"
+digraph RegionStore {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Region[style_struct;label="{{
+    Region|
+    <meta> meta *metapb.Region\l|
+    <store> store      unsafe.Pointer\l|
+    <syncFlag> syncFlag   int32\l|
+    <lastAccess> lastAccess int64\l
+  }}"]
+  Region:store -> RegionStore;
+  RegionStore[style_struct;label="{{
+    RegionStore|
+	    workTiKVIdx    AccessIndex\l|
+	    workTiFlashIdx int32\l|
+	    <stores> stores         []*Store\l|
+	    storeEpochs    []uint32\l|
+	    accessIndex    [NumAccessMode][]int\l
+  }}"]
+  RegionStore -> AccessMode;
+  AccessMode[style_struct;label="{{
+    AccessMode|
+    TiKvOnly AccessMode\l|
+    TiFlashOnly \l
+  }}"]
+  RegionStore:Store -> Store;
+  Store [style_struct;label="{{
+    Store |
+	    addr         string\l|
+	    saddr        string\l|
+	    storeID      uint64\l|
+	    state        uint64\l|
+	    labels       []*metapb.StoreLabel\l|
+	    resolveMutex sync.Mutex\l|
+	    epoch        uint32\l|
+	    storeType    kv.StoreType\l|
+	    tokenCount   atomic2.Int64\l
+  }}"]
+
+  loadRegion -> {
+    init 
+    switchWorkLeaderToPeer;
+  }
+  init -> {
+    Region;
+    getStoreByStoreID;
+    initResolve;
+  }
+  initResolve -> {
+    pdClient_GetStore;
+  }
+  pdClient_GetStore[style_func;label="{{
+    pdClient.GetStore|
+    gets a store from PD by store id\l
+    the store may expire later\l
+    caller is responsible for caching\l
+    and take care of store change\l
+  }}"]
+  pdClient_GetStore -> pd_Store[style_edge_data];
+  pd_Store[style_struct;label="{{
+    pd.Store|
+	    Id uint64\l| 
+	    Address string       \l| 
+	    State   StoreState   \l| 
+	    Labels  []*StoreLabel\l| 
+	    Version string       \l| 
+	    PeerAddress string\l| 
+	    StatusAddress string\l| 
+	    GitHash       string\l| 
+	    StartTimestamp int64 \l| 
+	    DeployPath     string\l| 
+	    LastHeartbeat        int64   \l
+  }}"]
+  pd_Store -> Store;
+}

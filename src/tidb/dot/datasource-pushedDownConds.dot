@@ -1,57 +1,17 @@
+#include "styles.h"
+
 digraph pushedDownConds {
-  node[shape=box];
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
-  //fillIndexPath -> {
-  //  DetachCondAndBuildRangeForIndex;
-  //}
-  //DetachCondAndBuildRangeForIndex -> {
-  //  detachCNFCondAndBuildRangeForIndex;
-  //}
-
-  BuildTableRange -> buildColumnRange;
-
 
   subgraph cluster_AcessPath {
     graph[label="AccessPath";fontsize=20;style="rounded,dashed";color="slategrey"]
-    AccessConds;
-    TableFilters;
-    Ranges;
-    IndexFilters;
+    TableFilters[style_var];
+    Ranges[style_var];
+    IndexFilters[style_var];
   }
-  //DeriveStats -> generateAndPruneIndexMergePath -> generateIndexMergeOrPaths -> accessPathsForConds;
-
-  //{
-  //  DeriveStats;
-  //  accessPathsForConds;
-  //} -> deriveTablePathStats
-  //physicalOptimize -> recursiveDeriveStats;
-
-  //optimize -> FindBestPlan -> onPhaseImplementation ->implGroup -> fillGroupStats;
-  //{
-  //  fillGroupStats;
-  //  recursiveDeriveStats;
-  //}->  DeriveStats;
-  pushedDownConds[
-    shape="record";
-    label="{{
-      pushedDownConds|
-      逻辑优化中谓词下推到\l
-      DataSource节点的conds\l
-    }}"];
-  AccessConds[
-    shape="record";
-    label="{{
-      AccessConds|
-      后续会被转换为Ranges\l
-    }}"];
-  buildColumnRange[
-    shape="record";
-    label="{{
-      buildColumnRange|
-      builds range from CNF conditions\l
-    }}"];
   findBestTask[
     shape="record";
     label="{{
@@ -79,6 +39,11 @@ digraph pushedDownConds {
       double read\l
     }}"];
 
+  constructDistExec[style_func;label="{{
+    constructDistExec|
+    DistSQL层构造发往TiKV请求
+  }}"]
+
   constructDistExec -> {
     PhysicalSelection_ToPB;
     PhysicalTableScan_ToPB;
@@ -95,20 +60,12 @@ digraph pushedDownConds {
       TableRangesToKVRanges|
       将range信息中加上tid
     }}"];
-  DetachCondsForColumn[
-    shape="record";
-    label="{{
-      DetachCondsForColumn|
-      将primary key column对应的\l
-      cond分离出来作为AccessConds\l
-    }}"];
 
   BuildTableScanFromInfos -> tipb_TableScan;
 
   subgraph cluster_tipb {
     graph[label="tipb";fontsize=20;style="rounded,dashed";color="slategrey"]
-    tipb_TableScan[
-      shape="record";
+    tipb_TableScan[style_struct;
       label="{{
         tipb.TableScan|
         TableID int64\l|
@@ -119,16 +76,14 @@ digraph pushedDownConds {
         PrimaryColumnIds []int64\l
         }}"];
 
-    tipb_Selection[
-      shape="record";
+    tipb_Selection[style_struct;
       label="{{
         tipb.Selection|
           <Conditions> Conditions       []*Expr\l|
           RpnConditions    []*RpnExpr\l|
           <Child> Child            *Executor\l
       }}"];
-    tipb_IndexScan[
-      shape="record";
+    tipb_IndexScan[style_struct;
       label="{{
         tipb.IndexScan|
           TableId          int64\l|
@@ -142,15 +97,12 @@ digraph pushedDownConds {
       tipb_Selection:Child -> {
         tipb_TableScan;
         tipb_IndexScan;
-      }[style=dashed;color=darkgreen];
+      }[style_edge_data];
   }
-
-
 
   subgraph cluster_PhysicalSelection {
     graph[label="PhysicalSelection";fontsize=20;style="rounded,dashed";color="slategrey"]
-    PhysicalSelection[
-      shape="record";
+    PhysicalSelection[style_struct;
       label="{{
         PhysicalSelection|
           Conditions []expression.Expression
@@ -171,7 +123,6 @@ digraph pushedDownConds {
   subgraph cluster_PhysicalTableScan {
     graph[label="PhysicalTableScan";fontsize=20;style="rounded,dashed";color="slategrey"]
     addPushedDownSelection -> {
-      SplitSelCondsWithVirtualColumn;
       PhysicalSelection;
     };
     PhysicalTableScan_ToPB[
@@ -179,11 +130,9 @@ digraph pushedDownConds {
       label="{{
         ToPB
       }}"];
-    PhysicalTableScan[
-      shape="record";
-      label="{{
+    PhysicalTableScan[style_struct;label="{{
         PhysicalTableScan|
-        Ranges []*ranger.Range\l|
+        <Ranges> Ranges []*ranger.Range\l|
 	      AccessCondition []expression.Expression\l|
         filterCondition []expression.Expression\l
       }}"];
@@ -197,12 +146,10 @@ digraph pushedDownConds {
       label="{{
         addPushedDownSelection
       }}"];
-    PhysicalIndexScan[
-      shape="record";
-      label="{{
+    PhysicalIndexScan[style_struct;label="{{
         PhysicalIndexScan|
           AccessCondition []expression.Expression\l|
-          Ranges     []*ranger.Range\l
+          <Ranges> Ranges     []*ranger.Range\l
       }}"];
     PhysicalIndexScan -> PhysicalIndexScan_ToPB;
     PhysicalIndexScan_ToPB[
@@ -215,7 +162,6 @@ digraph pushedDownConds {
   }
   subgraph cluster_DataSource {
     graph[label="DataSource";fontsize=20;style="rounded,dashed";color="slategrey"]
-    pushedDownConds;
     findBestTask -> {
       convertToTableScan;
       convertToIndexScan;
@@ -228,31 +174,17 @@ digraph pushedDownConds {
     }
     convertToPartialIndexScan -> PhysicalSelection;
     convertToPartialTableScan -> PhysicalSelection;
-
-    deriveTablePathStats -> {
-      BuildTableRange;
-      DetachCondsForColumn;
-    }
-    DeriveStats -> deriveTablePathStats;
   }
 
   edge[style=dashed;color=darkblue]
   ExpressionsToPBList -> tipb_Selection;
-  pushedDownConds -> {
-    //fillIndexPath;
-    deriveTablePathStats;
-  }
   PhysicalTableScan -> PhysicalTableScan_ToPB;
-  DetachCondsForColumn -> {
-    TableFilters;
-    AccessConds;
-  }
   IndexFilters -> PhysicalIndexScan_addPushedDownSelection;
   IndexFilters -> convertToPartialIndexScan;
 
   edge[style=dashed;color=darkgreen]
-  AccessConds -> BuildTableRange -> Ranges;
-  Ranges -> PhysicalTableScan;
+  Ranges -> PhysicalTableScan:Ranges;
+  Ranges -> PhysicalIndexScan:Ranges;
   Ranges -> TableRangesToKVRanges  -> tipb_TableScan:Ranges;
 
   edge[style=dashed;color=darkred];

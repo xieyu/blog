@@ -1,5 +1,50 @@
-# Regin-cache
+# ReginCache
 
+<!-- toc -->
+
+## 简介
+
+TiKV中数据是按照Region为单位存储key,value的，
+TiDB拿到key, 或者key range之后，需要定位去哪个TiKV服务去取数据。
+
+PDServer(placement driver)就是用来做这个事情的，TiDB需要先去PDserver
+获取region leader的addr,然后再向TiKV发起请求。
+
+为了提高效率，TiDB 本地对region做了一层cache，避免每次都要向Pd server发请求。
+TiKV层region split之后，TiDB的cache就过期了，这时候，TiDB去TikV发请求，TiKV
+会返回错误，然后TiDB根据错误信息，更新region Cache.
+
+![tikv-overview](./tikv-overview.png)
+
+## CopClient.Send
+
+![](./dot/CopClientSend.svg)
+
+
+## LocateKey
+
+![](./dot/LocateKey.svg)
+
+## RegionStore
+
+RegionStore represents region stores info
+
+![](./dot/RegionStore.svg)
+
+## SendReqCtx
+
+根据RegionVerID，去cache中获取region, 然后获取peer(TiKV/TiFlash)的addr
+发送GRPC请求.
+
+![](./dot/SendReqCtx.svg)
+
+## onRegionError
+
+TiKV返回RegionError, TiDB根据error 信息更新本地RegionCache
+
+![](./dot/onRegionError.svg)
+
+# Trash
 buildCopTasks首先会通过从RegionCache中找到keyRange对应的regions, 
 会先去RegionCache中取LocateKey查找key所在的region, 如果cache中
 没有则会去pd server中查找, 并将region信息保存到pd cache.

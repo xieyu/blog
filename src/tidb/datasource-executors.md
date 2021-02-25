@@ -33,6 +33,19 @@ index Worker/Table Worker
 
 ![IndexLookUpExecutor](./dot/IndexLookUpExecutor.svg)
 
+
+### extractTaskHandles
+
+从index中获取row handlers
+
+![](./dot/extractTaskHandlers.svg)
+
+### buildTableReader
+
+根据row handlers 去获取相应的Row
+
+![](./dot/buildTableReader.svg)
+
 ## DistSQL
 
 上面的TableReaderExecutor/TableIndexExecutor/IndexLookUpExecutor 最后 

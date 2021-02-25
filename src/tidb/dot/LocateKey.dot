@@ -1,0 +1,120 @@
+#include "styles.h"
+digraph LocateKey {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  KeyLocation[style_struct;label="{{
+    KeyLocation|
+	    Region   RegionVerID\l|
+	    StartKey kv.Key\l|
+	    EndKey   kv.Key\l
+  }}"]
+
+  LocateKey -> KeyLocation[style_edge_data];
+  LocateKey -> findRegionByKey;
+  findRegionByKey -> {
+    searchCachedRegion;
+    loadRegion;
+    insertRegionToCache;
+    needReload;
+  }[color="#b83b5e"];
+
+  searchCachedRegion -> {
+    checkRegionCacheTTL;
+  }
+  RegionCache[style_struct;label="{{
+    RegionCache |
+    pdClient pd.Client\l|
+    mu struct \{\l
+      sync.RWMutex\l
+      regions map[RegionVerID]*Region\l
+      sorted *btree.BTree\l
+    \}\l
+  }}"]
+  RegionCache-> Region;
+  Region[style_struct;label="{{
+    Region|
+    <meta> meta *metapb.Region\l|
+    <store> store      unsafe.Pointer\l|
+    <syncFlag> syncFlag   int32\l|
+    <lastAccess> lastAccess int64\l
+  }}"]
+  needReload[style_func;label="{{
+    needReload|
+    根据syncFlag判断是否\l 
+    需要loadRegion\l
+  }}"]
+
+  Region:syncFlag -> needReload;
+  Region:lastAccess -> checkRegionCacheTTL;
+  searchCachedRegion -> RegionCache;
+  Region -> RegionMeta;
+  RegionMeta[style_struct;label="{{
+    metapb.Region|
+    Id uint64\l|
+    StartKey []byte\l|
+    EndKey []byte\l|
+	  RegionEpoch *RegionEpoch\l|
+	  <Peers> Peers       []*Peer\l|
+	  EncryptionMeta\l
+  }}"]
+
+  insertRegionToCache -> {
+    RegionCache
+  }
+  {
+    pdClient_GetRegion;
+    pdClient_GetPrevRegion;
+  } -> pdRegion;
+  {
+    pdRegion:DownPeers
+    RegionMeta:Peers
+  } -> filterUnavailablePeers[style_edge_data];
+
+  pdRegion:Meta -> RegionMeta;
+  pdRegion[style_struct;label="{{
+    pd.Region|
+	    Meta         *metapb.Region\l|
+	    <Leader> Leader       *metapb.Peer\l|
+	    <DownPeers> DownPeers    []*metapb.Peer\l|
+	    PendingPeers []*metapb.Peer\l
+  }}"]
+  pdClient_GetRegion[style_func;label="{{
+    pdClient.GetRegion|
+    get a region and its \l 
+    leader Peer from PD by key\l|
+    the region may expire after split\l
+  }}"]
+  pdClient_GetPrevRegion[style_func;label="{{
+    pdClient.GetPrevRegion|
+	  GetPrevRegion gets the previous\l 
+    region and its leader Peer of \l 
+    the region where the key is located.\l
+  }}"]
+  loadRegion[style_func;label="{{
+    loadRegion|
+    去pbServer查找\l 
+    key对应的region\l
+  }}"]
+  KeyLocation -> RegionVerID;
+  RegionVerID[style_struct;label="{{
+    RegionVerID|
+	    id      uint64\l|
+	    confVer uint64\l|
+	    ver     uint64\l
+  }}"]
+  loadRegion -> {
+    pdClient_GetPrevRegion;
+    pdClient_GetRegion;
+    filterUnavailablePeers;
+    switchWorkLeaderToPeer;
+    init;
+  }
+  switchWorkLeaderToPeer[style_func;label="{{
+    switchWorkerLeaderToPeer|
+    switches current store\l
+    to the on on specific store\l
+  }}"];
+  pdRegion:Leader -> switchWorkLeaderToPeer -> Region:store[style_edge_data];
+}

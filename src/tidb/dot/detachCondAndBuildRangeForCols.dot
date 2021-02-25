@@ -1,0 +1,74 @@
+#include "styles.h"
+digraph detachCondAndBuildRangeForCols {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  rangeDetacher[style_struct;label="{{
+    rangeDetacher|
+	    sctx             sessionctx.Context\l|
+	    <allConds> allConds         []expression.Expression\l|
+	    cols             []*expression.Column\l|
+	    lengths          []int\l|
+	    mergeConsecutive bool\l
+  }}"]
+  detachCondAndBuildRangeForCols -> {
+    detachCNFCondAndBuildRangeForIndex;
+    detachDNFCondAndBuildRangeForIndex;
+    FullRange;
+  }
+  rangeDetacher:allConds -> {
+    FlattenDNFConditions;
+  }[style_edge_data];
+
+  detachDNFCondAndBuildRangeForIndex -> {
+    FlattenDNFConditions;
+    FlattenCNFConditions;
+    firstColumnChecker;
+    firstColumnChecker_check;
+  }
+  firstColumnChecker[style_struct;label="{{
+    firstColumnChecker|
+	    colUniqueID   int64\l|
+	    shouldReserve bool\l|
+	    length        int\l
+  }}"]
+  firstColumnChecker -> firstColumnChecker_check[style_edge_data];
+  FlattenDNFConditions -> dnfItems[style_edge_data];
+  dnfItems[style_var;label="{{
+    dnfItems|
+    []Expression\l
+  }}"];
+  cnfItems[style_var;label="{{
+    cnfItems|
+    []Expression\l
+  }}"];
+  ast_LogicAnd[style_case];
+  firstColumnChecker_check[style_case];
+
+  dnfItems -> ast_LogicAnd -> FlattenCNFConditions -> cnfItems[style_edge_data];
+  dnfItems -> firstColumnChecker_check[style_edge_data];
+  firstColumnChecker_check-> {
+    build;
+    points2Ranges;
+  }[style_edge_data];
+  cnfItems -> detachCNFCondAndBuildRangeForIndex;
+  detachCNFCondAndBuildRangeForIndex -> {
+    DetachRangeResult;
+  }
+
+  DetachRangeResult[style_struct;label="{{
+    DetachRangeResult|
+      <Ranges> Ranges []*Range\l|
+      <AccessConditions> AccessConds []expression.Expression\l|
+      <RemainedConds> RemainedConds []expression.Expression\l
+  }}"]
+  DetachRangeResult:Ranges -> totalRanges;
+  DetachRangeResult:AccessConditions -> ComposeCNFCondition -> newAccessItems;
+  FlattenDNFConditions -> extractBinaryOpItems;
+  FlattenCNFConditions -> extractBinaryOpItems;
+  build -> points -> points2Ranges -> totalRanges -> UnionRanges;
+  firstColumnChecker_check -> newAccessItems;
+
+
+}

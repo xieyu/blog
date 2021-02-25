@@ -1,0 +1,55 @@
+#include "styles.h"
+digraph ExtractEqAndInCondition {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  getPotentialEqOrInColOffset[style_func;label="{{
+    getPotentialEqOrInColOffset|
+    计算cond对应col的offset\l
+    如果不是eq/le/...就返回-1\l|
+    check if the expression is \l 
+    a eq/le/ge/lt/gt function that\l 
+    one side is constant and\l 
+    another is column or an\l
+    in function which is \l 
+    `column in (constant list)`.|
+  }}"]
+  ExtractEqAndInCondition[style_func;label="{{
+    ExtractEqAndInCondition|
+    遍历所有的conds\l|
+    计算cond对应col的offset\l|
+    然后计算cond在该col上的range\l
+    相同col上的range调用\l 
+    intersection取交集\l
+  }}"]
+
+  ExtractEqAndInCondition -> {
+    getPotentialEqOrInColOffset;
+    build;
+    intersection;
+    allSinglePoints;
+    points2EqOrInCond;
+    removeAccessConditions;
+  }
+  build[style_func;label="{{
+    build|
+    计算该cond对应的range\l
+  }}"]
+  intersection[style_func;label="{{
+    intersection|
+    和该col之前的range做merge\l
+    取交集\l
+  }}"]
+
+  getPotentialEqOrInColOffset -> {
+    FlattenDNFConditions;
+    getPotentialEqOrInColOffset;
+  }
+  FlattenDNFConditions[style_func;label="{{
+    FlattenDNFConditions|
+    对于logicOr函数，递归调用\l|
+    getPotentialEqOrInColOffset \l
+  }}"]
+  FlattenDNFConditions -> dnfItems -> getPotentialEqOrInColOffset[style_edge_data];
+}

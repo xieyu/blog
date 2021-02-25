@@ -102,5 +102,150 @@ digraph expression {
     Constant;
   }[label="impled by";color="#b83b5e"];
 
+  FieldType[
+    shape="record";
+    label="{{
+      FieldType|
+	      Tp      byte\l|
+	      Flag    uint\l|
+	      Flen    int\l|
+	      Decimal int\l|
+	      Charset string\l|
+	      Collate string\l|
+	      Elems []string\l
+    }}"];
+  Datum[
+    shape="record";
+    label="{{
+      Datum|
+	      k         byte\l|
+	      decimal   uint16\l|
+	      length    uint32\l|
+	      i         int64\l|
+	      collation string\l|
+	      b         []byte\l|
+	      x         interface\{\}
+    }}"];
+  CorrelatedColumn -> Datum;
+  Column -> FieldType;
+  Column -> collationInfo;
+  builtinFunc -> Chunk_row;
+  vecBuiltinFunc -> Chunk;
+  subgraph cluster_Chunk {
+    graph[label="Chunk";fontsize=20;style="rounded,dashed";color="slategrey"]
+  Chunk_row[
+    shape="record";
+    label="{{
+      Chunk.row|
+      c * Chunk\l|
+      idx int\l
+    }}"];
+    Chunk_row -> Chunk;
+    Chunk[
+      shape="record";
+      label="{{
+        Chunk|
+          sel []int\l|
+          columns []*Column\l|
+          numVirtualRows int\l|
+          capacity int\l|
+          requiredRows int\l
+      }}"];
+
+    Chunk -> Chunk_Column;
+    Chunk_Column[
+      shape="record";
+      label="{{
+        Chunk.Column|
+	        length     int\l|
+	        nullBitmap []byte\l|
+	        offsets    []int64\l|
+	        data       []byte\l|
+	        elemBuf    []byte\l
+      }}"];
+    
+  }
+
+  Constant -> {FieldType;Datum; collationInfo}
+  collationInfo[
+    shape="record";
+    label="{{
+      collationInfo|
+	      coer     Coercibility\l|
+	      coerInit bool\l|
+	      charset   string\l|
+	      collation string\l|
+	      flen      int\l
+    }}"];
+  Tp[
+    shape="record";
+    label="{{
+      Tp|
+      TypeTiny = 1\l|
+      TypeShort = 2\l|
+      ..\l
+      TypeFloat = 4\l|
+      ..\l
+      TypeDuration = 11\l|
+      TypeString     byte = 0xfe\l|
+      TypeGeometry   byte = 0xff\l
+    }}"];
+  FieldType -> Tp;
+  Kind[
+    shape="record";
+    label="{{
+      Kind|
+      KindNull byte = 0\l|
+	    KindInt64         byte = 1\l|
+	    KindUint64        byte = 2\l|
+	    KindFloat32       byte = 3\l|
+	    KindFloat64       byte = 4\l|
+      ...\l
+	    KindRaw           byte = 17\l|
+	    KindMysqlJSON     byte = 18\l
+    }}"];
+  Coercibility[
+    shape="record";
+    label="{{
+      Coercibility|
+        type Coercibility int\l|
+        CoercibilityExplicit \l|
+        ...
+        CoercibilityNumeric\l|
+        CoercibilityIgnorable
+    }}"];
+  Datum -> Kind;
+  collationInfo -> Coercibility;
+  ScalarFunction -> FieldType;
+  ParamMarker[
+    shape="record";
+    label="{{
+      ParamMarker|
+      holds param index inside\l 
+      sessionVars.PreparedParams\l|
+      ctx sessionctx.Context\l|
+      order int\l
+    }}"];
+  Constant -> ParamMarker;
+  Schema[
+    shape="record";
+    label="{{
+      Schema|
+      Columns []*Column\l|
+      Keys []KeyInfo\l|
+      UniqueKeys []KeyInfo|
+    }}"];
+  Schema -> {
+    Column;
+    KeyInfo;
+  }
+  KeyInfo[
+    shape="record";
+    label="{{
+      KeyInfo|
+        type KeyInfo []*Column\l|
+        stores the colums of one\l
+        unique key or primary key\l
+    }}"];
   edge[style=dashed];
 }

@@ -1,0 +1,104 @@
+#include "styles.h"
+
+digraph pruneRangePartition {
+  edge[color=gray40];
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  newrank=true;
+  rankdir=LR;
+  pruneRangePartition -> {
+    pruneRangeColumnsPartition;
+    makePartitionByFnCol;
+    fullRange;
+    PartitionExpr;
+    partitionRangeForOrExpr;
+  }
+  PartitionExpr[style_struct;label="{{
+    PartitionExpr|
+	  UpperBounds []expression.Expression\l|
+	  OrigExpr ast.ExprNode\l|
+	  Expr expression.Expression\l|
+	  *ForRangePruning\l|
+	  *ForRangeColumnsPruning\l|
+	  ColumnOffset []int\l|
+	  InValues []expression.Expression\l
+	  *ForListPruning\l
+  }}"]
+  PartitionExpr -> {
+    ForRangePruning;
+    ForRangeColumnsPruning;
+  }
+  ForRangePruning[style_struct;label="{{
+    ForRangePruning|
+	    LessThan []int64\l|
+	    MaxValue bool\l|
+	    Unsigned bool\l
+  }}"]
+  ForRangeColumnsPruning[style_struct;label="{{
+    ForRangeColumnsPruning|
+      LessThan []expression.Expression|
+      MaxValue bool|
+    
+  }}"]
+
+  pruneRangeColumnsPartition -> {
+    fullRange;
+    makeRangeColumnPruner;
+    partitionRangeForCNFExpr;
+  }
+  partitionRangeForCNFExpr -> {
+    partitionRangeForExpr;
+  }
+  partitionRangeForExpr -> {
+    partitionRangeForCNFExpr
+    partitionRangeForOrExpr
+    partitionRangeForInExpr
+    intersection;
+    result;
+  }
+  partitionRangeForOrExpr -> {
+    partitionRangeForExpr;
+    union;
+  }
+  partitionRangeForInExpr -> {
+    fullRange;
+    pruneUseBinarySearch;
+    simplify;
+  }
+  makePartitionByFnCol -> {
+    ParseSimpleExprsWithNames;
+    getMonotoneMode;
+  }
+  rangeColumnsPruner[style_struct;label="{{
+    rangeColumnsPruner|
+	    data     []expression.Expression\l|
+	    partCol  *expression.Column\l|
+	    maxvalue bool\l
+  }}"]
+  rangePruner[style_struct;label="{{
+    rangePruner|
+	    lessThan lessThanDataInt\l|
+	    col      *expression.Column\l|
+	    partFn   *expression.ScalarFunction\l|
+	    monotonous monotoneMode\l
+  }}"]
+  makePartitionByFnCol -> rangePruner -> partitionRangeForCNFExpr[style_edge_data];
+  makeRangeColumnPruner -> rangeColumnsPruner -> partitionRangeForCNFExpr[style_edge_data];
+
+  subgraph cluster_partitionRangeOR {
+    graph[label="partitionRangeOR";fontsize=20;style="rounded,dashed";color="slategrey"]
+    simplify;
+    intersection;
+    union;
+    result[style_var;label="{{
+      result|
+      type partitionRangeOR []partitionRange\l
+    }}"];
+    result -> partitionRange;
+    partitionRange[style_struct;label="{{
+      partitionRange|
+      start int\l|
+      end int \l
+    }}"]
+    
+  }
+}

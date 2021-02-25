@@ -1,0 +1,90 @@
+#include "styles.h"
+
+digraph decodeIndexKV {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ColInfo[style_struct;label="{{
+    ColInfo |
+	    ID            int64\l|
+	    IsPKHandle    bool\l|
+	    VirtualGenCol bool\l|
+	    Ft            *types.FieldType\l
+  }}"];
+  ColInfo -> DecodeIndexKV[style_edge_data];
+  IndexColumn[style_struct;label="{{
+    IndexColumn|
+      Name   CIStr\l|
+      <Offset> Offset int\l
+      Offset为在columns中的下标|
+      Length int\l
+  }}"]
+  TableInfo[style_struct;label="{{
+    TableInfo|
+	  ID      int64  \l|
+    ...\l|
+	  <Columns> Columns     []*ColumnInfo     \l|
+	  <Indices> Indices     []*IndexInfo      \l|
+    ..\l|
+	  PKIsHandle bool \l|
+    ...
+  }}"]
+  IndexColumn:Offset -> TableInfo:Columns[style_edge_data];
+  ColumnInfo[style_struct;label="{{
+    ColumnInfo|
+	Schema             string\l|
+	Table              string\l|
+	OrgTable           string\l|
+	Name               string\l|
+	OrgName            string\l|
+	ColumnLength       uint32\l|
+	Charset            uint16\l|
+	Flag               uint16\l|
+	Decimal            uint8\l|
+	Type               uint8\l|
+	DefaultValueLength uint64\l|
+	DefaultValue       []byte\l
+  }}"]
+  TableInfo:Columns -> ColumnInfo -> ColInfo;
+  ColInfo -> NewByteDecoder[style_edge_data];
+
+  DecodeIndexKV -> decodeIndexKvGeneral -> {
+    SplitIndexValue;
+    CutIndexKeyNew;
+    decodeRestoredValues;
+    decodeIntHandleInIndexValue;
+    decodeHandleInIndexKey;
+    reEncodeHandle;
+  }
+  CutIndexKeyNew[style_func;label="{{
+    CutIndexKeyNew|
+    将key去掉prefix\l|
+    然后调用CutOne将[]byte切分为\l
+    [][]bytes\l
+  }}"]
+  CutIndexKeyNew -> {
+    CutOne;
+  }
+  CutOne -> peek;
+  peek[style_func;label="{{
+    peek |
+    根据byte[0] flag\l
+    切割[]byte
+  }}"]
+  decodeRestoredValues -> {
+    NewByteDecoder;
+    DecodeToBytesNoHandle;
+  }
+  DecodeToBytesNoHandle[style_func;label="{{
+    DecodeToBytesNoHandle|
+    根据col信息，将datavalue []bytes\l
+    解码分割为 [][]bytes\l 
+    每个元素为对应col\l
+    后续可以通过DecodeOne\l 
+    将col byte转为\l
+    Datum\l
+  }}"]
+  NewByteDecoder -> DecodeToBytesNoHandle[style_edge_data];
+}

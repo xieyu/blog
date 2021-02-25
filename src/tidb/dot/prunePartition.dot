@@ -1,0 +1,55 @@
+#include "styles.h"
+
+digraph pruneParition {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  optimize -> rewriteDataSource ->prune;
+  prune -> {
+    processRangePartition
+    processHashPartition
+    processListPartition
+    fullRange
+    makeUnionAllChildren
+  }
+  PartitionInfo[style_struct;label="{{
+    PartitionInfo|
+    Type PartitionType\l|
+    Expr string\l|
+    Columns []CIStr\l|
+    <Definitions> Definitions []PartitionDefinition \l|
+    ...
+  }}"]
+  PartitionInfo:Definitions -> PartitionDefinition;
+  PartitionDefinition[style_struct;label="{{
+    PartitionDefinition|
+	ID       int64     \l| 
+	Name     CIStr     \l |
+	LessThan []string  \l |
+	InValues [][]string\l |
+	Comment  string    \l 
+  }}"]
+  PartitionInfo -> {
+    processRangePartition
+    processHashPartition
+    processListPartition
+  }[style_edge_data];
+
+  {
+    processRangePartition
+    processHashPartition
+    processListPartition
+  }-> makeUnionAllChildren;
+  processHashPartition -> pruneHashPartition -> used ->makeUnionAllChildren[style_edge_data];
+  processRangePartition -> pruneRangePartition -> used[style_edge_data];
+  processListPartition -> pruneListPartition -> used[style_edge_data];
+  used[style_var];
+
+  fullRange -> makeUnionAllChildren;
+  makeUnionAllChildren -> resolveOptimizeHint;
+  resolveOptimizeHint -> {
+    getPossibleAccessPath;
+    filterPathByIsolationRead;
+  }
+}

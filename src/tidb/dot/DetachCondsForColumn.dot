@@ -1,0 +1,62 @@
+#include "styles.h"
+
+digraph DetachCondsForColumn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  detachColumnCNFConditions[style_func;label="{{
+    detachColumnCNFConditions|
+    遍历所有的conditions,对于每个cond \l
+    如果是ast.LogicOr scalar function\l
+    就调用DNF相关的函数处理\l
+  }}"]
+  detachColumnDNFConditions[style_func;label="{{
+    detachColumnDNFConditions|
+    遍历所有的conditions, 对于每个cond\l
+    如果是ast.LogicaAnd \l 
+    就调用CNF相关函数处理\l
+  }}"]
+  DetachCondsForColumn[
+    shape="record";
+    label="{{
+      DetachCondsForColumn|
+      从filter conds中分离出\l 
+      指定columns的conds
+    }}"];
+
+  conditionChecker_check[style_func;label="{{
+    conditionChecker_check|
+    check if this condition\l 
+    can be pushed to index planner\l
+  }}"]
+  FlattenCNFConditions[style_func;label="{{
+    FlattenCNFConditions|
+    抽出cnf的叶子节点
+  }}"]
+  FlattenDNFConditions[style_func;label="{{
+    FlattenDNFConditions|
+    抽取dnf的叶子节点
+  }}"]
+  FlattenDNFConditions -> extractBinaryOpItems;
+  FlattenCNFConditions -> extractBinaryOpItems;
+  ComposeCNFCondition -> composeConditionWithBinaryOp;
+  ComposeDNFCondition -> composeConditionWithBinaryOp;
+
+  DetachCondsForColumn -> {
+    detachColumnCNFConditions;
+  }
+
+  detachColumnCNFConditions -> {
+    FlattenDNFConditions;
+    detachColumnDNFConditions;
+    ComposeDNFCondition;
+    conditionChecker_check;
+  }
+  detachColumnDNFConditions -> {
+    FlattenCNFConditions;
+    detachColumnCNFConditions;
+    ComposeCNFCondition;
+    conditionChecker_check;
+  }
+}

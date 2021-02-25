@@ -1,0 +1,116 @@
+#include "styles.h"
+digraph detachCNFCondAndBuildRangeForIndex {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  detachCNFCondAndBuildRangeForIndex[
+    shape="record";
+    label="{{
+      detachCNFCondAndBuildRangeForIndex|
+      处理and连接的表达式
+    }}"];
+  ExtractEqAndInCondition[
+    shape="record";
+    label="{{
+      ExtractEqAndInCondition|
+      抽出Eq/In 可以用于点查的cond\l
+    }}"];
+  DetachCondAndBuildRangeForIndex[
+    shape="record";
+    label="{{
+      DetachCondAndBuildRangeForIndex|
+      处理除了Eq/In 点查剩下的filter\l
+      这个地方又递归的调到最开始的函数了\l
+      剩下的filter不包含了Eq/In\l
+      会走不同的code path\l
+    }}"];
+
+  detachColumnCNFConditions[style_func;label="{{
+    detachColumnCNFConditions|
+    如果eqOrInCount为0\l
+    只用处理第一个col对应的条件就行了\l
+    见上面的单列索引处理\l
+  }}"]
+  buildCNFIndexRange[style_func;label="{{
+    buildCNFIndexRange|
+    调用range builder的intersection\l
+    union range等构建index range\l
+  }}"]
+  detachCNFCondAndBuildRangeForIndex -> {
+    ExtractEqAndInCondition;
+    buildCNFIndexRange;
+    extractIndexPointRangesForCNF;
+    DetachCondAndBuildRangeForIndex;
+    detachColumnCNFConditions;
+    considerDNF;
+  }
+  ExtractEqAndInCondition -> {
+    accessConds;
+    filterConds;
+    newConditions;
+    emptyRange;
+  }
+  extractIndexPointRangesForCNF -> {
+    pointRes;
+    offset;
+  }
+  DetachCondAndBuildRangeForIndex -> tailRes;
+  tailRes -> appendRanges2PointRanges;
+  detachColumnCNFConditions -> {
+    AccessConds;
+    RemainedConds;
+  }
+  AccessConds -> buildCNFIndexRange;
+  accessConds -> buildCNFIndexRange;
+  buildCNFIndexRange -> DetachRangeResult:Ranges[style_edge_data];
+  filterConds -> DetachRangeResult:RemainedConds;
+
+  DetachRangeResult[style_struct;label="{{
+    DetachRangeResult|
+      <Ranges> Ranges []*Range\l|
+      <AccessConds> AccessConds []expression.Expression\l|
+      <RemainedConds> RemainedConds []expression.Expression\l
+  }}"]
+  considerDNF[style_case];
+  considerDNF -> {
+    extractIndexPointRangesForCNF;
+    DetachCondAndBuildRangeForIndex;
+    appendRanges2PointRanges;
+    buildCNFIndexRange;
+    detachColumnCNFConditions;
+  }[style_edge_data];
+  appendRanges2PointRanges -> DetachRangeResult:Ranges[style_edge_data];
+  pointRes -> DetachRangeResult[style_edge_data];
+  offset -> newConditions -> DetachRangeResult:RemainedConds[style_edge_data];
+
+  pointRes[style_var];
+  offset[style_var];
+  tailRes[style_var];
+  AccessConds[style_var];
+  RemainedConds[style_var];
+  newConditions[style_var];
+  filterConds[style_var];
+  emptyRange[style_var];
+  accessConds[style_var];
+  build[style_func;label="{{
+    build|
+    创建单个expression对应的\l
+    range\l
+  }}"]
+  intersection[style_func;label="{{
+    intersection|
+    CNF中expressions 对应range 取交集\l
+  }}"]
+  UnionRanges[style_func;label="{{
+    UnionRanges|
+    处理prefix index\l
+  }}"]
+
+  buildCNFIndexRange -> {
+    build;
+    intersection;
+    UnionRanges;
+    fixPrefixColRange;
+  }
+}
