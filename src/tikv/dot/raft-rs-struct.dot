@@ -1,0 +1,320 @@
+#include "styles.h"
+digraph raft_rs_struct {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RawNode -> {
+    Raft;
+    Storage;
+    SoftState;
+    HardState;
+    ReadyRecord;
+    Message;
+  }
+  Storage -> {
+    MemStorage;
+  }
+  Raft -> {
+    Storage;
+    ProgressTracker;
+    Message;
+    RaftCore;
+  }
+
+  RaftCore -> {
+    ReadState;
+    RaftLog;
+    StateRole;
+    ReadOnly;
+    UncommittedState;
+    Logger;
+  }
+
+  RaftLog -> {
+    Storage
+    Unstable
+  }
+  Unstable -> {
+    Snapshot
+    Entry
+    Logger
+  }
+  Snapshot -> {
+    SnapshotMetadata
+  }
+  SnapshotMetadata -> {
+    ConfState
+  }
+  ReadOnly -> {
+    ReadOnlyOption;
+    ReadIndexStatus;
+  }
+
+  StateRole[style_struct;label="{{
+    pub enum StateRole|
+    Follower\l|
+    Candidate\l|
+    Leader\l|
+    PreCandidate\l
+  }}"]
+  UncommittedState[style_struct;label="{{
+    UncommittedState|
+    max_uncommitted_size: usize\l|
+    uncommitted_size: usize\l|
+    last_log_tail_index: u64\l
+  }}"]
+  ReadState[style_struct;label="{{
+    ReadState|
+    pub index: u64\l|
+    pub request_ctx: Vec\<u8\>\l
+  }}"]
+  ConfState[style_struct;label="{{
+    ConfState|
+    pub voters: ::std::vec::Vec\<u64\>\l|
+    pub learners: ::std::vec::Vec\<u64\>\l|
+    pub voters_outgoing: ::std::vec::Vec\<u64\>\l|
+    pub learners_next: ::std::vec::Vec\<u64\>\l|
+    pub auto_leave: bool\l|
+    pub unknown_fields: ::protobuf::UnknownFields\l|
+    pub cached_size: ::protobuf::CachedSize\l
+  }}"]
+
+  Raft[style_struct;label="{{
+    Raft|
+    prs: ProgressTracker\l|
+    pub msgs: Vec\<Message\>\l|
+    pub r: RaftCore\<T\>\l
+  }}"]
+  RaftLog[style_struct;label="{{
+    RaftLog\<T: Storage\>|
+    pub store: T\l|
+    pub unstable: Unstable\l|
+    pub committed: u64\l|
+    pub persisted: u64\l|
+    pub applied: u64\l
+  }}"]
+  Unstable[style_struct;label="{{
+    Unstable|
+    pub snapshot: Option\<Snapshot\>\l|
+    pub entries: Vec\<Entry\>\l|
+    pub offset: u64\l|
+    pub logger: Logge\l
+  }}"]
+
+  Snapshot[style_struct;label="{{
+    Snapshot|
+    pub data: ::std::vec::Vec<u8>\l|
+    pub metadata: ::protobuf::SingularPtrField<SnapshotMetadata>\l|
+    pub unknown_fields: ::protobuf::UnknownFields\l|
+    pub cached_size: ::protobuf::CachedSize\l
+  }}"]
+  SnapshotMetadata[style_struct;label="{{
+    SnapshotMetadata|
+    pub conf_state: ::protobuf::SingularPtrField\<ConfState>\l|
+    pub index: u64\l|
+    pub term: u64\l
+    pub unknown_fields: ::protobuf::UnknownFields\l|
+    pub cached_size: ::protobuf::CachedSize\l
+  }}"]
+  Entry[style_struct;label="{{
+    Entry|
+    pub entry_type: EntryType\l|
+    pub term: u64\l|
+    pub index: u64\l
+    pub data: ::std::vec::Vec\<u8\>\l|
+    pub context: ::std::vec::Vec\<u8\>\l|
+    pub sync_log: bool\l|
+    pub unknown_fields: ::protobuf::UnknownFields\l|
+    pub cached_size: ::protobuf::CachedSize\l
+  }}"]
+  RaftCore[style_struct;label="{{
+    RaftCore|
+    pub term: u64\l|
+    pub vote: u64\l|
+    pub id: u64\l|
+    pub read_states: Vec\<ReadState\>\l|
+    pub raft_log: RaftLog\<T\>\l|
+    pub max_inflight: usize\l|
+    pub max_msg_size: u64\l|
+    pub pending_request_snapshot: u64\l|
+    pub state: StateRole\l|
+    promotable: bool\l|
+    pub leader_id: u64\l|
+    pub lead_transferee: Option\<u64\>\l|
+    pub pending_conf_index: u64\l|
+    pub read_only: ReadOnly\l|
+    pub election_elapsed: usize\l|
+    heartbeat_elapsed: usize\l|
+    pub check_quorum: bool\l|
+    pub pre_vote: bool\l|
+    skip_bcast_commit: bool\l|
+    batch_append: bool\l|
+    heartbeat_timeout: usize\l|
+    election_timeout: usize\l|
+    randomized_election_timeout: usize\l|
+    min_election_timeout: usize\l|
+    max_election_timeout: usize\l|
+    pub(crate) logger: slog::Logger\l|
+    pub priority: u64\l|
+    uncommitted_state: UncommittedState\l
+  }}"]
+  ReadOnly[style_struct;label="{{
+    ReadOnly|
+    pub option: ReadOnlyOption\l|
+    pub pending_read_index: HashMap\<Vec\<u8\>, ReadIndexStatus\>\l|
+    pub read_index_queue: VecDeque\<Vec\<u8\>\>\l
+  }}"]
+  ReadIndexStatus[style_struct;label="{{
+    ReadIndexStatus|
+    pub req: Message\l|
+    pub index: u64\l|
+    pub acks: HashSet\<u64\>\l
+  }}"]
+  Message[style_struct;label="{{
+    Message|
+    pub msg_type: MessageType\l|
+    pub to: u64\l|
+    pub from: u64\l|
+    pub term: u64\l|
+    pub log_term: u64\l|
+    pub index: u64\l|
+    pub entries: ::protobuf::RepeatedField\<Entry\>\l|
+    pub commit: u64\l|
+    pub commit_term: u64\l|
+    pub snapshot: ::protobuf::SingularPtrField\<Snapshot\>\l|
+    pub request_snapshot: u64\l|
+    pub reject: bool\l|
+    pub reject_hint: u64\l|
+    pub context: ::std::vec::Vec\<u8\>\l|
+    pub priority: u64\l
+  }}"]
+  Message -> {
+    Snapshot;
+    Entry;
+  }
+  ProgressTracker[style_struct;label="{{
+    ProgressTracker|
+    progress: ProgressMap\l|
+    conf: Configuration\l|
+    votes: HashMap\<u64, bool\> \l|
+    max_inflight: usize\l|
+    group_commit: bool\l|
+    pub(crate) logger: Logger\l
+  }}"]
+  SoftState[style_struct;label="{{
+    SoftState|
+    pub leader_id: u64\l|
+    pub raft_state: StateRole\l
+  }}"]
+  SoftState -> {
+    StateRole
+  }
+  HardState[style_struct;label="{{
+    HardState|
+    pub term: u64\l|
+    pub vote: u64\l|
+    pub commit: u64\l
+  }}"]
+
+  RawNode[style_struct;label="{{
+    RawNode|
+    pub raft: Raft\<T\>\l|
+    prev_ss: SoftState\l|
+    prev_hs: HardState\l
+    max_number: u64\l|
+    records: VecDeque\<ReadyRecord\>\l|
+    commit_since_index: u64\l|
+    messages: Vec\<Vec\<Message\>\>\l
+  }}"]
+
+  ReadyRecord[style_struct;label="{{
+    ReadyRecord|
+    number: u64\l|
+    last_entry: Option\<(u64, u64)\>\l|
+    snapshot: Option\<(u64, u64)\>\l|
+    messages: Vec\<Message\>\l
+  }}"]
+  ReadyRecord -> Message
+  ReadOnlyOption[style_struct;label="{{
+    ReadOnlyOption|
+    Safe\l|
+    LeaseBased\l
+  }}"]
+  ReadOnlyOption -> {
+    Safe;
+    LeaseBased;
+  }
+  Safe[style_var;label="{{
+    Safe|
+    Safe guarantees the \l 
+    linearizability of the\l 
+    read only request by\l
+    communicating with the \l 
+    quorum. It is the default\l 
+    and suggested option.\l
+  }}"]
+  LeaseBased[style_var;label="{{
+    LeaseBased|
+    LeaseBased ensures linearizability\l 
+    of the read only request by\l
+    relying on the leader lease.\l 
+    It can be affected by clock drift.\l
+    If the clock drift is unbounded,\l 
+    leader might keep the lease longer than it\l
+    should (clock can move backward/pause\l 
+    without any bound). ReadIndex is not safe\l
+    in that case.\l
+  }}"]
+  ReadIndexStatus -> Message;
+  Storage[style_struct;label="{{
+    Storage|
+    fn initial_state(&self) -\> Result\<RaftState\>\l|
+    fn entries(...) -\> Result\<Vec\<Entry\>\>\l|
+    fn term(&self, idx: u64) -\> Result\<u64\>\l|
+    fn last_index(&self) -\> Result\<u64\>\l|
+    fn last_index(&self) -\> Result\<u64\>\l|
+    fn snapshot(&self, request_index: u64) -\> Result\<Snapshot\>\l
+  }}"]
+
+  Storage -> {
+    RaftState;
+    Entry;
+    Snapshot;
+  }
+  MemStorage[style_struct;label="{{
+    MemStorage|
+    core: Arc\<RwLock\<MemStorageCore\>\>\l
+  }}"]
+  MemStorage -> {
+    MemStorageCore;
+  }
+  MemStorageCore[style_struct;label="{{
+    MemStorageCore|
+    raft_state: RaftState\l|
+    entries: Vec<Entry>\l|
+    snapshot_metadata: SnapshotMetadata\l|
+    trigger_snap_unavailable: boo\l
+  }}"]
+  MemStorageCore -> {
+    RaftState;
+    Entry;
+    SnapshotMetadata;
+  }
+  RaftState[style_struct;label="{{
+    RaftState|
+    pub hard_state: HardState\l|
+    pub conf_state: ConfState\l
+  }}"]
+
+
+  ConfState[style_struct;label="{{
+    ConfState|
+    pub voters: ::std::vec::Vec\<u64\>\l|
+    pub learners: ::std::vec::Vec\<u64\>\l|
+    pub voters_outgoing: ::std::vec::Vec\<u64\>\l|
+    pub learners_next: ::std::vec::Vec\<u64\>\l|
+    pub auto_leave: bool\l
+  }}"]
+  RaftState -> ConfState;
+}

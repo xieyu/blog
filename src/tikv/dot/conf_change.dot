@@ -1,0 +1,96 @@
+#include "styles.h"
+digraph confChange {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ConfChange[style_struct;label="{{
+    ConfChange|
+    pub change_type: ConfChangeType\l|
+    pub node_id: u64\l|
+    pub context: ::std::vec::Vec\<u8\>\l|
+    pub id: u64\l
+  }}"]
+  ConfChange -> ConfChangeType;
+  ConfChangeV2[style_struct;label="{{
+    ConfChangeV2|
+    <transition> pub transition: ConfChangeTransition\l|
+    <changes> pub changes: ::protobuf::RepeatedField\<ConfChangeSingle\>\l|
+    pub context: ::std::vec::Vec\<u8\>\l|
+  }}"]
+
+  ConfChangeV2:transition -> ConfChangeTransition;
+  ConfChangeV2:changes -> ConfChangeSingle;
+  ConfChangeSingle[style_struct;label="{{
+    ConfChangeSingle|
+    pub change_type: ConfChangeType\l|
+    pub node_id: u64\l
+  }}"]
+  ConfChangeSingle -> ConfChangeType;
+  ConfChangeType[style_struct;label="{{
+    ConfChangeType|
+    <AddNode> AddNode = 0\l|
+    <RemoveNode> RemoveNode = 1\l|
+    <AddLearnerNode> AddLearnerNode = 2\
+  }}"]
+  ConfChangeType:AddNode -> make_voter[style_edge_data];
+  ConfChangeType:AddLearnerNode -> make_learner[style_edge_data];
+  ConfChangeType:RemoveNode -> remove[style_edge_data];
+  subgraph cluster_Changer {
+    graph[label="Changer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    {
+      make_voter;
+      make_learner;
+      remove;
+    } -> IncrChangeMap[style_edge_data];
+  }
+  {
+    make_voter;
+    remove;
+  } -> JointConfig:incoming[style_edge_data];
+  make_learner -> Configuration:learners;
+  Configuration[style_struct;label="{{
+    Configuration|
+    <voters> pub(crate) voters: JointConfig\l|
+    pub(crate) learners: HashSet\<u64\>\l|
+    pub(crate) learners_next: HashSet\<u64\>|
+    pub(crate) auto_leave: bool\l
+  }}"]
+  Configuration:voters -> JointConfig;
+  JointConfig[style_struct;label="{{
+    JointConfig|
+    pub struct Configuration |
+    新的配置\l|
+    <incoming> pub(crate) incoming: MajorityConfig\l |
+    旧的配置\l|
+    pub(crate) outgoing: MajorityConfig\l
+  }}"]
+  JointConfig -> MajorityConfig;
+  MajorityConfig[style_struct;label="{{
+    MarjorityConfig|
+    A set of IDs that uses majority\l 
+    quorums to make decisions.\l
+    pub struct Configuration|
+    voters: HashSet\<u64\>
+  }}"]
+  ProgressTracker[style_struct;label="{{
+    ProgressTracker|
+    progress: ProgressMap\l|
+    conf: Configuration\l|
+    votes: HashMap\<u64, bool\>\l|
+    max_inflight: usize\l|
+    group_commit: bool\l|
+    pub(crate) logger: Logger\l
+  }}"]
+  IncrChangeMap -> apply_conf -> {
+    ProgressTracker:progress
+    ProgressTracker:conf
+  } [style_edge_data];
+
+  ConfChangeTransition[style_struct;label="{{
+    ConfChangeTransition|
+    Auto = 0\l|
+    Implicit = 1\l|
+    Explicit = 2\l
+  }}"]
+}

@@ -1,0 +1,156 @@
+#include "styles.h"
+digraph advance {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Unstable {
+    graph[label="Unstable";fontsize=20;style="rounded,dashed";color="slategrey"]
+    unstable_stable_snap;
+    unstable_stable_entries;
+  }
+
+  subgraph cluster_RaftLog {
+    graph[label="RaftLog";fontsize=20;style="rounded,dashed";color="slategrey"]
+    stable_snap;
+    stable_entries;
+    raft_log_maybe_commit;
+    raft_log_commit_to;
+    committed;
+    persisted;
+    applied;
+    next_entries_since;
+    slice;
+    raft_log_applied_to;
+    stable_snap[style_func;label="{{
+      stable_snap|
+      Clears the unstable snapshot.
+    }}"]
+
+    stable_entries[style_func;label="{{
+      stable_entries|
+      Clears the unstable entries\l 
+      and moves the stable offset up to the\l
+      last index, if there is any.\l
+      
+    }}"]
+
+    stable_snap -> unstable_stable_snap;
+    stable_entries -> unstable_stable_entries;
+  }
+  advance[style_func;label="{{
+    advance|
+    Advances the ready after\l 
+    fully processing it\l|
+    Fully processing a ready\l
+    requires to persist snapshot\l
+    entries and hard states\l
+    applye all committed entries\l
+    send all messages\l
+  }}"]
+  commit_since_index[style_struct;label="{{
+    commit_since_index|
+    RawNode\<T: Storage\>|
+    commit_since_index: u64|
+    index which the given committed\l
+    entries should start from\l
+  }}"]
+  advance_append[style_func;label="{{
+    advance_append|
+    Advance the ready without\l 
+    applying committed entries\l
+  }}"]
+
+  advance -> {
+    commit_since_index;
+    advance_append;
+    advance_apply_to;
+  }
+
+  advance_append -> {
+    commit_ready;
+    on_persist_ready;
+    gen_light_ready;
+    hard_state;
+  }
+  commit_ready -> {
+    records;
+    prev_ss;
+    prev_hs;
+    stable_snap;
+    stable_entries;
+  }
+
+  on_persist_ready -> {
+    messages_push;
+    on_persist_entries;
+  }
+  on_persist_entries -> {
+    pr_maybe_update;
+    pr_maybe_commit;
+    should_bcast_commit;
+    bcast_append;
+  }
+  pr_maybe_commit -> raft_log_maybe_commit;
+
+  advance_apply_to[style_struct;label="{{
+    advance_apply_to|
+    Advance apply to the passed index
+  }}"]
+
+  //commit_since_index -> advance_apply_to[style_edge_data];
+  advance_apply_to -> {
+    commit_apply
+    prs_conf_auto_leave;
+    set_entry_type;
+    EntryConfChangeV2;
+    append_entry;
+    pending_conf_index;
+  }
+  commit_apply -> raft_commit_apply;
+  raft_commit_apply -> {
+    raft_log_applied_to;
+  }
+  raft_log_applied_to -> applied;
+  applied[style_var;label="{{
+    applied|
+    RaftLog\<T: Storage\>|
+    pub applied: u64|
+    The highest log position that \l
+    the application has been instructed\l
+    to apply to its state machine.\l
+    Invariant: applied \<= min(committed, persisted)\l
+  }}"]
+  raft_log_maybe_commit -> {
+    raft_log_commit_to;
+  }
+  raft_log_commit_to -> committed;
+  committed[style_var;label="{{
+    committed|
+    RaftLog\<T: Storage\>|
+    pub committed: u64\l|
+    The highest log position\l 
+    that is known to be in stable storage\l
+    on a quorum of nodes.\l
+  }}"];
+  persisted[style_var;label="{{
+    persisted|
+    RaftLog\<T: Storage\>|
+    The highest log position that\l 
+    is known to be persisted in stable\l
+    storage. It's used for limiting the\l 
+    upper bound of committed and\l
+  }}"]
+
+  gen_light_ready -> {
+    next_entries_since;
+    get_index;
+    commit_since_index;
+  }
+  next_entries_since -> get_index -> commit_since_index[style_edge_data];
+  next_entries_since -> {
+    committed;
+    persisted;
+    slice;
+  }
+}

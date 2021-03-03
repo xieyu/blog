@@ -1,0 +1,152 @@
+#include "styles.h"
+digraph tick_election {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  tick -> tick_election -> {
+    pass_election_timeout;
+    step;
+    MsgHup;
+  }
+  MsgHup -> step[style_edge_data];
+  step -> {
+    hup;
+  }
+
+  hup -> {
+    maybe_first_index;
+    num_pending_conf;
+    campaign;
+    CAMPAIGN_ELECTION;
+    CAMPAIGN_PRE_ELECTION;
+    CAMPAIGN_ELECTION;
+  }
+  pre_vote -> CAMPAIGN_PRE_ELECTION;
+  transfer_leader -> CAMPAIGN_TRANSFER;
+  CAMPAIGN_PRE_ELECTION -> {
+    become_pre_candidate;
+    MsgRequestPreVote;
+  }
+  MsgRequestPreVote[style_var;label="{{
+    MessageRequestPreVote|
+    Pre-vote RPCs are sent for next\l 
+    term before we've incremented self.term.\l|
+    vote_msg, term =\l
+    (MessageType::MsgRequestPreVote, self.term + 1)|
+     let (commit, commit_term) =\l 
+     self.raft_log.commit_info();\l
+  }}"]
+  MsgRequestVote[style_var;label="{{
+    MsgRequestVote|
+    (MessageType::MsgRequestVote, self.term)
+  }}"]
+  {
+    CAMPAIGN_TRANSFER;CAMPAIGN_ELECTION} -> {
+    become_candidate;
+    MsgRequestVote;
+  }
+
+  commit_info -> {
+    MsgRequestPreVote; 
+    MsgRequestVote;
+  }[style_edge_data];
+  {MsgRequestVote;MsgRequestPreVote} -> send[style_edge_data];
+
+  campaign[style_func;label="{{
+    campaign|
+    Campaign to attempt to become a leader\l
+    发送voteRequest消息\l
+  }}"]
+
+  campaign -> {
+    MsgRequestPreVote;
+    MsgRequestVote
+    become_pre_candidate;
+    become_candidate;
+    log_broadcast_vote;
+    send;
+    commit_info;
+    poll;
+  }
+  commit_info[style_func;label="{{
+    commit_info|
+    self.raft_log.commit_info()\l|
+    Returns the committed index and iter term
+  }}"]
+  poll[style_func;label="{{
+    poll|
+    We won the election after\l 
+    voting for ourselves\l
+    which must mean that this\l 
+    is single node cluster|
+    如果直接poll就won了\l 
+    就不用再发消息了\l
+  }}"]
+
+  become_pre_candidate -> {
+    assign_state_PreCandidate;
+    prs_reset_votes;
+  }
+  assign_state_PreCandidate[style_func;label="{{
+    self.state = StateRole::PreCandidate;\l|
+    self.leader_id = INVALID_ID;\l
+  }}"]
+  prs_reset_votes -> votes_clear;
+  become_candidate -> {
+    assign_candidate;
+    reset;
+  }
+  reset -> {
+    reset_randomized_election_timeout;
+    abort_leader_transfer;
+    prs_reset_votes;
+  }
+  assign_candidate[style_func;label="{{
+      let term = self.term + 1;\l|
+      self.reset(term);\l|
+      let id = self.id;\l|
+      self.vote = id;\l
+      self.state = StateRole::Candidate;\l
+  }}"]
+
+  poll -> {
+    tally_votes;
+    campaign_election;
+    become_leader;
+    bcast_append;
+    become_follower;
+  }
+  /*
+  tally_votes -> {
+    campaign_election;
+    become_follower;
+    become_leader;
+    bcast_append;
+  }[style_edge_data];
+
+  tally_votes[style_func;label="{{
+    tally_votes|
+    returns the number of granted\l 
+    and reject votes\l
+    and whether the elelection outcome\l
+    is known;\l
+  }}"]
+  tally_votes -> {
+    vote_result;
+    self_votes;
+    conf_voters_contains
+  }
+  vote_result -> conf_voters;
+  */
+  campaign_election[style_func;label="{{
+      VoteResult::Won =\> \{\l
+            if self.state == StateRole::PreCandidate \{\l
+                self.campaign(CAMPAIGN_ELECTION);\l
+            \} else \{\l
+            ...\l|
+    如果投票结果Won，并且是PreCandidate\l
+    接着发起campain
+  }}"]
+}

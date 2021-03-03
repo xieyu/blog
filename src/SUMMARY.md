@@ -75,8 +75,6 @@
     - [Transaction lock mgr](./rocksdb/transaction-lock-mgr.md)
     - [two phase commit](./rocksdb/two-phase-commit.md)
 
-- [TiKV](./tikv/index.md)
-  - [draft](./tikv/draft/index.md)
 
 - [Raft](./raft/index.md)
   - [raft paper](./raft/raft.md)
@@ -116,6 +114,7 @@
       - [Executors](./tidb/datasource-executors.md)
   - [DistSQL](./tidb/distsql.md)
       - [ReginCache](./tidb/cop-region-cache.md)
+      - [TiKV GRPC Client](./tidb/tikv-grpc-client.md)
       - [CopTask](./tidb/cop-task.md)
       - [CopIteratorWorker](./tidb/cop-iterator-worker.md)
       - [Coprocessor](./tidb/coprocessor.md)
@@ -130,6 +129,10 @@
       - [AggFunc](./tidb/agg-func.md)
       - [Executor: HashAgg](./tidb/hash-agg.md)
       - [Executor: StreamAgg](./tidb/stream-agg.md)
+- [PD](./pd/index.md)
+- [TiKV](./tikv/index.md)
+  - [draft](./tikv/draft/index.md)
+  - [raft-rs](./tikv/raft.md)
 
 - [ClickHouse](./clickhouse/index.md)
   - [Server main](./clickhouse/server-main.md)

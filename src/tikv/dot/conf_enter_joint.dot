@@ -1,0 +1,69 @@
+#include "styles.h"
+digraph enter_joint {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  cc_enter_joint[style_func;label="{{
+    ConfChangeV2.enter_joint|
+    ConfChangeV2.enter_joint(&self) -\> Option\<bool\>\l|
+    It will return Some if and only if \l 
+    this config change will use Joint Consensus,\l
+    which is the case if it contains more than\l 
+    one change or if the use of Joint\l
+    Consensus was requested explicitly.\l
+    The bool indicates whether the Joint State\l
+    will be left automatically.\l
+  }}"]
+  apply_conf_change -> {
+    cc_enter_joint
+    enter_joint
+    apply_conf;
+    post_conf_change;
+  }
+  check_and_copy[style_func;label="{{
+    check_and_copy|
+    Copies the tracker's config\l
+    It returns error if checkInvariants does\l
+  }}"]
+  check_and_copy -> {
+    check_invariants;
+    self_tracker_conf_clone;
+  }
+  self_tracker_conf_clone[style_func;label="{{
+    self_tracker_conf_clone|
+    clone ProgressTracker.conf\l
+  }}"]
+  self_tracker_conf_clone -> Configuration[style_edge_data];
+
+  apply_conf[style_func;label="{{
+    apply_conf|
+    ProgressTracker.apply_conf\l
+    修改progress map和conf\l
+  }}"]
+
+  cc_enter_joint -> enter_joint[style_edge_data];
+  subgraph cluster_Changer {
+    graph[label="Changer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    cfg_voters_outgoing_extend[style_func;label="{{
+      cfg_voters_outgoing_extend|
+        cfg.voters_outgoing \l
+          .outgoing \l
+          .extend(cfg.voters.incoming.iter().cloned());\l|
+        将incoming 配置cp到outgoing\l
+    }}"]
+    enter_joint -> {
+      apply;
+      cfg_voters_outgoing_extend;
+      check_and_copy;
+    }
+    check_invariants;
+    apply -> {
+      make_voter;
+      make_learner;
+      remove;
+    } -> {Configuration, IncrChangeMap}[style_edge_data];
+  }
+  check_and_copy -> {Configuration; IncrChangeMap};
+  {Configuration;IncrChangeMap} -> apply_conf[style_edge_data];
+}

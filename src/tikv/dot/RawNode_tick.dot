@@ -1,0 +1,145 @@
+#include "styles.h"
+digraph RawNode_tick {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RawNode_tick[style_func;label="{{
+    RawNode.tick|
+    Tick advances the internal\l
+    clock by a single tick\l
+  }}"]
+
+  RawNode_tick -> {
+    Raft_tick;
+  }
+  subgraph cluster_Raft {
+    graph[label="Raft";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Raft_tick[style_func;label="{{
+      tick
+    }}"]
+
+    Raft_step[style_func;label="{{
+      step|
+        Steps the raft along\l 
+        via a message. This should\l 
+        be called everytime\l 
+        your raft receives a\l
+        message from a peer.\l
+    }}"]
+
+    tick_election[style_func;label="{{
+      tick_election|
+      如果state是\l 
+      Follower\l
+      PreCandidate\l
+      Candidate\l
+      则调用tick_election\l|
+      run by followers and candidates\l
+      after election timeout\l|
+      将election_elapsed +=1\l
+    }}"]
+    tick_heartbeat[style_func;label="{{
+      tick_heartbeat|
+      run by leaders to send\l
+      a MsgBeat after \l 
+      self.heartbeat_timeout\l|
+      heartbeat_elapsed = +1\l|
+      election_elapsed = +1 \l
+    }}"]
+    check_quorum[style_struct;label="{{
+      check_quorum|
+      pub check_quorum: bool\l
+    }}"]
+    lead_transferee[style_struct;label="{{
+      lead_transferee|
+        pub lead_transferee: Option\<u64\>\l|
+        ID of the leader transfer\l 
+        target when its value is not None.\l
+    }}"]
+    promotable[style_struct;label="{{
+      promotable|
+      whether state machine\l 
+      can be promoted to leader\l
+    }}"]
+    randomized_election_timeout[style_struct;label="{{
+      randomized_election_timeout|
+        randomized_election_timeout: usize\l
+        min_election_timeout\l 
+        max_election_timeout\l 
+        之间一个随机值\l
+    }}"]
+
+    election_elapsed[style_struct;label="{{
+      election_elapsed|
+        pub election_elapsed: usize\l|
+        tikcs since it reached laste electionTimeout\l
+        when it is a leader or candidate\l|
+        Number of ticks since it reached\l 
+        last electionTimeout or received a\l
+        valid message from current leader\l
+        when it is a follower.\l
+    }}"]
+
+    heartbeat_elapsed[style_struct;label="{{
+      heartbeat_elapsed|
+        heartbeat_elapsed: usize\l|
+        Number of ticks since it\l 
+        reached last heartbeatTimeout.\l
+        only leader keeps heartbeatElapsed.\l
+    }}"]
+
+    Raft_tick -> {
+      tick_election;
+      tick_heartbeat;
+    }
+  
+    tick_election -> {
+      pass_election_timeout;
+      new_message;
+      Raft_step;
+      promotable;
+      election_elapsed;
+    }
+
+    pass_election_timeout -> {
+      election_elapsed;
+      randomized_election_timeout;
+    }
+    tick_election -> new_message_MsgHup-> new_message -> Raft_step[style_edge_data];
+    new_message_MsgHup[style_var;label="{{
+      MsgHup|
+      INVALID_ID\l|
+      MessageType_MsgHup\l|
+      Some(self.id)\l
+    }}"]
+    messageCheckQuorum[style_var;label="{{
+      MsgCheckQuorum|
+      INVALID_ID\l |
+      MessageType::MsgCheckQuorum\l|
+      Some(self.id)\l
+    }}"]
+    MessageBeat[style_var;label="{{
+      MessageBeat|
+      INVALID_ID\l|
+      MessageType::MsgBeat\l|
+      Some(self.id)\l
+    }}"]
+  
+    tick_heartbeat -> {
+      check_quorum;
+      Raft_step;
+      new_message;
+      abort_leader_transfer;
+      MessageBeat;
+      heartbeat_elapsed;
+      election_elapsed;
+    }
+    abort_leader_transfer -> {
+      lead_transferee;
+    }
+    check_quorum -> messageCheckQuorum -> new_message[style_edge_data];
+    MessageBeat -> new_message[style_edge_data];
+    
+  }
+}

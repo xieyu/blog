@@ -1,0 +1,19 @@
+#include "styles.h"
+digraph post_conf_change {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  apply_conf_change -> post_conf_change -> {
+    to_conf_state;
+    is_voter;
+    maybe_send_append;
+    maybe_commit;
+    bcast_append;
+    last_pending_request_ctx;
+    prs_has_quorum;
+    read_only_advance;
+    r_send;
+    abort_leader_transfer;
+  }
+}

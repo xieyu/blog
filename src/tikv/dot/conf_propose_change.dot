@@ -1,0 +1,55 @@
+#include "styles.h"
+digraph propose_conf_change {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  propose_conf_change -> {
+    msgEntryConfChange;
+    msgEntryConfChangeV2;
+    msgPropose;
+  }
+  {
+    msgEntryConfChange
+    msgEntryConfChangeV2
+  } -> msgPropose[style_edge_data];
+  msgPropose -> step_leader[style_edge_data];
+
+  propose_conf_change -> step -> step_leader;
+  step_leader -> {
+    merge_from_bytes;
+    has_pending_conf;
+    append_entry;
+    bcast_append;
+  }
+  step_leader -> pending_conf_index;
+  pending_conf_index[style_var;label="{{
+    pending_conf_index|
+    此处修改了pending_conf_index\l 
+    ，在后面commit_apply时会用到|
+    self.pending_conf_index =\l 
+    self.raft_log.last_index() + i as u64 + 1;\l
+    
+  }}"]
+  has_pending_conf -> pending_conf_index;
+  has_pending_conf[style_func;label="{{
+    has_pending_conf|
+      self.pending_conf_index \>
+      self.raft_log.applied|
+      如果有pending_conf\l
+      此次conf change会被ignore掉\l
+  }}"]
+
+  pending_conf_index -> commit_apply[style_edge_data];
+  commit_apply[style_func;label="{{
+    commit_apply|
+    leader节点在commit_apply时, \l
+    发送emty EntryConfChangeV2消息\l|
+      let old_applied = self.raft_log.applied;\l
+      if self.prs.conf().auto_leave\l
+          && old_applied \<= self.pending_conf_index\l
+          && applied \>= self.pending_conf_index\l
+          && self.state == StateRole::Leader\l
+  }}"]
+  merge_from_bytes -> append_entry -> bcast_append[style_edge_data];  
+}

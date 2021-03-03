@@ -1,0 +1,121 @@
+#include "styles.h"
+digraph propose {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  MsgPropose[style_var;label="{{
+    MsgPropose|
+    from = self.raft.id
+    Entry|
+    data: Vec<u8>|
+    context: Vec<u8>
+  }}"]
+  RawNode_propose -> {
+    MsgPropose;
+    step;
+  }
+
+  MsgPropose -> step[style_edge_data];
+  subgraph cluster_Unstable {
+    graph[label="Unstable";fontsize=20;style="rounded,dashed";color="slategrey"]
+    truncate_and_append -> entries;
+    entries[style_struct;label="{{
+      entries|
+      Unstable|
+      entries: Vec\<Entry\>\l
+    }}"]
+    maybe_last_index -> snapshot;
+    snapshot[style_struct;label="{{
+      snapshot|
+      Unstable\l|
+      pub snapshot: Option\<Snapshot\>\l
+    }}"]
+  }
+
+  subgraph cluster_RaftLog {
+    graph[label="RaftLog";fontsize=20;style="rounded,dashed";color="slategrey"]
+    last_index -> {
+      maybe_last_index;
+      store_last_index;
+    };
+    append[style_func;label="{{
+      append|
+      Appends a set of entries\l 
+      to the unstable list\l
+    }}"]
+    append -> {
+      truncate_and_append;
+      last_index;
+    }
+  }
+
+  subgraph cluster_RaftCore {
+    graph[label="RaftCore";fontsize=20;style="rounded,dashed";color="slategrey"]
+    send_append[style_func;label="{{
+      send_append|
+      Sends an append RPC\l
+      with new entries and\l
+      the current commit index\l
+      to the given peer;
+    }}"]
+    send_append -> maybe_send_append;
+    maybe_send_append -> {
+      prepare_send_snapshot;
+      prepare_send_entries;
+      send;
+    }
+    MsgAppend[style_var;label="{{
+      MsgAppend|
+      m.log_term = term\l|
+      comit = self.raft_log.committed\l
+    }}"]
+    prepare_send_entries -> {
+      MsgAppend;
+    }
+    prepare_send_snapshot -> {
+      MsgSnapshot
+    }
+    MsgSnapshot[style_var;label="{{
+      MsgSnapshot|
+      pending_request_snapshot\l
+    }}"]
+    send[style_func;label="{{
+      send|
+      send persists state to\l 
+      stable storage and then\l 
+      sends to its mailbox.\l|
+      将消息放入Raft.msgs数组中\l
+    }}"]
+    {
+      MsgAppend;
+      MsgSnapshot;
+    } -> send[style_edge_data];
+  }
+
+  subgraph cluster_Raft {
+    graph[label="Raft";fontsize=20;style="rounded,dashed";color="slategrey"]
+    step -> {
+      step_leader;
+    }
+    step_leader[style_func;label="{{
+      step_leader|
+      处理MsgPropose类型消息\l
+    }}"]
+
+    step_leader -> {
+      contains_key;
+      append_entry;
+      bcast_append;
+    }
+    append_entry -> {
+      //maybe_increase_uncommitted_size;
+      last_index;
+      append;
+    }
+    bcast_append -> {
+      send_append;
+    }
+  }
+}

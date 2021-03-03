@@ -1,0 +1,152 @@
+#include "styles.h"
+digraph follower_handle_append_entries {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RaftCore[style_struct;label="{{
+    RaftCore|
+    <leader_id> pub leader_id: u64\l|
+    <election_elapsed> pub election_elapsed: usize\l|
+    pub state: StateRole\l|
+    pub pending_request_snapshot: u64\l|
+    <raft_log> pub raft_log: RaftLog\<T\>\l|
+  }}"]
+  RaftCore:raft_log -> RaftLog;
+
+  RaftLog[style_struct;label="{{
+    RaftLog|
+    <committed> pub committed: u64|
+    pub store: T\l|
+    pub unstable: Unstable\l|
+    pub persisted: u64\l|
+    pub applied: u64\l
+  }}"]
+
+  step -> step_follower -> {
+    RaftCore:leader_id;
+    RaftCore:election_elapsed;
+    handle_append_entries;
+  }
+
+  handle_append_entries -> {
+    pending_request_snapshot;
+    send_request_snapshot;
+    RaftLog:committed;
+    MsgAppendResponse_lower;
+    maybe_append;
+    send;
+  }
+
+  maybe_append -> MessageAppendResponse_reject;
+  maybe_append[style_func;label="{{
+    maybe_append|
+    Returns None if the entries\l 
+    cannot be appended. Otherwise,\l
+    it returns Some((conflict_index, last_index)).\l
+    Panics if it finds a conflicting\l 
+    index less than committed index.\l
+  }}"]
+  MessageAppendResponse[style_var;label="{{
+    MessageAppendResponse|
+    to_send.to = m.from\l|
+    <index> index\l|
+    set_commit(self.raft_log.committed);\l
+  }}"]
+
+  MessageAppendResponse_reject[style_var;label="{{
+    MessageAppendResponse|
+    maybe_append返回了None\l|
+    to_send.index = m.index;\l
+    to_send.reject = true;\l
+    to_send.reject_hint = self.raft_log.last_index();\l
+  }}"]
+  last_idx -> MessageAppendResponse:index;
+
+  MsgAppendResponse_lower[style_var;label="{{
+    MsgAppendResponse|
+    got message with \l 
+    lower index than committed\l|
+    to = m.from\l
+    index = self.raft_log.committed\l
+    commit = self.raft_log.committed\l
+  }}"]
+  pending_request_snapshot -> send_request_snapshot[style_edge_data]
+
+  maybe_append -> {
+    match_term;
+    find_conflict;
+    append;
+    commit_to;
+  }
+  match_term -> MessageAppendResponse_reject[style_edge_data];
+  match_term -> term;
+  find_conflict[style_func;label="{{
+    find_conflict|
+    It returns the first index \l 
+    of conflicting entries \l 
+    between the existing\l
+    entries and the given\l 
+    entries, if there are any.\l|
+    遍历entries，检查每个entries\l 
+    index对应的term是否一致\l
+    self.match_term(e.index, e.term)\l
+  }}"]
+  find_conflict -> match_term;
+  match_term[style_func;label="{{
+    match_term|
+    检查term和idx是否匹配
+  }}"]
+  term[style_func;label="{{
+    term|
+    term(&self, idx: u64)\l|
+    For a given index find the term\l
+    associated with it\l
+  }}"]
+  append[style_func;label="{{
+    append|
+    Appends a set of entries\l 
+    to the unstable list.\l|
+    这里只放入了unstable list中\l
+    后面由应用自己调用ready 将\l
+    unstable list中的entries保存，持久化\l
+    然后再发送消息\l|
+    因此后面的commit_to使用\l 
+    last_new_index是OK的\l
+  }}"]
+  append -> truncate_and_append;
+
+  commit_to[style_func;label="{{
+    committed_to|
+    self.commit_to(cmp::min(committed, last_new_index));\l|
+    committed 为msg的committed index\l|
+    last_new_index 为append之后\l 
+    follower自己本地的 entries idx\l
+  }}"]
+  append -> commit_to[style_edge_data];
+
+  commit_to -> {
+    RaftLog:committed;
+  }
+  subgraph cluster_RaftLog {
+    graph[label="RaftLog";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RaftLog;
+    commit_to;
+    maybe_append;
+    append;
+    find_conflict;
+    term;
+    match_term;
+    
+  }
+  subgraph cluster_Unstable {
+    graph[label="Unstable";fontsize=20;style="rounded,dashed";color="slategrey"]
+    truncate_and_append -> entries;
+  }
+
+  {
+    MessageAppendResponse;
+    MessageAppendResponse_reject;
+    MsgAppendResponse_lower
+  } -> send[style_edge_data];
+}

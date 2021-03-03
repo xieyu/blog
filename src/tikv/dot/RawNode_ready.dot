@@ -1,0 +1,94 @@
+#include "styles.h"
+digraph RawNode_ready {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ready[style_func;label="{{
+    ready|
+    Returns the outstanding \l 
+    work that the application\l 
+    needs to handle.\l
+  }}"]
+
+    raft_log_unstable_entries_to_vec[style_func;label="{{
+      RaftLog.unstable_entries().to_vec()
+    }}"]
+    raft_log_unstable_snapshot_clone[style_func;label="{{
+      RaftLog.unstable_snapshot.clone()
+    }}"]
+    Unstable:snapshot -> raft_log_unstable_snapshot_clone[style_edge_data];
+    Unstable:entries -> raft_log_unstable_entries_to_vec[style_edge_data];
+
+  Unstable[style_struct;label="{{
+    Unstable|
+    <snapshot> pub snapshot: Option\<Snapshot\>\l|
+    <entries> pub entries: Vec\<Entry\>\l
+  }}"]
+  raft_msgs ->  rd_record_messages[label="mem_swap"];
+  rd_record_messages -> rd_record;
+
+  ready -> Ready;
+  ready -> {
+    records_drain;
+    messages_push;
+    soft_state;
+    gen_light_ready;
+    records_push_back;
+    raft_log_unstable_entries_to_vec
+    raft_log_unstable_snapshot_clone;
+  }
+  messages[style_struct;label="{{
+    RawNode\<T: Storage\>|
+    messages: Vec\<Vec\<Messages\>\>|
+    Messages that need to be sent\l
+    to other peers\l
+  }}"]
+  records[style_struct;label="{{
+    RawNode\<T: Storage\>|
+    Current max number of Record\l
+    and ReadyRecord\l|
+    max_number: u64
+    records: VecDeque\<ReadyRecord\>
+  }}"]
+  raft_msgs[style_struct;label="{{
+    RawNode\<T: Storage\>|
+    pub raft: Raft\<T\>\{|\l
+       pub msgs: Vec\<Message\>\l|
+      \}
+  }}"]
+  raft_read_states -> Ready:read_states
+  soft_state -> Ready:ss[style_edge_data];
+  raft_log_unstable_entries_to_vec -> Ready:entries[style_edge_data];
+  raft_log_unstable_snapshot_clone -> Ready:snapshot[style_edge_data];
+  rd_record;
+  rd_record -> records_push_back;
+  records_push_back -> records -> records_drain[style_edge_data];
+  records_drain-> messages_push -> messages;
+  Ready[style_struct;label="{{
+    pub struct Ready|
+    number: u64\l|
+    <ss> ss: Option\<SoftState\>\l|
+    <hr> hs: Option\<HardState\>\l|
+    <read_states> read_states: Vec\<ReadStat\>\l|
+    <entries> entries: Vec\<Entry\>\l|
+    <snapshot> snapshot: Snapshot\l|
+    <light> light: LightReady\l|
+    must_sync: bool\l
+  }}"]
+  LightReady -> Ready:light;
+  LightReady[style_struct;label="{{
+    LightReady|
+    commit_index: Option\<u64\>\l|
+    committed_entries: Vec\<Entry\>\l|
+    messages: Vec\<Vec\<Message\>\>\l
+  }}"]
+
+  gen_light_ready -> {
+    reduce_uncommitted_size;
+    mem_swap;
+    messages;
+  }
+  messages -> mem_swap -> LightReady:messages[style_edge_data];
+
+}

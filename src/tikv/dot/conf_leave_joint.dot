@@ -1,0 +1,112 @@
+#include "styles.h"
+digraph leave_joint {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  EntryConfChangeV2[style_var;label="{{
+    EntryConfChangeV2|
+    change为空的消息
+  }}"]
+  apply_conf_change[style_func;label="{{
+    apply_conf_change|
+    apply 该Empty change\l 
+    EntryConfChangeV2\l
+  }}"]
+  commit_apply[style_func;label="{{
+    commit_apply|
+    leader节点在commit_apply时, \l
+    发送emty EntryConfChangeV2消息\l|
+      let old_applied = self.raft_log.applied;\l
+      if self.prs.conf().auto_leave\l
+          && old_applied \<= self.pending_conf_index\l
+          && applied \>= self.pending_conf_index\l
+          && self.state == StateRole::Leader\l
+  }}"]
+  commit_apply -> {
+    EntryConfChangeV2;
+    append_entry;
+  }
+  EntryConfChangeV2 -> apply_conf_change[style_edge_data];
+  EntryConfChangeV2 -> append_entry[style_edge_data];
+
+  apply_conf_change -> {
+    cc_leave_joint;
+    leave_joint;
+    apply_conf;
+    post_conf_change;
+  }
+  leave_joint -> {
+    cfg_auto_leave;
+    cfg_voters_outgoing_clear;
+  }
+
+  cfg_voters_outgoing_clear[style_func;label="{{
+     cfg.voters.outgoing.clear();|
+     修改clone后的cfg\l
+     清空outgoing(旧配置)\l|
+     这样统计投票结果vote_result\l
+     和计算committed_index就不受\l
+     outgoing配置影响了\l
+  }}"]
+  cfg_voters_outgoing_clear -> {
+    Joint_committed_index;
+    Joint_vote_result;
+  }[style_edge_data];
+  {Configuration; IncrChangeMap} -> apply_conf[style_edge_data];
+  leave_joint[style_func;label="{{
+    leave_joint|
+    结束JointConseus状态\l
+  }}"]
+
+  leave_joint -> {
+    check_invariants;
+    check_and_copy;
+  }
+  {
+    cfg_voters_outgoing_clear;
+    cfg_auto_leave;
+  } -> Configuration;
+  check_and_copy[style_func;label="{{
+    check_and_copy|
+    将当前conf clone一份\l
+    然后在上面做修改\l
+  }}"]
+  check_and_copy -> {
+    Configuration;
+    IncrChangeMap;
+  }[style_edge_data];
+
+  Joint_committed_index[style_func;label="{{
+    joint.Configuration.outgoing.committed_index\l|
+      if self.voters.is_empty() \{\l
+          return (u64::MAX, true);\l
+      \}\l
+  }}"]
+  Joint_vote_result[style_func;label="{{
+    joint.Configuration.outgoing.vote_result\l|
+        if self.voters.is_empty() \{\l
+            return VoteResult::Won;\l
+        \}\l
+  }}"];
+
+  cfg_auto_leave[style_func;label="{{
+    cfg.auto_leave = false;
+  }}"]
+  apply_conf[style_func;label="{{
+    ProgressTracker.apply_conf|
+    将clone后的cfg替换掉自己的cfg\l
+    然后根据IncrChangeMap 插入/删除\l 
+    node对应的progress\l
+  }}"]
+
+  post_conf_change[style_func;label="{{
+    post_conf_change|
+    Updates the in-memory state\l 
+    and, when necessary, carries\l 
+    out additional actions\l
+    such as reacting to the removal\l 
+    of nodes or changed quorum requirements.\l
+  }}"]
+}
