@@ -1,0 +1,28 @@
+#include "styles.h"
+digraph AskSplit {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  AskSplit -> {
+    HandleAskSplit;
+  }
+  HandleAskSplit -> {
+    ValidRequestRegion;
+    Alloc;
+  }
+  Alloc[style_func;label="{{
+    Alloc|
+    allocs a unique id
+  }}"]
+
+  Alloc -> newRegionID;
+  HandleAskSplit -> AskSplitResponse;
+
+  AskSplitResponse[style_struct;label="{{
+    AskSplitResponse|
+	    NewRegionId uint64 \l|
+      NewPeerIds           []uint64\l
+  }}"]
+}
