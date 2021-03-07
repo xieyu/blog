@@ -133,6 +133,7 @@
 - [TiKV](./tikv/index.md)
   - [draft](./tikv/draft/index.md)
   - [raft-rs](./tikv/raft.md)
+  - [PeerFsm](./tikv/PeerFsm.md)
 
 - [ClickHouse](./clickhouse/index.md)
   - [Server main](./clickhouse/server-main.md)

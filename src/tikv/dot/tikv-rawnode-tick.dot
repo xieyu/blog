@@ -1,0 +1,57 @@
+#include "styles.h"
+digraph tick {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RawNode {
+    graph[label="RawNode";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RawNode_tick;
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+      on_raft_base_tick -> RawNode_tick;
+      on_tick -> on_raft_base_tick;
+      handle_msgs -> on_tick;
+  }
+
+  subgraph cluster_RaftPoller {
+    graph[label="RaftPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_normal -> {
+      peer_receiver_try_recv;
+      messages_per_tick;
+      handle_msgs;
+      collect_ready;
+    }
+    peer_receiver_try_recv -> PeerMsg_Tick -> on_tick[style_edge_data];
+  }
+  subgraph cluster_Poller {
+    graph[label="Poller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BatchSystem_spawn -> thread_new_spawn -> poll;
+    thread_new_spawn[style_func;label="{{
+      thread_new_spawn|
+      开启线程调用poll\l
+      thread:Builder::new().spawn(move\|\|\{\l
+        set_io_type(IOType::ForegroundWrite);\l
+        poller.poll()\l
+      \}\l
+    }}"]
+    poll -> {
+      handle_normal;
+      fetch_fsm;
+    }
+    fetch_fsm -> {
+      fsm_receiver_try_recv;
+    }
+    batch[style_var;label="{{
+      batch|
+        normals: Vec\<Box\<N\>\>\l|
+        timers: Vec\<Instant\>\l|
+        control: Option\<Box\<C\>\>\l
+    }}"]
+    fetch_fsm -> batch[style_edge_data] 
+    batch -> handle_normal[style_edge_data];
+  }
+  //register_raft_base_tick -> schedule_tick;
+}

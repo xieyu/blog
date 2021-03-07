@@ -1,0 +1,64 @@
+#include "styles.h"
+digraph step {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  poll -> {
+    handle_normal;
+    RaftPoller_handle_control;
+  }
+
+  handle_normal -> {
+    handle_msgs;
+  }
+
+  handle_msgs -> {
+    PeerMsg_RaftMessage;
+    PeerMsg_RaftCommnad;
+    on_raft_message;
+  }
+
+  kv_raft[style_func;label="{{
+    kv_raft|
+    grpc raft\l
+  }}"]
+
+  kv_raft -> {
+    ServerRaftStoreRouter_send_raft_msg;
+  }
+  kv_batch_raft -> {
+    ServerRaftStoreRouter_send_raft_msg;
+  }
+
+  ServerRaftStoreRouter_send_raft_msg -> send_raft_msg;
+  send_raft_msg -> send_raft_message;
+  send_raft_message ->{
+    try_send;
+    StoreMsg_RaftMessage;
+    send_control;
+  }
+  send_raft_command -> PeerMsg_RaftCommnad;
+  init_engines -> ServerRaftStoreRouter_new;
+
+  RaftPoller_handle_control -> StoreFsmDelega_handle_msgs;
+
+  StoreFsmDelega_handle_msgs ->{
+    StoreMsg_RaftMessage
+    StoreFsmDelega_on_raft_message;
+  }
+
+  StoreMsg_RaftMessage -> StoreFsmDelega_on_raft_message;
+
+  StoreFsmDelega_on_raft_message -> PeerMsg_RaftMessage;
+
+  
+  on_raft_message -> {
+    peer_step;
+  }
+
+  peer_step -> {
+    RawNode_step;
+  }
+
+}

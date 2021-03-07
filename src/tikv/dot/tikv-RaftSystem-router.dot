@@ -1,0 +1,43 @@
+#include "styles.h"
+digraph RaftBatchSystem_router {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  router;
+  apply_router;
+
+  apply_router -> {
+    RaftPollerBuilder;
+  }[style_edge_data];
+
+  router -> {
+    RegionRunner;
+    CleanupSSTRunner;
+    ConsistencyCheckRunner;
+    RaftPollerBuilder;
+  }[style_edge_data];
+
+  RaftPollerBuilder -> {
+    WriteBatchVec;
+    WriteBatch;
+  }
+  { router; apply_router} -> PollContext;
+  PollContext -> RaftPoller;
+
+  RaftPollerBuilder ->{
+    PollContext;
+    RaftPoller;
+  }
+
+  spawn -> {
+    RegionRunner;
+    CleanupSSTRunner;
+    ConsistencyCheckRunner;
+    RaftPollerBuilder;
+  }
+
+  StoreFsmDelega_on_raft_message -> router;
+
+}

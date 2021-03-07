@@ -1,0 +1,69 @@
+#include "styles.h"
+digraph fsm_receiver {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  run_tikv -> init_servers -> Node_start -> start_store -> RaftBatchSystem_spawn -> start_system;
+
+  TiKVServer_init -> {
+    create_raft_batch_system;
+  }
+  create_raft_batch_system -> {
+    create_system;
+    RaftRouter;
+    RaftBatchSystem;
+    create_apply_batch_system;
+  }
+  ApplyRouter -> RaftBatchSystem:apply_router;
+  ApplyBatchSystem -> RaftBatchSystem:apply_system;
+  RaftRouter -> RaftBatchSystem:router;
+  BatchSystem -> RaftBatchSystem:system;
+
+  RaftBatchSystem[style_struct;label="{{
+    RaftBatchSystem|
+    <system> system: BatchSystem\<PeerFsm\<EK, ER\>, StoreFsm\<EK\>\>,\l|
+    <apply_router> apply_router: ApplyRouter\<EK\>,\l|
+    <apply_system> apply_system: ApplyBatchSystem\<EK\>,\l|
+    <router> router: RaftRouter\<EK, ER\>,\l|
+    workers: Option\<Workers\<EK\>\>,\l
+  }}"]
+  Router -> {
+    ApplyRouter;
+    RaftRouter;
+  }
+
+
+  create_apply_batch_system -> {
+    create_system;
+    ApplyRouter;
+    ApplyBatchSystem;
+    batch_system_create_sytem
+  }
+
+  create_system -> {
+    BatchSystem;
+    Router;
+    rx;
+    tx;
+  }
+  tx -> {
+    ControlScheduler_sender;
+    NormalScheduler_sender;
+  }
+  BatchSystem_reciever -> BatchSystem;
+  rx -> BatchSystem_reciever;
+  ControlScheduler_sender -> control_scheduler;
+  NormalScheduler_sender -> normal_scheduler;
+  {control_scheduler;normal_scheduler} -> Router;
+
+  start_system -> BatchSystem_spawn;
+
+  BatchSystem_spawn -> {
+    BatchSystem_reciever;
+  }
+  BatchSystem_reciever -> Poller_fsm_receiver[style_edge_data];
+
+  Poller_fsm_receiver;
+}

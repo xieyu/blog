@@ -1,0 +1,33 @@
+#include "styles.h"
+digraph tikv_rawnode_proposal {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_RawNode {
+    graph[label="RawNode";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RawNode_propose;
+    
+  }
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    Peer_propose -> {
+      read_index;
+      propose_normal;
+      propose_transfer_leader;
+    }
+    propose_normal -> {
+      pre_propose;
+      RawNode_propose;
+      next_proposal_index;
+    }
+    
+  }
+
+  propose_raft_command -> {
+    Peer_propose;
+  }
+
+}

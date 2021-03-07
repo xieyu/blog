@@ -1,0 +1,15 @@
+#include "styles.h"
+digraph tikv_poller {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  BatchSystem_spawn -> Poller_poll;
+  RaftBatchSystem_start_system -> BatchSystem_spawn;
+  RaftBatchSystem_spawn -> RaftBatchSystem_start_system;
+  start_raftstore -> RaftBatchSystem_spawn;
+  Node_start_store -> RaftBatchSystem_spawn;
+  Node_start -> Node_start_store;
+  run_tikv -> init_servers -> Node_start;
+}
