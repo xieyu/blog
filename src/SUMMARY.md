@@ -133,6 +133,8 @@
 - [TiKV](./tikv/index.md)
   - [draft](./tikv/draft/index.md)
   - [raft-rs](./tikv/raft.md)
+  - [BatchSystem](./tikv/batch-system.md)
+  - [Poller](./tikv/poller.md)
   - [PeerFsm](./tikv/PeerFsm.md)
 
 - [ClickHouse](./clickhouse/index.md)

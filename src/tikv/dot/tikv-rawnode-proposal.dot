@@ -8,7 +8,7 @@ digraph tikv_rawnode_proposal {
   subgraph cluster_RawNode {
     graph[label="RawNode";fontsize=20;style="rounded,dashed";color="slategrey"]
     RawNode_propose;
-    
+    RawNode_tick;
   }
   subgraph cluster_Peer {
     graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
@@ -35,7 +35,7 @@ digraph tikv_rawnode_proposal {
       Peer_propose;
     }
     PeerFsmDelegate_handle_msgs[style_func;label="{{
-      PeerFsmDelegate_handle_msgs|
+      handle_msgs|
       处理PeerMsg::RaftCommand\l
       PeerMsg::ApplyRes\l
       PeerMsg::SingificantMsg\l
@@ -75,7 +75,10 @@ digraph tikv_rawnode_proposal {
       on_raft_gc_log_tick;
       propose_batch_raft_command;
       propose_raft_command;
+      on_tick;
     }
+    on_tick -> on_raft_base_tick -> RawNode_tick;
+
     on_casual_msg -> {
       on_hash_computed;
       on_raft_gc_log_tick;

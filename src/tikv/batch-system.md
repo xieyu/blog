@@ -11,6 +11,10 @@ fsm 分为normal和control, `PeerFsm/ApplyFsm` 的FsmTypes为Normal
 都有一个reciver从channel接收数据，其中 `PeerFsm/ApplyFsm` 的channel tx端，
 存放在`Router.normals` HashMap中，而StoreFsm的tx端，存放在`Router.control_box`。
 
+``BasicMailbox``则封装了向fsm发消息功能， mailbox首先使用Fsm对应的tx，发消息到
+Fsm的reciver中，并且如果FsmState为Idle的话，则通过NormalScheduler/ControlScheduler
+将Fsm使用FsmTypes包装一下，发送到BatchSystem.reciver中。
+
 ![](./dot/fsm.svg)
 
 ## BatchSystem

@@ -8,14 +8,79 @@ digraph poller_poll {
     graph[label="handler";fontsize=20;style="rounded,dashed";color="slategrey"]
     handle_control;
     handle_normal;
-    handle_end;
-    handle_pause;
-    PollHandler -> {
-      ApplyPoller;
-      RaftPoller;
-    }
+    begin;
+    end[style_func;label="{{
+      end|
+      做数据清理，落盘等操作
+    }}"]
+    handle_pause[style_func;label="{{
+      pause|
+      在batch system sleep 之前\l
+      做一些清理buffeer之类操作\l
+    }}"]
+    handle_normal[style_func;label="{{
+      handle_normal|
+      对于batch.normals中每个fsm \l
+      调用handle_normal\l|
+      每次handle_normal会从fsm中最多取出\l
+      messages_per_tick个消息处理\l
+    }}"]
+    handle_control[style_func;label="{{
+      handle_control|
+      对batch.control的fsm调用\l
+      handle_control方法\l|
+      每次handle_control会从fsm中最多取出\l
+      messages_per_tick个消息处理\l
+    }}"]
   }
-  reschedule_fsms;
+  reschedule_fsms[style_var;label="{{
+    reschedule_fsms|
+    Vec\<(u64, ReschedulePolicy)\>|
+    根据handle_normal/handle_control\l
+    返回expected message count\l
+    和channel中的message count\l
+    确定schedule policy\l
+  }}"]
+  fetch_fsm[style_func;label="{{
+    fetch_fsm|
+    从fcm_reciever中接收fsm\l|
+    先try_recv，非阻塞的获取\l
+    如果channel中没数据，且batch空，
+    则先调用handler.pause\l
+    通知handler batch system将会被阻塞了\l
+  }}"]
+  fcm_reciever_try_recv[style_func;label="{{
+    fcm_reciever.try_recv|
+    尝试非阻塞的获取fsm
+  }}"]
+  fcm_reciever_recv[style_func;label="{{
+    fcm_reciever_recv|
+    阻塞直到获取fsm\l
+  }}"]
+
+  batch[style_var;label="{{
+    batch|
+    normals: Vec\<Box\<N\>\>,\l|
+    timers: Vec\<Instant\>,\l|
+    control: Option\<Box\<C\>\>,\l|
+    timers用来统计 fsm在batch中时间\l
+    超过reschdule_duration的\l
+    需要重新调度\l
+    避免batch一直被hot region占用\l
+  }}"]
+  batch2[style_var;label="{{
+    batch2|
+    遍历reschedule_fsms\l
+    清理之前的batchs\l 
+    进入下一轮迭代\l
+  }}"]
+  batch_push[style_func;label="{{
+    Batch.push\l
+    根据FsmTypes\l
+    push到normals\l 
+    设置control\l
+  }}"]
+
   fetch_fsm -> {
     fcm_reciever_try_recv;
     batch_push;
@@ -26,16 +91,18 @@ digraph poller_poll {
     fcm_reciever_try_recv;
     fcm_reciever_recv;
   } -> batch_push -> batch[style_edge_data];
+
   batch:control -> handle_control[style_edge_data];
   batch:normal -> handle_normal[style_edge_data];
   handle_normal -> reschedule_fsms[style_edge_data];
+  handle_control -> reschedule_fsms[style_edge_data];
 
   poll -> {
     fetch_fsm;
     begin;
     handle_normal;
     handle_control;
-    handle_end;
+    end;
     batch_release;
     batch_remove;
     batch_reschedule;
@@ -46,5 +113,7 @@ digraph poller_poll {
     batch_remove;
     batch_release;
     batch_reschedule;
-  } -> batch;
+    batch_remove_control;
+    batch_release_control;
+  } -> batch2;
 }
