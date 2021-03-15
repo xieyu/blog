@@ -1,0 +1,88 @@
+#include "styles.h"
+digraph router_send_control {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Fsm {
+    graph[label="Fsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+    set_mailbox[style_func;label="{{
+      set_mailbox|
+      store fsm用不到mailbox\l
+      该函数为空\l
+    }}"]
+    set_mailbox -> {
+      StoreFsm
+    }
+    StoreFsm[style_struct;label="{{
+      StoreFsm|
+        store: Store,\l|
+        receiver: Receiver\<StoreMsg\<EK\>\>,\l\l
+    }}"]
+  }
+  control_box ->
+  sender_try_send -> {
+    StoreFsm;
+  }[style_edge_data];
+
+  subgraph cluster_mailbox {
+    graph[label="mailbox";fontsize=20;style="rounded,dashed";color="slategrey"]
+    mailbox_try_send[style_func;label="{{
+      try_send|
+      发送消息给fsm的reciver\l
+      并且使用state notify\l
+      发送消息给BatchSystem.reciver\l
+      这样poller fetch_fsm 能够取到该fsm\l
+    }}"]
+    sender_try_send[style_func;label="{{
+      self.sender.try_send|
+      mailbox自己的sender\l
+      发消息给fsm的reciver\l
+      poller在handle_control时\l
+      会从该reciver中接收消息\l
+    }}"]
+    mailbox_try_send -> {
+      sender_try_send;
+      notify;
+    }
+    subgraph cluster_FsmState {
+      graph[label="FsmState";fontsize=20;style="rounded,dashed";color="slategrey"]
+      notify[style_func;label="{{
+        notify|
+        如果为IDLE状态，\l
+        将状态改为NOTIFIED\l
+        然后使用传过来的scheduler\l
+        发消息\l
+      }}"]
+      notify -> {
+        take_fsm;
+        set_mailbox;
+        scheduler_schedule;
+      }
+      scheduler_schedule[style_func;label="{{
+        scheduler.schdule|
+        使用FsmTypes包装fsm box指针\l
+        发送消息给BatchSystem.reciver\l
+      }}"]
+    }
+  }
+
+  control_scheduler -> scheduler_schedule[style_edge_data];
+  subgraph cluster_Router {
+    graph[label="Router";fontsize=20;style="rounded,dashed";color="slategrey"]
+    send_control -> {
+      control_box;
+      mailbox_try_send;
+      control_scheduler;
+    }
+
+    BatchSystem[style_struct;label="{{
+      BatchSystem|
+      router: BatchRouter\<N, C\>,\l|
+      receiver: channel::Receiver\<FsmTypes\<N, C\>\>,\l|
+      ...
+    }}"]
+  }
+  scheduler_schedule -> BatchSystem:reciever;
+}

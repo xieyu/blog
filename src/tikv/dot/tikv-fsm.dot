@@ -1,0 +1,194 @@
+#include "styles.h"
+digraph fsm {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Fsm[style_var;label="{{
+    Fsm|
+      A Fsm is a finite\l 
+      state machine.\l|
+      fn is_stopped\l|
+      fn set_mailbox\l
+      设置mailbox\l,后面通过\l 
+      mailbox发消息给fsm |
+      fn take_mailbox\l
+  }}"]
+  Fsm -> {
+    ApplyFsm;
+    PeerFsm;
+    ControlFsm;
+    StoreFsm;
+  }
+
+  ApplyFsm -> {
+    KvEngine;
+    ApplyDelegate;
+    Receiver;
+  }
+
+  StoreFsm -> {
+    Store;
+    Receiver;
+  }
+  StoreFsmDelegate -> {
+    StoreFsm;
+    PollContext;
+    Transport;
+  }
+
+  PeerFsmDelegate -> {
+    PeerFsm;
+    PollContext;
+    Transport;
+  }
+
+  PeerFsm -> {
+    KvEngine;
+    RaftEngine;
+    Peer;
+    PeerTicks;
+    Receiver;
+    BatchRaftCmdRequestBuilder;
+  }
+  Peer -> {
+    RawNode;
+    ProposalQueue;
+    ReadIndexQueue;
+  }
+  /*
+  ReadIndexQueue -> {
+    VecDeque;
+    ReadIndexRequest;
+  }
+  ProposalQueue -> {
+    VecDeque;
+    Proposal;
+  }
+  Proposal -> {
+    Callback;
+  }
+  Callback -> {
+    ReadCallback;
+    WriteCallback;
+    ExtCallback;
+  }
+  */
+
+  RaftRouter[style_func;label="{{
+    RaftRouter|
+    send\l
+    根据region_id\l 
+    从StoreFsmDelegate\l
+    发送PeerMsg消息\l 
+    给PeerFsm\l|
+    self.ctx.router.send(\l
+      region_id, PeerMsg::RaftMessage\l
+      ....)\l
+  }}"]
+
+  ApplyRouter[style_func;label="{{
+    ApplyRouter|
+    根据region_id\l
+    从PeerFsm发送\l 
+    任务给ApplyFsm\l|
+    ctx.apply_router.schedule_task(\l
+      self.fsm.region_id,...)\l
+  }}"]
+  BasicMailbox[style_func;label="{{
+    BasicMailbox|
+    Every mailbox should have one\l
+    and only one owner\l
+    who will receive all\l
+    messages sent to this mailbox\l|
+    pub struct BasicMailbox\<Owner: Fsm\> \{\l
+    sender: mpsc::LooseBoundedSender\<Owner::Message\>\l|
+    state: Arc\<FsmState\<Owner\>\>\l
+  }}"]
+
+  Receiver[style_func;label="{{
+    Receiver|
+    为mailbox中channel的rx端\l
+    从channel中获取消息\l
+  }}"]
+  FsmState[style_struct;label="{{
+    FsmState|
+    status: AtomicUsize\l|
+    data: AtomicPtr\<N\>\l
+  }}"]
+
+  BasicMailbox -> {
+    LooseBoundedSender;
+    FsmState;
+    FsmScheduler;
+    Fsm;
+  }
+  PollContext -> {
+    RaftRouter;
+    ApplyRouter;
+    Transport;
+  }
+  RaftRouter -> BatchRouter;
+  BatchRouter[style_struct;label="{{
+    BatchRouter|
+    Router\<N, C, NormalScheduler\<N, C\>, \l 
+    ControlScheduler\<N, C\>\>;
+  }}"]
+  BatchRouter -> Router;
+  Router[style_struct;label="{{
+    Router|
+    normals: Arc\<Mutex\<HashMap\<u64, BasicMailbox\<N\>\>\>\>\l|
+    caches: Cell\<LruCache\<u64, BasicMailbox\<N\>\>\>\l|
+    pub(super) control_box: BasicMailbox\<C\>\l|
+    pub(crate) normal_scheduler: Ns\l|
+    control_scheduler: Cs\l|
+    shutdown: Arc\<AtomicBool\>\l
+  }}"]
+  ApplyRouter -> BatchRouter;
+  Router -> BasicMailbox;
+
+  FsmScheduler[style_var;label="{{
+    FsmScheduler|
+    fn schedule\l|
+    fn shutdown\l
+  }}"]
+  FsmScheduler -> {
+    NormalScheduler;
+    ControlScheduler;
+  }
+
+  NormalScheduler[style_struct;label="{{
+    NormalScheduler|
+      sender: channel::Sender\l 
+      \<FsmTypes\<N,C\>\>
+  }}"]
+
+  ControlScheduler[style_struct;label="{{
+    ControlScheduler|
+      sender: channel::Sender\l 
+      \<FsmTypes\<N,C\>\>
+  }}"]
+
+  Poller -> {
+    Fsm;
+    Router;
+    Receiver;
+    PollHandler;
+  }
+  PollHandler ->  {
+    ApplyPoller;
+    RaftPoller;
+  }
+  RaftPoller -> {
+    StoreFsmDelegate;
+    PeerFsmDelegate;
+    StoreFsm;
+    PeerFsm;
+  }
+
+  ApplyPoller -> {
+    ApplyDelegate;
+    ApplyFsm;
+    ControlFsm;
+  }
+}

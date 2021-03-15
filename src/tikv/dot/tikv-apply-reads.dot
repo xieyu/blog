@@ -1,0 +1,96 @@
+#include "styles.h"
+digraph apply_reads {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Callback {
+    graph[label="Callback";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Callback[style_struct;label="{{
+      pub enum Callback|
+        <read> Read(ReadCallback\<S\>),\l|
+        ...
+    }}"]
+    Callback:read -> ReadCallback;
+    ReadCallback[style_func;label="{{
+       ReadCallback|
+         Box\<dyn FnOnce(ReadResponse\<S\>) + Send\>;\l
+         read回调函数
+     }}"]
+    cb_invoke_read -> {
+      read
+    }
+    read -> Callback:read;
+  }
+  subgraph cluster_ReadIndexQueue {
+    graph[label="ReadIndexQueue";fontsize=20;style="rounded,dashed";color="slategrey"]
+    advance_replica_reads[style_func;label="{{
+      advance_replica_reads|
+      遍历ready.states\l
+      for (uuid, locked, index) in states\l|
+      ...
+    }}"];
+    contexts_remove[style_func;label="{{
+      contexts_remove|
+      从hashmap中Pop出uuid对应的index
+    }}"]
+    raw_offset[style_var;label="{{
+      raw_offset
+      
+    }}"]
+    contexts_remove -> raw_offset[style_edge_data];
+    advance_replica_reads -> {
+      contexts_remove;
+      fold;
+    };
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    
+    handle_raft_ready_append -> {
+      apply_reads;
+    }
+    apply_reads -> {
+      advance_replica_reads;
+      post_pending_read_index_on_replica;
+      ready_to_handle_read;
+      response_read;
+    }
+    post_pending_read_index_on_replica -> {
+      pending_reads_pop_front;
+      addition_request_is_some;
+      pending_reads_push_front;
+      response_read;
+      ready_to_handle_unsafe_replica_read;
+    }
+    response_read[style_func;label="{{
+      response_read|
+      遍历read.cmds\l
+    }}"]
+    cb_invoke_read[style_func;label="{{
+      cb_invoke_read|
+      调用cmd中的cb回调函数
+    }}"]
+    response_read -> {
+      read_locked_take;
+      cb_invoke_read;
+      handle_read;
+      get_replica_read;
+      notify_stale_req;
+    }
+    read_index[style_var;label="{{
+      read_index
+    }}"]
+    read_index -> handle_read;
+    handle_read -> {
+      PollContext_execute
+      bind_term;
+      check_region_epoch;
+    }
+    handle_read -> ReadResponse;
+    PollContext_execute -> ReadResponse -> cb_invoke_read[style_edge_data];
+    bind_term -> ReadResponse;
+  }
+}

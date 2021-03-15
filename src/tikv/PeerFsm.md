@@ -2,12 +2,7 @@
 
 <!-- toc -->
 
-## Data struct
-
-![](./dot/tikv-peerfsm-datastruct.svg)
-
-## RaftPoller
-
+## raft-rs
 
 TiKV调用RawNode的地方
 
@@ -27,6 +22,28 @@ TiKV调用RawNode的地方
 
 谁触发了ready 呢？
 
+write batch是在什么时候apply的？为什么？
+
+### 处理`Apply<EK::Snapshot>`
+
+![](./dot/ApplyFsm.svg)
+
+### handle raft log
+
+![](./dot/raftlog.svg)
+
+handle_raft_ready里面
+
+```
+        if !ready.entries().is_empty() {
+            self.append(&mut ctx, ready.take_entries(), ready_ctx)?;
+        }
+```
+
+### 处理 `ApplyRes<Ek::Shapshot>`
+
+![](./dot/handle-apply-res.svg)
+
 ### advance_append
 
 ![](./dot/tikv-rawnode-advance-append.svg)
@@ -39,20 +56,59 @@ TiKV调用RawNode的地方
 
 ![](./dot/tikv-rawnode-step.svg)
 
-### proposal
+### propose
 
 ![](./dot/tikv-rawnode-proposal.svg)
 
-## poller
 
-谁在向poller的fsm_receiver中发消息呢？
+### readIndex
 
-猜测router负责使用tx发送消息,system 从rx中接收消息，然后处理消息。
+kv get
 
-![](./dot/poller-fsm-receiver.svg)
+![](./dot/tikv-kv-get.svg)
 
-![](./dot/tikv-poll.svg)
+LocalReader_read
 
-## RaftBatchSystem
+![](./dot/local_reader_read.svg)
 
-## mailBox
+propose read index
+
+![](./dot/tikv-rawnode-read-indx.svg)
+
+apply reads
+
+![](./dot/tikv-apply-reads.svg)
+
+### LeaseRead
+
+#### PeerMsg::RaftCommand
+
+![](./dot/tikv-RaftCommand.svg)
+
+## kv Service
+
+
+![](./dot/tikv-service.svg)
+
+[TiKV 源码解析系列文章（十一）Storage - 事务控制层](https://pingcap.com/blog-cn/tikv-source-code-reading-11/)
+
+### ServerRaftStoreRouter
+
+
+
+## RocksEngine
+
+![](./dot/RocksEngine.svg)
+
+
+### RocksSnapshot
+
+### RocksWriteBatch
+
+
+### RaftLogBatch
+
+## Node
+
+## RaftLog
+

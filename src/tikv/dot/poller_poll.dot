@@ -1,0 +1,50 @@
+#include "styles.h"
+digraph poller_poll {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_handler {
+    graph[label="handler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_control;
+    handle_normal;
+    handle_end;
+    handle_pause;
+    PollHandler -> {
+      ApplyPoller;
+      RaftPoller;
+    }
+  }
+  reschedule_fsms;
+  fetch_fsm -> {
+    fcm_reciever_try_recv;
+    batch_push;
+    fcm_reciever_recv;
+    handle_pause;
+  }
+  {
+    fcm_reciever_try_recv;
+    fcm_reciever_recv;
+  } -> batch_push -> batch[style_edge_data];
+  batch:control -> handle_control[style_edge_data];
+  batch:normal -> handle_normal[style_edge_data];
+  handle_normal -> reschedule_fsms[style_edge_data];
+
+  poll -> {
+    fetch_fsm;
+    begin;
+    handle_normal;
+    handle_control;
+    handle_end;
+    batch_release;
+    batch_remove;
+    batch_reschedule;
+    batch_remove_control;
+    batch_release_control;
+  }
+  reschedule_fsms -> {
+    batch_remove;
+    batch_release;
+    batch_reschedule;
+  } -> batch;
+}

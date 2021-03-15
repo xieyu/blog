@@ -1,0 +1,97 @@
+#include "styles.h"
+digraph kv_get {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RaftKV{
+    graph[label="RaftKV";fontsize=20;style="rounded,dashed";color="slategrey"]
+    engine_async_snapshot -> {
+      exec_snapshot;
+      box_new_cb;
+    }
+    exec_snapshot  -> {
+      LocalReadRouter_read;
+    }
+    LocalReadRouter_read -> Store_Callback_read_cb[style_edge_data];
+    Store_Callback_read_cb[style_func;label="{{
+      Store:Callback::Read|
+      raft read ready callback
+    }}"]
+    box_new_cb[style_func;label="{{
+      box_new_cb|
+      exec_snapshot向下\l 
+      传的callback\l|
+      被回调时候\l
+      会调用上层传\l 
+      入的callback\l
+    }}"]
+    Store_Callback_read_cb -> {
+      on_read_result;
+      box_new_cb;
+    }
+    on_read_result -> {
+      check_raft_cmd_response;
+    }
+    box_new_cb -> {
+      callback;
+    }
+  }
+  subgraph cluster_Storage {
+    graph[label="Storage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Storage_get -> {
+      read_pool_spawn_handle;
+    }
+    read_pool_spawn_handle -> {
+      tls_collect_qps;
+      prepare_snap_ctx;
+      with_tls_engine_await;
+      snapshot;
+      snap_store_get;
+    }
+    snapshot -> kv_snapshot;
+    kv_snapshot -> {
+      engine_async_snapshot;
+      paired_must_called_future_callback;
+      future_await;
+    }
+    paired_must_called_future_callback -> {
+      callback;
+      future;
+    }
+    callback -> future -> future_await[style_edge_data];
+
+    var_snapshot -> {
+      snap_store;
+    }[style_edge_data];
+    snap_store-> snap_store_get[style_edge_data];
+    snapshot -> var_snapshot[style_edge_data];
+    prepare_snap_ctx -> snap_ctx;
+  }
+
+  subgraph cluster_service_kv {
+    graph[label="service_kv";fontsize=20;style="rounded,dashed";color="slategrey"]
+    kv_get -> {
+      future_get;
+      async_task;
+      ctx_spawn;
+    }
+    async_task -> ctx_spawn[style_edge_data];
+    async_task -> {
+      resp_await;
+    }
+    resp -> resp_await;
+    future_get -> {
+      resp;
+    }
+    future_get -> {
+      Storage_get;
+      v_await;
+    }
+    v -> v_await;
+    Storage_get -> v;
+    future_await -> v_await -> resp_await[style_edge_data];
+    future_await -> snap_store_get;
+  }
+
+}

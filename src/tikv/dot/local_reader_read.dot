@@ -1,0 +1,78 @@
+#include "styles.h"
+digraph local_reader_read {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RaftRouter {
+    graph[label="RaftRouter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RaftRouter_send -> {
+      send_raft_command;
+    }
+    send_raft_command -> {
+      get_region_id;
+      PeerMsg_RaftCommand;
+      Router_send;
+    }
+    {
+      PeerMsg_RaftCommand
+      get_region_id
+    } -> mailbox_try_send;
+    subgraph cluster_Router {
+      graph[label="Router";fontsize=20;style="rounded,dashed";color="slategrey"]
+      Router_send -> {
+        try_send;
+      }
+      check_do[style_func;label="{{
+        check_do|
+        根据region_id\l 
+        从Router.normals
+        找到要发送的addr\l
+      }}"]
+      try_send -> {
+        mailbox_try_send;
+        check_do
+      }
+      mailbox_try_send[style_func;label="{{
+        mailbox_try_send|
+        根据mailbox
+        
+      }}"]
+    }
+  }
+
+  subgraph cluster_LocalReader {
+    graph[label="LocalReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    LocalReader_read -> {
+      propose_raft_command;
+    }
+    redirect[style_func;label="{{
+      redirect|
+      Forward to raftstore\l
+      self.redirect(RaftCommand::new(req, cb));
+    }}"]
+    propose_raft_command -> {
+      pre_propose_raft_command;
+      monotonic_raw_now;
+      is_in_leader_lease;
+      execute;
+      bind_term;
+      cb_invoke_read;
+      redirect;
+    }
+    is_in_leader_lease -> {
+      execute;
+      bind_term;
+      cb_invoke_read;
+    }[style_edge_data];
+
+    redirect -> {
+      RaftRouter_send;
+    }
+  }
+
+  RaftCmdRequest -> LocalReaderRouter_read -> ServerRaftStoreRouter_read;
+  ServerRaftStoreRouter_read -> {
+    LocalReader_read;
+  }
+}

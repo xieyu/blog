@@ -1,0 +1,67 @@
+#include "styles.h"
+digraph raftCommand {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  LocalReader_redirect -> {
+    ProposalRouter_send;
+  }
+
+  sst_service_ingest -> {
+    ProposalRouter_send;
+  }
+  ProposalRouter -> {
+    RaftRouter;
+    ServerRaftStoreRouter;
+    RaftStoreBlackHole;
+    SyncSender;
+  } 
+  ServerRaftStoreRouter -> RaftRouter_send -> send_raft_command;
+  RaftRouter_send_command -> RaftRouter_send;
+
+  kv_read_index -> RaftRouter_send_command;
+  kv_read_index -> CmdType_ReadIndex;
+  node_async_command_on_node -> {
+    RaftRouter_send_command;
+  }
+  debug_region_detail -> {
+    RaftRouter_send_command;
+    CmdType_RegionDetail;
+  }
+  debug_consistency_check -> {
+    RaftRouter_send_command;
+    AdminCmdType_ComputeHash;
+  }
+
+  ProposalRouter_send -> ProposalRouter;
+  RaftKv_exec_write_requests -> {
+    RaftRouter_send_command;
+  }
+  RaftKv_async_write -> RaftKv_async_write_ext;
+  RaftKv_async_write_ext -> RaftKv_exec_write_requests;
+  Engine -> {
+    RaftKv;
+  }
+  {
+    Storage_delete_region
+    Storage_raw_put;
+    Storage_raw_batch_put;
+    Storage_raw_delete;
+    Storage_raw_batch_delete;
+  } -> {
+    RaftKv_async_write;
+  }
+  kv_future_raw_put -> {
+    Storage_raw_put;
+  }
+  kv_futre_batch_delete-> Storage_raw_batch_delete;
+  subgraph cluster_service_kv {
+    graph[label="service_kv";fontsize=20;style="rounded,dashed";color="slategrey"]
+    kv_future_raw_put;
+    kv_read_index;
+    kv_futre_batch_delete;
+  }
+
+}

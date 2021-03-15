@@ -19,15 +19,76 @@ digraph tikv_rawnode_proposal {
       propose_transfer_leader;
     }
     propose_normal -> {
-      pre_propose;
+      //pre_propose;
+      //next_proposal_index;
       RawNode_propose;
-      next_proposal_index;
     }
     
   }
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
 
-  propose_raft_command -> {
-    Peer_propose;
+    propose_batch_raft_command -> {
+      propose_raft_command;
+    }
+    propose_raft_command -> {
+      Peer_propose;
+    }
+    PeerFsmDelegate_handle_msgs[style_func;label="{{
+      PeerFsmDelegate_handle_msgs|
+      处理PeerMsg::RaftCommand\l
+      PeerMsg::ApplyRes\l
+      PeerMsg::SingificantMsg\l
+      PeerMsg::CasualMessage\l
+      PeerMsg::Start\l
+    }}"]
+
+    on_casual_msg[style_func;label="{{
+      on_casual_msg|
+      处理PeerMsg::CasualMessage\l
+    }}"]
+    on_significant_msg[style_func;label="{{
+      on_significant_msg|
+      处理SignificantMsg\l
+    }}"]
+    on_apply_res[style_func;label="{{
+      on_apply_res|
+      处理PeerMsg::ApplyRes\l
+      ready的处理结果
+    }}"]
+    start[style_func;label="{{
+      start|
+      处理PeerMsg::Start消息\l
+    }}"]
+    {
+      rank=same;
+      on_casual_msg;
+      on_apply_res;
+      on_significant_msg;
+      start;
+    }
+    PeerFsmDelegate_handle_msgs -> {
+      on_casual_msg;
+      on_apply_res;
+      start;
+      on_significant_msg;
+      on_raft_gc_log_tick;
+      propose_batch_raft_command;
+      propose_raft_command;
+    }
+    on_casual_msg -> {
+      on_hash_computed;
+      on_raft_gc_log_tick;
+    }
+    on_hash_computed -> propose_raft_command;
+    on_raft_gc_log_tick -> propose_raft_command;
+    on_check_merge -> propose_raft_command;
+    on_significant_msg -> {
+      on_capture_change;
+      on_leader_callback;
+    } -> propose_raft_command;
+    start -> propose_raft_command;
+    on_apply_res -> on_ready_result -> on_ready_prepare_merge -> on_check_merge;
   }
 
 }

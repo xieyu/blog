@@ -1,0 +1,126 @@
+#include "styles.h"
+digraph BatchSystem {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Receiver[style_struct;label="{{
+    Receiver|
+    channel::Receiver
+  }}"]
+  BatchSystem[style_struct;label="{{
+    BatchSystem|
+    name_prefix: Option\<String\>,\l|
+    router: BatchRouter\<N, C\>,\l|
+    receiver: channel::Receiver\<FsmTypes\<N, C\>\>,\l|
+    pool_size: usize,\l|
+    max_batch_size: usize,\l|
+    workers: Vec\<JoinHandle\<()\>\>,\l|
+    reschedule_duration: Duration,\l
+  }}"]
+  BatchRouter[style_struct;label="{{
+    BatchRouter|
+      pub type BatchRouter\<N, C\> \l 
+      = Router\<N, C, NormalScheduler\<N, C\>,\l
+      ControlScheduler\<N, C\>\>;\l
+  }}"]
+  Router[style_struct;label="{{
+    Router|
+    normals: Arc\<Mutex\<HashMap\<u64, BasicMailbox\<N\>\>\>\>,\l|
+    caches: Cell\<LruCache\<u64, BasicMailbox\<N\>\>\>,\l|
+    pub(super) control_box: BasicMailbox\<C\>,\l|
+    pub(crate) normal_scheduler: Ns,\l|
+    control_scheduler: Cs,\l|
+    shutdown: Arc\<AtomicBool\>,\l
+  }}"]
+  RaftRouter[style_struct;label="{{
+    RaftRouter|
+    pub router: BatchRouter\<PeerFsm\<EK, ER\>,\l 
+    StoreFsm\<EK\>\>,\l
+  }}"]
+  ApplyRouter[style_struct;label="{{
+    ApplyRouter|
+    pub router: BatchRouter\l 
+    \<ApplyFsm\<EK\>, ControlFsm\>,\l
+  }}"]
+  ApplyBatchSystem[style_struct;label="{{
+    ApplyBatchSystem|
+    system: BatchSystem\l 
+    \<ApplyFsm\<EK\>, ControlFsm\>,\l
+  }}"]
+
+  BatchSystem -> {
+    BatchRouter;
+    Receiver;
+    FsmTypes;
+    JoinHandle;
+  }
+  FsmTypes -> {
+    Normal
+    Control;
+    Empty;
+  }
+  BatchRouter -> {
+    Router;
+    NormalScheduler;
+    ControlScheduler;
+  }
+
+  Router -> {
+    LruCache;
+    BasicMailbox;
+    NormalScheduler;
+    ControlScheduler;
+  }
+  /*
+  BasicMailbox -> {
+    FsmState;
+    FsmScheduler;
+  }
+  FsmScheduler ->{
+    NormalScheduler;
+    ControlScheduler;
+  }
+  FsmScheduler -> Fsm;
+  Normal -> NormalScheduler[style_edge_data];
+  Control -> ControlScheduler[style_edge_data];
+  */
+  RaftBatchSystem[style_struct;label="{{
+    RaftBatchSystem|
+    system: BatchSystem\l 
+    \<PeerFsm\<EK, ER\>, StoreFsm\<EK\>\>,\l|
+    apply_router: ApplyRouter\<EK\>,\l|
+    apply_system: ApplyBatchSystem\<EK\>,\l|
+    router: RaftRouter\<EK, ER\>,\l|
+    workers: Option\<Workers\<EK\>\>,\l
+  }}"]
+
+  RaftBatchSystem -> {
+    BatchSystem;
+    ApplyRouter;
+    ApplyBatchSystem;
+    RaftRouter;
+    Workers;
+  }
+  ApplyBatchSystem -> { 
+    BatchSystem;
+    ApplyFsm;
+    ControlFsm;
+  }
+  ApplyRouter -> {
+    BatchRouter;
+    ApplyFsm;
+    ControlFsm;
+  }
+  RaftRouter -> {
+    BatchRouter;
+    PeerFsm;
+    StoreFsm;
+  }
+  Workers -> {
+    FutureWorker;
+    Worker;
+    CoprocessorHost;
+    PdTask;
+  }
+}
