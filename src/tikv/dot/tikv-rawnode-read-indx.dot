@@ -4,6 +4,15 @@ digraph read_index {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
+
+  subgraph cluster_ReadIndexRequest {
+    graph[label="ReadIndexRequest";fontsize=20;style="rounded,dashed";color="slategrey"]
+    read_push_command[style_func;label="{{push_command|
+        self.cmds.push((req, cb, Some(read_index)));
+    }}"]
+    ReadIndexRequest;
+      
+  }
   subgraph cluster_RaftRs {
     graph[label="raft-rs";fontsize=20;style="rounded,dashed";color="slategrey"]
     raft_group_raft_pending_read_count[style_func;label="{{
@@ -40,15 +49,21 @@ digraph read_index {
     graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
     propose -> {
       read_index;
-      read_local;
-      inspect;
     }
-    inspect -> {
-      RequestPolicy_ReadLocal;
-      RequestPolicy_ReadIndex;
-    }[style_edge_data];
-    RequestPolicy_ReadIndex -> read_index[style_edge_data];
-    RequestPolicy_ReadLocal -> read_local[style_edge_data];
+    subgraph cluster_leader {
+      graph[label="if is_leader";fontsize=20;style="rounded,dashed";color="slategrey"]
+      is_leader;
+      inspect_lease;
+      get_store_commit_index;
+      pending_reads_back_mut;
+    }
+    subgraph cluster_not_leader {
+      graph[label="not_leader and\l no_leader_id";fontsize=20;style="rounded,dashed";color="slategrey"]
+      bcast_wake_up_message;
+      PdTask_QueryRegionLeader;
+      pd_scheduler_schedule;
+      should_wake_up
+    }
 
     read_index -> {
       pre_read_index;
@@ -85,7 +100,7 @@ digraph read_index {
     }}"]
 
     Uuid_new_v4 -> raft_group_read_index[style_edge_data];
-    Uuid_new_v4 -> ReadIndexRequest -> pending_reads_push_back[style_edge_data];
+    Uuid_new_v4 -> ReadIndexRequest -> reads_push_back[style_edge_data];
 
     is_leader -> {
       inspect_lease;
@@ -99,22 +114,20 @@ digraph read_index {
         pending_reads|
           pending_reads: ReadIndexQueue\<EK::Snapshot\>,\l
       }}"]
-      pending_reads -> ReadIndexQueue;
+      ReadIndexQueue -> pending_reads;
       pending_reads_back_mut;
-      pending_reads_push_back[style_func;label="{{
+      reads_push_back[style_func;label="{{
         pending_reads_push_back|
         将ReadIndexRequest放入队列中\l
         并且放入ctx Hashmap中\l
         key为id\l
       }}"]
 
-      pending_reads_push_back -> {
+      reads_push_back -> {
         context_insert;
-        reads_push_back;
       }
       {
         pending_reads_back_mut
-        pending_reads_push_back
       } -> pending_reads[style_edge_data];
     }
     pre_read_index -> {

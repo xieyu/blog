@@ -1,0 +1,92 @@
+#include "styles.h"
+digraph on_check_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  on_check_merge -> {
+    register_merge_check_tick;
+    schedule_merge;
+  }
+  schedule_merge -> {
+    pending_merge_state;
+    validate_merge_peer;
+    get_min_progress;
+    AdminCmdType_CommitMerge;
+    router_force_send;
+  }
+  entries -> AdminCmdType_CommitMerge;
+  AdminCmdType_CommitMerge[style_func;label="{{
+    AdminCmdType_CommitMerge|
+    发送类型为CommitMerge的AdminCmd\l
+    会附带上entries\l
+  }}"]
+  router_force_send[style_func;label="{{
+    router.force_send(targe_id, RaftCommand..)|
+    向本地的target_id\l 
+    发送commit merge\l 
+    的 RaftCommand\l
+  }}"]
+  AdminCmdType_CommitMerge -> router_force_send[style_edge_data];
+  pending_merge_state -> {
+    validate_merge_peer;
+    get_min_progress
+  } -> AdminCmdType_CommitMerge[style_edge_data];
+
+  pending_merge_state[style_var;label="{{
+    pending_merge_state|
+    Option\<MergeState\>\l
+    pub min_index: u64,\l|
+    pub target: ::protobuf::SingularPtrField\l 
+    \<super::metapb::Region\>,\l|
+    pub commit: u64,\l
+  }}"]
+
+  on_check_merge -> pending_merge_state[style_edge_data];
+  on_check_merge -> pending_remove[style_edge_data];
+  on_ready_prepare_merge -> {
+     pending_merge_state;
+     pending_remove;
+     catch_up_logs;
+  }
+
+  on_ready_prepare_merge -> {
+    schedule_task;
+    on_check_merge;
+  }
+  propose_normal -> pending_merge_state;
+  propose_normal[style_func;label="{{
+    propose_normal|
+    在设置完pending_merge_state 之后\l
+    propose_normal 对于非RollbackMerge的\l
+    propose会返回错误\l
+    Error::ProposalInMergingMode\l
+  }}"]
+  propose_conf_change[style_func;label="{{
+    propose_conf_change|
+      在pending_merge_state不为None时候\l
+      会返回Error::ProposalInMergingMode\l
+  }}"]
+  propose_conf_change -> pending_merge_state
+  on_ready_prepare_merge[style_func;label="{{
+    on_ready_prepare_merge|
+    设置了pending_merge_state\l
+    如果有catch_up_logs\l
+    则先让ApplyFsm执行LogsUpToDate\l
+    否则就直接执行on_check_merge\l
+  }}"]
+  catch_up_logs[style_var;label="{{
+    catch_up_logs|
+    Option\<CatchUpLogs\>\l
+    pub target_region_id: u64,\l|
+    pub merge: CommitMergeRequest,\l|
+    pub logs_up_to_date: Arc\<AtomicU64\>,\l
+  }}"]
+  on_catch_up_logs_for_merge -> catch_up_logs;
+  schedule_task[style_func;label="{{
+    schedule_task|
+    发送LogsUpToDate消息给source 的ApplyFsm\l
+    destroy source ApplyFsm\l
+  }}"]
+  catch_up_logs -> schedule_task;
+}

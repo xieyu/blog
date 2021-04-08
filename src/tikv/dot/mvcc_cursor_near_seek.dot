@@ -1,0 +1,75 @@
+#include "styles.h"
+digraph near_seek {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+    subgraph cluster_Iterator {
+      graph[label="Iterator";fontsize=20;style="rounded,dashed";color="slategrey"]
+      validate_key;
+      iter_seek;
+      iter_valid;
+      iter_next;
+      iter_prev;
+      iter_key;
+      iter_value;
+    }
+
+    near_seek -> {
+      seek;
+      near_loop;
+      valid;
+      prev;
+      next;
+    };
+    near_loop[style_func;label="{{
+      near_loop|
+    }}"]
+    near_loop -> {
+       SEEK_BOUND;
+       prev;
+       next;
+    }
+    near_loop[style_func;label="{{
+      near_loop|
+      使用prev/next查找key\l
+      如果超过了SEEK_ROUND次数\l
+      就直接调用seek\l
+    }}"]
+    SEEK_BOUND[style_func;label="{{
+      SEEK_BOUND|
+      当前默认值为8
+    }}"]
+    seek -> {
+      validate_key;
+      internal_seek;
+      valid;
+      key;
+    }
+    internal_seek -> {
+      mark_unread;
+      iter_seek;
+    }
+    valid -> iter_valid;
+    next -> {
+      mark_unread;
+      iter_next;
+    }
+    prev -> {
+      iter_prev;
+      mark_unread;
+    }
+    mark_unread -> {
+     cur_key_has_read;
+     cur_value_has_read;
+    }
+    key -> {
+      iter_key;
+      mark_key_read;
+    }
+    value -> {
+      iter_value;
+      mark_key_read;
+    }
+}

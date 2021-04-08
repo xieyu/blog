@@ -1,0 +1,123 @@
+#include "styles.h"
+digraph ApplyPollerHandleNorml {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Callback {
+    graph[label="Callback";fontsize=20;style="rounded,dashed";color="slategrey"]
+    invoke_with_response;
+    invoke_with_response[style_func;label="{{
+      invoke_with_response|
+        写入成功调用cb
+    }}"]
+  }
+  subgraph cluster_ApplyCallback {
+    graph[label="ApplyCallback";fontsize=20;style="rounded,dashed";color="slategrey"]
+    invoke_all -> {
+      post_apply
+      invoke_with_response;
+    }
+  }
+  subgraph cluster_ApplyContext {
+    graph[label="ApplyContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    cbs[style_func;label="{{
+       cbs: MustConsumeVec\<ApplyCallback\<EK\>\>,\l
+    }}"]
+    commit -> {
+      commit_opt;
+    }
+    commit_opt -> {
+      write_to_db;
+      invoke_all
+    }
+    cbs -> invoke_all[style_edge_data];
+    kv_wb[style_var;label="{{
+      kv_wb|
+      WriteBatch
+    }}"]
+    kv_wb -> write_to_db;
+    write_to_db[style_func;label="{{
+      write_to_db|
+      将kv_wb writeBatch写入db中\l
+    }}"]
+  }
+
+  subgraph cluster_ApplyDelegate {
+    graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    pending_cmds[style_var;label="{{
+      pending_cmds|
+        pending_cmds: PendingCmdQueue\<EK::Snapshot\>\l
+    }}"]
+
+    handle_raft_committed_entries -> {
+      handle_raft_entry_normal;
+      finish_for;
+    }
+    handle_raft_entry_normal -> {
+      should_write_to_engine;
+      commit;
+      process_raft_cmd;
+      pending_cmds;
+      cbs
+    }
+    pending_cmds -> cbs[style_edge_data]
+
+    process_raft_cmd -> {
+      apply_raft_cmd;
+    }
+    apply_raft_cmd -> {
+      set_save_point;
+      exec_raft_cmd;
+      rollback_to_save_point;
+    }
+    exec_raft_cmd -> {
+      exec_admin_cmd;
+      exec_write_cmd;
+    }
+    exec_write_cmd[style_func;label="{{
+      exec_write_cmd|
+      写入ctx.kv_wb中
+    }}"]
+    exec_write_cmd -> {
+      handle_put;
+      handle_delete;
+    } -> kv_wb;
+  }
+  subgraph cluster_ApplyFsm {
+    graph[label="Fsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_tasks ->{
+      handle_apply;
+    }
+    handle_apply -> {
+      append_proposal;
+      handle_raft_committed_entries;
+    }
+    Apply[style_struct;label="{{
+      Apply|
+    pub peer_id: u64,\l|
+    pub region_id: u64,\l|
+    pub term: u64,\l|
+    pub entries: Vec\<Entry\>,\l|
+    <cbs> pub cbs: Vec\<Proposal\<S\>\>,\l|
+    entries_mem_size: i64,\l|
+    entries_count: i64,\l
+    }}"]
+    Apply -> append_proposal;
+    append_proposal[style_func;label="{{
+      append_proposal|
+      将Apply中的dbs加入到\l 
+      pending_cmds队列中\l
+    }}"]
+    append_proposal -> pending_cmds;
+
+  }
+
+  subgraph cluster_ApplyPoller {
+    graph[label="ApplyPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_normal -> {
+      handle_tasks;
+    }
+  }
+  
+}

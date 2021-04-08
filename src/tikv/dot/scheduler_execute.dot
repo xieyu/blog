@@ -1,0 +1,68 @@
+#include "styles.h"
+digraph scheduler_execute {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Scheduler {
+    graph[label="Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    execute[style_func;label="{{
+      execute|
+      从store engine异步获取snapshot\l
+      然后在shed pool中执行Task\l
+    }}"]
+    Task[style_struct;label="{{
+      Task|
+      pub(super) cid: u64,\l|
+      pub(super) cmd: Command,\l|
+      pub(super) extra_op: ExtraOp,\l
+    }}"]
+    Task -> execute;
+      
+    execute -> {
+      with_tls_engine;
+      async_snapshot;
+    }
+    finish_with_err[style_func;label="{{
+      finish_with_err|
+      如果async_snapshot 返回了错误\l
+      调用finish_with_err;
+    }}"]
+    finish_with_err -> {
+      cb_execute;
+      release_lock;
+    }
+    cb_execute[style_func;label="{{
+      cb_execute|
+      调用callbac参数为\l
+      ProcessResult::Failed\l
+    }}"]
+    async_snapshot -> finish_with_err;
+    async_snapshot[style_func;label="{{
+      async_snapshot|
+      异步获取snapshot\l
+      然后回调\l
+    }}"]
+    async_snapshot -> cb[style_edge_data];
+    cb[style_func;label="{{
+      cb|
+      async_snapshot的回调\l
+      如果获得了snapshot\l 
+      则调用process_by_worker\l|
+      如果返回了错误，\l 
+      在sched_pool中调用finish_with_err\l|
+    }}"]
+    cb -> {
+      process_by_worker;
+      finish_with_err;
+    }
+    process_by_worker[style_func;label="{{
+      process_by_worker|
+      Delivers a command \l 
+      to worker thread for processing\l|
+      在线程池执行cmd\l
+      cmd会使用snapshot\l
+    }}"]
+  }
+  
+}

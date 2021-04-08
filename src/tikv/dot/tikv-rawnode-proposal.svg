@@ -16,8 +16,8 @@
 </g>
 <g id="clust2" class="cluster">
 <title>cluster_Peer</title>
-<path fill="none" stroke="slategrey" stroke-dasharray="5,2" d="M1213,-118C1213,-118 1478,-118 1478,-118 1484,-118 1490,-124 1490,-130 1490,-130 1490,-296 1490,-296 1490,-302 1484,-308 1478,-308 1478,-308 1213,-308 1213,-308 1207,-308 1201,-302 1201,-296 1201,-296 1201,-130 1201,-130 1201,-124 1207,-118 1213,-118"/>
-<text text-anchor="middle" x="1345.5" y="-288" font-family="Times,serif" font-size="20.00">Peer</text>
+<path fill="none" stroke="slategrey" stroke-dasharray="5,2" d="M1213,-122C1213,-122 1478,-122 1478,-122 1484,-122 1490,-128 1490,-134 1490,-134 1490,-300 1490,-300 1490,-306 1484,-312 1478,-312 1478,-312 1213,-312 1213,-312 1207,-312 1201,-306 1201,-300 1201,-300 1201,-134 1201,-134 1201,-128 1207,-122 1213,-122"/>
+<text text-anchor="middle" x="1345.5" y="-292" font-family="Times,serif" font-size="20.00">Peer</text>
 </g>
 <g id="clust5" class="cluster">
 <title>cluster_PeerFsmDelegate</title>
@@ -39,50 +39,50 @@
 <!-- Peer_propose -->
 <g id="node3" class="node">
 <title>Peer_propose</title>
-<path fill="none" stroke="#1c2123" d="M1287,-235C1287,-235 1221,-235 1221,-235 1215,-235 1209,-229 1209,-223 1209,-223 1209,-211 1209,-211 1209,-205 1215,-199 1221,-199 1221,-199 1287,-199 1287,-199 1293,-199 1299,-205 1299,-211 1299,-211 1299,-223 1299,-223 1299,-229 1293,-235 1287,-235"/>
-<text text-anchor="middle" x="1254" y="-213.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">Peer_propose</text>
+<path fill="none" stroke="#1c2123" d="M1287,-243C1287,-243 1221,-243 1221,-243 1215,-243 1209,-237 1209,-231 1209,-231 1209,-219 1209,-219 1209,-213 1215,-207 1221,-207 1221,-207 1287,-207 1287,-207 1293,-207 1299,-213 1299,-219 1299,-219 1299,-231 1299,-231 1299,-237 1293,-243 1287,-243"/>
+<text text-anchor="middle" x="1254" y="-221.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">Peer_propose</text>
 </g>
 <!-- read_index -->
 <g id="node4" class="node">
 <title>read_index</title>
-<path fill="none" stroke="#1c2123" d="M1435,-162C1435,-162 1382,-162 1382,-162 1376,-162 1370,-156 1370,-150 1370,-150 1370,-138 1370,-138 1370,-132 1376,-126 1382,-126 1382,-126 1435,-126 1435,-126 1441,-126 1447,-132 1447,-138 1447,-138 1447,-150 1447,-150 1447,-156 1441,-162 1435,-162"/>
-<text text-anchor="middle" x="1408.5" y="-140.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">read_index</text>
+<path fill="none" stroke="#1c2123" d="M1435,-166C1435,-166 1382,-166 1382,-166 1376,-166 1370,-160 1370,-154 1370,-154 1370,-142 1370,-142 1370,-136 1376,-130 1382,-130 1382,-130 1435,-130 1435,-130 1441,-130 1447,-136 1447,-142 1447,-142 1447,-154 1447,-154 1447,-160 1441,-166 1435,-166"/>
+<text text-anchor="middle" x="1408.5" y="-144.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">read_index</text>
 </g>
 <!-- Peer_propose&#45;&gt;read_index -->
 <g id="edge1" class="edge">
 <title>Peer_propose&#45;&gt;read_index</title>
-<path fill="none" stroke="#666666" d="M1292.7,-198.96C1313.3,-189.09 1339.01,-176.79 1360.87,-166.32"/>
-<polygon fill="#666666" stroke="#666666" points="1362.46,-169.44 1369.97,-161.96 1359.44,-163.12 1362.46,-169.44"/>
+<path fill="none" stroke="#666666" d="M1291.5,-206.77C1294.04,-205.49 1296.56,-204.23 1299,-203 1320.01,-192.42 1343.27,-180.64 1362.85,-170.7"/>
+<polygon fill="#666666" stroke="#666666" points="1364.52,-173.78 1371.85,-166.13 1361.35,-167.54 1364.52,-173.78"/>
 </g>
 <!-- propose_normal -->
 <g id="node5" class="node">
 <title>propose_normal</title>
-<path fill="none" stroke="#1c2123" d="M1449,-216C1449,-216 1368,-216 1368,-216 1362,-216 1356,-210 1356,-204 1356,-204 1356,-192 1356,-192 1356,-186 1362,-180 1368,-180 1368,-180 1449,-180 1449,-180 1455,-180 1461,-186 1461,-192 1461,-192 1461,-204 1461,-204 1461,-210 1455,-216 1449,-216"/>
-<text text-anchor="middle" x="1408.5" y="-194.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">propose_normal</text>
+<path fill="none" stroke="#1c2123" d="M1449,-220C1449,-220 1368,-220 1368,-220 1362,-220 1356,-214 1356,-208 1356,-208 1356,-196 1356,-196 1356,-190 1362,-184 1368,-184 1368,-184 1449,-184 1449,-184 1455,-184 1461,-190 1461,-196 1461,-196 1461,-208 1461,-208 1461,-214 1455,-220 1449,-220"/>
+<text text-anchor="middle" x="1408.5" y="-198.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">propose_normal</text>
 </g>
 <!-- Peer_propose&#45;&gt;propose_normal -->
 <g id="edge2" class="edge">
 <title>Peer_propose&#45;&gt;propose_normal</title>
-<path fill="none" stroke="#666666" d="M1299.11,-211.5C1313.69,-209.69 1330.18,-207.63 1345.82,-205.68"/>
-<polygon fill="#666666" stroke="#666666" points="1346.46,-209.13 1355.95,-204.42 1345.6,-202.19 1346.46,-209.13"/>
+<path fill="none" stroke="#666666" d="M1299.11,-218.35C1313.69,-216.15 1330.18,-213.66 1345.82,-211.3"/>
+<polygon fill="#666666" stroke="#666666" points="1346.59,-214.73 1355.95,-209.77 1345.54,-207.8 1346.59,-214.73"/>
 </g>
 <!-- propose_transfer_leader -->
 <g id="node6" class="node">
 <title>propose_transfer_leader</title>
-<path fill="none" stroke="#1c2123" d="M1470,-270C1470,-270 1347,-270 1347,-270 1341,-270 1335,-264 1335,-258 1335,-258 1335,-246 1335,-246 1335,-240 1341,-234 1347,-234 1347,-234 1470,-234 1470,-234 1476,-234 1482,-240 1482,-246 1482,-246 1482,-258 1482,-258 1482,-264 1476,-270 1470,-270"/>
-<text text-anchor="middle" x="1408.5" y="-248.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">propose_transfer_leader</text>
+<path fill="none" stroke="#1c2123" d="M1470,-274C1470,-274 1347,-274 1347,-274 1341,-274 1335,-268 1335,-262 1335,-262 1335,-250 1335,-250 1335,-244 1341,-238 1347,-238 1347,-238 1470,-238 1470,-238 1476,-238 1482,-244 1482,-250 1482,-250 1482,-262 1482,-262 1482,-268 1476,-274 1470,-274"/>
+<text text-anchor="middle" x="1408.5" y="-252.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">propose_transfer_leader</text>
 </g>
 <!-- Peer_propose&#45;&gt;propose_transfer_leader -->
 <g id="edge3" class="edge">
 <title>Peer_propose&#45;&gt;propose_transfer_leader</title>
-<path fill="none" stroke="#666666" d="M1299.11,-227.12C1307.23,-228.99 1315.94,-230.99 1324.77,-233.01"/>
-<polygon fill="#666666" stroke="#666666" points="1324.23,-236.48 1334.76,-235.31 1325.79,-229.66 1324.23,-236.48"/>
+<path fill="none" stroke="#666666" d="M1299.11,-233.97C1307.23,-235.62 1315.94,-237.39 1324.77,-239.18"/>
+<polygon fill="#666666" stroke="#666666" points="1324.26,-242.65 1334.76,-241.21 1325.66,-235.79 1324.26,-242.65"/>
 </g>
 <!-- propose_normal&#45;&gt;RawNode_propose -->
 <g id="edge4" class="edge">
 <title>propose_normal&#45;&gt;RawNode_propose</title>
-<path fill="none" stroke="#666666" d="M1461.13,-190.08C1471.36,-186.87 1481.54,-182.35 1490,-176 1529.02,-146.71 1554.4,-94.34 1567.17,-62.04"/>
-<polygon fill="#666666" stroke="#666666" points="1570.58,-62.9 1570.87,-52.31 1564.04,-60.41 1570.58,-62.9"/>
+<path fill="none" stroke="#666666" d="M1461.19,-194.16C1471.42,-190.94 1481.58,-186.4 1490,-180 1530.02,-149.57 1555.3,-94.98 1567.74,-61.86"/>
+<polygon fill="#666666" stroke="#666666" points="1571.08,-62.92 1571.19,-52.32 1564.5,-60.54 1571.08,-62.92"/>
 </g>
 <!-- propose_batch_raft_command -->
 <g id="node7" class="node">
@@ -93,20 +93,20 @@
 <!-- propose_raft_command -->
 <g id="node8" class="node">
 <title>propose_raft_command</title>
-<path fill="none" stroke="#1c2123" d="M1161,-273C1161,-273 1039,-273 1039,-273 1033,-273 1027,-267 1027,-261 1027,-261 1027,-249 1027,-249 1027,-243 1033,-237 1039,-237 1039,-237 1161,-237 1161,-237 1167,-237 1173,-243 1173,-249 1173,-249 1173,-261 1173,-261 1173,-267 1167,-273 1161,-273"/>
-<text text-anchor="middle" x="1100" y="-251.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">propose_raft_command</text>
+<path fill="none" stroke="#1c2123" d="M1161,-290C1161,-290 1039,-290 1039,-290 1033,-290 1027,-284 1027,-278 1027,-278 1027,-266 1027,-266 1027,-260 1033,-254 1039,-254 1039,-254 1161,-254 1161,-254 1167,-254 1173,-260 1173,-266 1173,-266 1173,-278 1173,-278 1173,-284 1167,-290 1161,-290"/>
+<text text-anchor="middle" x="1100" y="-268.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">propose_raft_command</text>
 </g>
 <!-- propose_batch_raft_command&#45;&gt;propose_raft_command -->
 <g id="edge5" class="edge">
 <title>propose_batch_raft_command&#45;&gt;propose_raft_command</title>
-<path fill="none" stroke="#666666" d="M921.97,-162.01C944.45,-180.58 982.01,-209.53 1026.69,-232.45"/>
-<polygon fill="#666666" stroke="#666666" points="1025.21,-235.62 1035.72,-236.95 1028.33,-229.35 1025.21,-235.62"/>
+<path fill="none" stroke="#666666" d="M918.05,-162.35C939.46,-184.44 978.39,-221.56 1025.87,-248.91"/>
+<polygon fill="#666666" stroke="#666666" points="1024.4,-252.1 1034.84,-253.9 1027.8,-245.98 1024.4,-252.1"/>
 </g>
 <!-- propose_raft_command&#45;&gt;Peer_propose -->
 <g id="edge6" class="edge">
 <title>propose_raft_command&#45;&gt;Peer_propose</title>
-<path fill="none" stroke="#666666" d="M1173.44,-236.89C1182.03,-234.74 1190.68,-232.58 1198.95,-230.51"/>
-<polygon fill="#666666" stroke="#666666" points="1199.97,-233.87 1208.82,-228.05 1198.27,-227.08 1199.97,-233.87"/>
+<path fill="none" stroke="#666666" d="M1167.88,-253.96C1172.33,-252.65 1176.74,-251.33 1181,-250 1186.97,-248.14 1193.19,-246.12 1199.36,-244.06"/>
+<polygon fill="#666666" stroke="#666666" points="1200.64,-247.32 1208.98,-240.8 1198.39,-240.69 1200.64,-247.32"/>
 </g>
 <!-- PeerFsmDelegate_handle_msgs -->
 <g id="node9" class="node">
@@ -123,14 +123,14 @@
 <!-- PeerFsmDelegate_handle_msgs&#45;&gt;propose_batch_raft_command -->
 <g id="edge7" class="edge">
 <title>PeerFsmDelegate_handle_msgs&#45;&gt;propose_batch_raft_command</title>
-<path fill="none" stroke="#666666" d="M173.14,-206.99C191.75,-194.6 212.77,-182.99 234,-176 286.07,-158.86 626.2,-149.55 798.83,-145.88"/>
+<path fill="none" stroke="#666666" d="M180.42,-206.98C201.51,-192.61 222.08,-179.93 234,-176 286.07,-158.86 626.2,-149.55 798.83,-145.88"/>
 <polygon fill="#666666" stroke="#666666" points="799.02,-149.37 808.94,-145.66 798.87,-142.38 799.02,-149.37"/>
 </g>
 <!-- PeerFsmDelegate_handle_msgs&#45;&gt;propose_raft_command -->
 <g id="edge8" class="edge">
 <title>PeerFsmDelegate_handle_msgs&#45;&gt;propose_raft_command</title>
-<path fill="none" stroke="#666666" d="M194.31,-206.9C207.23,-200.89 220.69,-195.64 234,-192 355.85,-158.7 391.68,-181 518,-181 518,-181 518,-181 696.5,-181 814.89,-181 949.68,-212.35 1029.36,-234.24"/>
-<polygon fill="#666666" stroke="#666666" points="1028.71,-237.69 1039.28,-236.99 1030.58,-230.94 1028.71,-237.69"/>
+<path fill="none" stroke="#666666" d="M194.31,-206.9C207.23,-200.89 220.69,-195.64 234,-192 355.85,-158.7 391.68,-181 518,-181 518,-181 518,-181 696.5,-181 759.79,-181 927.44,-224.35 1025.25,-251.21"/>
+<polygon fill="#666666" stroke="#666666" points="1024.51,-254.63 1035.08,-253.91 1026.37,-247.88 1024.51,-254.63"/>
 </g>
 <!-- on_casual_msg -->
 <g id="node10" class="node">
@@ -190,19 +190,19 @@
 <polygon fill="#666666" stroke="#666666" points="248.01,-431.23 258.49,-432.83 251.3,-425.05 248.01,-431.23"/>
 </g>
 <!-- on_raft_gc_log_tick -->
-<g id="node14" class="node">
+<g id="node15" class="node">
 <title>on_raft_gc_log_tick</title>
-<path fill="none" stroke="#1c2123" d="M570,-406C570,-406 468,-406 468,-406 462,-406 456,-400 456,-394 456,-394 456,-382 456,-382 456,-376 462,-370 468,-370 468,-370 570,-370 570,-370 576,-370 582,-376 582,-382 582,-382 582,-394 582,-394 582,-400 576,-406 570,-406"/>
-<text text-anchor="middle" x="519" y="-384.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_raft_gc_log_tick</text>
+<path fill="none" stroke="#1c2123" d="M570,-418C570,-418 468,-418 468,-418 462,-418 456,-412 456,-406 456,-406 456,-394 456,-394 456,-388 462,-382 468,-382 468,-382 570,-382 570,-382 576,-382 582,-388 582,-394 582,-394 582,-406 582,-406 582,-412 576,-418 570,-418"/>
+<text text-anchor="middle" x="519" y="-396.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_raft_gc_log_tick</text>
 </g>
 <!-- PeerFsmDelegate_handle_msgs&#45;&gt;on_raft_gc_log_tick -->
 <g id="edge13" class="edge">
 <title>PeerFsmDelegate_handle_msgs&#45;&gt;on_raft_gc_log_tick</title>
-<path fill="none" stroke="#666666" d="M138.55,-313.32C160.48,-345.85 193.29,-384.61 234,-403 302.7,-434.03 390.46,-422.71 450.12,-408.53"/>
-<polygon fill="#666666" stroke="#666666" points="451.31,-411.84 460.18,-406.04 449.63,-405.04 451.31,-411.84"/>
+<path fill="none" stroke="#666666" d="M138.55,-313.32C160.48,-345.85 193.29,-384.61 234,-403 270.35,-419.42 374.19,-413.89 445.7,-407.59"/>
+<polygon fill="#666666" stroke="#666666" points="446.35,-411.05 456,-406.66 445.72,-404.07 446.35,-411.05"/>
 </g>
 <!-- on_tick -->
-<g id="node15" class="node">
+<g id="node16" class="node">
 <title>on_tick</title>
 <path fill="none" stroke="#1c2123" d="M343.5,-142C343.5,-142 310.5,-142 310.5,-142 304.5,-142 298.5,-136 298.5,-130 298.5,-130 298.5,-118 298.5,-118 298.5,-112 304.5,-106 310.5,-106 310.5,-106 343.5,-106 343.5,-106 349.5,-106 355.5,-112 355.5,-118 355.5,-118 355.5,-130 355.5,-130 355.5,-136 349.5,-142 343.5,-142"/>
 <text text-anchor="middle" x="327" y="-120.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_tick</text>
@@ -210,29 +210,29 @@
 <!-- PeerFsmDelegate_handle_msgs&#45;&gt;on_tick -->
 <g id="edge14" class="edge">
 <title>PeerFsmDelegate_handle_msgs&#45;&gt;on_tick</title>
-<path fill="none" stroke="#666666" d="M163.49,-206.97C184.4,-189.01 209.15,-169.98 234,-156 251,-146.44 271.36,-138.99 288.6,-133.7"/>
-<polygon fill="#666666" stroke="#666666" points="289.74,-137.02 298.34,-130.84 287.76,-130.3 289.74,-137.02"/>
+<path fill="none" stroke="#666666" d="M180.43,-206.68C186.46,-201.82 192.39,-196.89 198,-192 215.07,-177.14 214.83,-168.02 234,-156 250.65,-145.56 271.14,-138.01 288.55,-132.87"/>
+<polygon fill="#666666" stroke="#666666" points="289.7,-136.18 298.39,-130.12 287.82,-129.44 289.7,-136.18"/>
 </g>
 <!-- on_casual_msg&#45;&gt;on_raft_gc_log_tick -->
 <g id="edge17" class="edge">
 <title>on_casual_msg&#45;&gt;on_raft_gc_log_tick</title>
-<path fill="none" stroke="#666666" d="M420.22,-378.74C428.82,-379.55 437.46,-380.37 445.84,-381.16"/>
-<polygon fill="#666666" stroke="#666666" points="445.63,-384.66 455.92,-382.12 446.29,-377.69 445.63,-384.66"/>
+<path fill="none" stroke="#666666" d="M420.22,-384.56C428.82,-385.92 437.46,-387.28 445.84,-388.61"/>
+<polygon fill="#666666" stroke="#666666" points="445.49,-392.1 455.92,-390.2 446.59,-385.18 445.49,-392.1"/>
 </g>
 <!-- on_hash_computed -->
-<g id="node17" class="node">
+<g id="node18" class="node">
 <title>on_hash_computed</title>
-<path fill="none" stroke="#1c2123" d="M744.5,-369C744.5,-369 646.5,-369 646.5,-369 640.5,-369 634.5,-363 634.5,-357 634.5,-357 634.5,-345 634.5,-345 634.5,-339 640.5,-333 646.5,-333 646.5,-333 744.5,-333 744.5,-333 750.5,-333 756.5,-339 756.5,-345 756.5,-345 756.5,-357 756.5,-357 756.5,-363 750.5,-369 744.5,-369"/>
-<text text-anchor="middle" x="695.5" y="-347.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_hash_computed</text>
+<path fill="none" stroke="#1c2123" d="M949,-381C949,-381 851,-381 851,-381 845,-381 839,-375 839,-369 839,-369 839,-357 839,-357 839,-351 845,-345 851,-345 851,-345 949,-345 949,-345 955,-345 961,-351 961,-357 961,-357 961,-369 961,-369 961,-375 955,-381 949,-381"/>
+<text text-anchor="middle" x="900" y="-359.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_hash_computed</text>
 </g>
 <!-- on_casual_msg&#45;&gt;on_hash_computed -->
 <g id="edge18" class="edge">
 <title>on_casual_msg&#45;&gt;on_hash_computed</title>
-<path fill="none" stroke="#666666" d="M420.27,-363.2C432.29,-362.41 444.43,-361.65 456,-361 512.47,-357.83 576.52,-355.2 624.02,-353.43"/>
-<polygon fill="#666666" stroke="#666666" points="624.33,-356.92 634.19,-353.06 624.07,-349.93 624.33,-356.92"/>
+<path fill="none" stroke="#666666" d="M420.06,-368.87C533.96,-367.48 725.43,-365.13 828.4,-363.87"/>
+<polygon fill="#666666" stroke="#666666" points="828.73,-367.36 838.69,-363.74 828.64,-360.36 828.73,-367.36"/>
 </g>
 <!-- on_capture_change -->
-<g id="node19" class="node">
+<g id="node20" class="node">
 <title>on_capture_change</title>
 <path fill="none" stroke="#1c2123" d="M744.5,-236C744.5,-236 646.5,-236 646.5,-236 640.5,-236 634.5,-230 634.5,-224 634.5,-224 634.5,-212 634.5,-212 634.5,-206 640.5,-200 646.5,-200 646.5,-200 744.5,-200 744.5,-200 750.5,-200 756.5,-206 756.5,-212 756.5,-212 756.5,-224 756.5,-224 756.5,-230 750.5,-236 744.5,-236"/>
 <text text-anchor="middle" x="695.5" y="-214.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_capture_change</text>
@@ -244,43 +244,49 @@
 <polygon fill="#666666" stroke="#666666" points="624.5,-222.65 634.44,-218.98 624.39,-215.65 624.5,-222.65"/>
 </g>
 <!-- on_leader_callback -->
-<g id="node20" class="node">
+<g id="node21" class="node">
 <title>on_leader_callback</title>
-<path fill="none" stroke="#1c2123" d="M949,-273C949,-273 851,-273 851,-273 845,-273 839,-267 839,-261 839,-261 839,-249 839,-249 839,-243 845,-237 851,-237 851,-237 949,-237 949,-237 955,-237 961,-243 961,-249 961,-249 961,-261 961,-261 961,-267 955,-273 949,-273"/>
-<text text-anchor="middle" x="900" y="-251.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_leader_callback</text>
+<path fill="none" stroke="#1c2123" d="M744.5,-290C744.5,-290 646.5,-290 646.5,-290 640.5,-290 634.5,-284 634.5,-278 634.5,-278 634.5,-266 634.5,-266 634.5,-260 640.5,-254 646.5,-254 646.5,-254 744.5,-254 744.5,-254 750.5,-254 756.5,-260 756.5,-266 756.5,-266 756.5,-278 756.5,-278 756.5,-284 750.5,-290 744.5,-290"/>
+<text text-anchor="middle" x="695.5" y="-268.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_leader_callback</text>
 </g>
 <!-- on_significant_msg&#45;&gt;on_leader_callback -->
 <g id="edge23" class="edge">
 <title>on_significant_msg&#45;&gt;on_leader_callback</title>
-<path fill="none" stroke="#666666" d="M391.03,-229.23C449.75,-233.95 539.75,-240.78 618,-245 689.7,-248.87 771.78,-251.59 828.63,-253.21"/>
-<polygon fill="#666666" stroke="#666666" points="828.85,-256.72 838.95,-253.5 829.05,-249.72 828.85,-256.72"/>
+<path fill="none" stroke="#666666" d="M391,-232.25C455.93,-240.75 556.9,-253.98 624.33,-262.81"/>
+<polygon fill="#666666" stroke="#666666" points="624.07,-266.31 634.44,-264.13 624.98,-259.37 624.07,-266.31"/>
 </g>
 <!-- on_ready_result -->
-<g id="node21" class="node">
+<g id="node22" class="node">
 <title>on_ready_result</title>
-<path fill="none" stroke="#1c2123" d="M559,-315C559,-315 479,-315 479,-315 473,-315 467,-309 467,-303 467,-303 467,-291 467,-291 467,-285 473,-279 479,-279 479,-279 559,-279 559,-279 565,-279 571,-285 571,-291 571,-291 571,-303 571,-303 571,-309 565,-315 559,-315"/>
-<text text-anchor="middle" x="519" y="-293.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_ready_result</text>
+<path fill="none" stroke="#1c2123" d="M559,-336C559,-336 479,-336 479,-336 473,-336 467,-330 467,-324 467,-324 467,-312 467,-312 467,-306 473,-300 479,-300 479,-300 559,-300 559,-300 565,-300 571,-306 571,-312 571,-312 571,-324 571,-324 571,-330 565,-336 559,-336"/>
+<text text-anchor="middle" x="519" y="-314.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_ready_result</text>
 </g>
 <!-- on_apply_res&#45;&gt;on_ready_result -->
 <g id="edge27" class="edge">
 <title>on_apply_res&#45;&gt;on_ready_result</title>
-<path fill="none" stroke="#666666" d="M404.73,-297C422.05,-297 440.2,-297 456.78,-297"/>
-<polygon fill="#666666" stroke="#666666" points="456.88,-300.5 466.88,-297 456.88,-293.5 456.88,-300.5"/>
+<path fill="none" stroke="#666666" d="M404.73,-305.48C422.05,-307.39 440.2,-309.4 456.78,-311.23"/>
+<polygon fill="#666666" stroke="#666666" points="456.55,-314.73 466.88,-312.35 457.32,-307.77 456.55,-314.73"/>
 </g>
 <!-- start&#45;&gt;propose_raft_command -->
 <g id="edge26" class="edge">
 <title>start&#45;&gt;propose_raft_command</title>
-<path fill="none" stroke="#666666" d="M404.75,-475.72C535.34,-504.73 804.68,-544.42 991,-435 1048.22,-401.4 1078.68,-324.54 1091.5,-282.96"/>
-<polygon fill="#666666" stroke="#666666" points="1094.9,-283.77 1094.38,-273.19 1088.19,-281.79 1094.9,-283.77"/>
+<path fill="none" stroke="#666666" d="M404.59,-476.09C534.65,-505.68 802.85,-546.84 991,-441 1045.58,-410.3 1076.77,-339.33 1090.5,-299.82"/>
+<polygon fill="#666666" stroke="#666666" points="1093.85,-300.86 1093.7,-290.26 1087.21,-298.64 1093.85,-300.86"/>
+</g>
+<!-- on_raft_message -->
+<g id="node14" class="node">
+<title>on_raft_message</title>
+<path fill="none" stroke="#1c2123" d="M149.5,-183C149.5,-183 64.5,-183 64.5,-183 58.5,-183 52.5,-177 52.5,-171 52.5,-171 52.5,-159 52.5,-159 52.5,-153 58.5,-147 64.5,-147 64.5,-147 149.5,-147 149.5,-147 155.5,-147 161.5,-153 161.5,-159 161.5,-159 161.5,-171 161.5,-171 161.5,-177 155.5,-183 149.5,-183"/>
+<text text-anchor="middle" x="107" y="-161.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_raft_message</text>
 </g>
 <!-- on_raft_gc_log_tick&#45;&gt;propose_raft_command -->
 <g id="edge20" class="edge">
 <title>on_raft_gc_log_tick&#45;&gt;propose_raft_command</title>
-<path fill="none" stroke="#666666" d="M582.34,-403.05C676.1,-422.33 856.73,-446.26 991,-383 1035.34,-362.11 1068.11,-313.24 1085.33,-282.29"/>
-<polygon fill="#666666" stroke="#666666" points="1088.5,-283.77 1090.16,-273.31 1082.34,-280.45 1088.5,-283.77"/>
+<path fill="none" stroke="#666666" d="M582.18,-414.71C675.74,-433.56 856.12,-456.93 991,-395 1034.11,-375.21 1066.92,-328.93 1084.53,-299.12"/>
+<polygon fill="#666666" stroke="#666666" points="1087.78,-300.49 1089.71,-290.07 1081.71,-297.01 1087.78,-300.49"/>
 </g>
 <!-- on_raft_base_tick -->
-<g id="node16" class="node">
+<g id="node17" class="node">
 <title>on_raft_base_tick</title>
 <path fill="none" stroke="#1c2123" d="M563.5,-142C563.5,-142 474.5,-142 474.5,-142 468.5,-142 462.5,-136 462.5,-130 462.5,-130 462.5,-118 462.5,-118 462.5,-112 468.5,-106 474.5,-106 474.5,-106 563.5,-106 563.5,-106 569.5,-106 575.5,-112 575.5,-118 575.5,-118 575.5,-130 575.5,-130 575.5,-136 569.5,-142 563.5,-142"/>
 <text text-anchor="middle" x="519" y="-120.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_raft_base_tick</text>
@@ -300,11 +306,11 @@
 <!-- on_hash_computed&#45;&gt;propose_raft_command -->
 <g id="edge19" class="edge">
 <title>on_hash_computed&#45;&gt;propose_raft_command</title>
-<path fill="none" stroke="#666666" d="M756.76,-360.76C817.85,-368.13 914.08,-372.65 991,-344 1025.68,-331.09 1057.32,-302.04 1077.26,-280.62"/>
-<polygon fill="#666666" stroke="#666666" points="1079.94,-282.88 1084.06,-273.12 1074.75,-278.18 1079.94,-282.88"/>
+<path fill="none" stroke="#666666" d="M961.44,-351.14C971.5,-348.34 981.68,-344.98 991,-341 1018.51,-329.23 1046.92,-310.79 1067.69,-295.93"/>
+<polygon fill="#666666" stroke="#666666" points="1069.79,-298.73 1075.82,-290.02 1065.67,-293.07 1069.79,-298.73"/>
 </g>
 <!-- on_check_merge -->
-<g id="node18" class="node">
+<g id="node19" class="node">
 <title>on_check_merge</title>
 <path fill="none" stroke="#1c2123" d="M943,-327C943,-327 857,-327 857,-327 851,-327 845,-321 845,-315 845,-315 845,-303 845,-303 845,-297 851,-291 857,-291 857,-291 943,-291 943,-291 949,-291 955,-297 955,-303 955,-303 955,-315 955,-315 955,-321 949,-327 943,-327"/>
 <text text-anchor="middle" x="900" y="-305.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_check_merge</text>
@@ -312,38 +318,38 @@
 <!-- on_check_merge&#45;&gt;propose_raft_command -->
 <g id="edge21" class="edge">
 <title>on_check_merge&#45;&gt;propose_raft_command</title>
-<path fill="none" stroke="#666666" d="M955.36,-296.16C967.14,-293.25 979.51,-290.1 991,-287 1003.71,-283.57 1017.21,-279.72 1030.2,-275.93"/>
-<polygon fill="#666666" stroke="#666666" points="1031.41,-279.22 1040.01,-273.04 1029.43,-272.5 1031.41,-279.22"/>
+<path fill="none" stroke="#666666" d="M955.1,-298.89C974.1,-295.34 995.88,-291.27 1016.66,-287.39"/>
+<polygon fill="#666666" stroke="#666666" points="1017.58,-290.78 1026.76,-285.5 1016.29,-283.9 1017.58,-290.78"/>
 </g>
 <!-- on_capture_change&#45;&gt;propose_raft_command -->
 <g id="edge24" class="edge">
 <title>on_capture_change&#45;&gt;propose_raft_command</title>
-<path fill="none" stroke="#666666" d="M756.76,-223.54C825.81,-229.89 939.36,-240.33 1016.57,-247.42"/>
-<polygon fill="#666666" stroke="#666666" points="1016.46,-250.93 1026.74,-248.36 1017.1,-243.96 1016.46,-250.93"/>
+<path fill="none" stroke="#666666" d="M756.76,-226.08C825.81,-235.35 939.36,-250.58 1016.57,-260.94"/>
+<polygon fill="#666666" stroke="#666666" points="1016.36,-264.44 1026.74,-262.31 1017.3,-257.51 1016.36,-264.44"/>
 </g>
 <!-- on_leader_callback&#45;&gt;propose_raft_command -->
 <g id="edge25" class="edge">
 <title>on_leader_callback&#45;&gt;propose_raft_command</title>
-<path fill="none" stroke="#666666" d="M961.21,-255C978.68,-255 998.07,-255 1016.65,-255"/>
-<polygon fill="#666666" stroke="#666666" points="1016.87,-258.5 1026.87,-255 1016.87,-251.5 1016.87,-258.5"/>
+<path fill="none" stroke="#666666" d="M756.76,-272C825.81,-272 939.36,-272 1016.57,-272"/>
+<polygon fill="#666666" stroke="#666666" points="1016.74,-275.5 1026.74,-272 1016.74,-268.5 1016.74,-275.5"/>
 </g>
 <!-- on_ready_prepare_merge -->
-<g id="node22" class="node">
+<g id="node23" class="node">
 <title>on_ready_prepare_merge</title>
-<path fill="none" stroke="#1c2123" d="M761,-315C761,-315 630,-315 630,-315 624,-315 618,-309 618,-303 618,-303 618,-291 618,-291 618,-285 624,-279 630,-279 630,-279 761,-279 761,-279 767,-279 773,-285 773,-291 773,-291 773,-303 773,-303 773,-309 767,-315 761,-315"/>
-<text text-anchor="middle" x="695.5" y="-293.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_ready_prepare_merge</text>
+<path fill="none" stroke="#1c2123" d="M761,-344C761,-344 630,-344 630,-344 624,-344 618,-338 618,-332 618,-332 618,-320 618,-320 618,-314 624,-308 630,-308 630,-308 761,-308 761,-308 767,-308 773,-314 773,-320 773,-320 773,-332 773,-332 773,-338 767,-344 761,-344"/>
+<text text-anchor="middle" x="695.5" y="-322.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">on_ready_prepare_merge</text>
 </g>
 <!-- on_ready_result&#45;&gt;on_ready_prepare_merge -->
 <g id="edge28" class="edge">
 <title>on_ready_result&#45;&gt;on_ready_prepare_merge</title>
-<path fill="none" stroke="#666666" d="M571.41,-297C582.8,-297 595.18,-297 607.54,-297"/>
-<polygon fill="#666666" stroke="#666666" points="607.91,-300.5 617.91,-297 607.91,-293.5 607.91,-300.5"/>
+<path fill="none" stroke="#666666" d="M571.41,-320.36C582.91,-320.88 595.42,-321.46 607.91,-322.03"/>
+<polygon fill="#666666" stroke="#666666" points="607.76,-325.53 617.91,-322.49 608.08,-318.53 607.76,-325.53"/>
 </g>
 <!-- on_ready_prepare_merge&#45;&gt;on_check_merge -->
 <g id="edge29" class="edge">
 <title>on_ready_prepare_merge&#45;&gt;on_check_merge</title>
-<path fill="none" stroke="#666666" d="M773.06,-301.54C793.37,-302.74 815.1,-304.03 834.69,-305.19"/>
-<polygon fill="#666666" stroke="#666666" points="834.53,-308.69 844.72,-305.78 834.94,-301.7 834.53,-308.69"/>
+<path fill="none" stroke="#666666" d="M773.06,-319.57C793.37,-317.87 815.1,-316.04 834.69,-314.4"/>
+<polygon fill="#666666" stroke="#666666" points="835.05,-317.88 844.72,-313.56 834.46,-310.91 835.05,-317.88"/>
 </g>
 </g>
 </svg>

@@ -1,0 +1,36 @@
+#include "styles.h"
+digraph PessimisticRollback {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_MvccReader {
+    graph[label="MvccReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    load_lock;
+  }
+  subgraph cluster_MvccTxn {
+    graph[label="MvccTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    unlock_key;
+  }
+  subgraph cluster_ReleasedLock {
+    graph[label="ReleasedLock";fontsize=20;style="rounded,dashed";color="slategrey"]
+    wake_up
+    ReleasedLock_new;
+  }
+  subgraph cluster_PessimisticRollback {
+    graph[label="PessimisticRollback";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PessimisticRollback[style_struct;label="{{
+      PessimisticRollback|
+        keys: Vec\<Key\>,\l|
+        start_ts: TimeStamp,\l|
+        for_update_ts: TimeStamp,\l
+    }}"]
+    process_write -> {
+      ReleasedLock_new;
+      load_lock;
+      unlock_key;
+      wake_up;
+    }
+  }
+  
+}

@@ -1,0 +1,45 @@
+#include "styles.h"
+digraph cheat {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  answer -> cheat_wrapper;
+  cheat_wrapper -> {
+    _parse_query;
+    _sanitize_query;
+    _add_section_name;
+    _rewrite_aliases;
+    _rewrite_section_name;
+    find_answers_by_keyword;
+    get_answers
+    postprocess
+    ansi_visulize_render
+  }
+
+  find_answer_by_keyword -> {
+    _parse_options;
+    get_topics_list;
+    get_answers;
+  }
+
+  get_topics_list -> {
+    sources_to_merge;
+    _adapter;
+  }
+
+  get_answers -> {
+    get_topic_type;
+    _get_page_dict;
+    _adapter_get_page_dict
+  }
+
+  _adapter_get_page_dict -> {
+    _get_page;
+    _get_output_format;
+    _get_filetype;
+  }
+
+  _get_page -> {
+  }
+}

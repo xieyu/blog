@@ -1,0 +1,61 @@
+#include "styles.h"
+digraph MvccTxn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  MvccTxn[style_struct;label="{{
+    MvccTxn|
+    pub(crate) reader: MvccReader\<S\>,\l|
+    pub(crate) start_ts: TimeStamp,\l|
+    pub(crate) write_size: usize,\l|
+    pub(crate) modifies: Vec\<Modify\>,\l|
+    pub(crate) locks_for_1pc: Vec\<(Key, Lock, bool)\>,\l|
+    pub(crate) collapse_rollback: bool,\l|
+    pub(crate) concurrency_manager: ConcurrencyManager,\l|
+    pub(crate) guards: Vec\<KeyHandleGuard\>,\l
+  }}"]
+
+  MvccTxn -> {
+    MvccReader;
+    Modify;
+    ConcurrencyManager;
+    KeyHandleGuard;
+  }
+  Modify[style_struct;label="{{
+    Modify|
+    Delete(CfName, Key),\l|
+    Put(CfName, Key, Value),\l|
+    DeleteRange(CfName, Key, Key, bool),\l
+  }}"]
+  ConcurrencyManager[style_struct;label="{{
+    ConcurrencyManager|
+    max_ts: Arc\<AtomicU64\>,\l|
+    lock_table: LockTable,\l
+  }}"]
+  LockTable[style_struct;label="{{
+    LockTable|
+      pub struct LockTable(pub Arc\l 
+      \<SkipMap\<Key,\l 
+      Weak\<KeyHandle\>\>\>);\l
+  }}"]
+  ConcurrencyManager -> LockTable;
+  KeyHandle[style_struct;label="{{
+    KeyHandle|
+    pub key: Key,\l|
+    table: UnsafeCell\<Option\<LockTable\>\>,\l|
+    mutex: AsyncMutex\<()\>,\l|
+    lock_store: Mutex\<Option\<Lock\>\>,\l
+  }}"]
+  KeyHandle -> {
+    Lock
+  }
+  LockTable -> KeyHandle;
+  KeyHandleGuard -> KeyHandle;
+  KeyHandleGuard[style_struct;label="{{
+    KeyHandleGuard|
+    _mutex_guard: AsyncMutexGuard\<'static, ()\>,\l|
+    handle: Arc\<KeyHandle\>,\l
+  }}"]
+  
+}

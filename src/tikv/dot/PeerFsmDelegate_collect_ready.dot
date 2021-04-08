@@ -1,0 +1,113 @@
+#include "styles.h"
+digraph collect_ready {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RawNode {
+    graph[label="RawNode";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RawNode_has_ready[style_func;label="{{
+      has_ready
+    }}"]
+    RawNode_ready[style_func;label="{{
+      ready
+    }}"]
+    skip_bcast_commit;
+  }
+  subgraph cluster_PollContext {
+    graph[label="PollContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    raft_wb_mut_append;
+    raft_wb_mut_cut_logs;
+    kv_wb_put_msg_cf[style_func;label="{{
+      kv_wb.put_msg_cf(CF_RAFT...)
+    }}"]
+    trans_send[style_func;label="{{
+      trans_send|
+      Transport.send\l
+    }}"]
+  }
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PeerStorage_handle_raft_ready -> {
+      append;
+      apply_snapshot;
+    }
+    apply_snapshot[style_func;label="{{
+      apply_snapshot|
+      install the snapshot|
+      写入kv_wb中\l
+      同样最后也会在\l 
+      RaftPoller.handle_raft_ready\l
+      中一起写入rocksdb\l
+    }}"]
+    append -> {
+      raft_wb_mut_append;
+      raft_wb_mut_cut_logs;
+    }
+    append[style_func;label="{{
+      append|
+      将ready.entries写入\l 
+      raft_wb write batch中\l|
+      最后会在RaftPoller.handle_raft_ready\l
+      中一起写入rocksdb\l
+    }}"]
+    PeerStorage_handle_raft_ready[style_func;label="{{
+      handle_raft_ready
+    }}"]
+    apply_snapshot -> {
+      write_peer_state;
+      clear_meta;
+    }
+    write_peer_state -> {
+      kv_wb_put_msg_cf;
+    }
+  }
+  subgraph cluster_ApplyRouter {
+    graph[label="ApplyRouter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    apply_router_schedule_task_ApplyTask_apply[style_func;label="{{
+      apply_router.\l 
+      schedule_task(ApplyTask::apply..)\l|
+      向applyPoller\l 
+      发送Apply消息\l
+      apply committed raft log\l
+    }}"]
+    
+    apply_router_schedule_task_ApplyTask_Snapshot[style_func;label="{{
+      apply_router.\l 
+      schedule_task(ApplyTask_Snapshot)
+    }}"]
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_raft_ready_append -> {
+      RawNode_has_ready
+      RawNode_ready;
+      on_role_change;
+      apply_reads;
+      PeerStorage_handle_raft_ready;
+      send;
+      handle_raft_committed_entries;
+    }
+
+    handle_raft_committed_entries -> {
+      apply_router_schedule_task_ApplyTask_apply;
+      apply_router_schedule_task_ApplyTask_Snapshot;
+      skip_bcast_commit;
+    }
+    send[style_func;label="{{
+      send|
+      发送收集到的Raft消息\l
+      给别的peer\l
+    }}"]
+    send -> send_raft_message -> trans_send
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    collect_ready -> {
+      handle_raft_ready_append;
+    }
+    
+  }
+}

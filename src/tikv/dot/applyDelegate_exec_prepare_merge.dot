@@ -1,0 +1,97 @@
+#include "styles.h"
+digraph exec_prepare_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_PeerFsm {
+    graph[label="PeerFsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+    set_pending_merge_state -> pending_merge_state;
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_ready_prepare_merge -> pending_merge_state;
+      
+  }
+
+  subgraph cluster_ApplyDelegate {
+    graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    exec_prepare_merge -> {
+      get_prepare_merge;
+      get_min_index;
+      conf_version;
+      region_version
+      write_peer_state;
+      ExecResult_PrepareMerge;
+    }
+    conf_version[style_var;label="{{
+      conf_version|
+      将region的conf_version + 1
+    }}"]
+    region_version[style_var;label="{{
+      region_version|
+      将region的epoch + 1
+    }}"]
+    {
+      conf_version;
+      region_version
+    } -> write_peer_state;
+
+    ExecResult_PrepareMerge[style_func;label="{{
+      ExecResult::PrepareMerge|
+      region: Region\l
+      state: MergeState\l|
+      执行结果通过send_raft_command\l
+      发给PeerFsm\l
+    }}"]
+    on_ready_prepare_merge[style_func;label="{{
+      on_ready_prepare_merge|
+      source region 处理PrepareMerge消息\l
+    }}"]
+
+    ExecResult_PrepareMerge -> MergeState;
+    MergeState[style_struct;label="{{
+      MergeState|
+      pub min_index: u64\l
+      pub target: SingularPtrField\<Region\>\l
+      pub commit: u64\l
+    }}"]
+
+    write_peer_state[style_func;label="{{
+      write_peer_state|
+      将PeerState和mergeState\l
+      写入rocksdb\l
+      family为：CF_RAFT\l
+    }}"]
+    write_peer_state -> {
+      region_state_key;
+      PeerState_Merging;
+      MergeState;
+    }
+    ExecResult_PrepareMerge -> on_ready_prepare_merge;
+  }
+  write_peer_state -> init[style_edge_data];
+
+  subgraph cluster_RaftPollerBuilder {
+    graph[label="RaftPollerBuilder";fontsize=20;style="rounded,dashed";color="slategrey"]
+    init[style_func;label="{{
+      init|
+      如果写完状态后发生了crash\l
+      tikv在初始化时，会扫描CF_RAFT\l
+      如果peer状态为Merging\l
+      则set_pending_merge_state\l
+    }}"]
+    scan_cf[style_func;label="{{
+      scan_cf|
+      扫描CF_RAFT
+    }}"]
+    init -> {
+      scan_cf;
+      PeerState_Merging
+      set_pending_merge_state;
+    }
+  }
+  
+}

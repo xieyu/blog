@@ -1,0 +1,160 @@
+#include "styles.h"
+digraph wait_for {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_WaitTable {
+    graph[label="WaitTable";fontsize=20;style="rounded,dashed";color="slategrey"]
+    wait_table;
+    remove_oldest_waiter;
+    remove_waiter[style_func;label="{{
+      remove_waiter|
+      删掉等待超时的waiter
+    }}"]
+  }
+  subgraph cluster_Waiter {
+    graph[label="Waiter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_timeout[style_func;label="{{
+      on_timeout|
+      waiter等待超时了\l
+    }}"]
+    reset_timeout[style_func;label="{{
+      reset_timeout|
+      重置队列中的其他waiter timeout时间\l
+      过了timeout再通知这些waiter
+      WriteConflict了
+    }}"]
+    Waiter_new;
+    conflict_with;
+    notify;
+    reset_timeout
+    conflict_with[style_func;label="{{
+      conflict_with|
+      Change the ProcessResult\l 
+      to WriteConflict\l
+    }}"]
+    notify ->{
+      tctx_cb_execute;
+      delay_cancel;
+    }
+    delay_cancel[style_func;label="{{
+      delay_cancel|
+        取消timeout定时器
+    }}"]
+    on_timeout -> {
+      notify;
+      clean_up_wait_for;
+      remove_waiter;
+    }
+    conflict_with-> tctx_cb_execute[style_edge_data];
+    tctx_cb_execute[style_func;label="{{
+      tctx_cb_execute|
+      向客户端返回WriteConflict错误？\l
+      这时候Lock已经释放了\l 
+      客户端可以重试了么\l
+    }}"]
+  }
+
+
+  subgraph cluster_WaiterManager {
+    graph[label="WaiterManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    run -> {
+      handle_wait_for;
+      handle_wake_up;
+      Waiter_new;
+    }
+    handle_wait_for -> {
+      spawn_local
+      on_timeout
+      wait_table;
+    };
+    wait_table[style_var;label="{{
+      wait_table|
+        wait_table: HashMap\<u64, Waiters\>,\l|
+        waiter_count: Arc\<AtomicUsize\>,\l|
+        type Waiters = Vec<Waiter>;\l
+    }}"]
+
+    handle_wake_up -> {
+      wait_table;
+      remove_oldest_waiter
+      conflict_with;
+      notify
+      reset_timeout
+    }
+    handle_wake_up[style_func;label="{{
+      handle_wake_up|
+      取出等待lock队首的waiter\l
+      返回WriteConflict错误\l|
+      其他的waiter 重置timeout时间\l|
+      这样队首的waiter先处理WriteConflict\l
+      会重新尝试获取lock\l
+      而其他的waiter则在timeout\l 
+      之后才收到通知, 去尝试重新获取lock\l
+    }}"]
+    remove_oldest_waiter[style_func;label="{{
+      remove_oldest_waiter|
+    取出队首的waiter\l
+    }}"]
+  }
+
+  subgraph cluster_FutureSchduler {
+    graph[label="FutureSchduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    schedule -> {
+      sender_unbounded_send
+    }
+  }
+  subgraph cluster_Scheduler {
+    graph[label="Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    waiter_mgr_scheduler_wait_for[style_func;label="{{
+      wait_for
+    }}"]
+    waiter_mgr_scheduler_wake_up[style_func;label="{{
+      wake_up
+    }}"]
+    waiter_mgr_scheduler_wait_for -> {
+      notify_scheduler
+      Task_WaitFor
+    }
+    clean_up_wait_for -> notify_scheduler;
+    notify_scheduler -> {
+      schedule
+    }
+    waiter_mgr_scheduler_wake_up -> {
+      notify_scheduler
+      Task_Wakeup
+    }
+  }
+  Task_WaitFor-> handle_wait_for;
+  Task_Wakeup -> handle_wake_up;
+  subgraph cluster_LockManager {
+    graph[label="LockManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    cb_execute_pr[style_func;label="{{
+      tctx_cb_execute|
+      如果timeout是None\l
+      立即执行tctx_cb_execute
+    }}"]
+    wait_for -> {
+      cb_execute_pr;
+      waiter_mgr_scheduler_wait_for;
+      add_to_detected;
+      detector_scheduler_detect;
+    }
+    wake_up -> {
+      waiter_mgr_scheduler_wake_up;
+    }
+  }
+  subgraph cluster_ReleasedLock {
+    graph[label="ReleasedLock";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ReleasedLock_wake_up -> wake_up;
+    ReleasedLock_wake_up[style_func;label="{{
+      ReleasedLock_wake_up|
+      在Commit和RollBack cmd,\l
+      清理掉事务的Lock之后\l
+      会调用ReleasedLock.wake_up\l
+    }}"]
+  }
+  
+}

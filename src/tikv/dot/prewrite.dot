@@ -1,0 +1,188 @@
+#include "styles.h"
+digraph prewrite {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PrewriteKind {
+    graph[label="PrewriteKind";fontsize=20;style="rounded,dashed";color="slategrey"]
+    can_skip_constraint_check -> {
+       Optimistic_can_skip_constraint_check;
+    };
+  }
+  subgraph cluster_MvccTxn {
+    graph[label="MvccTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    put_lock[style_func;label="{{
+      put_lock|
+      向CF_LOCK写lock信息\l
+      put(CF_LOCK, key, lock.to_bytes())\l
+    }}"]
+    put_value[style_func;label="{{
+      put_value|
+      向CF_DEFAULT写入数据\l
+      写入key, start_ts, value\l
+    }}"]
+    {put_value; put_lock} -> into_modifies[style_edge_data];
+    put_locks_for_1pc
+      
+  }
+  subgraph cluster_MvccReader {
+    graph[label="MvccReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    load_lock[style_func;label="{{
+      load_lock|
+      加载key对应的lock\l
+      如果key没有Lock返回None
+    }}"]
+    seek_write[style_func;label="{{
+      seek_write|
+        Return (commit_ts, write_record)\l 
+        of the write record for `key`\l 
+        committed before or equal to`ts`\l
+    }}"]
+  }
+
+  subgraph cluster_PrewriteMuation {
+    graph[label="PrewriteMuation";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PrewriteMutation_from_mutation;
+    check_lock[style_func;label="{{
+      check_lock|
+      如果key已经有lock\l
+      检查key lock信息\l
+      是不是自己加的lock ?\l
+      Check whether the current key\l 
+      is locked at any timestamp\l|
+      检查lock的ts,type和事务的ts是否一致\l
+    }}"]
+    check_lock-> {
+      lock_ts;
+      lock_type;
+      lock_ttl
+      lock_min_commit_ts;
+    }
+
+    write_lock[style_var;label="{{
+      write_lock|
+      向column lock 写入lockinfo\l
+      给key加上锁\l
+    }}"]
+    write_lock -> {
+      Lock_new
+      is_short_value
+      put_value
+      put_locks_for_1pc
+      put_lock
+      async_commit_timestamps
+      try_one_pc;
+    }
+    async_commit_timestamps -> final_min_commit_ts;
+    skip_constraint_check;
+    Lock_new[style_func;label="{{
+      Lock_new|
+        写入的Lock信息\l
+        let mut lock = Lock::new(\l
+            self.lock_type.unwrap(),\l
+            self.txn_props.primary.to_vec(),\l
+            self.txn_props.start_ts,\l
+            self.lock_ttl,\l
+            None,\l
+            self.txn_props.for_update_ts(),\l
+            self.txn_props.txn_size,\l
+            self.min_commit_ts,\l
+        );\l
+    }}"]
+    is_short_value[style_func;label="{{
+      is_short_value|
+      对short value做了优化\l
+      对于short_value 直接\l 
+      写入Lock中\l
+    }}"]
+    check_for_newer_version -> {
+      seek_write;
+      write_conflict_error;
+      check_data_constraint;
+    }
+    check_for_newer_version[style_func;label="{{
+      style_fn
+    check_for_newer_version|
+        |
+    }}"]
+    check_for_newer_versionyle_func;label="{{
+      write_conflict_error|
+      返回写冲突error
+    }}"]
+
+    check_data_constraint[style_func;label="{{
+      check_data_constraint|
+      checks the existence of\l
+      the key according to should_not_exist\l
+    }}"]
+  }
+  subgraph cluster_txn_actions_prewrite {
+    graph[label="txn::actions::prewrite";fontsize=20;style="rounded,dashed";color="slategrey"]
+    txn_actions_prewrite[style_func;label="{{
+      prewrite|
+      prewrite a single mutation\l
+      by creating and storing a lock\l
+      and value\l
+    }}"]
+    txn_actions_prewrite -> {
+      PrewriteMutation_from_mutation
+      load_lock
+      check_lock
+      amend_pessimistic_lock
+      skip_constraint_check
+      check_for_newer_version
+      may_have_old_value
+      get_old_value
+      write_lock
+    }
+    load_lock -> check_lock[style_edge_data];
+    may_have_old_value[style_func;label="{{
+      may_have_old_value|
+        matches!(self, MutationType::Put\l 
+        \| MutationType::Delete)\l
+    }}"]
+  }
+
+
+  subgraph cluster_Prewriter {
+    graph[label="Prewriter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    process_write -> {
+      can_skip_constraint_check;
+      check_max_ts_synced;
+      MvccTxn_new;
+      prewrite;
+      write_result
+    }
+    prewrite[style_func;label="{{
+      prewrite|
+      遍历所有的mutaions|
+      返回locks和final_min_commit_ts\l|
+      对于每个mutation，\l 
+      调用txn::actions::prewrite\l
+    }}"]
+    prewrite -> MvccErrorInner_KeyIsLocked[style_edget_data];
+    MvccErrorInner_KeyIsLocked[style_func;label="{{
+      MvccErrorInner_KeyIsLocked|
+      如果返回了keyIsLocked错误\l
+      调用lock_push\l
+    }}"]
+    prewrite -> {
+       locks;
+       final_min_commit_ts;
+    }[style_edge_data];
+    {
+      locks;
+      final_min_commit_ts;
+    } -> write_result[style_edge_data]
+    write_result -> {
+       into_modifies;
+    }
+    into_modifies -> WriteData -> WriteResult[style_edge_data];
+    prewrite -> {
+      TransactionProperties;
+      txn_actions_prewrite;
+    }
+
+  }
+}

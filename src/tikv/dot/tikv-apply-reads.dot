@@ -5,59 +5,81 @@ digraph apply_reads {
   newrank=true;
   rankdir=LR;
 
-  subgraph cluster_Callback {
-    graph[label="Callback";fontsize=20;style="rounded,dashed";color="slategrey"]
-    Callback[style_struct;label="{{
-      pub enum Callback|
-        <read> Read(ReadCallback\<S\>),\l|
-        ...
-    }}"]
-    Callback:read -> ReadCallback;
-    ReadCallback[style_func;label="{{
-       ReadCallback|
-         Box\<dyn FnOnce(ReadResponse\<S\>) + Send\>;\l
-         read回调函数
-     }}"]
-    cb_invoke_read -> {
-      read
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    subgraph cluster_leader {
+      graph[label="leader";fontsize=20;style="rounded,dashed";color="slategrey"]
+      ready_to_handle_read;
+      advance_leader_reads;
     }
-    read -> Callback:read;
-  }
-  subgraph cluster_ReadIndexQueue {
-    graph[label="ReadIndexQueue";fontsize=20;style="rounded,dashed";color="slategrey"]
+    subgraph cluster_not_leader {
+      graph[label="not_leader";fontsize=20;style="rounded,dashed";color="slategrey"]
+      advance_replica_reads;
+      post_pending_read_index_on_replica;
+    }
+
     advance_replica_reads[style_func;label="{{
       advance_replica_reads|
+      update the read index\l 
+      of the requests that \l 
+      before the specified id.\l|
       遍历ready.states\l
       for (uuid, locked, index) in states\l|
+      设置read_index\l
       ...
     }}"];
     contexts_remove[style_func;label="{{
       contexts_remove|
       从hashmap中Pop出uuid对应的index
     }}"]
-    raw_offset[style_var;label="{{
-      raw_offset
-      
-    }}"]
-    contexts_remove -> raw_offset[style_edge_data];
     advance_replica_reads -> {
       contexts_remove;
-      fold;
     };
-  }
+    addition_request_is_some -> pending_reads_push_front[style_edge_data];
 
-  subgraph cluster_Peer {
-    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    advance_leader_reads[style_func;label="{{advance_leader_reads|
+    设置read_index
+    }}"]
+    post_pending_read_index_on_replica[style_func;label="{{post_pending_read_index_on_replica|
+    Responses to the ready read index\l 
+    request on the replica, the\l
+    replica is not a leader.\l
+    }}"]
+    subgraph cluster_pending_reads {
+      graph[label="pending_reads";fontsize=20;style="rounded,dashed";color="slategrey"]
+      pending_reads_pop_front;
+      pending_reads_push_front;
+    }
+    Ready[style_struct;label="{{Ready|
+    <read_states> read_states: Vec\<ReadState\>,\l|
+    ...
+    }}"]
+    Ready -> ReadState;
+    Ready -> apply_reads[style_edge_data];
+    ReadState[style_func;label="{{ReadState|
+        pub index: u64,\l|
+        这里的request_ctx就是\l 
+        上面传过来的uuid\l
+        pub request_ctx: Vec\<u8\>,\l
+    }}"]
+    ready_to_handle_read[style_func;label="{{
+      ready_to_handle_read|
+        self.get_store().applied_index_term() == self.term()\l
+        && !self.is_splitting()\l
+        && !self.is_merging()\l
+    }}"]
     
+    collect_ready -> handle_raft_ready_append;
     handle_raft_ready_append -> {
       apply_reads;
     }
     apply_reads -> {
       advance_replica_reads;
+      advance_leader_reads;
       post_pending_read_index_on_replica;
       ready_to_handle_read;
       response_read;
-    }
+    }[color="red"];
     post_pending_read_index_on_replica -> {
       pending_reads_pop_front;
       addition_request_is_some;
@@ -69,10 +91,22 @@ digraph apply_reads {
       response_read|
       遍历read.cmds\l
     }}"]
-    cb_invoke_read[style_func;label="{{
-      cb_invoke_read|
-      调用cmd中的cb回调函数
+    //cb_invoke_read[style_func;label="{{
+    //  cb_invoke_read|
+    //  调用cmd中的cb回调函数
+    //}}"]
+    //handle_read[style_func;label="{{handle_read|
+    //生成read response
+    //}}"]
+    ready_to_handle_unsafe_replica_read[style_func;label="{{ready_to_handle_unsafe_replica_read|
+        self.get_store().applied_index() \>= read_index\l
+        && self.pending_merge_state.is_none()\l
+        && !self.is_applying_snapshot()\l|
+        Wait util the follower applies all vlaues before\l
+        read\l
     }}"]
+    ready_to_handle_unsafe_replica_read -> response_read[style_edge_data];
+    /*
     response_read -> {
       read_locked_take;
       cb_invoke_read;
@@ -84,13 +118,7 @@ digraph apply_reads {
       read_index
     }}"]
     read_index -> handle_read;
-    handle_read -> {
-      PollContext_execute
-      bind_term;
-      check_region_epoch;
-    }
-    handle_read -> ReadResponse;
-    PollContext_execute -> ReadResponse -> cb_invoke_read[style_edge_data];
-    bind_term -> ReadResponse;
+    handle_read -> ReadResponse -> cb_invoke_read;
+    */
   }
 }

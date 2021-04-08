@@ -1,0 +1,104 @@
+#include "styles.h"
+digraph ApplyDelegate_exec_amin_cmd {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ApplyDelegate {
+    graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //process_raft_cmd -> apply_raft_cmd -> exec_raft_cmd;
+    exec_admin_cmd[style_func;label="{{
+      exec_admin_cmd|
+      处理admin request\l
+    }}"]
+    exec_split[style_func;label="{{
+      exec_split|
+      处理AdminCmdType::Split\l
+    }}"]
+    exec_batch_split[style_func;label="{{
+      exec_batch_split|
+      处理AdminCmdType::BatchSplit\l
+    }}"]
+    exec_raft_cmd  -> {
+      exec_admin_cmd;
+    }
+    exec_admin_cmd -> {
+      exec_split;
+      exec_batch_split;
+    }
+    exec_split -> exec_batch_split;
+    exec_batch_split -> {
+      write_peer_state;
+      write_initial_apply_state;
+    }
+    //write_apply_state -> write_initial_apply_state[style_edge_data];
+    write_initial_apply_state -> {
+      apply_state_key;
+      RaftApplyState;
+      kv_wb_put_msg_cf;
+    }
+    apply_state_key -> {
+      make_region_prefix;
+      region_id;
+      APPLY_STATE_SUFFIX;
+    }
+    make_region_prefix -> REGION_RAFT_PREFIX_KEY;
+
+    REGION_RAFT_PREFIX_KEY -> {
+      LOCAL_PREFIX;
+      REGION_RAFT_PREFIX;
+    }
+
+    write_peer_state -> {
+       kv_wb_put_msg_cf;
+       RegionLocalState;
+       region_state_key;
+    }
+
+    region_state_key -> {
+      make_region_meta_key;
+      REGION_STATE_SUFFIX;
+      region_id;
+    }
+    make_region_meta_key-> REGION_META_PREFIX_KEY;
+    REGION_META_PREFIX_KEY -> {
+      LOCAL_PREFIX;
+      REGION_META_PREFIX;
+    }
+
+    kv_wb_put_msg_cf[style_func;label="{{
+      kv_wb_put_msg_cf|
+      向CF_RAFT column family 写数据\l
+    }}"]
+    RaftApplyState[style_struct;label="{{
+      RaftApplyState|
+    pub applied_index: u64,\l|
+    pub commit_index: u64,\l|
+    pub commit_term: u64,\l|
+    pub truncated_state: RaftTruncatedState,\l
+    }}"]
+    RaftApplyState -> RaftTruncatedState;
+    RaftTruncatedState[style_struct;label="{{
+      RaftTruncatedState|
+        pub index: u64,\l|
+        pub term: u64,\l
+    }}"]
+    RegionLocalState[style_struct;label="{{
+      RegionLocalState|
+    pub state: PeerState,\l|
+    pub region: ::protobuf::SingularPtrField\<super::metapb::Region\>,\l|
+    pub merge_state: ::protobuf::SingularPtrField\<MergeState\>,\l
+    }}"]
+    RegionLocalState -> PeerState;
+    PeerState[style_var;label="{{
+      PeerState|
+       Normal = 0,\l|
+       Applying = 1,\l|
+       Tombstone = 2,\l|
+       Merging = 3,\l
+    }}"]
+    RegionLocalState -> Region;
+  }
+  
+}

@@ -1,0 +1,68 @@
+#include "styles.h"
+digraph mvcc_reader_load_lock {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Lock {
+    graph[label="Lock";fontsize=20;style="rounded,dashed";color="slategrey"]
+    parse -> Lock;
+    Lock[style_struct;label="{{
+      Lock|
+    pub lock_type: LockType,\l|
+    pub primary: Vec\<u8\>,\l|
+    pub ts: TimeStamp,\l|
+    pub ttl: u64,\l|
+    pub short_value: Option\<Value\>,\l|
+    pub for_update_ts: TimeStamp,\l|
+    pub txn_size: u64,\l|
+    pub min_commit_ts: TimeStamp,\l|
+    pub use_async_commit: bool,\l|
+    pub secondaries: Vec\<Vec\<u8\>\>,\l|
+    pub rollback_ts: Vec\<TimeStamp\>,\l
+    }}"]
+    Lock -> LockType;
+    LockType[style_struct;label="{{
+      LockType|
+      Put,\l|
+      Delete,\l|
+      Lock,\l|
+      Pessimistic,\l
+    }}"]
+  }
+  subgraph cluster_Cursor {
+    graph[label="Cursor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    get;
+  }
+  subgraph cluster_Snapshot {
+    graph[label="Snapshot";fontsize=20;style="rounded,dashed";color="slategrey"]
+    get_cf
+    get_cf[style_func;label="{{
+      get_cf|
+      如果self.lock_cursor为none\l
+      snapshot.get_cf(CF_LOCK, key)?\l
+    }}"]
+  }
+  create_lock_cursor[style_func;label="{{
+    create_lock_cursor|
+    CursorBuilder::new\l 
+    (&self.snapshot, CF_LOCK)\l
+  }}"]
+  scan_mode[style_func;label="{{
+    scan_mode|
+    if scan_mode.is_some()\l
+    就创建cursor\l
+  }}"]
+  scan_mode -> {
+   create_lock_cursor
+   get_cf
+  }[style_edge_data];
+
+  load_lock -> {
+    create_lock_cursor;
+    parse
+    get;
+    get_cf;
+  }
+  {get;get_cf} -> parse[style_edge_data];
+}

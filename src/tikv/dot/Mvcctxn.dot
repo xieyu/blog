@@ -1,0 +1,133 @@
+#include "styles.h"
+digraph MvccTxn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_MvccTxn {
+    graph[label="MvccTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    subgraph cluster_Lock {
+      graph[label="Lock";fontsize=20;style="rounded,dashed";color="slategrey"]
+      {rank=same;put_lock;unlock_key}
+      Lock[style_struct;label="{{
+        Lock|
+        pub lock_type: LockType,\l|
+        pub primary: Vec\<u8\>,\l|
+        pub ts: TimeStamp,\l|
+        pub ttl: u64,\l|
+        pub short_value: Option\<Value\>,\l|
+        pub for_update_ts: TimeStamp,\l|
+        pub txn_size: u64,\l|
+        pub min_commit_ts: TimeStamp,\l|
+        pub use_async_commit: bool,\l|
+        pub secondaries: Vec\<Vec\<u8\>\>,\l|
+        pub rollback_ts: Vec\<TimeStamp\>,\l
+      }}"]
+      put_lock -> Lock[style_edge_data];
+      put_lock[style_func;label="{{
+        put_lock|
+        let write = Modify::Put(\l 
+        CF_LOCK, key, lock.to_bytes());\l
+      }}"]
+      unlock_key[style_func;label="{{
+        unlock_key|
+        let released = ReleasedLock::new(&key, pessimistic);\l
+        let write = Modify::Delete(CF_LOCK, key);\l
+      }}"]
+      unlock_key;
+      {put_lock;unlock_key} -> CF_LOCK[style_edge_data];
+    }
+    subgraph cluster_write {
+      graph[label="write";fontsize=20;style="rounded,dashed";color="slategrey"]
+      {put_write;delete_write} -> CF_WRITE[style_edge_data];
+    }
+
+    subgraph cluster_value {
+      graph[label="value";fontsize=20;style="rounded,dashed";color="slategrey"]
+      {rank=same;delete_value;put_value}
+      {delete_value;put_value} -> CF_DEFAULT[style_edge_data];
+    }
+
+  }
+  subgraph cluster_MvccReader {
+    graph[label="MvccReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    load_lock;
+    get_txn_commit_record;
+    seek_write[style_func;label="{{
+      seek_write|
+      return (commit_ts, write_record)\l
+      of the write record for `key`\l
+      comitted before or equal to `ts`\l
+    }}"]
+  }
+  subgraph cluster_ReadCommand {
+    graph[label="ReadCommand";fontsize=20;style="rounded,dashed";color="slategrey"]
+    process_read -> {
+      find_mvcc_infos_by_key
+    }
+  }
+
+  Prewrite_process_write[style_func;label="{{
+    Prewrite::process_write|
+    在Prewrite阶段\l 
+    对key加lock\l
+  }}"]
+
+  Prewrite_process_write -> {
+   load_lock;
+   put_value;
+   put_lock
+  }
+
+  Commit_process_write[style_func;label="{{
+    Commit::process_write|
+    提交事务,对于事务中每个key\l
+    unlock, put_write\l
+    put_write之后，对其他事务可见了\l
+  }}"]
+
+  Commit_process_write -> commit -> {
+    load_lock;
+    get_txn_commit_record;
+    put_write;
+    unlock_key;
+  }
+
+  Rollback_process_write -> cleanup -> {
+    rollback_lock
+  }[style_edge_data];
+
+  rollback_lock -> {
+    make_rollback;
+    put_write;
+    delete_write;
+    delete_value;
+    unlock_key;
+  }[style_edge_data];
+  make_rollback[style_func;label="{{
+    make_rollback|
+    Generate the Write record that should \l
+    be written that means to perform a specified\l
+    rollback operation\l
+  }}"]
+  make_rollback -> put_write[style_edge_data];
+
+  Rollback_process_write[style_func;label="{{
+    Rollback::process_write|
+    清理事务的key lock
+  }}"]
+
+  find_mvcc_infos_by_key -> {
+    seek_write;
+    load_lock
+    scan_values_in_default;
+  }
+  {
+    rank=same;
+    Rollback_process_write;
+    Commit_process_write;
+    process_read;
+    Prewrite_process_write;
+  }
+}

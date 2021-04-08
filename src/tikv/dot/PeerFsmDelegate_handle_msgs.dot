@@ -7,12 +7,31 @@ digraph tikv_rawnode_proposal {
 
   subgraph cluster_RawNode {
     graph[label="RawNode";fontsize=20;style="rounded,dashed";color="slategrey"]
-    RawNode_propose;
-    RawNode_tick;
+    RawNode_propose[style_func;label="{{
+      propose
+    }}"]
+    RawNode_tick[style_func;label="{{
+      tick
+    }}"]
+    RawNode_step[style_func;label="{{
+      step|
+      处理其他节点发过\l 
+      来的raft消息\l
+    }}"]
+    advance_apply_to;
   }
   subgraph cluster_Peer {
     graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
-
+    Peer_step[style_func;label="{{
+      step
+    }}"]
+    Peer_propose[style_func;label="{{
+      propose
+    }}"]
+    Peer_post_apply[style_func;label="{{
+      post_apply
+    }}"]
+    Peer_step -> RawNode_step;
     Peer_propose -> {
       read_index;
       propose_normal;
@@ -22,6 +41,9 @@ digraph tikv_rawnode_proposal {
       //pre_propose;
       //next_proposal_index;
       RawNode_propose;
+    }
+    Peer_post_apply -> {
+      advance_apply_to;
     }
     
   }
@@ -76,6 +98,7 @@ digraph tikv_rawnode_proposal {
       propose_batch_raft_command;
       propose_raft_command;
       on_tick;
+      on_raft_message;
     }
     on_tick -> on_raft_base_tick -> RawNode_tick;
 
@@ -92,6 +115,15 @@ digraph tikv_rawnode_proposal {
     } -> propose_raft_command;
     start -> propose_raft_command;
     on_apply_res -> on_ready_result -> on_ready_prepare_merge -> on_check_merge;
+    on_apply_res -> Peer_post_apply;
+    on_raft_message[style_func;label="{{
+      on_raft_msg|
+      处理raft消息\l
+    }}"]
+
+    on_raft_message -> {
+      Peer_step;
+    }
   }
 
 }

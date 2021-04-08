@@ -1,0 +1,133 @@
+#include "styles.h"
+digraph exec_commit_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    clear_meta;
+      
+  }
+  subgraph cluster_RaftPollerBuilder {
+    graph[label="RaftPollerBuilder";fontsize=20;style="rounded,dashed";color="slategrey"]
+    init[style_func;label="{{
+      init|
+      scan_cf扫描所有的Peer\l
+      如果发现pee状态为Tombstone\l
+      则会clear_stale_meta\l
+      清理掉过期的meta信息\l
+    }}"]
+    init -> {
+      clear_stale_meta;
+    }
+    clear_stale_meta -> clear_meta;
+  }
+
+  subgraph cluster_ApplyFsm {
+    graph[label="ApplyFsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+    write_peer_state -> init[style_edge_data];
+    exec_commit_merge -> {
+       ready_source_region_id;
+       SignificantMsg_CatchUpLogs;
+       ApplyResult_WaitMergeSource;
+       ApplyResult_CommitMerge;
+       write_peer_state;
+    }
+    write_peer_state[style_func;label="{{
+      write_peer_state|
+      1.更新自己的region信息\l|
+      2.将source region sate写入\l 
+      PeerState::Tombstone
+    }}"]
+    ApplyResult_CommitMerge[style_var;label="{{
+      ApplyResult::CommitMerge|
+      接着执行，返回CommitMerge消息
+    }}"]
+    ready_source_region_id ->ApplyResult_CommitMerge;
+
+    SignificantMsg_CatchUpLogs[style_var;label="{{
+      SignificantMsg::CatchUpLogs|
+      向source region发送\l 
+      CatchUpLogs消息\l
+    }}"]
+    ApplyResult_WaitMergeSource[style_var;label="{{
+      ApplyResult_WaitMergeSource|
+      返回WaitMergeSource\l
+      等待source region\l 
+      执行完CatchUpLogs\l
+    }}"]
+    ApplyResult_WaitMergeSource -> handle_raft_committed_entries[style_edge_data];
+
+    handle_raft_committed_entries[style_func;label="{{
+      handle_raft_committed_entries|
+      将当前处理的entry和\l 
+      剩余的entry放到pending_entries\l
+      下次resume时候，接着执行\l
+    }}"]
+    handle_raft_committed_entries -> {
+      wait_merge_state;
+      yield_state;
+      pending_entries;
+    }
+    pending_entries  -> resume_pending;
+    wait_merge_state[style_var;label="{{
+          pending_entries  -> resume_pending;
+    wait_merge_state|
+        存放source_region_id\l
+    }}"]
+    ready_source_region_id[style_func;label="{{
+      ready_source_region_id|
+      设置ready_source_region_id\l
+    }}"]
+    resume_pending[style_func;label="{{
+      resume_pending|
+      接着执行exec_commit_merge\l
+    }}"]
+
+    resume_pending -> {
+      wait_merge_state;
+      ready_source_region_id;
+    }
+    handle_normal -> {
+      yield_state;
+      wait_merge_state;
+    }[style_edge_data];
+    handle_normal -> resume_pending;
+    ApplyTask_LogsUpToDate -> logs_up_to_date_for_merge;
+    logs_up_to_date_for_merge[style_func;label="{{
+      logs_up_to_date_for_merge|
+      soure region 处理LogsUpToDate消息\l
+      停掉自己的ApplyFsm\l
+      然后发个空消息给target的ApplyFsm\l
+    }}"]
+
+    logs_up_to_date_for_merge -> {
+      destroy;
+      force_send_Noop
+    }
+    destroy[style_func;label="{{
+      destroy|
+      停掉source region的ApplyFsm\l
+    }}"]
+    force_send_Noop[style_func;label="{{
+      force_send(Msg::Noop)|
+      向target_region_id\l 
+      发送noop消息
+    }}"]
+    force_send_Noop -> handle_normal[style_edge_data];
+  }
+
+  subgraph cluster_PeerFsm {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    SignificantMsg_CatchUpLogs -> on_catch_up_logs_for_merge;
+    on_catch_up_logs_for_merge -> ApplyTask_LogsUpToDate
+    ApplyResult_CommitMerge -> on_ready_commit_merge;
+    on_ready_commit_merge[style_func;label="{{
+      on_ready_commit_merge|
+      在target region上执行
+    }}"]
+  }
+  
+}

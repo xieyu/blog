@@ -1,0 +1,43 @@
+#include "styles.h"
+digraph worker_pd_runnable {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RaftRouter {
+    graph[label="RaftRouter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    send_raft_command;
+  }
+
+  subgraph cluster_pd_client {
+    graph[label="pd_client";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ask_batch_split;
+      
+  }
+  subgraph cluster_worker_pd_Runnable {
+    graph[label="worker::pd::Runnable";fontsize=20;style="rounded,dashed";color="slategrey"]
+    run -> {
+      handle_ask_batch_split;
+    }
+    handle_ask_batch_split -> {
+      ask_batch_split;
+      new_batch_split_region_request;
+      send_admin_request;
+      AskSplit;
+      schedule;
+      spawn_local;
+    }
+    new_batch_split_region_request -> AdminRequest -> send_admin_request[style_edge_data];
+    new_batch_split_region_request -> {
+      SplitRequest;
+    }
+    SplitRequest -> AdminRequest[style_edge_data];
+    AskSplit -> schedule[style_edge_data];
+    send_admin_request -> send_raft_command;
+    ask_batch_split -> {
+      new_batch_split_region_request;
+      schedule;
+    }[style_edge_data];
+  }
+  
+}

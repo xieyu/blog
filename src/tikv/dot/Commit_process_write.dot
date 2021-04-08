@@ -1,0 +1,40 @@
+#include "styles.h"
+digraph CommitProcessWrite {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_MvccReader {
+    graph[label="MvccReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    load_lock
+    get_txn_commit_record
+  }
+  subgraph cluster_ReleaseLocks {
+    graph[label="ReleaseLocks";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ReleaseLocks_new
+    wake_up
+      
+  }
+  subgraph cluster_MvccTxn {
+    graph[label="MvccTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    into_modifies
+    MvccTxn_new
+    put_write
+    put_write -> modifies -> into_modifies[style_edge_data]
+  }
+
+  process_write -> {
+    ReleasedLocks_new;
+    released_locks_wake_up;
+    MvccTxn_new;
+    commit
+    from_modifies
+    into_modifies
+  }
+  commit -> {
+    load_lock;
+    get_txn_commit_record
+    Write_new
+    put_write
+  }
+}

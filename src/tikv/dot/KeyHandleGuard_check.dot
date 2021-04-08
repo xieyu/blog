@@ -1,0 +1,78 @@
+#include "styles.h"
+digraph KeyHandleGuard {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Lock {
+    graph[label="Lock";fontsize=20;style="rounded,dashed";color="slategrey"]
+    check_ts_conflict -> {
+     bypass_locks;
+     use_async_commit;
+     min_commit_ts;
+    };
+      
+  }
+  subgraph cluster_LockTable {
+    graph[label="LockTable";fontsize=20;style="rounded,dashed";color="slategrey"]
+    check_key[style_func;label="{{
+      check_key|
+      如果lockTable中包含了key\l
+      且lock不为None, 则调用\l 
+      传入的check_fn, 检查冲突\l
+    }}"]
+    check_fn[style_func;label="{{
+      check_fn\l|
+      传入的lambda函数\l
+    }}"]
+    check_range[style_func;label="{{
+      check_range|
+      检查某个区间的
+    }}"]
+    check_range -> {
+      check_fn;
+    }
+
+    check_key -> {
+      check_fn;
+    };
+    check_range;
+      
+  }
+
+  subgraph cluster_ConcurrencyManager {
+    graph[label="ConcurrencyManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    read_key_check -> check_key;
+    read_range_check -> check_range;
+  }
+  subgraph cluster_Storage {
+    graph[label="Storage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    prepare_snap_ctx[style_func;label="{{
+      prepare_snap_ctx|
+      如果isolation_level 为Si\l
+      检查ts的conflict\l
+    }}"]
+    prepare_snap_ctx -> {
+      read_key_check;
+      check_ts_conflict;
+    }
+    get -> prepare_snap_ctx;
+    batch_get_command -> prepare_snap_ctx;
+    batch_get -> prepare_snap_ctx;
+    scan -> read_range_check;
+    scan_lock -> read_range_check;
+  }
+  subgraph cluster_ReplicaReadLockChecker {
+    graph[label="ReplicaReadLockChecker";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_step -> read_range_check;
+  }
+  subgraph cluster_gcworker {
+    graph[label="gcworker";fontsize=20;style="rounded,dashed";color="slategrey"]
+    start_collecting -> read_range_check;
+  }
+  subgraph cluster_coprocessor {
+    graph[label="coprocessor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    parse_request_and_check_memory_locks -> check_memory_locks -> read_range_check;
+    check_memory_locks -> check_ts_conflict;
+  }
+}

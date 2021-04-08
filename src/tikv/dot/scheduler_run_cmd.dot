@@ -1,0 +1,87 @@
+#include "styles.h"
+digraph sched_txn_command {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Latches {
+    graph[label="Latches";fontsize=20;style="rounded,dashed";color="slategrey"]
+    acquire[style_func;label="{{
+      acquire|
+      Tries to acquire the laches\l
+      specified by the lock \l 
+      for command with ID who\l|
+      遍历lock的key hashes\l
+    }}"]
+  }
+
+  subgraph cluster_Scheduler {
+    graph[label="Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    subgraph cluster_SchedulerInner {
+      graph[label="SchedulerInner";fontsize=20;style="rounded,dashed";color="slategrey"]
+      too_busy;
+      get_task_slot;
+      new_task_context;
+      gen_id -> id_alloc;
+      gen_id[style_func;label="{{
+        gen_id|
+        let id = self.id_alloc.\l 
+        fetch_add(1, Ordering::Relaxed);\l
+      }}"]
+
+      id_alloc[style_var;label="{{
+      id_alloc|
+        id_alloc: CachePadded\<AtomicU64\>,\l
+      }}"]
+      gen_id -> get_task_slot[style_edge_data];
+      get_task_slot -> task_slots;
+      task_slots[style_var;label="{{
+        task_slots|
+          Vec\<CachePadded\<\l 
+          Mutex\<HashMap\<u64, TaskContext\>\>\>\>,\l
+      }}"]
+      {new_task_context;get_task_slot} -> tctx[style_edge_data];
+      tctx -> acquire[style_edge_data];
+      tctx[style_var;label="{{
+        tctx|
+        TaskContext\|
+         lock: Lock,\l|
+         cb: Option\<StorageCallback\>,\l|
+         pr: Option\<ProcessResult\>,\l|
+         write_bytes: usize,\l|
+         tag: metrics::CommandKind,\l|
+         latch_timer: Instant,\l|
+         _cmd_timer: CmdTimer,\l
+      }}"]
+    }
+
+    run_cmd -> {
+      need_flow_control;
+      schedule_command;
+      too_busy;
+    }
+    schedule_command[style_func;label="{{
+      schedule_command|
+      获取单递增的cid\l
+      然后根据cid获取task_slot\l|
+      使用task_slot得到Task::context\l
+    }}"]
+
+    schedule_command -> {
+      get_task_slot;
+      gen_id;
+      new_task_context;
+      acquire;
+      on_schedule;
+      execute;
+    }
+    gen_id -> cid;
+    cid -> task_slots[style_edge_data];
+    cid -> acquire;
+    acquire -> {
+      execute;
+      on_schedule;
+    }[style_edge_data];
+  }
+}

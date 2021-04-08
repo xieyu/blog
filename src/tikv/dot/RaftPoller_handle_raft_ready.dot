@@ -1,0 +1,90 @@
+#include "styles.h"
+digraph RaftPoller_handle_raft_ready {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Transport {
+    graph[label="Transport";fontsize=20;style="rounded,dashed";color="slategrey"]
+    need_flush;
+    flush;
+    send;
+  }
+  subgraph cluster_RawNode {
+    graph[label="RawNode";fontsize=20;style="rounded,dashed";color="slategrey"]
+    advance_append;
+    advance_append_async;
+    skip_bcast_commit;
+  }
+  subgraph cluster_RaftEngine {
+    graph[label="RaftEngine";fontsize=20;style="rounded,dashed";color="slategrey"]
+    consume_and_shrink;
+  }
+  subgraph cluster_CoprocessorHost {
+    graph[label="CoprocessorHost";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_region_changed;
+  }
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    set_commit_index;
+  }
+  subgraph cluster_ApplyRouter {
+    graph[label="ApplyRouter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    apply_router_schedule_task_register;
+    apply_router_schedule_task_ApplyTask_apply[style_func;label="{{
+      apply_router.\l 
+      schedule_task(ApplyTask::apply..)\l|
+      向applyPoller\l 
+      发送Apply消息\l
+      apply committed raft log\l
+    }}"]
+    
+    apply_router_schedule_task_ApplyTask_Snapshot[style_func;label="{{
+      apply_router.\l 
+      schedule_task(ApplyTask_Snapshot)
+    }}"]
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+      peer_post_raft_ready_append -> {
+        activate;
+      };
+      activate -> {
+        apply_router_schedule_task_register;
+        on_region_changed;
+      }
+      handle_raft_ready_advance -> {
+        advance_append_async;
+        set_commit_index;
+        on_leader_commit_idx_changed;
+        advance_append;
+        handle_raft_committed_entries;
+        send;
+      };
+      handle_raft_committed_entries -> {
+        apply_router_schedule_task_ApplyTask_apply;
+        apply_router_schedule_task_ApplyTask_Snapshot;
+        skip_bcast_commit;
+      }
+  }
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    post_raft_ready_append ->{
+      peer_post_raft_ready_append;
+      handle_raft_ready_advance;
+      on_ready_apply_snapshot;
+      on_ready_rollback_merge;
+      register_raft_base_tick;
+    }
+  }
+
+  handle_raft_ready -> {
+    need_flush;
+    flush;
+    kv_wb_write_opt;
+    raft_wb_mut_cut_logs;
+    consume_and_shrink;
+    post_raft_ready_append;
+  }
+}

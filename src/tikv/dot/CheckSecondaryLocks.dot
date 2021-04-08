@@ -1,0 +1,71 @@
+#include "styles.h"
+digraph CheckSecondaryLocks {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_ConcurrencyManager {
+    graph[label="ConcurrencyManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    update_max_ts;
+    update_max_ts[style_func;label="{{
+      update_max_ts|
+        It is not allowed for \l 
+        commit to overwrite a \l 
+        protected rollback. So\l 
+        we update max_ts\l
+        to prevent this case\l 
+        from happening.
+    }}"]
+  }
+
+  subgraph cluster_MvccReader {
+    graph[label="MvccReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    load_lock;
+    seek_write;
+    get_txn_commit_record;
+  }
+
+  subgraph cluster_MvccTxn {
+    graph[label="MvccTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    unlock_key;
+    collapse_prev_rollback;
+    put_write;
+    collapse_prev_rollback -> {
+      delete_write;
+      seek_write;
+    }
+    mark_rollback_on_mismatching_lock -> {
+      put_lock;
+      Lock:rollback_ts;
+    }
+    Lock[style_struct;label="{{
+      Lock|
+       <rollback_ts> pub rollback_ts: Vec\<TimeStamp\>,\l
+    }}"]
+  }
+
+  subgraph cluster_ReleasedLock {
+    graph[label="ReleasedLock";fontsize=20;style="rounded,dashed";color="slategrey"]
+    wake_up;
+  }
+
+  subgraph cluster_CheckSecondaryLocks {
+    graph[label="CheckSecondaryLocks";fontsize=20;style="rounded,dashed";color="slategrey"]
+    process_write -> {
+      update_max_ts;
+      SecondaryLockStatus_Locked;
+      load_lock;
+      unlock_key;
+      get_txn_commit_record;
+      SecondaryLockStatus_Committed;
+      mark_rollback_on_mismatching_lock;
+      collapse_prev_rollback;
+      wake_up;
+      make_rollback;
+      put_write;
+    }
+
+    make_rollback -> put_write[style_edge_data];
+  }
+  
+}
