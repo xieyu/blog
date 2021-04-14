@@ -1,0 +1,116 @@
+#include "styles.h"
+digraph region {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_metapb {
+    graph[label="metapb";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Region[style_func;label="{{
+      Region|
+      pub id: u64,\l|
+      pub start_key: Vec\<u8\>,\l|
+      pub end_key: Vec\<u8\>,\l|
+      pub region_epoch: SingularPtrField\<RegionEpoch\>,\l|
+      pub peers: RepeatedField\<Peer\>,\l|
+      pub encryption_meta: SingularPtrField\l 
+      \<super::encryptionpb::EncryptionMeta\>,\l
+    }}"]
+    RegionEpoch[style_func;label="{{
+      RegionEpoch|
+      pub conf_ver: u64,\l|
+      pub version: u64,\l
+    }}"]
+    Peer[style_func;label="{{
+      Peer|
+      pub id: u64,\l|
+      pub store_id: u64,\l|
+      pub role: PeerRole,\l
+    }}"]
+    PeerRole[style_func;label="{{
+      PeerRole|
+      Voter = 0,\l|
+      Learner = 1,\l|
+      IncomingVoter = 2,\l|
+      DemotingVoter = 3,\l
+    }}"]
+
+    Region -> {
+      RegionEpoch;
+      EncryptionMeta;
+      Peer;
+    }
+    Peer -> PeerRole;
+  }
+
+  ApplyDelegate[style_func;label="{{
+    ApplyDelegate|
+    id: u64,\l|
+    term: u64,\l|
+    region: Region,\l|
+    ...
+  }}"]
+  PeerStorage[style_func;label="{{
+    PeerStorage|
+    peer_id: u64,\l|
+    region: metapb::Region,\l|
+    ...
+  }}"]
+  StoreMeta[style_func;label="{{
+    StoreMeta|
+    pub region_ranges: BTreeMap\<Vec\<u8\>, u64\>,\l|
+    pub pending_merge_targets: HashMap\l 
+    \<u64, HashMap\<u64, metapb::Region\>\>,\l|
+    pub pending_snapshot_regions: Vec\<Region\>,\l|
+    ...
+    pub region_ranges: BTreeMap\<Vec\<u8\>, u64\>,\l
+  }}"]
+
+  FsmPeer[style_func;label="{{
+    Peer|
+    region_id: u64,\l|
+    pub peer: metapb::Peer,\l|
+    pub raft_group: RawNode\l 
+    \<PeerStorage\<EK, ER\>\>,\l
+  }}"]
+  PeerFsm[style_func;label="{{
+    PeerFsm|
+    pub peer: Peer\<EK, ER\>,\l|
+    mailbox: Option\<BasicMailbox\l |
+    \<PeerFsm\<EK, ER\>\>\>,\l|
+    ...
+  }}"]
+  PollContext[style_func;label="{{
+    PollContext|
+    pub store_meta: Arc\<Mutex\<StoreMeta\>\>,\l
+  }}"]
+  ApplyFsm -> ApplyDelegate;
+  ApplyFsm[style_func;label="{{
+    ApplyFsm|
+    delegate: ApplyDelegate\<EK\>,\l|
+    ...
+  }}"]
+  ApplyDelegate -> Region;
+  PeerStorage -> Region;
+  StoreMeta -> Region
+  FsmPeer -> PeerStorage;
+  FsmPeer -> Peer;
+  PeerFsmDelegate -> {
+    PeerFsm;
+    PollContext;
+  }
+  PeerFsm -> FsmPeer;
+  PollContext -> StoreMeta;
+  RaftPoller -> {
+    PeerFsmDelegate;
+    PollContext;
+  }
+  RaftPoller[style_func;label="{{
+    RaftPoller|
+    poll_ctx: PollContext\<EK, ER, T\>,\l|
+    ...|
+    handle_normal会new一个\l 
+    PeerFsmDelegat并将自己的\l 
+    pollContext传过去;\l
+  }}"]
+}

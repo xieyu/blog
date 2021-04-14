@@ -3,6 +3,7 @@
 <!-- toc -->
 
 ## 触发Merge
+
 ### PD Server MergeChecker
 
 > PD 在决定某个 Source Region 需要 Merge 到相邻的 Target Region 之后，之后会通过 Conf Change 把它们的 Peer 对齐到相同的 TiKV 上，再给该 Region 发送请求触发 Merge。
@@ -51,6 +52,16 @@ Apply fsm上会执行 `exec_prepare_merge`
 
 ![](./dot/applyDelegate_exec_prepare_merge.svg)
 
+### source region: on_check_merge
+
+注意此处的`CommitMerge`消息是发往本地 target region peer的.
+
+>非Leader 的 Peer 收到后会静默丢弃，而 Leader 这里不用担心多次 Propose 的问题，Apply CommitMerge 会让 Epoch 中的 version 增加，所以在之后带有相同 Epoch 的 Proposal 都会被跳过。
+
+### rollback_merge
+
+![](./dot/on_check_merge.svg)
+
 ### source region: PeerFsmDelegate::on_ready_prepare_merge
 
 source region raft 在收到`ExecResult::PreapreMerge`消息之后，
@@ -62,10 +73,7 @@ source region raft 在收到`ExecResult::PreapreMerge`消息之后，
 然调用on_check_merge, 经过一系列检查后，
 向本地的target region Propose 一条`AdminType::CommitMerge` 消息。
 
->非Leader 的 Peer 收到后会静默丢弃，而 Leader 这里不用担心多次 Propose 的问题，Apply CommitMerge 会让 Epoch 中的 version 增加，所以在之后带有相同 Epoch 的 Proposal 都会被跳过。
-
-
-TODO: 不知道CatchUpLogs 这个是干啥用的
+注意此处的`catch_up_logs`,
 
 ![](./dot/on_ready_prepare_merge.svg)
 
@@ -114,8 +122,17 @@ if keys::enc_end_key(&region) == keys::enc_start_key(source_region) {
 
 > 由于 Source Region 的日志可能不够，为了让数据一致，我们先发送 CommitMerge中的 entries 给 Source Region，等待它把日志补全并且全部 Apply 完
 
-
 ![](./dot/exec_commit_merge.svg)
+
+### source region: on_catch_up_logs_for_merge
+
+等待source region 把日志补齐，并且apply.
+
+如果source region 执行到了on_ready_prepare_merge，那么
+说明PrepareMerge这个Log entry已经被applied 了，
+也就是说需要merge的日志,都已经被applied了。
+
+![](./dot/on_catch_up_logs_for_merge.svg)
 
 ### target region: PeerFsmDelegate::on_ready_commit_merge
 

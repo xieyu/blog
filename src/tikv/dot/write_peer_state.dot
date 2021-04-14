@@ -1,0 +1,82 @@
+#include "styles.h"
+digraph write_peer_state {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_metapb {
+    graph[label="metapb";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PeerState[style_func;label="{{
+      PeerState|
+       Normal = 0,\l|
+       Applying = 1,\l|
+       Tombstone = 2,\l|
+       Merging = 3,\l
+    }}"]
+    MergeState[style_func;label="{{
+      MergeState|
+    pub min_index: u64,\l|
+    pub target: ::protobuf::SingularPtrField\l 
+    \<super::metapb::Region\>,\l|
+    pub commit: u64,\l
+    }}"]
+    RegionLocalState -> {
+      PeerState;
+      MergeState;
+      Region;
+    }
+
+    Region[style_func;label="{{
+      Region|
+      pub id: u64,\l|
+      pub start_key: Vec\<u8\>,\l|
+      pub end_key: Vec\<u8\>,\l|
+      pub region_epoch: SingularPtrField\<RegionEpoch\>,\l|
+      pub peers: RepeatedField\<Peer\>,\l|
+      pub encryption_meta: SingularPtrField\l 
+      \<super::encryptionpb::EncryptionMeta\>,\l
+    }}"]
+  }
+  write_peer_state -> {
+    RegionLocalState;
+    region_state_key;
+    put_msg_cf;
+  }
+  put_msg_cf[style_func;label="{{
+    put_msg_cf|
+    写入CF_RAFT column family中
+  }}"]
+  region_state_key[style_func;label="{{
+    region_state_key|
+    布局如下\l|
+    LOCAL_PREFIX: 0x01\l|
+    REGION_META_PREFIX: 0x03\l|
+    region_id: u64占用个8字节\l|
+    RAFT_STATE_SUFFIX: 0x01\l
+  }}"]
+
+  region_state_key -> {
+    make_region_meta_key;
+    REGION_STATE_SUFFIX;
+  }
+  make_region_meta_key -> {
+    REGION_META_PREFIX_KEY;
+  }
+  REGION_META_PREFIX_KEY -> {
+    LOCAL_PREFIX;
+    REGION_META_PREFIX;
+  }
+  LOCAL_PREFIX[style_var;label="{{
+    LOCAL_PREFIX: u8|
+    0x01\l
+  }}"]
+  REGION_META_PREFIX[style_var;label="{{
+    REGION_META_PREFIX|
+    0x03\l
+  }}"]
+  REGION_STATE_SUFFIX[style_var;label="{{
+    REGION_STATE_SUFFIX|
+    0x01
+  }}"]
+  
+}

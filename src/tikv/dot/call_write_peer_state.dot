@@ -1,0 +1,89 @@
+#include "styles.h"
+digraph call_write_peer_state {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    apply_snapshot -> write_peer_state;
+    handle_raft_ready -> apply_snapshot;
+      
+  }
+
+  subgraph cluster_ApplyDelegate {
+    graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    apply_raft_cmd[style_func;label="{{
+      apply_raft_cmd|
+      self.region = exec_result.region\l
+    }}"]
+    apply_raft_cmd ->region;
+    apply_raft_cmd -> exec_raft_cmd;
+    exec_raft_cmd -> exec_admin_cmd;
+    exec_change_peer[style_func;label="{{
+      exec_change_peer|
+      写入新的Region conf_ver和peers\l
+      1.region.conf_ver +1\l
+      2.根据change type AddNode/RemoveNode\l 
+      更改region中的 peers和role\l
+    }}"]
+    exec_admin_cmd -> {
+      exec_rollback_merge;
+      exec_prepare_merge;
+      exec_batch_split;
+      exec_split;
+      exec_change_peer_v2;
+      exec_change_peer;
+    } -> write_peer_state;
+
+    exec_split -> exec_batch_split;
+    exec_batch_split[style_func;label="{{
+      exec_batch_split|
+      derived_region_epoch += new_region_cnt\l
+    }}"]
+
+    exec_batch_split -> {
+      write_initial_apply_state;
+    }
+    exec_prepare_merge[style_func;label="{{
+      exec_prepare_merge|
+      更改version，并将PeerState\l
+      设置为Merging\l|
+      region_epoch +=1\l
+      conf_ver + =1\l
+      PeerState::Merging\l
+    }}"]
+
+    exec_rollback_merge[style_func;label="{{
+      exec_rollback_merge|
+      region_epoch += 1\l
+      PeerState::Normal\l
+    }}"]
+
+    exec_change_peer_v2-> {
+      apply_leave_joint;
+      apply_conf_change;
+    }
+    apply_conf_change[style_func;label="{{
+      apply_conf_change|
+      1. conf_ver += changes.len\l
+      2. 更改peer的role\l
+    }}"]
+
+    region[style_var;label="{{
+      region|
+      更新内存中的self.region\l
+    }}"]
+  }
+  subgraph cluster_PeerFsmDelgate {
+    graph[label="PeerFsmDelgate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    destroy -> write_peer_state;
+    destroy[style_func;label="{{
+      destroy|
+      写入PeerState::Tombstone\l
+      和自己的pending_merge_state\l
+    }}"]
+  }
+  
+}

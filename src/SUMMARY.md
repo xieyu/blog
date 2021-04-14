@@ -146,8 +146,10 @@
     - [MvccTxn](./tikv/MvccTxn.md)
     - [Scheduler](./tikv/scheduler.md)
     - [Command](./tikv/command.md)
+  - [Region](./tikv/region.md)
     - [Split Region](./tikv/split-region.md)
     - [Merge Region](./tikv/merge-region.md)
+    - [Conf Change](./tikv/conf-change.md)
 
 - [ClickHouse](./clickhouse/index.md)
   - [Server main](./clickhouse/server-main.md)

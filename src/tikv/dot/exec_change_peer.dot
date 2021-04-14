@@ -1,0 +1,105 @@
+#include "styles.h"
+digraph exec_change_peer {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Region {
+    graph[label="Region";fontsize=20;style="rounded,dashed";color="slategrey"]
+      
+  }
+
+  subgraph cluster_ApplyDelegate {
+    graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    exec_admin_cmd -> {
+      exec_change_peer;
+      exec_change_peer_v2;
+    }
+    exec_change_peer -> {
+      PeerState_Tombstone;
+      PeerState_Normal;
+      write_peer_state;
+      region_mut_peers;
+      ConfChangeType_RemoveNode;
+      ExecResult_ChangePeer;
+    }
+    ConfChangeType_RemoveNode -> {
+      pending_remove;
+      stopped;
+    }
+    ConfChangeType_RemoveNode[style_func;label="{{
+      ConfChangeType_RemoveNode|
+      如果self.id == peer.get_id\l
+      self.stopped = true\l
+      self.pending_remove = true\l
+    }}"]
+    pending_remove -> {
+      PeerState_Normal;
+      PeerState_Tombstone;
+    } -> write_peer_state[style_edge_data];
+    region_mut_peers -> Region:peers; 
+
+    ExecResult_ChangePeer[style_var;label="{{
+      ExecResult::ChangePeer|
+      要发给peerFsmDelegate的消息\l|
+    pub index: u64,\l|
+    pub conf_change: ConfChangeV2,\l|
+    pub changes: Vec\<ChangePeerRequest\>,\l|
+    pub region: Region,\l
+    }}"]
+    ExecResult_ChangePeer -> Region;
+
+    Region[style_var;label="{{
+      Region|
+    pub start_key: ::std::vec::Vec\<u8\>,\l|
+    pub end_key: ::std::vec::Vec\<u8\>,\l|
+    pub region_epoch: ::protobuf::SingularPtrField\<RegionEpoch\>,\l|
+    <peers> pub peers: ::protobuf::RepeatedField\<Peer\>,\l|
+    pub encryption_meta: ::protobuf::SingularPtrField\<super::encryptionpb::EncryptionMeta\>,\l
+    }}"]
+
+    exec_change_peer_v2 -> {
+      pending_remove;
+      write_peer_state;
+      apply_conf_change;
+      apply_leave_joint;
+      ConfChangeType_RemoveNode;
+    }
+    apply_conf_change ->Region;
+    apply_conf_change[style_func;label="{{
+      apply_conf_change|
+      更新region的ver: conf_ver + changes.len\l
+      更新region的peer list\l|
+      更新peer的role\l
+    }}"]
+    apply_conf_change -> {
+      find_peer_mut;
+      get_region_epoch;
+      find_peer;
+    }
+    find_peer[style_func;label="{{
+      find_peer|
+      从region peers中\l
+      根据store_查找peer\l
+    }}"]
+    find_peer_mut[style_func;label="{{
+      find_peer_mut|
+      从region peers中\l
+      根据store_查找peer\l
+      返回可mut peer\l
+    }}"]
+    apply_leave_joint[style_func;label="{{
+      apply_leave_joint|
+      将peer角色由:\l
+      IncomingVoter 改为PeerRole_Voter\l
+      DemotingVoter 改为Leanner\l|
+      更改conf_ver\l
+    }}"]
+    apply_leave_joint -> {
+      set_role;
+    }
+      
+  }
+  
+}

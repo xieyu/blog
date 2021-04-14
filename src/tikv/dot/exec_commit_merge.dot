@@ -50,7 +50,9 @@ digraph exec_commit_merge {
     SignificantMsg_CatchUpLogs[style_var;label="{{
       SignificantMsg::CatchUpLogs|
       向source region发送\l 
-      CatchUpLogs消息\l
+      CatchUpLogs消息\l|
+      注意这个消息也向本地的\l 
+      source region发送的\l
     }}"]
     ApplyResult_WaitMergeSource[style_var;label="{{
       ApplyResult_WaitMergeSource|

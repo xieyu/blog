@@ -4,34 +4,23 @@ digraph on_check_merge {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
-  on_check_merge -> {
-    register_merge_check_tick;
-    schedule_merge;
-  }
-  schedule_merge -> {
-    pending_merge_state;
-    validate_merge_peer;
-    get_min_progress;
-    AdminCmdType_CommitMerge;
-    router_force_send;
-  }
-  entries -> AdminCmdType_CommitMerge;
-  AdminCmdType_CommitMerge[style_func;label="{{
-    AdminCmdType_CommitMerge|
-    发送类型为CommitMerge的AdminCmd\l
-    会附带上entries\l
+
+  SignificantMsg_CatchUpLogs[style_func;label="{{
+    SignificantMsg::CatchUpLogs|
+    由本地target region\l
+    在执行commit merge消息时\l
+    发的消息\l|
   }}"]
-  router_force_send[style_func;label="{{
-    router.force_send(targe_id, RaftCommand..)|
-    向本地的target_id\l 
-    发送commit merge\l 
-    的 RaftCommand\l
+  SignificantMsg_CatchUpLogs -> on_catch_up_logs_for_merge;
+  on_catch_up_logs_for_merge[style_func;label="{{
+    on_catch_up_logs_for_merge|
+    此时本地的source region\l 
+    可能还没commit \l 
+    到PrepareMerge这个消息\l
+    但source region 的leader已经\l
+    apply该消息了\l|
+    先设置下catch_up_logs变量\l
   }}"]
-  AdminCmdType_CommitMerge -> router_force_send[style_edge_data];
-  pending_merge_state -> {
-    validate_merge_peer;
-    get_min_progress
-  } -> AdminCmdType_CommitMerge[style_edge_data];
 
   pending_merge_state[style_var;label="{{
     pending_merge_state|
@@ -42,8 +31,7 @@ digraph on_check_merge {
     pub commit: u64,\l
   }}"]
 
-  on_check_merge -> pending_merge_state[style_edge_data];
-  on_check_merge -> pending_remove[style_edge_data];
+  {pending_merge_state;pending_remove} -> on_check_merge;
   on_ready_prepare_merge -> {
      pending_merge_state;
      pending_remove;
@@ -89,4 +77,14 @@ digraph on_check_merge {
     destroy source ApplyFsm\l
   }}"]
   catch_up_logs -> schedule_task;
+
+  on_check_merge -> router_force_send;
+  router_force_send[style_func;label="{{
+    router_force_send|
+    向本地的target_id\l 
+    发送RaftCommand \l 
+    非leader的peer会丢弃该消息\l
+    leader处理完该epoch后会将epcho +1\l
+    避免多次重复提交\l
+  }}"]
 }

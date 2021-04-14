@@ -1,0 +1,68 @@
+#include "styles.h"
+digraph region_info {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  kv_engine[style_var;label="{{
+    kv_engine|
+    在CF_RAFT中存放region原始信息\l
+    存放的key范围为:\l
+    REGION_META_MIN_KEY,\l
+    REGION_META_MAX_KEY\l
+  }}"]
+  PeerFsm[style_var;label="{{
+    PeerFsm|
+    PeerStorage中有个Region成员\l
+  }}"]
+  ApplyFsmDelegate[style_var;label="{{
+    ApplyFsmDelegate|
+    有个region成员
+  }}"]
+  StoreMeta[style_var;label="{{
+    StoreMeta
+  }}"]
+  pd_server[style_var;label="{{
+    pd_server
+  }}"]
+  write_peer_state[style_func;label="{{
+    write_peer_state|
+    更新kv engine中region信息
+  }}"]
+  RaftPollerBuilder_init[style_func;label="{{
+    RaftPollerBuilder::init|
+    扫描kev engine所有kv信息\l
+    创建PeerFsm,更新StoreMeta\l
+  }}"]
+  kv_engine -> RaftPollerBuilder_init;
+  RaftPollerBuilder_init -> PeerFsm;
+  RaftPollerBuilder_init -> StoreMeta;
+  RaftPollerBuilder_init -> ApplyFsmDelegate[style_edge_data];
+  ApplyFsmDelegate -> write_peer_state -> kv_engine;
+  ApplyFsmDelegate ->ExecResult -> PeerFsmDelegate -> PeerFsm;
+  PeerFsmDelegate -> StoreMeta;
+  PeerFsm -> heartbeat_pd -> pd_server;
+  pd_server -> HeartbeatResp -> PeerFsmDelegate -> ApplyFsmDelegate;
+  heartbeat_pd[style_func;label="{{
+    heartbeat_pd|
+    region RaftLeader\l
+    向pd server 上报自己的Region信新\l
+  }}"]
+
+HeartbeatResp[style_func;label="{{
+  HeartbeatResp|
+  pd server会下发一些admin cmd\l
+  比如split, merge region等\l
+  会raft propose后，然后由PeerFsmDelegate处理\l
+  然后到committed之后，转发给ApplyFsm来处理\l
+  ApplyFsm 处理完毕，会发送ExecResult回来\l
+}}"]
+
+PeerFsmDelegate[style_func;label="{{
+  PeerFsmDelegate|
+  admin cmd committed之后，由ApplyFsm来接着处理\l
+  等它返回ExecResult\l
+  更新PeerFsm的Region信息\l
+  和StoreMeta的region信息\l
+}}"]
+}

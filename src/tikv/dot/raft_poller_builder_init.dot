@@ -1,0 +1,78 @@
+#include "styles.h"
+digraph raft_poller_builder {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_RegionLocalState {
+    graph[label="RegionLocalState";fontsize=20;style="rounded,dashed";color="slategrey"]
+    merge_from_bytes -> RegionLocalState;
+    merge_from_bytes[style_func;label="{{
+      merge_from_bytes|
+      使用value数据更新\l 
+      RegionLocalState\l
+    }}"]
+  }
+
+  subgraph cluster_peer_storage {
+    graph[label="peer_storage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    recover_from_applying_state;
+      
+  }
+
+  subgraph cluster_RaftPollerBuilder {
+    graph[label="RaftPollerBuilder";fontsize=20;style="rounded,dashed";color="slategrey"]
+    scan_cf[style_func;label="{{
+      scan_cf|
+      扫描从0x01 0x03\l 
+      到0x01 0x04所有的key
+    }}"]
+    init[style_func;label="{{
+      init|
+      1.扫描所有的region state key\l
+      2.清理过期的meta信息\l
+      3.恢复applying 的region\l
+      4.创建PeerFsm\l
+      5.更新StoreMeta\l
+    }}"]
+    init -> {
+      scan_cf;
+      decode_region_meta_key;
+      merge_from_bytes;
+      StoreMeta;
+      PeerFsm_create;
+      recover_from_applying_state;
+    }
+    scan_cf -> {
+      key;
+      value;
+    }[style_edge_data];
+    value -> merge_from_bytes[style_edge_data];
+    key -> decode_region_meta_key[style_edge_data];
+    decode_region_meta_key -> {region_id, suffix};
+    decode_region_meta_key[style_func;label="{{
+      decode_region_meta_key|
+        解析出region_id\l
+        并将suffix和REGION_STATE_SUFFIX 比较
+    }}"]
+
+    scan_cf -> {
+      REGION_META_MIN_KEY;
+      REGION_META_MAX_KEY;
+    }[style_edge_data];
+    RegionLocalState -> PeerFsm_create[style_edge_data];
+    RegionLocalState -> {
+     PeerState_Tombstone;
+     PeerState_Applying;
+    }
+    PeerState_Applying -> recover_from_applying_state[style_edge_data];
+    PeerState_Tombstone -> clear_stale_meta[style_edge_data];
+    PeerFsm_create[style_func;label="{{
+      PeerFsm::create|
+      创建PeerFsm
+    }}"]
+      
+  }
+  
+}
