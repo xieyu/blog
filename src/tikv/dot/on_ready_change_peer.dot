@@ -22,6 +22,11 @@ digraph on_ready_change_peer {
     peers_start_pending_time;
     check_peers -> peer_heartbeats;
     collect_down_peers -> peer_heartbeats;
+    heartbeat_pd[style_func;label="{{
+      heartbeat_pd|
+      如果是leader\l 
+      向pd上报Region信息\l
+    }}"]
     heartbeat_pd  -> {
      peer_heartbeats;
       collect_down_peers;
@@ -51,12 +56,20 @@ digraph on_ready_change_peer {
     }
     is_leader -> raft_ping[style_edge_data];
     has_ready;
+    insert_peer_cache -> peer_cache;
+    remove_peer_from_cache -> peer_cache;
+    subgraph cluster_peer_heartbeats {
+      graph[label="peer_heartbeats";fontsize=20;style="rounded,dashed";color="slategrey"]
+        peer_heartbeats_insert -> peer_heartbeats;
+        peer_heartbeats_remove -> peer_heartbeats;
+    }
   }
 
   subgraph cluster_PeerFsmDelegate {
     graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
     on_ready_change_peer -> {
       apply_conf_change;
+      update_region;
       group_id;
       peer_heartbeats;
       assign_commit_groups;
@@ -67,10 +80,18 @@ digraph on_ready_change_peer {
       is_leader;
       ping;
       has_ready;
+      remove_peer_from_cache;
     }
+
+    update_region[style_func;label="{{
+      update_region|
+      更新store_meta的region信息\l
+    }}"]
     on_raft_gc_log_tick -> peer_heartbeats;
     on_pd_heartbeat_tick -> check_peers;
     group_id -> assign_commit_groups;
+    is_leader -> heartbeat_pd;
+    update_region -> insert_peer_cache;
   }
   
 }

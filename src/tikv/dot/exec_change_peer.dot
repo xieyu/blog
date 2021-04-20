@@ -5,40 +5,53 @@ digraph exec_change_peer {
   newrank=true;
   rankdir=LR;
 
-  subgraph cluster_Region {
-    graph[label="Region";fontsize=20;style="rounded,dashed";color="slategrey"]
-      
-  }
-
   subgraph cluster_ApplyDelegate {
     graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
-    exec_admin_cmd -> {
-      exec_change_peer;
-      exec_change_peer_v2;
-    }
     exec_change_peer -> {
       PeerState_Tombstone;
       PeerState_Normal;
       write_peer_state;
       region_mut_peers;
       ConfChangeType_RemoveNode;
+      ConfChangeType_AddNode;
       ExecResult_ChangePeer;
     }
     ConfChangeType_RemoveNode -> {
       pending_remove;
       stopped;
     }
+    pending_remove[style_func;label="{{
+      pending_remove|
+      将pending_remove设置为true\l
+    }}"]
+    stopped[style_func;label="{{
+      stopped|
+      不用再apply log了\l
+      停止ApplyFsm\l 
+    }}"]
+    pending_remove -> handle_raft_committed_entries[style_edge_data];
+    handle_raft_committed_entries[style_func;label="{{
+      handle_raft_committed_entries|
+      如果pending_remove，\l 
+      就skip掉所有log entry\l
+    }}"]
     ConfChangeType_RemoveNode[style_func;label="{{
       ConfChangeType_RemoveNode|
       如果self.id == peer.get_id\l
       self.stopped = true\l
-      self.pending_remove = true\l
+      self.pending_remove = true\l|
+      从region peer列表中删除
     }}"]
     pending_remove -> {
       PeerState_Normal;
       PeerState_Tombstone;
     } -> write_peer_state[style_edge_data];
     region_mut_peers -> Region:peers; 
+    PeerState_Tombstone[style_func;label="{{
+      PeerState_Tombstone|
+      设置region的PeerState为TombStone\l
+      后续会清理该Region的数据\l
+    }}"]
 
     ExecResult_ChangePeer[style_var;label="{{
       ExecResult::ChangePeer|
@@ -59,47 +72,12 @@ digraph exec_change_peer {
     pub encryption_meta: ::protobuf::SingularPtrField\<super::encryptionpb::EncryptionMeta\>,\l
     }}"]
 
-    exec_change_peer_v2 -> {
-      pending_remove;
-      write_peer_state;
-      apply_conf_change;
-      apply_leave_joint;
-      ConfChangeType_RemoveNode;
-    }
-    apply_conf_change ->Region;
-    apply_conf_change[style_func;label="{{
-      apply_conf_change|
-      更新region的ver: conf_ver + changes.len\l
-      更新region的peer list\l|
-      更新peer的role\l
+    ConfChangeType_AddNode[style_func;label="{{
+      ConfChangeType::AddNode|
+      peer存在且为learner\l
+      将role设置为Voter\l|
+      不存在则在增加到peers列表\l
     }}"]
-    apply_conf_change -> {
-      find_peer_mut;
-      get_region_epoch;
-      find_peer;
-    }
-    find_peer[style_func;label="{{
-      find_peer|
-      从region peers中\l
-      根据store_查找peer\l
-    }}"]
-    find_peer_mut[style_func;label="{{
-      find_peer_mut|
-      从region peers中\l
-      根据store_查找peer\l
-      返回可mut peer\l
-    }}"]
-    apply_leave_joint[style_func;label="{{
-      apply_leave_joint|
-      将peer角色由:\l
-      IncomingVoter 改为PeerRole_Voter\l
-      DemotingVoter 改为Leanner\l|
-      更改conf_ver\l
-    }}"]
-    apply_leave_joint -> {
-      set_role;
-    }
-      
   }
   
 }

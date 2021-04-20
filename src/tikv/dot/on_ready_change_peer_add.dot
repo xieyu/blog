@@ -1,0 +1,102 @@
+#include "styles.h"
+digraph on_ready_change_peer_add {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_raft_rs {
+    graph[label="raft-rs";fontsize=20;style="rounded,dashed";color="slategrey"]
+    apply_conf_change;
+  }
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    peerstore_set_region[style_func;label="{{
+      set_region\l|
+      更新自己的region 成员变量\l
+    }}"]
+  }
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    peer_heartbeats[style_func;label="{{
+      peer_heartbeats|
+      peer_heartbeats.insert(peer_id, now)\l
+    }}"]
+    peers_start_pending_time[style_func;label="{{
+      peers_start_pending_time|
+      push((peer_id, now))\l
+    }}"]
+    peers_start_pending_time;
+    is_learner[style_func;label="{{
+      is_learner|
+      新的peer metapb\l
+      role成为了learner\l
+    }}"]
+    is_leader;
+    heartbeat_pd;
+    insert_peer_cache;
+    metapb_peer;
+    peer_set_region[style_func;label="{{
+      set_region
+    }}"]
+    peer_set_region -> {
+      expire_remote_lease;
+      maybe_update_read_progress;
+      peerstore_set_region;
+    }
+    is_leader[style_func;label="{{
+      is_leader|
+      1. 异步的向pd发送region心跳\l
+    }}"]
+  }
+
+  subgraph cluster_StoreMeta {
+    graph[label="StoreMeta";fontsize=20;style="rounded,dashed";color="slategrey"]
+    set_region -> {
+     regions;
+     peer_set_region;
+    };
+  }
+
+  subgraph cluster_PeerFmsDelegate {
+    graph[label="PeerFmsDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_ready_change_peer -> {
+      update_region;
+      apply_conf_change;
+      assign_commit_groups;
+      group_id
+      is_leader;
+      peer_heartbeats;
+      peers_start_pending_time;
+      is_learner;
+    }
+    group_id -> assign_commit_groups[style_edge_data];
+    update_region -> {
+      set_region;
+      insert_peer_cache;
+      metapb_peer;
+    }
+    metapb_peer -> is_learner[style_edge_data];
+    {is_leader;is_learner} -> become_follower[style_edge_data];
+    update_region[style_func;label="{{
+      update_region|
+      1.更新StoreMeta的region信息\l
+      2.更新自己fsm.peer.peer的metapb信息\l
+      3.插入peer_cache\l
+    }}"]
+
+    is_leader -> {
+     need_ping;
+     peers_start_pending_time;
+     heartbeat_pd;
+    }[style_edge_data];
+    become_follower[style_func;label="{{
+      become_follower|
+      leader peer的\l
+      role变为了leader\l
+      调用become_follower\l
+    }}"]
+      
+  }
+
+  
+}

@@ -1,0 +1,126 @@
+#include "styles.h"
+digraph Storage {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+    subgraph cluster_EntryCache {
+      graph[label="EntryCache";fontsize=20;style="rounded,dashed";color="slategrey"]
+      cache_first_index;
+      cache_miss_update;
+      cache_hit_update;
+      cache_fetch_entries_to;
+      EntryCache[style_struct;label="{{
+        EntryCache|
+        cache: VecDeque\<Entry\>,\l|
+        hit: Cell\<i64\>,\l|
+        miss: Cell\<i64\>,\l|
+        mem_size_change: i64,\l
+      }}"]
+    }
+
+    subgraph cluster_RaftEngine {
+      graph[label="trait RaftEngine";fontsize=20;style="rounded,dashed";color="slategrey"]
+      fetch_entries_to;
+    }
+    subgraph cluster_RaftState {
+      graph[label="RaftState";fontsize=20;style="rounded,dashed";color="slategrey"]
+      raft_state[style_var;label="{{
+        raft_state|
+        RaftLocalState
+      }}"]
+      get_last_index;
+    }
+    subgraph cluster_ApplyState {
+      graph[label="ApplyState";fontsize=20;style="rounded,dashed";color="slategrey"]
+      apply_state[style_var;label="{{
+        apply_state|
+      }}"]
+      get_truncated_state;
+    }
+
+    region[style_var;label="{{
+      region|
+    }}"]
+
+    initial_state -> {
+      raft_state;
+      conf_state_from_region;
+      region;
+    }
+    conf_state_from_region -> region;
+
+    entries -> {
+      check_range;
+      cache_first_index;
+      fetch_entries_to;
+      cache_hit_update;
+      cache_miss_update;
+      cache_fetch_entries_to;
+    }
+    term -> {
+      truncated_index;
+      truncated_term;
+      check_range;
+      entries
+      get_term;
+    }
+
+    first_index -> {
+      apply_state;
+      get_truncated_state;
+    }
+    get_truncated_state -> apply_snapshot;
+    last_index -> {
+      raft_state;
+      get_last_index;
+    }
+
+    snapshot -> {
+      snap_state;
+      snap_tried_cnt;
+      try_recv;
+      validate_snap;
+      SnapState_Generating;
+      GenSnapTask;
+      gen_snap_task;
+      sync_channel;
+    }
+    sync_channel[style_func;label="{{
+      sync_channel|
+      使用一个同步的channel
+    }}"]
+    GenSnapTask[style_struct;label="{{
+      GenSnapTask|
+        pub(crate) region_id: u64,\l|
+        <tx> snap_notifier: SyncSender\<RaftSnapshot\>,\l|
+        for_balance: bool,\l
+    }}"]
+    sync_channel -> {tx, rx};
+    tx[style_func;label="{{
+      tx|
+      发送端，用来触发\l 
+      snapshot已准备好
+    }}"]
+    SnapState_Generating -> try_recv;
+    rx -> SnapState_Generating;
+
+    tx -> GenSnapTask -> gen_snap_task[style_edge_data];
+    SnapState_Generating -> try_recv[style_edge_data];
+    try_recv ->  validate_snap[style_edge_data]
+    gen_snap_task[style_var;label="{{
+      gen_snap_task|
+      成员变量
+      gen_snap_task:\l 
+      RefCell\<Option\<GenSnapTask\>\>,\l
+    }}"]
+    snap_state[style_var;label="{{
+      snap_state|
+      snap_state: RefCell\<SnapState\>,\l
+    }}"]
+
+    validate_snap[style_func;label="{{
+      validate_snap|
+      验证snapshot是否有效\l
+    }}"]
+}

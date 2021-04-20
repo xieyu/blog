@@ -1,0 +1,205 @@
+#include "styles.h"
+digraph PollContext_new {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_RaftPollerBuilder {
+    graph[label="RaftPollerBuilder";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RaftPollerBuilder;
+    init;
+    init -> build[style_edge_data];
+    build -> PollContext;
+  }
+  subgraph cluster_BatchSystem {
+    graph[label="BatchSystem";fontsize=20;style="rounded,dashed";color="slategrey"]
+    system_spawn[style_func;label="{{
+      spawn|
+      创建poll线程池\l
+      每个线创建一个\l 
+      poll handler\l
+    }}"]
+    system_spawn -> {
+     build;
+    }
+  }
+  subgraph cluster_ApplyPollerBuilder {
+    graph[label="ApplyPollerBuilder";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ApplyPollerBuilder -> {
+      kv_wb;
+      ApplyContext;
+    }
+    kv_wb[style_func;label="{{
+      kv_wb|
+      kv_wb: W,|
+      let kv_web = W::with_capacity(\l 
+      &engine, DEFAULT_APPLY_WB_SIZE);\l
+    }}"]
+    kv_wb -> {
+      RocksWriteBatch;
+      RocksWriteBatchVec;
+    }
+    kv_wb -> ApplyContext;
+  }
+
+  subgraph cluster_RaftBatchSystem {
+    graph[label="RaftBatchSystem";fontsize=20;style="rounded,dashed";color="slategrey"]
+    spawn[style_func;label="{{
+      spawn|
+      创建RaftPollerBuilder\l
+      并调用builder的init\l
+      然后start_system
+    }}"]
+    spawn -> {
+      RaftPollerBuilder;
+      init;
+      start_system;
+      support_write_batch_vec;
+      WriteBatch;
+    }
+    {
+      WriteBatch;
+      WriteBatchVec;
+    } -> ApplyPollerBuilder[style_edge_data];
+
+support_write_batch_vec[style_func;label="{{
+  support_write_batch_vec|
+  is_enable_multi_batch_write()\l|
+  影响kv_wb使用WriteBatch\l
+  还是WriteBatchVec\l
+}}"]
+    support_write_batch_vec ->  WriteBatchVec;
+    start_system -> {
+      system_spawn;
+      ApplyPollerBuilder;
+    }
+    RaftBatchSystem;
+    start_system[style_func;label="{{
+      start_system|
+      启动raft batch system\l
+      创建ApplyPollerBuilder\l
+      然后创建并启动\l 
+      apply batch system\l
+    }}"]
+  }
+
+
+  subgraph cluster_Node {
+    graph[label="Node";fontsize=20;style="rounded,dashed";color="slategrey"]
+    start -> start_store;
+    start_store -> {
+      spawn;
+    }
+    Node_new[style_func;label="{{
+      new
+    }}"]
+      start;
+      Node_new;
+      Node_new ->  start[style_edge_data];
+  }
+
+  subgraph cluster_TiKVServer {
+    graph[label="TiKVServer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    TiKVServer_init -> {
+      create_raft_batch_system;
+    }
+    create_raft_batch_system[style_func;label="{{
+      create_raft_batch_system|
+      创建raft/apply batch system\l
+    }}"]
+    create_system[style_func;label="{{
+      create_system|
+      创建raft batch system\l
+    }}"]
+    create_apply_batch_system[style_func;label="{{
+      create_apply_batch_system|
+      创建apply batch system\l
+    }}"]
+
+    create_raft_batch_system -> {
+      create_apply_batch_system;
+      create_system;
+    }
+    create_apply_batch_system -> ApplyBatchSystem -> RaftBatchSystem[style_edge_data];
+    create_raft_batch_system -> RaftBatchSystem -> Node_new[style_edge_data];
+    init_servers[style_func;label="{{
+      init_servers|
+      将创建好的batchSystem传给Node\l
+      然后调用node.start\l
+    }}"]
+    init_servers ->{
+      Node_new;
+      start;
+    }
+    init_engines -> {
+      TiKVEngines;
+      StoreMeta;
+      RaftKV_new;
+    }
+    Engines_RocksEngine_RaftLogEngine[style_func;label="{{
+      Engines\<RocksEngine,RaftLogEngine\>\l|
+      kv使用RocksEngine\l
+      raft使用RaftLogEngine\l|
+      配置为config.raft_engine.config\l
+    }}"]
+    Engines_RocksEngine_RocksEngine[style_func;label="{{
+      Engines\<RocksEngine, RocksEngine\>\l
+      KV都使用RocksEngine\l|
+      raft engine路径为\l 
+      config.raft_store.raftdb_path\l
+    }}"]
+
+    init_servers;
+    init_raw_engines -> {
+     Engines_RocksEngine_RaftLogEngine;
+     Engines_RocksEngine_RocksEngine;
+    } -> {init_engines;engines}[style_edge_data];
+    engines -> start[style_edge_data];
+    engines -> {
+      PollContext;
+    }[style_edge_data];
+    engines -> engines_kv_clone -> ApplyContext;
+    engines_kv_clone -> kv_wb;
+    engines[style_struct;label="{{
+      engines|
+      Engine\<K, R\>\l|
+      kv: kv_engine,\l|
+      raft: raft_engine\l
+    }}"]
+    engines_kv_clone[style_func;label="{{
+      engines.kv.clone()|
+      ApplyContext使用了kv Engine\l
+      也就是RocksEngine\l
+    }}"]
+  }
+  TiKVServer_init[style_func;label="{{
+    init|
+    使用TiKvConfig\l|
+    创建TiKVServer\l|
+    创建BatchSystem\l|
+    创建后台work线程\l
+  }}"]
+
+  init_raw_engines[style_func;label="{{
+    init_raw_engines|
+     初始化kv engine, 数据库路径为\l 
+     config.storage.data_dir/db\l|
+     初始化raft engine\l
+  }}"]
+
+  run_tikv -> {
+    TiKVServer_init;
+    config_raft_engine_enable;
+    init_engines;
+    init_servers;
+    init_raw_engines;
+  }
+  {rank=same; TiKVServer_init;init_servers;init_raw_engines}
+
+  config_raft_engine_enable -> {
+     Engines_RocksEngine_RaftLogEngine;
+     Engines_RocksEngine_RocksEngine;
+  }[style_edge_data];
+  
+}

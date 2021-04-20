@@ -1,0 +1,72 @@
+#include "styles.h"
+digraph peer_storage_sruct {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftLocalState[style_func;label="{{
+    proto: RaftLocalState|
+    pub hard_state: HardState\l|
+    pub last_index: u64\l
+  }}"]
+  HardState[style_func;label="{{
+    HardState|
+    pub term: u64,\l|
+    pub vote: u64,\l|
+    pub commit: u64,\l
+  }}"]
+  subgraph cluster_Raft {
+
+    graph[label="Raft";fontsize=20;style="rounded,dashed";color="slategrey"]
+      RawNode -> Raft -> RaftCore -> RaftLog;
+      RaftLog[style_func;label="{{
+        RaftLog|
+        pub store: T\l|
+        类型T为PeerStorage\l
+      }}"]
+  }
+  PeerFsm -> Peer -> RawNode;
+  RaftLog -> PeerStorage;
+  PeerStorage -> {
+    RaftLocalState;
+    RaftApplyState;
+    SnapState;
+    GenSnapTask;
+    Scheduler;
+    RegionTask;
+  }
+  Scheduler -> RegionTask;
+  RaftLocalState -> {
+    HardState;
+  }
+  RegionTask -> {
+     Gen;
+     Apply;
+     Destroy;
+  }
+
+  Scheduler -> {
+    UnboundedSender;
+  }
+  RaftApplyState -> RaftTruncatedState;
+
+  ExecContext -> RaftApplyState;
+  ApplyRes -> RaftApplyState;
+  ApplyDelegate -> RaftApplyState;
+  Registration -> RaftApplyState;
+  ApplyPoller -> ApplyContext -> ExecContext;
+  ApplyFsm -> ApplyDelegate;
+  InvokeContext -> {
+    RaftLocalState;
+    RaftApplyState;
+    Region;
+  }
+  SnapState -> {
+    Relax;
+    Generating;
+    Applying;
+    ApplyAborted;
+  }
+  
+}

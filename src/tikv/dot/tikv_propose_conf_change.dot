@@ -8,7 +8,8 @@ digraph propose_conf_change {
   subgraph cluster_Raft {
     graph[label="raft-rs";fontsize=20;style="rounded,dashed";color="slategrey"]
     raft_propose_conf_change[style_func;label="{{
-      propose_conf_change
+      propose_conf_change\l|
+      向raft prpose conf change\l
     }}"]
   }
 
@@ -39,6 +40,20 @@ digraph propose_conf_change {
       propose_conf_change_internal\l
       统一处理v1/v2的change_peer\l
     }}"]
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_msgs -> propose[style_edge_data];
+    collect_ready;
+  }
+
+  subgraph cluster_RaftPoller {
+    graph[label="RaftPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_normal -> {
+      handle_msgs;
+      collect_ready;
+    }
   }
   
 }

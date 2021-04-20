@@ -1,0 +1,53 @@
+#include "styles.h"
+digraph apply_fsm_apply_snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_ApplyContext {
+    graph[label="ApplyContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    flush;
+  }
+  subgraph cluster_ApplyDelegate {
+    graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    write_apply_state;
+  }
+  subgraph cluster_GenSnapTask {
+    graph[label="GenSnapTask";fontsize=20;style="rounded,dashed";color="slategrey"]
+    generate_and_schedule_snapshot -> {
+      RegionTask_Gen;
+      region_sched_schedule;
+    };
+    region_sched_schedule[style_func;label="{{
+      region_sched.schedule|
+      向sender中发送任务|
+      由worker/region来执行\l
+    }}"]
+    RegionTask_Gen[style_func;label="{{
+      RegionTask::Gen|
+      region_id: self.region_id,\l|
+      notifier: self.snap_notifier,\l|
+      for_balance: self.for_balance,\l|
+      last_applied_index_term,\l|
+      last_applied_state,\l
+    }}"]
+    RegionTask_Gen -> region_sched_schedule[style_edge_data];
+  }
+
+  subgraph cluster_ApplyFsm {
+    graph[label="ApplyFsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_snapshot -> {
+     generate_and_schedule_snapshot;
+     need_sync;
+     flush;
+     write_apply_state;
+     snapshot;
+    }
+    need_sync -> {
+      flush;
+      write_apply_state;
+      last_sync_apply_index;
+    }[style_edge_data];
+  }
+  
+}

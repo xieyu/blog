@@ -1,0 +1,53 @@
+#include "styles.h"
+digraph worker_region_handle_gen {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_worker {
+    graph[label="worker/regin.rs/Runner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Runner[style_struct;label="{{
+      Runner|
+       pool: ThreadPool\<TaskCell\>,\l
+    }}"]
+    Runner:pool -> spawn;
+    spawn[style_func;label="{{
+      spawn|
+      在线程池中执行handle_gen\l
+    }}"]
+    run -> {
+      spawn;
+      handle_gen;
+    }
+    spawn -> handle_gen;
+    handle_gen -> {
+      generate_snap;
+      WithIOType;
+    }
+    generate_snap -> {
+      do_snapshot;
+      try_send;
+    }
+    subgraph cluster_PeerStorage {
+      graph[label="peer_storage.rs";fontsize=20;style="rounded,dashed";color="slategrey"]
+      do_snapshot;
+      do_snapshot[style_func;label="{{
+        do_snapshot|
+        生成Region的snapshot
+      }}"]
+    }
+    do_snapshot -> snap;
+    snap[style_func;label="{{
+      snap|
+      Result\<Snapshot\>\l
+    }}"]
+    snap -> try_send;
+    try_send[style_func;label="{{
+      try_send|
+      向tx发生成好的\l 
+      Result\<Snapshot\>\l\l
+    }}"]
+      
+  }
+  
+}

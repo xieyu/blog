@@ -42,6 +42,11 @@ Region信息的加载更新关系如下：
 
 ### Region信息保存：write_peer_state
 
+
+PeerFsm::create 传进去的Region是引用
+
+![](./dot/raft_poller_builder_init.svg)
+
 write_peer_state 将Region, PeerState, MergeState打包成RegionLocalState，写入kv engine.
 写入了CF_RAFT column family中。
 

@@ -148,7 +148,6 @@ digraph conf_change {
       new_change_peer_v2_request;
     } -> send_admin_request[style_edge_data];
     send_admin_request -> send_raft_command;
-    send_raft_command -> PeerFsmDelegate_handle_msgs;
   }
 
   

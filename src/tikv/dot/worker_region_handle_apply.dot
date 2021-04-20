@@ -1,0 +1,94 @@
+#include "styles.h"
+digraph handle_apply {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  handle_apply -> {
+   apply_snap;
+  }
+  subgraph cluster_SnapManager {
+    graph[label="SnapManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    register;
+    deregister;
+    get_snapshot_for_applying_to_engine;
+  }
+  get_snapshot_for_applying_to_engine -> apply[style_edge_data];
+
+  apply_snap -> {
+    region_state_key;
+    region_state;
+    get_msg_cf;
+    enc_start_key;
+    enc_end_key;
+    check_abort;
+    cleanup_overlap_ranges;
+    delete_all_in_range;
+    apply_state_key;
+    register;
+    deregister;
+    get_snapshot_for_applying_to_engine;
+    ApplyOptions;
+    apply;
+    put_msg_cf;
+    delete_cf;
+    set_state_Normal;
+    snapshot_raft_state_key;
+  }
+
+  get_msg_cf[style_func;label="{{
+    get_msg_cf|
+    从CF_RAFT中读\l 
+    state_key\l 
+    region_key\l
+    对应数据\l
+  }}"]
+
+  apply_state[style_func;label="{{
+    apply_state|
+    RaftApplyState|
+    pub applied_index: u64,\l|
+    pub commit_index: u64,\l|
+    pub commit_term: u64,\l|
+    RaftTruncatedState|
+    pub index: u64,\l|
+    pub term: u64,\l
+  }}"]
+  snap_key[style_func;label="{{
+    
+  snap_key|
+    SnapKey::new(region_id, term, idx)\l|
+    term, idx来自apply_state\l
+  }}"]
+  apply_state -> snap_key -> get_snapshot_for_applying_to_engine;
+  snapshot_raft_state_key -> delete_cf;
+  apply -> set_state_Normal[style_edge_data];
+  apply[style_func;label="{{
+    store/snap.rs\l|
+    apply|
+    将snapshot写入db中\l
+  }}"]
+
+  region_state -> set_state_Normal -> put_msg_cf[style_edge_data];
+  set_state_Normal[style_func;label="{{
+    region_state.set_state(PeerState::Normal)|
+     在apply完后，\l 
+     将Region状态设置为normal\l
+  }}"]
+  region_state -> region -> ApplyOptions;
+  ApplyOptions -> apply[style_edge_data];
+
+  put_msg_cf[style_func;label="{{
+    put_msg_cf|
+    put_msg_cf(CF_RAFT, \l 
+    &region_key, &region_state)\l
+  }}"]
+  {enc_start_key, enc_end_key} -> {cleanup_overlap_ranges; delete_all_in_range}[style_edge_data];
+
+  region_state_key -> get_msg_cf -> region_state[style_edge_data];
+  apply_state_key -> get_msg_cf -> apply_state[style_edge_data];
+
+  cleanup_overlap_ranges -> { delete_all_in_range; }
+  
+}
