@@ -1,0 +1,188 @@
+#include "styles.h"
+digraph worker_thread_run {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Runner {
+    graph[label="Runner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle;
+    end;
+    pause;
+    resume;
+    start;
+  }
+  subgraph cluster_crossbeam_deque {
+    graph[label="crossbeam-deque";fontsize=20;style="rounded,dashed";color="slategrey"]
+    steal_batch_and_pop;
+    steal_batch_and_pop[style_func;label="{{
+      steal_batch_and_pop|
+      从另一个worker的task queue中\l
+      偷一些task过来\l
+    }}"]
+  }
+
+
+  subgraph cluster_LocalQueue {
+    graph[label="LocalQueue";fontsize=20;style="rounded,dashed";color="slategrey"]
+    LocalQueue_pop -> steal_batch_and_pop;
+  }
+
+  subgraph cluster_parking_lot_core {
+    graph[label="parking_lot_core";fontsize=20;style="rounded,dashed";color="slategrey"]
+    parking_lot_core_park;
+    parking_lot_core_park[style_func;label="{{
+      park|
+      Parks the current thread\l 
+      in the queue associated\l 
+      with the given key.\l
+    }}"]
+
+    ParkToken;
+    SpinWait_spin;
+  }
+
+  subgraph cluster_QueueCore {
+    graph[label="QueueCore";fontsize=20;style="rounded,dashed";color="slategrey"]
+    mark_sleep;
+  }
+
+  subgraph cluster_Local {
+    graph[label="Local";fontsize=20;style="rounded,dashed";color="slategrey"]
+    local_pop -> LocalQueue_pop;
+    local_pop_or_sleep;
+    local_pop_or_sleep[style_func;label="{{
+      local_pop_or_sleep|
+      Pops a task from the queue\l
+      if there are no tasks at the moment\l
+      it will go to sleep until woken by\
+      other threads\l
+    }}"]
+
+    local_pop_or_sleep -> {
+      mark_sleep;
+      LocalQueue_pop;
+      parking_lot_core_park;
+      ParkToken;
+    }
+  }
+
+  subgraph cluster_WorkerThread {
+    graph[label="WorkerThread";fontsize=20;style="rounded,dashed";color="slategrey"]
+    run[style_func;label="{{
+      run|
+      WorkerThread主循环\l
+      从local/core队列中取task\l
+      然后 handle task\l
+    }}"]
+
+    pause[style_func;label="{{
+      pause|
+      调用pop_or_sleep前调用pause\l
+    }}"]
+
+    resume[style_func;label="{{
+      resume|
+      调用pop_or_sleep之后调用resume
+    }}"]
+    handle[style_func;label="{{
+      handle|
+      处理task
+    }}"]
+
+    start[style_func;label="{{
+      start|
+      在进入处理task循环前\l 
+      调用runner.start\l
+    }}"]
+    end[style_func;label="{{
+      end|
+      退出处理task循环后\l 
+      调用runner.end\l
+    }}"]
+    pop[style_func;label="{{
+      pop|
+      从队列中获取可handle的task\l
+      1.先从Local队列中获取\l
+      2.如果没有就spin wait后重新尝试\l
+      3.尝试后还没有task, 调用pop_or_sleep\l
+    }}"]
+    local_pop[style_func;label="{{
+      self.local.pop|
+      先从local队列中获取task\l
+      如果没有task\l
+      会使用SpinWait.spin等一会\l
+    }}"]
+    SpinWait_spin[style_func;label="{{
+      SpinWait::spin|
+      Spins until the sleep\l 
+      threhold has been reached
+    }}"]
+
+    run -> {
+      start;
+      pop;
+      handle;
+      end;
+    }
+    pop -> {
+      local_pop;
+      pause;
+      local_pop_or_sleep;
+      resume;
+      SpinWait_spin;
+    }
+    pop -> task -> handle[style_edge_data];
+  }
+
+  subgraph cluster_LazyBuilder {
+    graph[label="LazyBuilder";fontsize=20;style="rounded,dashed";color="slategrey"]
+    build -> {
+      thread_Builder_new;
+      thread_Builder_spawn;
+      Local_new;
+      WorkerThread_new;
+      run;
+    }
+    subgraph cluster_thread_Builder {
+      graph[label="thread::Builder";fontsize=20;style="rounded,dashed";color="slategrey"]
+      thread_Builder_new[style_func;label="{{
+        thread::Builder::new
+      }}"]
+      thread_Builder_new;
+      thread_Builder_spawn[style_func;label="{{
+        spawn|
+        生成新线程\l
+        执行WorkerThread::run\l
+      }}"]
+    }
+    thread_Builder_new -> thread_Builder_spawn -> run[style_edge_data];
+  }
+
+/*
+  subgraph cluster_Builder {
+    graph[label="Builder";fontsize=20;style="rounded,dashed";color="slategrey"]
+    freeze_with_queue[style_func;label="{{
+      freeze_with_queue|
+      Freezes the configurations\l
+      and returns the task scheduler\l
+      and builder to for lazay spawning\l
+      threads\l
+    }}"]
+    freeze_with_queue -> {
+      LazyBuilder;
+      QueueCore_new;
+      queue_build;
+    }
+    queue_build[style_func;label="{{
+      queue_build|
+      生成injector和local_queues
+    }}"]
+    build_with_queue_and_runner -> freeze_with_queue;
+    build_future_pool -> build_with_queue_and_runner;
+    build_callback_pool -> build_with_queue_and_runner;
+    build_multilevel_future_pool -> build_with_queue_and_runner;
+  }
+  */
+
+}

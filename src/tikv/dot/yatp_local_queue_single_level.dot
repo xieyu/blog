@@ -1,0 +1,70 @@
+#include "styles.h"
+digraph single_level {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  
+  subgraph cluster_crossbeam_dequeue {
+    graph[label="crossbeam_dequeue";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Injector;
+    Worker;
+    Stealer;
+    Injector[style_func;label="{{
+      Injector|
+        [`Injector`] is a FIFO queue,\l 
+        where tasks are pushed and\l 
+        stolen from opposite ends. It is\l
+        shared among threads and is \l 
+        usually the entry point for new tasks.\l
+    }}"]
+
+    Worker[style_func;label="{{
+      Worker|
+      Worker is owned by a single\l 
+      thread and supports only\l 
+      push and pop operations.\l
+    }}"]
+
+    Stealer[style_func;label="{{
+      Stealer|
+      Stealer that maybe shared among threads\l
+      and can only steal tasks from its [`Worker`]\l
+      Tasks are stolen from the end opposite to\
+      where they get pushed.\l
+    }}"]
+  }
+
+  InjectorInner[style_func;label="{{
+    InjectorInner|
+    SingleLevel(single_level::TaskInjector\<T\>),\l|
+    Multilevel(multilevel::TaskInjector\<T\>),\l
+  }}"]
+  TaskInjector[style_func;label="{{
+    TaskInjector|
+    Arc\<Injector\<T\>\>\l
+  }}"]
+  InjectorInner -> TaskInjector -> Injector;
+
+  LocalQueue[style_func;label="{{
+    LocalQueue|
+    local_queue: Worker\<T\>,\l|
+    injector: Arc\<Injector\<T\>\>,\l|
+    stealers: Vec\<Stealer\<T\>\>,\l
+  }}"]
+  LocalQueue -> {
+    Worker;
+    Injector;
+    Stealer;
+  }
+
+  LocalQueueInner[style_func;label="{{
+    LocalQueueInner|
+    SingleLevel(single_level::LocalQueue\<T\>),\l|
+    Multilevel(multilevel::LocalQueue\<T\>),\l
+  }}"]
+  LocalQueueInner-> {
+    LocalQueue;
+  }
+  
+}

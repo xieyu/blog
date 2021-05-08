@@ -1,0 +1,145 @@
+#include "styles.h"
+digraph send_snap_sock {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_snap_manager {
+    graph[label="snap_manager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    register
+    get_snapshot_for_sending[style_func;label="{{
+      get_snapshot_for_sending|
+      获取要发送的snapshot
+    }}"]
+    get_snapshot_for_sending -> {
+      Snap_new_for_sending;
+    }
+    Snap_new_for_sending[style_func;label="{{
+      Snap::new_for_sending
+    }}"]
+    Snap[style_func;label="{{
+      Snap|
+    key: SnapKey,\l|
+    display_path: String,\l|
+    dir_path: PathBuf,\l|
+    cf_files: Vec\<CfFile\>,\l|
+    cf_index: usize,\l|
+    meta_file: MetaFile,\l|
+    hold_tmp_files: bool,\l|
+    mgr: SnapManagerCore,\l
+    }}"]
+    Snap_new_for_sending -> Snap;
+  }
+  subgraph cluster_security_manager {
+    graph[label="security_manager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    connect;
+    connect[style_func;label="{{
+      connect|
+      创建和store_id addr的\l
+      grcp connection\l
+      得到grpc channel\l
+      然后用grpc channel\l
+      创建tikv client\l
+    }}"]
+  }
+
+  Snap -> SnapChunk[style_edge_data];
+  subgraph cluster_TiKV {
+    graph[label="TiKV";fontsize=20;style="rounded,dashed";color="slategrey"]
+    snapshot;
+    snapshot[style_func;label="{{
+      snapshot|
+      调用grpc snapshot接口\l
+      获取sink和reciver\l
+    }}"]
+  }
+  connect -> snapshot -> send_all[style_edge_data];
+  subgraph cluster_SnapChunk {
+    graph[label="SnapChunk";fontsize=20;style="rounded,dashed";color="slategrey"]
+    poll_next[style_func;label="{{
+      poll_next|
+      实现了Stream trait\l
+    }}"]
+    poll_next;
+    SnapChunk[style_func;label="{{
+      SnapChunk|
+    first: Option\<SnapshotChunk\>,\l|
+    <snap> snap: Box\<dyn GenericSnapshot\>,\l|
+    remain_bytes: usize,\l
+    }}"]
+    poll_next -> {
+      read_exact;
+    }
+  }
+
+  subgraph cluster_snap_worker {
+    graph[label="server/snap.rs/Runner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    start ->unbounded -> {tx, rx};
+    tx -> start_impl[style_edge_data];
+    start_impl[style_func;label="{{
+      start_impl|
+      spawn 线程，在线程中\l
+      不断的去rx中获取task\l
+      调用run执行task
+    }}"]
+    start -> start_impl -> run -> send_snap;
+    send_snap -> {
+      get_snapshot;
+      register;
+      get_snapshot_for_sending;
+      SnapChunk;
+      connect;
+      snapshot;
+      async_task;
+    }
+
+    send_snap[style_func;label="{{
+      send_snap|
+      1.创建grcp channel\l
+      2.调用snapshot获取sink和reciver\l
+      生成asycn send task\l
+    }}"]
+    pool_spawn[style_func;label="{{
+      pool.spawn(send_task)|
+      在future pool中执行async task\l
+    }}"]
+    async_task[style_func;label="{{
+      async_task|
+      send_task\l
+      1.使用sink发送所有snap数据\l
+      2.sink.close\l
+      3.recive\l
+    }}"]
+    send_all[style_func;label="{{
+      sink.send_all(chunks)|
+      SnapChunk实现了stream tait\l
+      调用它的poll_next\l
+      发送所有数据到sink\l
+    }}"]
+    async_task -> send_all;
+    async_task -> poll_next;
+    pool_spawn -> async_task[style_edge_data];
+    run -> pool_spawn;
+    SnapChunk -> send_all[style_edge_data];
+  }
+
+  subgraph cluster_RaftCall {
+    graph[label="RaftCall";fontsize=20;style="rounded,dashed";color="slategrey"]
+    send_snap_sock -> {
+      SnapTask_Send;
+      snap_scheduler_schedule;
+    }
+    snap_scheduler_schedule -> tx;
+    snap_scheduler_schedule[style_func;label="{{
+      snap_scheduler_schedule|
+      向tx发送Task\l
+    }}"]
+    SnapTask_Send[style_func;label="{{
+      SnapTask_Send|
+        发送SnapTask::Send任务\l
+    }}"]
+    SnapTask_Send-> send_snap[style_edge_data];
+  }
+  
+}

@@ -17,7 +17,6 @@ digraph MvccTxn {
   }}"]
 
   MvccTxn -> {
-    MvccReader;
     Modify;
     ConcurrencyManager;
     KeyHandleGuard;

@@ -1,0 +1,340 @@
+#include "styles.h"
+
+#define repo_url(x) URL="https://github.com/tikv/tikv/blob/eb57a2aeaeb29a49fe9c8101c8b61d4128d27110/x"
+
+digraph raft_client_send {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_LruCache {
+    graph[label="LruCache";fontsize=20;style="rounded,dashed";color="slategrey"]
+    cache_get_mut;
+    cache_remove;
+  }
+  subgraph cluster_Waker {
+    graph[label="rustlib/Waker";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //>wake.rs:205 pub fn wake(self) {#F/Users/yu.xie/.rustup/toolchains/nightly-x86_64-apple-darwin/lib/rustlib/src/rust/library/core/src/task/wake.rs#L205
+    wake[style_func;label="{{
+      wake|
+      waker.vtable.wake(self.waker.data)\l
+      vtable.wake\l 
+      是什么时候设置的呢？\l
+    }}"]
+  }
+
+  subgraph cluster_ArrayQueue {
+    graph[label="ArrayQueue";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //>array_queue.rs:53 pub struct ArrayQueue<T> {#F/Users/yu.xie/.cargo/registry/src/github.com-1ecc6299db9ec823/crossbeam-queue-0.3.1/src/array_queue.rs#L53
+    ArrayQueue[style_func;label="{{
+      ArrayQueue|
+    }}"]
+      
+  }
+  subgraph cluster_Queue {
+    graph[label="Queue";fontsize=20;style="rounded,dashed";color="slategrey"]
+    queue_push -> Queue:buf;
+    notify[style_func;label="{{
+      notify|
+      有消息来了，\l 
+      通知等待消息的\l
+    }}"]
+    notify -> wake;
+    Queue[style_struct;label="{{
+      Queue|
+       <buf> buf: ArrayQueue\<RaftMessage\>,\l|
+       connected: AtomicBool,\l|
+       waker: Mutex\<Option\<Waker\>\>,\l
+    }}"]
+  //>raft_client.rs:119 fn pop(&self, ctx: &Context) -> Option<RaftMessage> {#F/opt/github/tikv/src/server/raft_client.rs#L119
+    pop -> wake;
+    Queue:buf -> pop[style_edge_data];
+    pop[style_func;label="{{
+      pop|
+      尝试从buf中取一个msg\l
+      如果失败就设置waker\l
+    }}"]
+    Context -> pop;
+  }
+
+  subgraph cluster_grpc_sys {
+    graph[label="grpc_sys";fontsize=20;style="rounded,dashed";color="slategrey"]
+    {
+    grpc_insecure_channel_create;
+    grpc_secure_channel_create;
+    } -> Channel;
+    Channel[style_func;label="{{
+      Channel|
+    inner: Arc\<ChannelInner\>,\l|
+    cq: CompletionQueue,\l
+    }}"]
+      
+  }
+
+  subgraph cluster_ChannelBuilder {
+    graph[label="ChannelBuilder";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ChannelBuilder_new;
+    ChannelBuilder_connect;
+    ChannelBuilder_connect -> {
+      prepare_connect_args;
+      grpc_insecure_channel_create;
+    }
+    ChannelBuilder_secure_connect -> {
+      prepare_connect_args;
+      grpc_secure_channel_create;
+    }
+  }
+
+  subgraph cluster_SecurityManager {
+    graph[label="SecurityManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    manager_connect;
+    manager_connect -> {
+      ChannelBuilder_connect;
+    }
+  }
+
+  subgraph cluster_TikvClient {
+    graph[label="TikvClient";fontsize=20;style="rounded,dashed";color="slategrey"]
+    spawn -> poll;
+    TikvClient;
+    TikvClient_new;
+    TikvClient_new -> TikvClient[style_edge_data];
+  }
+
+  subgraph cluster_PdStoreAddrResolver {
+    graph[label="PdStoreAddrResolver";fontsize=20;style="rounded,dashed";color="slategrey"]
+      //>resolve.rs:172 impl StoreAddrResolver for PdStoreAddrResolver {#F/opt/github/tikv/src/server/resolve.rs#L172
+    resolver_resolve ->{
+      sched_schedule;
+    }
+    //>resolve.rs:140 pub struct PdStoreAddrResolver {#F/opt/github/tikv/src/server/resolve.rs#L140
+    PdStoreAddrResolver -> {
+      //>pool.rs:86 pub struct Scheduler<T: Display + Send> {#F/opt/github/tikv/components/tikv_util/src/worker/pool.rs#L86
+     Scheduler;
+    }
+  }
+
+  subgraph cluster_RaftCall {
+    graph[label="RaftCall";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //>raft_client.rs:392 fn fill_msg(&mut self, ctx: &Context) {#F/opt/github/tikv/src/server/raft_client.rs#L392
+    poll -> fill_msg -> pop;
+    poll -> Context;
+
+    //>raft_client.rs:754 pub struct RaftClient<S, R> {#F/opt/github/tikv/src/server/raft_client.rs#L754
+    RaftCall[style_func;label="{{
+      RaftCall|
+       sender: ClientCStreamSender\<M\>,\l|
+       receiver: ClientCStreamReceiver\<Done\>,\l|
+       <queue> queue: Arc\<Queue\>,\l|
+       buffer: B,\l|
+       router: R,\l|
+       snap_scheduler: Scheduler\<SnapTask\>,\l|
+       lifetime: Option\<oneshot::Sender\<()\>\>,\l|
+       store_id: u64,\l|
+       addr: String,\l
+    }}";]
+    RaftCall:queue -> Queue;
+  }
+
+  subgraph cluster_StreamBackEnd {
+    graph[label="StreamBackEnd";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //>raft_client.rs:510 struct StreamBackEnd<S, R> {#F/opt/github/tikv/src/server/raft_client.rs#L510
+    StreamBackEnd[style_func;label="{{
+      StreamBackEnd|
+        store_id: u64,\l|
+        queue: Arc\<Queue\>,\l|
+        builder: ConnectionBuilder\<S, R\>,\l
+    }}"]
+
+
+    //>raft_client.rs:521 fn resolve(&self) -> impl Future<Output = server::Result<String>> {#F/opt/github/tikv/src/server/raft_client.rs#L521
+    resolve[style_func;label="{{
+      resolve|
+      调用resolver获取store_id\l
+      对应的addr\l
+      使用了oneshot channel\l
+      来实现async\l
+    }}"]
+    resolve -> {
+      //>resolve.rs:172 impl StoreAddrResolver for PdStoreAddrResolver {#F/opt/github/tikv/src/server/resolve.rs#L172
+      resolver_resolve;
+      oneshot_channel;
+    }
+
+    back_end_call[style_func;label="{{
+      call
+    }}"]
+    back_end_call -> {
+      RaftCall;
+      spawn;
+    }
+
+    back_end_batch_call[style_func;label="{{
+        batch_call
+    }}";]
+
+    back_end_batch_call -> {
+      batch_raft;
+      RaftCall;
+      spawn;
+    }
+
+    back_end_connect[id="src/server/raft_client.rs#L567",
+      style_func;
+      label="{{
+        connect|
+          connect to tikv endpoint
+      }}";]
+    back_end_connect -> {
+      ChannelBuilder_new;
+      TikvClient_new;
+      manager_connect;
+    }
+
+    Channel ->TikvClient_new;
+    TikvClient -> {
+      back_end_batch_call;
+      back_end_call;
+    }[style_edge_data];
+
+    resolve -> back_end_connect -> Channel[style_edge_data];
+  }
+
+
+  subgraph cluster_RaftClient {
+    graph[label="RaftClient";fontsize=20;style="rounded,dashed";color="slategrey"]
+    send -> {
+      cache_get_mut;
+      queue_push;
+      notify;
+      dirty;
+      load_stream;
+      cache_remove;
+      full_stores_push;
+      need_flush;
+    }
+
+    send[style_func;label="{{
+      send|
+      向queue中push msg\l
+      如果full了调用 queue.notify\l
+    }}"]
+
+    //>raft_client.rs:910 pub fn flush(&mut self) {#F/opt/github/tikv/src/server/raft_client.rs#L910
+    flush[style_func;label="{{
+      flush|
+      遍历need_flush的\l 
+      store_id,conn_id\l
+      发送queue.notify\l
+    }}"]
+    flush -> {
+      //>raft_client.rs:94 fn notify(&self) {#F/opt/github/tikv/src/server/raft_client.rs#L94
+      notify;
+      need_flush;
+    }
+    need_flush -> notify[style_edge_data];
+    //>raft_client.rs:788 fn load_stream(&mut self, store_id: u64, conn_id: usize) -> bool {#F/opt/github/tikv/src/server/raft_client.rs#L788
+    load_stream[style_func;label="{{
+      load_stream|
+      loads connection from pool\l|
+      如果Pool中不存在，就创建一个\l
+      并插入pool中,key为store_id, conn_id\l
+    }}"]
+
+    load_stream -> {
+      pool_lock;
+      tombstone_stores_contains;
+      drop_pool;
+      cache_resize;
+      StreamBackEnd;
+      start;
+      future_pool_spawn_start;
+      start;
+    }
+    future_pool_spawn_start -> start[style_edge_data];
+
+    start -> {
+     maybe_backoff;
+     resolve;
+     clear_pending_message;
+     tombstone_stores_insert;
+     back_end_connect;
+     back_end_batch_call;
+     back_end_call;
+     broadcast_unreachable;
+    }
+  }
+
+  subgraph cluster_ServerTransport {
+    graph[label="ServerTransport";fontsize=20;style="rounded,dashed";color="slategrey"]
+      //>transport.rs:45 fn send(&mut self, msg: RaftMessage) -> RaftStoreResult<()> {#F/opt/github/tikv/src/server/transport.rs#L45
+    ServerTransport_send -> send;
+    //>transport.rs:56 fn flush(&mut self) {#F/opt/github/tikv/src/server/transport.rs#L56
+    ServerTransport_flush -> flush;
+    //>transport.rs:52 fn need_flush(&self) -> bool {#F/opt/github/tikv/src/server/transport.rs#L52
+    ServerTransport_need_flush -> need_flush;
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //>peer.rs:1037 fn send<T, I>(&mut self, trans: &mut T, msgs: I, metrics: &mut RaftSendMessageMetrics)#F/opt/github/tikv/components/raftstore/src/store/peer.rs#L1037
+    Peer_send -> send_raft_message;
+
+    //>peer.rs:1893 pub fn handle_raft_ready_advance<T: Transport>(#F/opt/github/tikv/components/raftstore/src/store/peer.rs#L1893
+    handle_raft_ready_advance -> Peer_send;
+
+    //>peer.rs:1585 pub fn handle_raft_ready_append<T: Transport>(#F/opt/github/tikv/components/raftstore/src/store/peer.rs#L1585
+    handle_raft_ready_append -> Peer_send;
+    send_raft_message -> ServerTransport_send;
+    send_extra_message -> ServerTransport_send;
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //>peer.rs:926 pub fn post_raft_ready_append(&mut self, ready: CollectedReady) {#F/opt/github/tikv/components/raftstore/src/store/fsm/peer.rs#L926
+    post_raft_ready_append -> handle_raft_ready_advance;
+    collect_ready -> handle_raft_ready_append;
+  }
+  
+
+  subgraph cluster_RaftPoller {
+    graph[label="RaftPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    end -> handle_raft_ready -> {
+       ServerTransport_need_flush;
+       ServerTransport_flush;
+       //>store.rs:674 .post_raft_ready_append(ready);#F/opt/github/tikv/components/raftstore/src/store/fsm/store.rs#L674
+       post_raft_ready_append;
+    }
+    pause -> {
+       ServerTransport_need_flush;
+       ServerTransport_flush;
+    }
+    handle_normal -> {
+      collect_ready;
+    }
+  }
+
+  subgraph cluster_Poller {
+    graph[label="Poller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //>batch.rs:270 fn poll(&mut self) {#F/opt/github/tikv/components/batch-system/src/batch.rs#L270
+    poller_poll[style_func;label="{{
+      poll|
+      BatchSystem Poller主循环\l
+      fetch fsm\l
+      然后在调用RaftPoller\l 
+      处理有消息的的fsm\l
+    }}"]
+    poller_poll -> {
+      fetch_fsm;
+      handle_normal;
+      end;
+      pause;
+    }
+  }
+  Server_new -> {
+    RaftClient_new;
+    ServerTransport_new;
+    ConnectionBuilder_new;
+  }
+}

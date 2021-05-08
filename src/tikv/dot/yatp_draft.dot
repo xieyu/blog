@@ -1,0 +1,289 @@
+#include "styles.h"
+digraph yatp_draft {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_crossbeam_dequeue {
+    graph[label="crossbeam_dequeue";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Injector[style_func;label="{{
+      Injector|
+      An injector queue\l
+      This is a FIFO queue\l
+      that can be share among\l
+      multiple threads\l
+    }}"]
+    Stealer;
+    Worker;
+    Worker[style_func;label="{{
+      Worker|
+    inner: Arc\<CachePadded\<Inner\<T\>\>\>,\l|
+    buffer: Cell\<Buffer\<T\>\>,\l|
+    flavor: Flavor,\l|
+    _marker: PhantomData\<*mut ()\>,
+    }}"]
+
+    Stealer[style_func;label="{{
+      Stealer|
+        inner: Arc\<CachePadded\<Inner\<T\>\>\>,\l|
+        flavor: Flavor,\l
+    }}"]
+  }
+
+  subgraph cluster_dashmap {
+    graph[label="dashmap";fontsize=20;style="rounded,dashed";color="slategrey"]
+    DashMap[style_struct;label="{{
+      DashMap|
+        DashMap is an implementation\l 
+        of a concurrent associative\l 
+        array/hashmap in Rust.\l
+    }}"]
+  }
+
+
+  Task[style_func;label="{{
+      Task|
+    status: AtomicU8,\l|
+    extras: UnsafeCell\<TaskExtras\>,\l|
+    future: UnsafeCell\<Pin\<Box\<dyn\l 
+    Future\<Output = ()\> + Send + 'static\>\>\>,\l
+  }}"]
+
+  Task -> {
+    TaskExtras;
+    Future;
+  }
+
+  TaskExtras[style_func;label="{{
+    TaskExtras|
+    extras: Extras,\l|
+    remote: Option\<WeakRemote\<TaskCell\>\>,\l
+  }}"]
+  TaskExtras -> {
+    Extras;
+    TaskCell;
+    WeakRemote;
+  }
+
+  TaskCell[style_func;label="{{
+  TaskCell|
+      pub struct TaskCell(Arc\<Task\>);\l
+  }}"]
+
+  WeakRemote[style_func;label="{{
+    WeakRemote|
+    core: Weak\<QueueCore\<T\>\>,\l
+  }}"]
+  WeakRemote -> QueueCore;
+
+
+  Extras[style_func;label="{{
+    Extras|
+    pub(crate) schedule_time: Option\<Instant\>,\l|
+    pub(crate) task_id: u64,\l|
+    pub(crate) running_time: Option\<Arc\<ElapsedTime\>\>,\l|
+    pub(crate) current_level: u8,\l|
+    pub(crate) fixed_level: Option\<u8\>,\l
+  }}"]
+
+
+
+  //queue.rs
+  QueueCore[style_func;label="{{
+    QueueCore|
+    global_queue: TaskInjector\<T\>,\l|
+    active_workers: AtomicUsize,\l|
+    config: SchedConfig,\l|
+    Every thread pool instance should\l 
+    have one and only `QueueCore`. It's\l
+    saved in an `Arc` and shared between\l 
+    all worker threads and remote handles.\l
+  }}"]
+  QueueCore -> {
+    TaskInjector;
+    SchedConfig;
+  }
+  TaskInjector[style_func;label="{{
+    TaskInjector|
+    InjectorInner\<T\>\l|
+    The injector of a task queue.\l
+  }}"]
+  TaskInjector -> InjectorInner;
+  InjectorInner[style_func;label="{{
+    InjectorInner|
+    SingleLevel(single_level::TaskInjector\<T\>),\l|
+    Multilevel(multilevel::TaskInjector\<T\>),\l
+  }}"]
+  SchedConfig[style_func;label="{{
+    SchedConfig|
+    pub max_thread_count: usize,\l|
+    pub min_thread_count: usize,\l|
+    pub max_inplace_spin: usize,\l|
+    pub max_idle_time: Duration,\l|
+    pub max_wait_time: Duration,\l|
+    pub wake_backoff: Duration,\l|
+    pub alloc_slot_backoff: Duration,\l
+  }}"]
+
+  InjectorInner -> {
+    single_level_TaskInjector;
+    multilevel_TaskInjector;
+  }
+  single_level_TaskInjector[style_func;label="{{
+    single_level::TaskInjector|
+    Arc\<Injector\<T\>\>\l
+  }}"]
+  single_level_TaskInjector -> Injector;
+
+  multilevel_TaskInjector[style_func;label="{{
+    multilevel::TaskInjector|
+    level_injectors: Arc\<[Injector\<T\>; LEVEL_NUM]\>,\l|
+    manager: Arc\<LevelManager\>,\l
+  }}"]
+
+  multilevel_TaskInjector -> {
+    Injector;
+    LevelManager;
+  }
+
+  LevelManager[style_func;label="{{
+    LevelManager|
+    level0_elapsed_us: IntCounter,\l|
+    total_elapsed_us: IntCounter,\l|
+    task_elapsed_map: TaskElapsedMap,\l|
+    level_time_threshold: [Duration; LEVEL_NUM - 1],\l|
+    level0_chance: Gauge,\l|
+    level0_proportion_target: f64,\l|
+    adjusting: AtomicBool,\l|
+    last_level0_elapsed_us: Cell\<i64\>,\l|
+    last_total_elapsed_us: Cell\<i64\>,\l
+  }}"]
+  LevelManager -> {
+    IntCounter;
+    TaskElapsedMap;
+    Gauge;
+  }
+  TaskElapsedMap[style_func;label="{{
+    TaskElapsedMap|
+    new_index: AtomicUsize,\l|
+    maps: [DashMap\<u64, Arc\<ElapsedTime\>\>; 2],\l|
+    cleanup_interval: Duration,\l|
+    last_cleanup_time: Mutex\<Instant\>,\l|
+    cleaning_up: AtomicBool,\l
+  }}"]
+  TaskElapsedMap -> DashMap;
+
+
+  //Thread pool
+  ThreadPool[style_func;label="{{
+    ThreadPool|
+    remote: Remote\<T\>,\l|
+    threads: Mutex\<Vec\<JoinHandle\<()\>\>\>,\l
+  }}"]
+  ThreadPool -> {
+    Remote;
+    JoinHandle;
+  }
+  Remote[style_func;label="{{
+    Remote|
+    pub(crate) core: Arc\<QueueCore\<T\>\>,\l
+  }}"]
+  Remote -> QueueCore;
+
+
+  //pool/worker.rs
+
+  WorkerThread -> {
+    Local;
+    Runner;
+  }
+  WorkerThread[style_func;label="{{
+    WorkerThread\<T, R\>|
+    local: Local\<T\>,\l|
+    runner: R,\l
+  }}"]
+
+
+  //pool/runer.rs
+  Runner[style_func;label="{{
+    Runner|
+    trait Runner\l
+    type TaskCell;\l|
+    fn start(&mut self, _local: &mut Local\<Self::TaskCell\>)\l|
+    fn handle(&mut self, local: &mut Local\<Self::TaskCell\>, task_cell: Self::TaskCell) -\> bool;\l|
+    fn pause(&mut self, _local: &mut Local\<Self::TaskCell\>) -\> bool\l|
+    fn resume(&mut self, _local: &mut Local\<Self::TaskCell\>)\l|
+    fn end(&mut self, _local: &mut Local\<Self::TaskCell\>)\l
+  }}"]
+
+  Runner -> TaskCell;
+  TaskCell -> Task;
+  Runner -> future_Runner[label="impl"];
+
+  future_Runner[style_func;label="{{
+    future::Runner|
+    repoll_limit: usize,\l
+  }}"]
+
+  //local
+  Local[style_func;label="{{
+    Local|
+    id: usize,\l|
+    local_queue: LocalQueue\<T\>,\l|
+    core: Arc\<QueueCore\<T\>\>,\l
+    Spawns tasks to the\l 
+    associated thread pool.\l
+  }}"]
+  Local -> {
+    LocalQueue;
+    QueueCore;
+  }
+
+  LocalQueue[style_func;label="{{
+    LocalQueue|
+      LocalQueueInner\<T\>\l
+  }}"]
+  LocalQueue -> {
+    LocalQueueInner;
+  }
+  LocalQueueInner[style_func;label="{{
+    LocalQueueInner|
+    SingleLevel(single_level::LocalQueue\<T\>),\l|
+    Multilevel(multilevel::LocalQueue\<T\>),\l
+  }}"]
+  LocalQueueInner -> {
+    single_level_LocalQueue;
+    multilevel_LocalQueue;
+  }
+
+  single_level_LocalQueue[style_func;label="{{
+    single_level::LocalQueue|
+    local_queue: Worker\<T\>,\l|
+    injector: Arc\<Injector\<T\>\>,\l|
+    stealers: Vec\<Stealer\<T\>\>,\l
+  }}"]
+  single_level_LocalQueue -> {
+    Worker;
+    Injector;
+    Stealer;
+  }
+
+  multilevel_LocalQueue[style_func;label="{{
+    multilevel::LocalQueue|
+    local_queue: Worker\<T\>,\l|
+    level_injectors: Arc\<[Injector\<T\>; LEVEL_NUM]\>,\l|
+    stealers: Vec\<Stealer\<T\>\>,\l|
+    manager: Arc\<LevelManager\>,\l
+  }}"]
+
+  multilevel_LocalQueue -> {
+    Worker;
+    Injector;
+    Stealer;
+    LevelManager;
+  }
+
+  RunnerBuilder -> Runner;
+
+}

@@ -64,6 +64,7 @@ digraph set_applied_state {
 
   subgraph cluster_PeerStorage {
     graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //pub fn set_applied_state(&mut self, apply_state: RaftApplyState) {@components/raftstore/src/store/peer_storage.rs#L834"
     set_applied_state;
     set_applied_term;
       

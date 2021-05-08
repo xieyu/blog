@@ -1,0 +1,105 @@
+#include "styles.h"
+digraph raft_client_new {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RaftClient {
+    graph[label="RaftClient";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RaftClient_new[style_func;label="{{
+      RaftClient::new
+    }}"]
+    yatp_Builder_new[style_func;label="{{
+      yatp::Builder::new|
+      创建名为raft-stream\l
+      的future_pool\l
+      max_thread_count为1\l
+    }}"]
+    RaftClient_new -> {
+      yatp_Builder_new;
+    }
+  }
+
+  subgraph cluster_server_raft_client{
+    graph[label="server/raft_client";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ConnectionBuilder_new;
+    ServerTransport_new;
+    Environment -> ConnectionBuilder_new[style_edge_data];
+  }
+  subgraph cluster_Server {
+    graph[label="Server";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Server_new[style_func;label="{{
+      Server::new
+    }}"]
+    Server_new -> {
+      ConnectionBuilder_new;
+      RaftClient_new;
+      ServerTransport_new;
+      Worker_new;
+    }
+    Worker_new[style_func;label="{{
+      Worker::new|
+      snap_worker.lazy_build()\l
+      创建snap-handler\l
+      用于处理snap\l
+      将worker的scheduler\l 
+      传给connection builder\l
+    }}"]
+    Server_new[style_func;label="{{
+      Server::new
+    }}"]
+    ConnectionBuilder_new[style_func;label="{{
+      ConnectionBuilder::new
+    }}"]
+    ServerTransport_new[style_func;label="{{
+      ServerTransport::new
+    }}"]
+    ConnectionBuilder_new -> RaftClient_new -> ServerTransport_new[style_edge_data];
+    Worker_new -> ConnectionBuilder_new;
+      
+  }
+  subgraph cluster_TiKVServer {
+    graph[label="TiKVServer";fontsize=20;style="rounded,dashed";color="slategrey"]
+      
+    //>server.rs:625 let server = Server::new(#F/opt/github/tikv/components/server/src/server.rs#L625
+    init_servers -> Server_new;
+    //>server.rs:183 fn init(mut config: TiKvConfig) -> TiKVServer<ER> {#F/opt/github/tikv/components/server/src/server.rs#L183
+    init -> {
+      EnvBuilder_new;
+      new_resolver;
+    }
+    new_resolver -> {
+      worker_start_addr_resolver;
+      PdStoreAddrResolver_new;
+    }
+    PdStoreAddrResolver_new[style_func;label="{{
+      PdStoreAddrResolver::new|
+      将addr-resolver worker的\l 
+      scheduler传给PdStoreAddrResolver\l
+    }}"]
+    worker_start_addr_resolver[style_func;label="{{
+      worker_start(addr_resolver)|
+      启动addr_resolver worker\l
+    }}"]
+    EnvBuilder_new[style_func;label="{{
+      EnvBuilder::new|
+      创建grpc 的env, cq_count为\l 
+      config.server_grpc_concurrency\l
+    }}"]
+    EnvBuilder_new -> Environment;
+    Environment[style_func;label="{{
+      Environment|
+      用于创建grpc channel\l
+    }}"]
+  }
+  subgraph cluster_server_rs {
+    graph[label="server.rs";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //>server.rs:123 let server_config = tikv.init_servers();#F/opt/github/tikv/components/server/src/server.rs#L123
+    run_tikv -> {
+      init_servers
+      //>server.rs:115 let mut tikv = TiKVServer::<$ER>::init(config);#F/opt/github/tikv/components/server/src/server.rs#L115
+      init
+    }
+  }
+  main -> run_tikv;
+}
