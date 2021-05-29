@@ -1,0 +1,208 @@
+digraph optimistic_transaction {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    DBImpl_Write[
+      shape="record";
+      label="{{
+        Write
+      }}";
+    ];
+    DBImpl_WriteWithCallback[
+      shape="record";
+      label="{{
+        WriteWithCallback
+      }}";
+    ];
+    DBImpl_WriteWithCallback -> DBImpl_Write;
+  }
+  subgraph cluster_OptimisticTransactionDB {
+    graph[label="OptimisticTransactionDB";fontsize=20;];
+    BeginTransaction[
+      shape="record";
+      label="{{
+        BeginTransaction|
+        创建一个乐观事务
+      }}";
+    ];
+    BeginTransaction -> {
+      ReinitializeTransaction;
+    }
+    ReinitializeTransaction[
+      shape="record";
+      label="{{
+        ReinitializeTransaction|
+        复用参数中传过来的事务\l
+        重新初始化\l
+      }}";
+    ];
+    GetLockBucketsSize -> bucketed_locks_;
+    LockBucket -> {
+      bucketed_locks_;
+    }
+    bucketed_locks_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        bucketed_locks_|
+          std::vector\<std::unique_ptr\<\lstd::mutex\>\>\l bucketed_locks_;
+      }}";
+    ];
+  }
+  BeginTransaction -> OptimisticTransaction;
+  ReinitializeTransaction -> OptimisticTransaction_Reinitialize;
+  tracked_keys_ -> CheckKeyForConflicts[style=dashed];
+
+  subgraph cluster_TransactionBaseImpl {
+    graph[label="TransactionBaseImpl";fontsize=20;];
+    TransactionBaseImpl_Reinitialize[
+      shape="record";
+      label="{{
+        Reinitialize
+      }}";
+    ];
+
+    TransactionBaseImpl_Reinitialize -> {
+      TransactionBaseImpl_Clear;
+      ClearSnapshot;
+    }
+    GetTrackedKeys -> tracked_keys_;
+    tracked_keys_[
+      shape="record"
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        tracked_keys_|
+          TransactionKeyMap tracked_keys_;
+      }}"
+    ];
+
+    TransactionBaseImpl_Clear[
+      shape="record";
+      label="{{
+        Clear
+      }}";
+    ];
+    TransactionBaseImpl_Clear -> tracked_keys_;
+    SetSnapshot -> SetSnapshotInternal -> snapshot_;
+    ClearSnapshot -> snapshot_;
+
+    subgraph cluster_KvOperation {
+      graph[label="KV Write 操作";fontsize=20;];
+      GetForUpdate;
+      MultiGetForUpdate;
+      Put;
+      Merge;
+      Delete;
+      {rank=same;GetForUpdate;MultiGetForUpdate;Put;Merge;Delete}
+    } -> tracked_keys_;
+  }
+
+  subgraph cluster_TransactionUtil {
+    graph[label="TransactionUtil";fontsize=20;];
+    CheckKeyForConflicts[
+      shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        CheckKeyForConflicts|
+        检查key冲突
+      }}";
+    ];
+  }
+
+  subgraph cluster_OptimisticTransaction {
+    graph[label="OptimisticTransaction";fontsize=20;];
+    OptimisticTransaction[
+      shape="record";
+      label="{{
+        OptimisticTransaction|
+        构造函数
+      }}";
+    ];
+    OptimisticTransaction -> Initialize -> SetSnapshot;
+    snapshot_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        snapshot_
+      }}";
+    ];
+
+    Commit[
+      shape="record";
+      label="{{
+        Commit|
+        有两种提交方式并行\l和串行的验证\l
+      }}";
+    ];
+    Commit -> {
+      CommitWithParallelValidate;
+      CommitWithSerialValidate;
+    }[color="#17b978"];
+
+    CommitWithParallelValidate[
+      shape="record";
+      label="{{
+        CommitWithParallelValidate|
+        并行的验证\l
+        TODO: 这块逻辑还不太明白\l
+      }}";
+    ];
+
+    CommitWithParallelValidate -> {
+      GetLockBucketsSize;
+      GetTrackedKeys;
+      LockBucket;
+      CheckKeyForConflicts;
+      DBImpl_Write;
+      TransactionBaseImpl_Clear;
+    }[color="#b83b5e"];
+
+    CommitWithSerialValidate[
+      shape="record";
+      label="{{
+        CommitWithSerialValidate|
+        串行验证，在callback中\l
+        check key的冲突\l
+      }}";
+    ];
+
+    CommitWithSerialValidate -> {
+      DBImpl_WriteWithCallback;
+      OptimisticTransactionCallback;
+      TransactionBaseImpl_Clear;
+    }[color="#3f72af"];
+
+    DBImpl_WriteWithCallback -> OptimisticTransactionCallback[style=dashed];
+    OptimisticTransactionCallback -> CheckTransactionForConflicts -> CheckKeyForConflicts;
+    CheckTransactionForConflicts -> GetTrackedKeys;
+
+    Rollback[
+      shape="record";
+      label="{{
+        Rollback|
+        事务回滚
+      }}";
+    ];
+    Rollback -> TransactionBaseImpl_Clear;
+    OptimisticTransaction_Reinitialize[
+      shape="record";
+      label="{{
+        Reinitialize
+      }}";
+    ];
+    OptimisticTransaction_Reinitialize -> {
+      TransactionBaseImpl_Reinitialize;
+      Initialize;
+    }
+  }
+
+  {rank=same;Rollback;Commit;BeginTransaction;GetForUpdate}
+}

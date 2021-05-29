@@ -1,0 +1,53 @@
+digraph bloom_filter {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Keys {
+    graph[label="Keys";fontsize=20;style=rounded];
+    key_1;
+    key_2;
+    key_i;
+    key_m;
+  };
+
+  subgraph cluster_Hashs {
+    graph[label="Hashs";fontsize=20;style=rounded];
+    hash_1;
+    hash_2;
+    hash_k;
+    hash_n;
+  };
+  subgraph cluster_Bits {
+    graph[label="Bits";fontsize=20;style=rounded];
+    bits_k[
+      shape="record";
+      label="{{
+        Bits[hash_k(key_i)] = 1
+      }}";
+    ];
+    bits_1[
+      shape="record";
+      label="{{
+        Bits[hash_1(key_i)] = 1
+      }}";
+    ];
+
+    bits_2[
+      shape="record";
+      label="{{
+        Bits[hash_2(key_i)] = 1
+      }}";
+    ];
+    bits_n[
+      shape="record";
+      label="{{
+        Bits[hash_n(key_i)] = 1
+      }}";
+    ];
+  };
+  key_i -> {hash_1;hash_2;hash_k;hash_n};
+  hash_1 -> bits_1;
+  hash_2 -> bits_2;
+  hash_k -> bits_k;
+  hash_n -> bits_n;
+}

@@ -1,0 +1,39 @@
+digraph partition_state_machine {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PartitionStateMachine {
+    graph[label="PartitionStateMachine";fontsize=20;];
+    NonExistentPartition[shape="record";
+      label="{{
+        NonExistentPartition|
+        partition不存在，或者\l 
+        创建之后又被删掉了
+      }}";
+    ];
+
+    NewPartition[shape="record";
+      label="{{
+        NewPartition|
+        parition 新建状态
+      }}";
+    ];
+    OnlinePartition[shape="record";
+      label="{{
+        OnlinePartition|
+        leader is elected
+      }}";
+    ];
+    OfflinePartition[shape="record";
+      label="{{
+        OfflinePartition|
+        partition选举好的leader挂了
+      }}";
+    ];
+
+    OfflinePartition -> NonExistentPartition;
+    NonExistentPartition -> NewPartition;
+    {NewPartition, OfflinePartition} -> OnlinePartition;
+    {NewPartition, OnlinePartition} -> OfflinePartition;
+  }
+}

@@ -1,0 +1,112 @@
+#include "styles.h"
+digraph onRegionError {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RpcContext[style_struct;label="{{
+    RpcContext|
+	    <Region> Region     RegionVerID\l|
+	    Meta       *metapb.Region\l|
+	    Peer       *metapb.Peer\l|
+	    AccessIdx  AccessIndex\l|
+	    Store      *Store\l|
+	    Addr       string\l|
+	    AccessMode AccessMode\l
+  }}"]
+  RpcContext -> onRegionError;
+  RpcContext:Region -> InvalidateCachedRegion;
+  RpcContext:Region -> RegionVerID;
+
+  RegionCache[style_struct;label="{{
+    RegionCache |
+    pdClient pd.Client\l|
+    mu struct \{\l
+      sync.RWMutex\l
+      regions map[RegionVerID]*Region\l
+      sorted *btree.BTree\l
+    \}\l
+  }}"]
+
+  Region[style_struct;label="{{
+    Region|
+    meta *metapb.Region\l|
+    <store> store      unsafe.Pointer\l|
+    <syncFlag> syncFlag   int32\l|
+    <lastAccess> lastAccess int64\l
+  }}"]
+
+  RegionVerID[style_struct;label="{{
+    RegionVerID|
+	    id      uint64\l|
+	    confVer uint64\l|
+	    ver     uint64\l
+  }}"]
+  Error[style_struct;label="{{
+    Error|
+    Message string\l|
+    <NotLeader> NotLeader *NotLeader\l|
+    EpochNotMatch         *EpochNotMatch\l|
+  }}"]
+  Error:NotLeader -> NotLeader;
+  NotLeader[style_struct;label="{{
+    NotLeader|
+    RegionId uint64\l|
+    <Leader> Leader *metapb.Peerl\|
+  }}"]
+  NotLeader -> UpdateLeader;
+  Error -> onRegionError;
+  Error -> EpochNotMatch;
+  EpochNotMatch[style_struct;label="{{
+    EpochNotMatch|
+    CurrentRegions []*metapb.Region
+  }}"]
+  EpochNotMatch -> RegionMeta;
+
+  RegionMeta[style_struct;label="{{
+    metapb.Region|
+    Id uint64\l|
+    StartKey []byte\l|
+    EndKey []byte\l|
+	  RegionEpoch *RegionEpoch\l|
+	  <Peers> Peers       []*Peer\l|
+	  EncryptionMeta\l
+  }}"]
+
+  onRegionError -> {
+    InvalidateCachedRegion;
+    UpdateLeader;
+    OnRegionEpochNotMatch;
+  }
+  InvalidateCachedRegion -> {
+    getCachedRegionWithRLock;
+    invalidate;
+  }
+  getCachedRegionWithRLock -> Region;
+  getCachedRegionWithRLock -> RegionCache;
+  invalidate -> Region:lastAccess;
+  EpochNotMatch -> OnRegionEpochNotMatch;
+
+  UpdateLeader -> {
+    switchNextTiKVPeer;
+    switchWorkLeaderToPeer;
+  }
+  switchWorkLeaderToPeer -> Region:store;
+  switchNextTiKVPeer -> Region:store;
+
+
+  OnRegionEpochNotMatch -> {
+    findElectableStoreID;
+    switchWorkLeaderToPeer;
+    insertRegionToCache;
+    invalidate;
+  }
+  insertRegionToCache -> RegionCache;
+  Region:meta -> RegionMeta;
+  invalidate[style_func;label="{{
+    invalidate|
+    将lastAccess设置为无效的\l
+    这样会影响checkRegionCacheTTL\l
+  }}"]
+}

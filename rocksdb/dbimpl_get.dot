@@ -1,0 +1,352 @@
+digraph dbimpl_get {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_FilterBlockReader {
+    graph[label="FilterBlockReader";fontsize=20;];
+    FilterBlockReader;
+    FilterBlockReader_KeyMayMatch;
+    FilterBlockReader_KeyMayMatch[
+      shape="record"
+      label="{{
+        FilterBlockReader_KeyMayMatch|
+        KeyMayMatch\l
+        快速排查key不存在的情况\l
+        避免接着后续不必要的查询\l
+      }}"
+    ];
+  }
+  subgraph cluster_DataBlockIter {
+    graph[label="DataBlockIter";fontsize=20;];
+    DataBlockIter_SeekForGet;
+    DataBlockIter_SeekForGet -> SeekForGetImpl;
+    SeekForGetImpl -> {
+      ExtractUserKey;
+      data_block_hash_index_Loopup
+      Seek;
+      SeekToRestartPoint;
+      GetRestartPoint;
+      Compare;
+      ExtractValueType;
+    }
+    Seek -> {
+      PrefixSeek;
+      BinarySeek;
+      SeekToRestartPoint;
+      ParseNextIndexKey;
+      Compare;
+    }
+  }
+
+  subgraph cluster_BlockBasedTable {
+    graph[label="BlockBasedTable";fontsize=20;];
+    BlockBasedTable_Get[
+      shape="record"
+      label="{{
+        Get|
+        1.通过bloom filter \l 快速排出key不存在的情况\l
+        2.通过indexIter\l 找到对应的datablock\l
+      }}"
+    ];
+    BlockBasedTable_Get -> {
+      FilterBlockReader;
+      BlockCacheLookupContext;
+      FullFilterKeyMayMatch;
+      PrefetchIndexAndFilterBlocks;
+      NewIndexIterator;
+      ExtractUserKeyAndStripTimestamp;
+      FilterBlockReader_KeyMayMatch;
+      BlockCacheLookupContext;
+      MarkKeyMayExist;
+      DataBlockIter_SeekForGet;
+    }
+    BlockBasedTableFactory_NewTableReader[
+      shape="record"
+      label="{{
+        NewTableReader|
+        新建block reader\l
+      }}"
+    ];
+    BlockBasedTable_Open[
+      shape="record"
+      label="{{
+        Open|
+        打开sstable文件\l
+        读取各种index到内存中\l
+        首先读取footer\l
+        然后根据footer中信息\l 
+        读取metadata和index\l
+      }}"
+    ];
+    BlockBasedTableFactory_NewTableReader -> BlockBasedTable_Open;
+    BlockBasedTable_Open -> {
+      ReadFooterFromFile;
+      ReadMetaIndexBlock;
+      ReadPropertiesBlock;
+      ReadRangeDelBlock;
+      PrefetchIndexAndFilterBlocks;
+    };
+  }
+
+  subgraph cluster_TableReader {
+    graph[label="TableReader";fontsize=20;];
+    TableReader_Get -> {
+      BlockBasedTable_Get;
+    };
+  }
+  subgraph cluster_Cache {
+    graph[label="Cache";fontsize=20;];
+    Cache_Lookup;
+    Cache_Insert;
+  }
+  subgraph cluster_FileName {
+    graph[label="FileName";fontsize=20;];
+    TableFileName[
+      shape="record"
+      label="{{
+        TableFileName|
+        返回文件名\l
+      }}"
+    ];
+  }
+
+  subgraph cluster_TableCache {
+    graph[label="TableCache";fontsize=20;];
+    TableCache_Get[
+      shape="record"
+      label="{{
+        Get|
+        查找key
+      }}"
+    ];
+    TableCache_Get -> {
+      NeedToReadSequence;
+      ExtractUserKey;
+      CreateRowCacheKeyPrefix;
+      GetFromRowCache;
+      FindTable;
+      GetTableReaderFromHandle;
+      NewRangeTombstoneIterator;
+      TableReader_Get;
+      row_cache_Insert;
+    };
+    FindTable[
+      shape="record"
+      label="{{
+        FindTable|
+        先从cache中查找，失败的话\l
+        GetTableReader去加载table的\l 
+        index和bloomfiler\l
+        然后插到Cache中\l
+      }}"
+    ];
+    GetSliceForFileNumber[
+      shape="record"
+      label="{{
+        GetSliceForFileNumber|
+        sstable file在cache中的Key\l
+      }}"
+    ];
+
+    FindTable -> {
+      Cache_Lookup;
+      Cache_Insert;
+      GetTableReader;
+      GetSliceForFileNumber;
+    };
+
+    GetTableReader[
+      shape="record"
+      label="{{
+        GetTableReader|
+        打开sstable文件\l
+        创建TableReader\l
+      }}"
+    ];
+    BlockBasedTableFactory_NewTableReader -> TableReader_Get[style=dashed];
+
+    GetTableReader -> {
+      TableFileName;
+      NewRandomAccessFile;
+      Rocks2LevelTableFileName;
+      RandomAccessFileReader;
+      BlockBasedTableFactory_NewTableReader;
+    };
+    TableFileName[
+      shape="record"
+      label="{{
+        TableFileName|
+        根据FileNumer和cf_paths\l
+        获取文件名\l
+      }}"
+    ];
+    Rocks2LevelTableFileName[
+      shape="record"
+      label="{{
+        Rocks2LevelTableFileName|
+        ?
+      }}"
+    ];
+    NewRandomAccessFile[
+      shape="record"
+      label="{{
+        NewRandomAccessFile|
+        打开随机读文件\l
+        供后面的TableReader使用\l
+        读取index block和datablock等\l
+      }}"
+    ];
+    {Cache_Insert;Cache_Lookup} -> GetTableReaderFromHandle[style=dashed];
+
+    GetFromRowCache -> {
+      row_cache_Loopup;
+    }
+  }
+  subgraph cluster_FilePicker {
+    graph[label="FilePicker";fontsize=20;];
+    FilePicker_ctor;
+    FilePicker_GetCurrentLevel;
+    FilePicker_IsHitFileLastInLevel;
+
+    FilePicker_GetNextFile -> {
+      PrepareNextLevel;
+      GetNextFileInLevelWithKeys;
+      MultiGetRange;
+    }
+  }
+
+  subgraph cluster_Version {
+    graph[label="Version";fontsize=20;];
+    Version_Get[
+      shape="record"
+      label="{{
+        Get|
+        从Version中查找\l
+        根据versionStorageInfo中信息\l
+        首先定位到相应的FileMetaData\l
+        然后调用相应的TableCache查找该key\l
+      }}"
+    ];
+
+    Version_Get -> {
+      get_context;
+      StartPinning;
+      FilePicker_ctor;
+      FilePicker_GetNextFile;
+      FilePicker_GetCurrentLevel;
+      FilePicker_IsHitFileLastInLevel;
+      TableCache_Get;
+    };
+    storage_info_ -> FilePicker_ctor[style=dashed]
+    storage_info_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        storage_info_|
+        VersionStorageInfo storage_info_\l
+      }}"
+    ];
+    VersionStorageInfo[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=record;
+      label="VersionStorageInfo\l|
+        std::vector\<FileMetaData*\>* files_
+      "
+    ];
+    storage_info_ ->VersionStorageInfo;
+  }
+
+  subgraph cluster_SuperVersion {
+    graph[label="SuperVersion";fontsize=20;];
+    super_version_mem_Get[
+      shape="record"
+      label="{{
+        mem_Get|
+        1.从mem中查找key
+      }}"
+    ];
+    super_version_imm_Get[
+      shape="record"
+      label="{{
+        super_version_imm_Get|
+        2.从ImmList中查找key
+      }}"
+    ];
+    super_version_current_Get[
+      shape="record"
+      label="{{
+        current_version_Get|
+        3.从当前的version中查找key
+      }}"
+    ];
+    super_version_mem_Get -> SuperVersion:mem;
+    super_version_imm_Get -> SuperVersion:imm;
+    super_version_current_Get -> {
+      SuperVersion:current;
+      Version_Get;
+    }
+
+    SuperVersion[
+      shape="record"
+      label="{{
+        SuperVersion|
+          ColumnFamilyData* cfd;\l|
+          <mem> MemTable* mem;\l|
+          <imm> MemTableListVersion* imm;\l|
+          <current> Version* current;\l|
+          MutableCFOptions mutable_cf_options;\l|
+          uint64_t version_number;\l|
+          WriteStallCondition write_stall_condition;\l|
+          InstrumentedMutex* db_mutex;\l
+      }}"
+    ];
+  }
+
+  subgraph cluster_VersionSet {
+    graph[label="VersionSet";fontsize=20;];
+    LastSequence;
+    LastPublishedSequence;
+  }
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    subgraph cluster_GetImplOptions {
+      graph[label="GetImplOptions";fontsize=20;];
+      get_impl_options_column_family;
+      
+    }
+    Get -> GetImpl -> {
+      get_impl_options_column_family;
+      GetAndRefSuperVersion;
+      versions_;
+      LastSequence;
+      LastPublishedSequence;
+      LookupKey;
+      GetComparator;
+      super_version_mem_Get;
+      super_version_imm_Get;
+      super_version_current_Get;
+    };
+
+    GetAndRefSuperVersion -> GetThreadLocalSuperVersion;
+    GetThreadLocalSuperVersion -> {
+      local_sv_;
+      AddSuperVersionsToFreeQueue;
+      SchedulePurge;
+    }
+
+    local_sv_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        local_sv_|
+        std::unique_ptr\<ThreadLocalPtr\> local_sv_
+      }}"
+    ];
+  }
+}

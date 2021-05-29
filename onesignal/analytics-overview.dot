@@ -1,0 +1,223 @@
+digraph analytics_overview {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Analytics -> {
+    Subscriptions
+    Device;
+    Notification;
+    PromptImpression;
+  }
+  Analytics[
+    shape="record"
+    label="{{
+      Analytics|
+      数据分析
+    }}"
+  ];
+  subgraph cluster_Subscriptioni {
+    graph[label="Subscriptioni";fontsize=20;];
+    Subscriptions[
+      shape="record"
+      label="{{
+        Subscriptions|
+        跟踪用户注册和流失
+      }}"
+    ];
+    SubscribeInGivenPeroid[
+      shape="record"
+      label="{{
+        SubscribeInGivenPeroid|
+        分析指定周期内的注册/流失
+      }}"
+    ];
+    OneSignalSdkSubscriptionChange[
+      shape="record"
+      label="{{
+        OneSignalSdkSubscriptionChange|
+        OneSignalSDK带了注册/注销事件\l
+        根据这个分析\l
+      }}"
+    ];
+
+    Subscriptions -> {
+      OneSignalSdkSubscriptionChange;
+      SubscribeInGivenPeroid;
+      TotalSubscriberCount;
+      RollingSubscriberCount;
+    }
+
+    SubscribeInGivenPeroid -> {
+      first_session;
+      created_at;
+    }
+
+    OneSignalSdkSubscriptionChange -> {
+      subscribeEvent;
+      unsubscribeEvent;
+    }
+  }
+
+  subgraph cluster_Device {
+    graph[label="Device";fontsize=20;];
+    Device[
+      shape="record"
+      label="{{
+        Device|
+        设备信息统计
+      }}"
+    ];
+    Device -> {
+      game_version;
+      device_os;
+      device_type;
+      device_model;
+    }
+    game_version[
+      shape="record"
+      label="{{
+        game_version|
+        应用版本号
+      }}"
+    ];
+    game_version -> {
+      versionCode;
+      kCFBundleVersionKey;
+    }
+    device_type -> {
+      iOS;
+      Android;
+      ChromeWebPush;
+    };
+    device_model[
+      shape="record"
+      label="{{
+        device_model|
+        Device Hardware String Code
+      }}"
+    ];
+  }
+
+  subgraph cluster_Notification {
+    graph[label="Notification";fontsize=20;];
+    Notification[
+      shape="record"
+      label="{{
+        Notification|
+        通知效果统计
+      }}"
+    ];
+    Notification -> {
+      OneSignalNotificationEvents;
+      GoogleAnalyticsForFireBase;
+      GoogleAnalytics;
+      WebHooks;
+      notificationStat;
+    }
+    notificationStat -> {
+      clicked;
+      sent;
+      outcome;
+    }
+    clicked[
+      shape="record"
+      label="{{
+        clicked|
+        通知点击率
+      }}"
+    ];
+    sent[
+      shape="record"
+      label="{{
+        sent|
+        是否已发送
+      }}"
+    ];
+    outcome[
+      shape="record"
+      label="{{
+        outcome|
+        收益
+      }}"
+    ];
+
+    OneSignalNotificationEvents[
+      shape="record"
+      label="{{
+        OneSignalNotificationEvents|
+        app收到notification时候的回调\l
+        由app自己决定怎么处理
+      }}"
+    ];
+
+    GoogleAnalyticsForFireBase -> {
+      event_name;
+      firebase_params;
+    }
+    event_name -> {
+      os_notification_opened;
+      os_notification_received;
+      os_notification_influence_open;
+    };
+    os_notification_opened[
+      shape="record"
+      label="{{
+        os_notification_opened|
+        A OneSignal notification was opened
+      }}"
+    ];
+    os_notification_received[
+      shape="record"
+      label="{{
+        os_notification_received|
+        A OneSignal notification was \l 
+        received. (Android Only)
+      }}"
+    ];
+    os_notification_influence_open[
+      shape="record"
+      label="{{
+        os_notification_influence_open|
+        An application was opened within 2 \l 
+        minutes of a OneSignal notification \l 
+        being received.\l
+      }}"
+    ];
+    firebase_params -> {
+      source;
+      medium;
+      notification_id;
+      campaign;
+    }
+    campaign[
+      shape="record"
+      label="{{
+        campaign|
+        Campaigns are a way to group notifications\l 
+        that are similar, such as notifications\l 
+        using the same template or title.\l
+      }}"
+    ];
+  }
+
+  subgraph cluster_Prompt {
+    graph[label="Prompt";fontsize=20;];
+    PromptImpression -> {
+      SlidePrompt;
+      NativeBrowerPrompt;
+    }
+    SlidePrompt -> {
+      popoverShown;
+      popoverAllowClick;
+      popoverCancelClick;
+      popoverClosed;
+    }
+    NativeBrowerPrompt -> {
+      allow;
+      deny;
+      closed;
+    }
+  }
+
+}

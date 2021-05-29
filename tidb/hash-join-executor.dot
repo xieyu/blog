@@ -1,0 +1,142 @@
+digraph hash_join_exeuctor {
+  node[shape=box;];
+  newrank=true;
+  rankdir=TD;
+
+  HashJoinExec_Next -> fetchAndBuildHashTable[label="go util.WithRecovery"];
+  HashJoinExec_Next -> {
+    fetchAndProbeHashTable;
+  }
+
+  //channels
+  joinResultCh[fillcolor="#95e1d3";style=filled;label="joinResultCh\l存放结果channel"]
+  buildSideResultCh[fillcolor="#95e1d3";style=filled;shape="box3d"];
+  probeResultChs[fillcolor="#95e1d3";style=filled;shape="box3d";label="probeResultChs"];
+  joinChkResourceCh[fillcolor="#95e1d3";style=filled;shape="box3d";label="joinChkResourceCh[WokrerID]"];
+
+  // goroutines
+  fetchAndBuildHashTable[
+    fillcolor="#f38181";
+    style=filled;
+    shape="doublecircle";
+    label="fetchAndBuildHashTable\l读取Inner表数据\l并根据Inner表构造哈希表"
+  ];
+  fetchBuildSideRows[
+    fillcolor="#f38181";
+    style=filled;
+    shape="doublecircle";
+    label="fetchBuildSideRows"
+  ];
+  fetchProbeSideChunks[
+    fillcolor="#f38181";
+    style=filled;
+    shape="doublecircle";
+    label="fetchProbeSideChunks"
+  ];
+  runJoinWorker[
+    fillcolor="#f38181";
+    style=filled;
+    shape="doublecircle";
+    label="runJoinWorker"
+  ];
+
+  waitJoinWorkersAndCloseResultChan -> {
+    handleUnmatchedRowsFromHashTableInDisk;
+    handleUnmatchedRowsFromHashTableInMemory;
+  }
+  runJoinWorker -> getNewJoinResult;
+
+  handleUnmatchedRowsFromHashTableInMemory -> getNewJoinResult;
+  handleUnmatchedRowsFromHashTableInDisk -> getNewJoinResult;
+  getNewJoinResult -> joinChkResourceCh[label="获取Jion结果"];
+
+  subgraph cluster_datasource {
+    graph[label="datasource\l数据源";fontsize=20;style=filled;fillcolor="#eaffd0"];
+    buildSideExec_Next;
+    probeSideExec_Next;
+    distsql;
+    tikv;
+  }
+
+  HashJoinExec_Next -> joinResultCh[label="拉取数据";color="#f38181"];
+
+  fetchAndBuildHashTable -> {
+    buildHashTableForList;
+  }
+
+
+  buildHashTableForList -> buildSideResultCh[label="取inner数据"];
+  fetchAndBuildHashTable -> fetchBuildSideRows[label="go"];
+  fetchAndBuildHashTable -> buildSideResultCh[label="等待"];
+  fetchBuildSideRows -> buildSideResultCh[label="放inner表chunk数据"];
+  fetchBuildSideRows -> {buildSideExec_Next;}
+
+
+  fetchAndProbeHashTable -> {
+    fetchProbeSideChunks;
+    waitJoinWorkersAndCloseResultChan;
+  }
+  rowContainer[label="HashJoinExec.rowContainer"];
+  buildHashTableForList -> NewConcurrentBitmap;
+  buildHashTableForList ->  newHashRowContainer -> rowContainer;
+  buildHashTableForList -> rowContainer[label="PutChunkSelected"];
+
+  runJoinWorker -> {
+    join2ChunkForOuterHashJoin;
+    join2Chunk;
+    joinChkResourceCh;
+    joinResultCh;
+  };
+  subgraph cluster_hashRowContainer {
+    graph[label="hashRowContainer";fontsize=20;style=rounded];
+    rowContainer;
+    GetMatchedRowsAndPtrs;
+    GetMatchedRowsAndPtrs -> matchJoinKey;
+    matchJoinKey -> EqualChunkRow;
+  }
+
+  fetchAndProbeHashTable -> runJoinWorker[label="go routine"];
+  fetchAndProbeHashTable -> fetchProbeSideChunks[label="go routine"];
+  fetchProbeSideChunks -> probeResultChs[label="put数据"];
+  fetchProbeSideChunks -> probeSideExec_Next[label="Next取数据"];
+
+  joinChkResourceCh[shape="box3d"];
+  joinResultCh[shape="box3d"];
+  probeResultChs[shape="box3d"];
+
+  runJoinWorker -> probeResultChs[label="取数据WorkerID"];
+  join2ChunkForOuterHashJoin -> {
+    joinMatchedProbeSideRow2ChunkForOuterHashJoin;
+    HashChunkColumns;
+  }
+  join2Chunk -> {
+    VectorizedFilter;
+    HashChunkSelected;
+    joinMatchedProbeSideRow2Chunk;
+  }
+  joinMatchedProbeSideRow2Chunk -> {
+    GetMatchedRowsAndPtrs;
+    onMissMatch;
+    NewIterator4Slice;
+    tryToMatchInners;
+  }
+  joinMatchedProbeSideRow2Chunk -> joinResultCh[label="放结果"];
+  joinMatchedProbeSideRow2ChunkForOuterHashJoin -> {
+    GetMatchedRowsAndPtrs;
+    tryToMatchOuters;
+  }
+  joinMatchedProbeSideRow2ChunkForOuterHashJoin  -> joinResultCh[label="放结果"];
+  joinMatchedProbeSideRow2ChunkForOuterHashJoin -> rowContainer[label="GetMatchedRowsAndPtrs"];
+
+  subgraph cluster_joiner {
+    graph[label="joiner interface";fontsize=20;style=rounded];
+    tryToMatchInners;
+    tryToMatchOuters;
+    onMissMatch;
+  }
+  buildSideExec_Next[label="buildSideExec_Next\l去tikv取build表数据"];
+  probeSideExec_Next[label="probeSideExec_Next\l去tikv取probe表数据"];
+
+  {buildSideExec_Next, probeSideExec_Next} -> distsql -> tikv;
+
+}

@@ -1,0 +1,76 @@
+digraph aggregation_eliminate {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  node[shape=record;style=filled;fillcolor="turquoise"];
+  LogicalProjection;
+  Schema[
+    shape="record";
+    label="{{
+      Schema|
+	    Columns []*Column\l|
+	    <Keys> Keys    []KeyInfo\l|
+      Keys unique key information\l|
+      agg.children[0].Schema().Keys
+    }}"];
+  coveredByUniqueKey;
+  node[shape=box;style=stroke;];
+
+  tryToEliminateAggregation[
+    shape="record";
+    label="{{
+      tryToEliminateAggregation|
+      eliminate aggregation \l 
+      grouped by unique key\l
+    }}"];
+  ConvertAggToProj[
+    shape="record";
+    label="{{
+      ConvertAggToProj|
+      convert aggregation to projection\l
+    }}"];
+  rewriteExpr[
+    shape="record";
+    label="{{
+      rewriteExpr|
+      rewite the aggregate function\l
+      to expression doesn't contain\l
+      agggregate function\l
+    }}"];
+  ColumnsIndices[
+    shape="record";
+    label="{{
+      ColumnsIndices|
+      return a slice which contains the\l
+      position of each column in schema\l
+    }}"];
+  GetGroupByCols[
+    shape="record";
+    label="{{
+      GetGroupByCols|
+      return columns that aree group-by items\l
+      group by a, b, c+d will return [a,b]\l
+    }}"];
+
+
+  optimize -> {
+    child_optimize;
+    tryToEliminateAggregation;
+  }
+  tryToEliminateAggregation -> {
+    ConvertAggToProj;
+    GetGroupByCols;
+    ColumnsIndices;
+    Schema:Keys;
+  }
+  ConvertAggToProj ->{
+    LogicalProjection;
+    rewriteExpr;
+  }
+  edge[style=dashed];
+  GetGroupByCols -> ColumnsIndices -> coveredByUniqueKey;
+  Schema -> coveredByUniqueKey;
+  coveredByUniqueKey -> ConvertAggToProj;
+}

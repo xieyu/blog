@@ -1,0 +1,204 @@
+digraph channelManager {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_controllerContext {
+    graph[label="controllerContext";fontsize=20;style=rounded];
+    liveOrShuttingDownBrokers;
+    
+  };
+
+  subgraph cluster_RequestSendThread{
+    graph[label="RequestSenderThread";fontsize=20;style=rounded];
+    newRequestSendThread;
+    subgraph cluster_networkClient {
+      graph[label="networkClient";fontsize=20;style=rounded];
+      newClientRequest;
+      sendAndReceive;
+      sendAndReceive[
+        shape="record";
+        label="{{
+          sendAndReceive|
+          通过网络发送\l具体请求\l
+        }}";
+      ];
+    };
+    BlockingQueue[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        BlockingQueue|
+        每个发送线程\l对应的消息队列\l
+      }}";
+    ];
+    doWork[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        doWork|
+        不断从blocking队列中取消息\l 
+        然后发送给broker\l
+        收到broker回调后调用\l 
+        sendRequest设定的callback\l
+      }}";
+    ];
+    doWork -> {
+      queue_take;
+      newClientRequest;
+      sendAndReceive;
+      callback;
+    }
+    queue_take[
+      shape="record";
+      label="{{
+        queue_take|
+        从队列中取消息\l
+      }}";
+    ];
+    queue_take -> BlockingQueue;
+  };
+  callback -> sendEvent;
+
+  subgraph cluster_ControllerChannelManager {
+    graph[label="ControllerChannelManager";fontsize=20;style=rounded];
+    startup -> {
+      addNewBroker;
+      liveOrShuttingDownBrokers;
+      startRequestSendThread;
+    }
+    startRequestSendThread -> doWork[style=dashed];
+    addBroker -> {
+      addNewBroker;
+      startRequestSendThread;
+    }
+    addNewBroker -> {
+      clientChannelBuilder;
+      newNetWorkClient;
+      newRequestSendThread;
+      newLinkedBlockingQueue;
+    }
+    removeBroker -> {
+      removeExistingBroker;
+    };
+    sendRequest -> BlockingQueue;
+    sendRequest[
+      shape="record";
+      label="{{
+        sendRequest|
+        找到broker对应的queue,\l 
+        然后将请求以及收到\l 
+        响应后的callback\l 
+        放入队列中\l
+      }}";
+    ];
+    subgraph cluster_ControllerBrokerRequestBatch {
+      graph[label="ControllerBrokerRequestBatch";fontsize=20;style=rounded];
+      batch_sendRequest[label="sendRequest"];
+      sendRequestsToBrokers -> {
+        sendLeaderAndIsrRequest;
+        sendUpdateMetadataRequest;
+        sendStopReplicaRequests;
+      } -> {
+        batch_sendRequest;
+        sendEvent
+      }
+      sendLeaderAndIsrRequest -> {
+        batch_sendRequest;
+        sendEvent;
+      };
+      sendEvent[
+        shape="record";
+        label="{{
+          sendEvent|
+          设定请求返回的回调\l
+          请求返回后调用sendEvent\l
+          扔到controller的EventManager中\l
+        }}";
+      ];
+    };
+    batch_sendRequest -> sendRequest;
+  };
+
+  subgraph cluster_Controller {
+    graph[label="Controller";fontsize=20;style=rounded];
+    brokerChangeHandler -> processBrokerChange -> {
+      removeBroker;
+      addBroker;
+    }
+    onControllerFailover -> startup;
+    controller_sendUpdateMetadataRequest[
+      shape="record";
+      label="{{
+        sendUpdateMetadataRequest
+      }}";
+    ];
+    controller_sendUpdateMetadataRequest -> sendRequestsToBrokers
+
+    subgraph cluster_PartitionStateMachine {
+      graph[label="PartitionStateMachine";fontsize=20;style=rounded];
+      pm_handleStateChanges[
+        shape="record";
+        label="{{
+          handleStateChanges;|
+          分区状态更改\l
+        }}";
+      ];
+    };
+    subgraph cluster_ReplicaStateMachine {
+      graph[label="ReplicaStateMachine";fontsize=20;style=rounded];
+      rm_handleStateChanges[
+        shape="record";
+        label="{{
+          handleStateChanges;|
+          副本状态更改\l
+        }}";
+      ];
+    };
+    process[
+      shape="record";
+      label="{{
+        process|
+        controller的process函数，\l 
+        分发处理各种事件\l
+      }}";
+    ];
+    process -> {
+      processLeaderAndIsrResponseReceived;
+      processUpdateMetadataResponseReceived;
+      processTopicDeletionStopReplicaResponseReceived;
+    };
+    ControllerEventThread -> process;
+    subgraph cluster_EventManager {
+      graph[label="EventManager";fontsize=20;style=rounded];
+      eventManager_put[
+        shape="record";
+        label="{{
+          eventManager.put|
+          将事件放入队列中
+        }}";
+      ];
+      queuedEvent[
+        fillcolor="#95e1d3";
+        style=filled;
+        shape="box3d";
+        label="queuedEvent"
+      ];
+      ControllerEventThread -> queuedEvent;
+      eventManager_put -> queuedEvent;
+      ControllerEventThread[
+        fillcolor="#f38181"
+        style=filled;
+        shape="record";
+        label="{{
+          ControllerEventThread|
+          从event队列中取出event\l
+          调用相应的processor
+        }}";
+      ];
+    };
+    {rm_handleStateChanges; pm_handleStateChanges } -> sendRequestsToBrokers;
+  };
+  sendEvent -> eventManager_put;
+}

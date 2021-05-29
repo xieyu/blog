@@ -1,0 +1,117 @@
+#include "styles.h"
+digraph resolveLocksForWriteAsyncCommit {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  //resolveLocks -> {
+  //  resolve;
+  //}
+  //resolve -> {
+  //  getTxnStatusFromLock;
+  //  resolveLockAsync;
+  //}
+  resolveLockAsync -> resolve_force_sync;
+  //getTxnStatusFromLock -> TxnStatus -> resolveLockAsync[style_edge_data];
+  CmdCheckSecondaryLocks -> RegionErr -> GroupKeysByRegion[style_edge_data];
+  RegionErr[style_func;label="{{
+    RegionErr|
+    region信息发生了变动\l
+    需要重新赞找region分组\l
+  }}"]
+  RegionErr ->  checkSecondaries_recursive;
+  checkSecondaries_recursive[style_func;label="{{
+    checkSecondaries_recursive|
+    递归调用checkSecondaries\l
+    在新的按region分组的\l 
+    重新check一遍\l
+  }}"]
+  {rank=same;checkSecondaries;checkSecondaries_recursive};
+
+  //TxnStatus[style_func;label="{{
+  //  TxnStatus|
+	//   ttl         uint64\l|
+	//   commitTS    uint64\l|
+	//   action      kvrpcpb.Action\l|
+	//   primaryLock *kvrpcpb.LockInfo\l
+  //}}"]  
+  resolve_force_sync;
+
+  resolveLockAsync -> {
+    checkAllSecondaries;
+    GroupKeysByRegion;
+    resolveRegionLocks;
+  }
+  GroupKeysByRegion[style_func;label="{{
+    GroupKeysByRegion|
+    按照key的region\l 
+    将secondary keys分区\l
+  }}"]
+  resolveRegionLocks[style_func;label="{{
+    resolveRegionLocks|
+    启动go routine\l 
+    并发的调用\l
+    resolveRegionLocks\l|
+    resolve all keys in the same \l
+    region at same time;\l
+  }}"]
+
+  resolveData[style_func;label="{{
+    resolveData|
+    asyncResolveData\l|
+    mutex sync.Mutex\l
+	  commitTs    uint64\l|
+	  keys        [][]byte\l|
+	  missingLock bool\l
+  }}"]
+  GroupKeysByRegion -> resolveRegionLocks[style_edge_data];
+  resolve_force_sync[style_func;label="{{
+    resolve|
+    如果有报错使用\l 
+    force sync形式重新resolve lock\l
+  }}"]
+  checkAllSecondaries[style_func;label="{{
+    checkAllSecondaries|
+    checks the Secondaries locks of\l
+    an async commit transaction to find out\l
+    the final status of the transaction\l|
+    对于每个region启动\l 
+    一个goroutine\l
+    执行checkSecondaries\l
+  }}"]
+  secondary_GroupKeysByRegion -> checkSecondaries;
+  secondary_GroupKeysByRegion[style_func;label="{{
+    GroupKeysByRegion|
+    把secondary keys 按照region分组\l
+  }}"]
+  checkSecondaries[style_func;label="{{
+    checkSecondaries|
+    将结果放入resolveData中\l
+  }}"]
+  checkAllSecondaries -> secondary_GroupKeysByRegion;
+  checkSecondaries -> addKeys -> resolveData [style_edge_data];
+  checkAllSecondaries -> checkSecondaries;
+  checkSecondaries -> CmdCheckSecondaryLocks;
+  CmdCheckSecondaryLocks[style_func;label="{{
+    CmdCheckSecondaryLocks|
+    Check secondary locks of an\l
+    async commit transaction\l
+    if all prewritten locks exist\l
+    the lock information is returned\l
+    Otherwise it return the commit\l
+    timestamp of the transaction\l
+  }}"]
+  
+  addKeys[style_func;label="{{
+    addKeys|
+    将resp中lock信息\l 
+    放入resolveData中\l
+  }}"]
+
+  resolveLockAsync[style_func;label="{{
+    resolveLockAsync|
+    1. 调用checkAllSecondaries 获取TxnStatus\l
+    2. 对于每个region启动goroutine, 调用resolveRegionLocks\l
+  }}"]
+}

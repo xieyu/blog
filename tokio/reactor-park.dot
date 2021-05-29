@@ -1,0 +1,49 @@
+digraph reactorpark {
+  node[shape=box;style="rounded"];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_park {
+    graph[label="park";fontsize=20;]
+    unpark;
+    park;
+    park_timeout;
+  }
+
+  subgraph cluster_reactor {
+    graph[label="Reactor";fontsize=20;]
+
+    subgraph cluster_Inner {
+      graph[label="Inner";fontsize=12;];
+      mio_io[label="mio:poll"];
+      inner_wakeup[label="mio::SetReadiness"];
+    }
+
+    subgraph cluster_Handle {
+      graph[label="Handle";fontsize=20;];
+      subgraph cluster_HandleInner {
+        graph[label="HandlePriv";fontsize=15;];
+        wakeup;
+        try_curent;
+      }
+      wakeup -> inner_wakeup;
+      current -> try_curent;
+      handle_unpark[label="unpark"];
+      handle_unpark -> wakeup[label="inner"];
+    }
+
+    CURRENT_REACTOR[style="filled";color=gray90];
+    handle -> handle_unpark[label="unpark";style=dashed]; 
+    turn -> poll -> mio_io;
+    poll -> dispatch;
+    try_curent -> CURRENT_REACTOR;
+  }
+
+  subgraph cluster_runtime {
+    graph[label="runtime";fontsize=20;]
+    block_on;
+  }
+  block_on -> set_default-> CURRENT_REACTOR[color=red];
+  unpark -> handle;
+  {park, park_timeout} -> turn;
+}

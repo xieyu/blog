@@ -1,0 +1,25 @@
+digraph findCoordinator {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_TransactionCoordinator {
+    graph[label="TransactionCoordinator";fontsize=20;style=rounded];
+    partitionFor[
+      shape="record";
+      label="{{
+        partitionFor|
+        Utils.abs(transactionalId.hashCode)\%\l transactionTopicPartitionCount 
+        \l 根据事务id获取对应的partition\l
+      }}";
+    ];
+  };
+
+  subgraph cluster_KafkaApi {
+    graph[label="KafkaApi";fontsize=20;style=rounded];
+    handleFindCoordinatorRequest -> {
+      partitionFor;
+      getOrCreateInternalTopic;
+      partitionMetadata;
+    };
+  };
+}

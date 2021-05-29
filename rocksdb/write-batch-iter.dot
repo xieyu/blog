@@ -1,0 +1,150 @@
+digraph write_batch_iter {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_FlushScheduler {
+    graph[label="TrimHistoryScheduler";fontsize=20;style=rounded];
+    ScheduleWork -> {
+    cfds_
+    }
+    cfds_ -> TakeNextColumnFamily 
+  };
+
+  subgraph cluster_MembleInserter {
+    graph[label="MemTableInserter";fontsize=20;style=rounded];
+    PutCF -> MemTableInserter_PutCFImpl; 
+    MemTableInserter_PutCFImpl[
+      shape="record";
+      label="{{
+        PutCFImpl\l
+        根据cfid找到对应的columnFamily\l
+        将记录插入到该cf的memtable中\l
+      }}";
+    ];
+    CheckMemtableFull[
+      shape="record";
+      label="{{
+        CheckMemtableFull|
+        检查Memtable是否\l 
+        超过预期大小\l
+      }}";
+    ];
+    CheckMemtableFull -> {
+      ScheduleWork;
+      MarkTrimHistoryNeeded;
+      ShouldScheduleFlush;
+      MarkFlushScheduled;
+    };
+  };
+
+  MemTableInserter_PutCFImpl -> {
+    ColumnFamilyMemTables_GetMemTable;
+    ColumnFamilyMemTables_GetColumnFamilyHandle;
+    SeekToColumnFamily;
+    MemTable_Add;
+    MemTable_Update;
+    MemTable_UpdateCallback;
+    MaybeAdvanceSeq;
+    CheckMemtableFull;
+  }[color="#e23e57"];
+
+  subgraph cluster_MemeTableRep {
+    graph[label="MemeTableRep";fontsize=20;style=rounded];
+    MemeTableRep -> {
+      VectorRep;
+      SkipListRep;
+    }
+    MemeTableRep_InsertKey -> SkipListRep_InsertKey;
+    MemeTableRep_InsertKeyWithHint -> SkipListRep_InsertWithHint;
+
+    subgraph cluster_SkipListRep {
+      graph[label="SkipListRep";fontsize=20;style=rounded];
+      SkipListRep;
+      SkipListRep_InsertKey;
+      SkipListRep_InsertWithHint;
+      
+    };
+  };
+  subgraph cluster_MemeTable {
+    graph[label="MemeTable";fontsize=20;style=rounded];
+    MemeTable[
+      shape="record";
+      label="{{
+        MemeTable|
+          <MemeTableRep> std::unique_ptr\<MemTableRep\> table_;
+      }}";
+    ];
+    MemTable_Add[
+      fillcolor="#f38181";
+      style=filled;
+      shape="record";
+      label="{{
+        MemTable::Add
+      }}";
+    ];
+    MemeTable:MemeTableRep -> MemeTableRep;
+    MemTable_Add -> {
+      MemeTable;
+      MemeTableRep_InsertKey;
+      MemeTableRep_InsertKeyWithHint;
+    }
+    MemTable_Add;
+    MemTable_Update;
+    MemTable_UpdateCallback;
+  };
+
+  subgraph cluster_ColumnFamily {
+    graph[label="ColumnFamily";fontsize=20;style=rounded];
+    ColumnFamilyMemTables_GetMemTable[
+      shape="record";
+      label="{{
+        GetMemTable|
+        获取ColumnFamily对应的table\l
+      }}";
+    ];
+    ColumnFamilyMemTables_GetColumnFamilyHandle[
+      shape="record";
+      label="{{
+        GetColumnFamilyHandle\l
+      }}";
+    ];
+    SeekToColumnFamily;
+  };
+  subgraph cluster_WriteHandler {
+    graph[label="WriteHandler";fontsize=20;];
+    Handler_PutCF -> PutCF;
+    Handler_PutCF[
+      shape="record";
+      label="{{
+      PutCF
+      }}";
+    ];
+    
+  } // end of WriteHandler
+
+  subgraph cluster_WriteBatch{
+    graph[label="WriteBatch";fontsize=20;];
+    Iterate -> { 
+      Handler_PutCF
+      ReadRecordFromWriteBatch;
+    }
+
+    ReadRecordFromWriteBatch[
+      shape="record";
+      label="{{
+        ReadRecordFromWriteBatch|
+        从writeBatch中读取record
+      }}";
+    ];
+    Iterate[
+      shape="record";
+      label="{{
+        Iterate|
+        从writeBatch中读取record\l
+        根据record类型调用handler相应函数\l
+      }}";
+    ];
+  } // end of WriteBatch_Handle
+}

@@ -1,0 +1,40 @@
+#include "styles.h"
+
+digraph DetachCondsForColumnCaller {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  pkCol[style_var;]
+  GetPkColInfo[style_func;label="{{
+    GetPkColInfo|
+    遍历Columns，返回第一个带有\l 
+    PriKeyFlag的column\l
+  }}"]
+  GetPkColInfo -> HasPriKeyFlag;
+  GetPkColInfo -> pkCol[style_edge_data];
+
+  crossEstimateIndexRowCount -> {
+    getMostCorrCol4Index;
+    crossEstimateRowCount;
+  }
+  getMostCorrCol4Index -> col[style_edge_data];
+  col[style_var];
+
+  crossEstimateTableRowCount -> {
+    getMostCorrCol4Handle;
+    crossEstimateRowCount;
+  }
+  getMostCorrCol4Handle -> col[style_edge_data];
+  crossEstimateRowCount -> {
+    col;
+    DetachCondsForColumn;
+  }
+
+  deriveTablePathStats -> {
+    DetachCondsForColumn;
+    GetPkColInfo;
+    pkCol;
+  }
+  {pkCol;col} -> DetachCondsForColumn[style_edge_data];
+}

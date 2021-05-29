@@ -1,0 +1,55 @@
+#include "styles.h"
+digraph replica_reader_max_ts {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  read_index[style_func;label="{{
+    read_index|
+    leader处理follower的\l
+    read index 请求\l
+  }}"]
+  read_index -> send_command[style_edge_data];
+  send_command -> peer_step[style_edge_data];
+
+  subgraph cluster_ReplicaReadLockChecker {
+    graph[label="ReplicaReadLockChecker";fontsize=20;style="rounded,dashed";color="slategrey"]
+    register -> register_read_index_observer -> read_index_observers;
+    on_step;
+  }
+  subgraph cluster_ConcurrencyManager {
+    graph[label="ConcurrencyManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    update_max_ts;
+    read_range_check;
+  }
+  read_index_observers[style_var;label="{{
+    read_index_observers\l|
+    pub struct Registry\{\l
+    Vec\<Entry\<BoxReadIndexObserver\>\>,\l
+    \}\l
+  }}"]
+  register_read_index_observer[style_func;label="{{
+    register_read_index_observer|
+    注册observer回调函数
+  }}"]
+
+peer_step[style_func;label="{{
+  peer::step|
+  step the raft message\l
+  如果消息类型为MessageType::MsgReadIndex\l
+  调用ctx.coprocessor_host.on_step_read_index\l
+}}"]
+  
+  on_step_read_index -> on_step ->{
+    update_max_ts;
+    read_range_check;
+  };
+  peer_step -> on_step_read_index -> read_index_observers;
+  register_read_index_observer -> on_step[style_edge_data];
+
+  read_range_check[style_func;label="{{
+    read_range_check|
+    这个地方check的原因是?\l
+  }}"]
+}

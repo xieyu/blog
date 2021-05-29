@@ -1,0 +1,106 @@
+#include "styles.h"
+digraph on_ready_change_peer_remove {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    peer_heartbeats;
+    peer_heartbeats[style_func;label="{{
+      peer_heartbeats|
+      从heartbeats\l 
+      中将peer删除\l
+    }}"]
+      
+    peers_start_pending_time[style_func;label="{{
+      peers_start_pending_time|
+      删掉peer_id对应的element\l
+    }}"]
+    is_leader -> peers_start_pending_time[style_edge_data];
+  }
+  subgraph cluster_StoreMeta {
+    graph[label="StoreMeta";fontsize=20;style="rounded,dashed";color="slategrey"]
+    pending_snapshot_regions;
+    pending_merge_targets;
+    readers;
+    leaders;
+    regions;
+  }
+
+  subgraph cluster_copprocessor_host {
+    graph[label="copprocessor_host";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_region_changed;
+  }
+  subgraph cluster_PdScheduler {
+    graph[label="PdScheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    DestroyPeer;
+      
+  }
+  subgraph cluster_PollContext {
+    graph[label="PollContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    pending_create_peers;
+    ctx_router_close[style_func;label="{{
+      ctx.router.close|
+      从RaftRouter.normals\l 
+      中删掉路由信息\l
+      关闭mailbox
+    }}"]
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_ready_change_peer -> {
+      update_region;
+      peer_heartbeats;
+      is_leader;
+      peers_start_pending_time;
+      remove_self;
+    }
+    remove_self[style_var;label="{{
+      remove_self|
+      self.store_id == store_id\l
+      self.fms.peer.peer_id == peer_id\l|
+      如果remove的节点是自己\l
+      将remove_self设置为true\l
+    }}"]
+    remove_self -> destroy_peer;
+    destroy_peer[style_func;label="{{
+      destroy_peer|
+      destroy_peer(false)
+      merged_by_target 参数为false\l
+    }}"]
+    destroy_peer -> {
+      pending_snapshot_regions;
+      readers;
+      on_region_changed;
+      destory;
+      ctx_router_close;
+      fsm_stop;
+      leaders;
+      regions;
+      pending_create_peers;
+      pending_merge_targets;
+      DestroyPeer;
+    }
+    DestroyPeer[style_func;label="{{
+      DestroyPeer|
+      发送通知给Pd
+    }}"]
+    fsm_stop[style_func;label="{{
+      fsm_stop|
+      设置PeerFsm.stoped\l
+    }}"]
+  }
+  subgraph cluster_BatchSystem {
+    graph[label="BatchSystem";fontsize=20;style="rounded,dashed";color="slategrey"]
+    fsm_stop -> poll;
+    poll[style_func;label="{{
+      poll|
+      fetch_fsm的fsm\l 
+      skip掉stopped的fsm\l
+    }}"]
+  }
+  
+}

@@ -1,0 +1,29 @@
+digraph schema_curd_to_kv {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  RelationDataOp[
+    shape="record";
+    label="{{
+      Relation Data Op|
+      create\l|
+      update\l|
+      query\l|
+      delete\l
+    }}";
+  ];
+
+  kvOp[
+    shape="record";
+    label="{{
+      kv op|
+      get \l|
+      set \l|
+      del\l
+    }}";
+  ];
+
+  RelationDataOp -> RelationSchema -> kvOp;
+
+}

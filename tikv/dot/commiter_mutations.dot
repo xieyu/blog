@@ -1,0 +1,123 @@
+#include "styles.h"
+digraph commit_mutations {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  CommitterMutations -> {
+    PlainMutations;
+    memBufferMutations;
+  }
+  CommitterMutations[style_func;label="{{
+    CommitterMutations|
+	   Len() int\l|
+	   GetKey(i int) []byte\l|
+	   GetKeys() [][]byte\l|
+	   GetOp(i int) pb.Op\l|
+	   GetValue(i int) []byte\l|
+	   IsPessimisticLock(i int) bool\l|
+	   Slice(from, to int) CommitterMutations\l
+  }}"]
+  CommitterMutations -> Op;
+  Op[style_func;label="{{
+    Op|
+	  Op_Put      Op = 0\l|
+	  Op_Del      Op = 1\l|
+	  Op_Lock     Op = 2\l|
+	  Op_Rollback Op = 3\l|
+	  Op_Insert          Op = 4\l|
+	  Op_PessimisticLock Op = 5\l|
+	  Op_CheckNotExists  Op = 6\l
+  }}"]
+  batchMutations -> CommitterMutations;
+  batchMutations[style_func;label="{{
+    batchMutations|
+	  region    RegionVerID\l|
+	  mutations CommitterMutations\l|
+	  isPrimary bool\l
+  }}"]
+
+  groupedMutations[style_func;label="{{
+    groupedMutations|
+      region    RegionVerID\l|
+      mutations CommitterMutations\l
+  }}"]
+  groupedMutations -> CommitterMutations;
+  twoPhaseCommitter[style_func;label="{{
+    twoPhaseCommitter|
+      mutations *memBufferMutations\l|
+      startTS uint64\l|
+      commitTS uint64\l|
+      lockTTL  uint64\l|
+      commitTS uint64\l|
+      ...
+  }}"]
+
+  twoPhaseCommitter -> memBufferMutations;
+  KVTxn -> twoPhaseCommitter;
+  KVTxn[style_func;label="{{
+    KVTxn|
+    contains methods to interact\l 
+    with a  TiKV transaction\l
+  }}"]
+  batchExecutor[style_func;label="{{
+    batchExecutor|
+	  rateLim     int \l|
+	  rateLimiter *util.RateLimit\l|
+	  committer   *twoPhaseCommitter\l|
+	  action      twoPhaseCommitAction\l|
+	  backoffer   *Backoffer\l
+  }}"]
+
+  batchExecutor -> {
+     twoPhaseCommitter;
+     twoPhaseCommitAction;
+  }
+  twoPhaseCommitAction -> {
+    actionPessimisticLock;
+    actionPessimisticRollback;
+    actionPrewrite;
+    actionCommit;
+    actionCleanup;
+  }
+  memBufferMutations[style_func;label="{{
+    memBufferMutations|
+      storage *unionstore.MemDB\l|
+      handles []unionstore.MemKeyHandle\l
+  }}"]
+
+  KVTxn -> KVUnionStore;
+  memBufferMutations -> {
+    MemDB;
+    MemKeyHandle;
+  }
+  MemDB[style_func;label="{{
+    MemDB|
+    a rollbackable Red-Black Tree\l
+    optimized for TiDB's transaction stats\l
+    bufer use secenario.\l|
+    key -\> value\l
+    key -\> keyFlags\l
+  }}"]
+  KVUnionStore[style_func;label="{{
+    KVUnionStore|
+    an in-memory store which\l 
+    contains a buffer for write\l 
+    and a snapshot for read\l|
+    memBuffer *MemDB\l|
+    snapshot  uSnapshot\l|
+  }}"]
+
+  KVUnionStore -> {
+    MemDB;
+    uSnapshot;
+  }
+  MemKeyHandle[style_func;label="{{
+    MemKeyHandle|
+    represents a pointer of\l 
+    a key in MemBuffer\l
+	  UserData uint16\l|
+	  idx      uint16\l|
+	  off      uint32\l
+  }}"]
+}

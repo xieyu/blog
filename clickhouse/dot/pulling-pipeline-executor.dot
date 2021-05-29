@@ -1,0 +1,135 @@
+digraph pulling_pipeline_executor {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_InputPort {
+    graph[label="InputPort";fontsize=20;];
+    getHeader[
+      shape="record";
+      label="{{
+      getHeader|
+      inputPort::getHeader;
+      }}";
+    ];
+  }
+
+  subgraph cluster_PullingOutputFormat {
+    graph[label="PullingOutputFormat";fontsize=20;];
+    pulling_format[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        pulling_format|
+        PullingOutputFormat
+      }}";
+    ];
+    pulling_format -> {
+      pulling_format_getChunk;
+      pulling_format_getPort
+    }[style=dashed];
+
+    pulling_format_getChunk[
+      shape="record";
+      label="{{
+        getChunk|
+        获取数据？
+      }}";
+    ];
+    pulling_format_getPort -> getHeader[style=dashed];
+    pulling_format_getPort[
+      shape="record";
+      label="{{
+        getPort|
+        IProcessor::getPort\l
+        返回inputPort
+      }}";
+    ];
+
+    pulling_format_getPort -> inputs;
+    pulling_format_getChunk -> {
+      data;
+      has_data_flag;
+    }
+  }
+
+  subgraph cluster_PipelineExecutor {
+    graph[label="PipelineExecutor";fontsize=20;];
+    PipelineExecutor[
+      shape="record";
+      label="{{
+        PipelineExecutor|
+        构造函数
+      }}";
+    ];
+  }
+  subgraph cluster_QueryPipeline {
+    graph[label="QueryPipeline";fontsize=20;];
+    pipeline[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        pipeline|
+        QueryPipeline
+      }}";
+    ];
+    pipeline -> {
+      pipeline_execute;
+    }[style=dashed];
+    pipeline -> pulling_format[label="getHeader"];
+    pipeline_execute[
+      shape="record";
+      label="{{
+        execute|
+        创建PipelineExecutor\l
+      }}";
+    ];
+    pipeline_execute -> process_list_elem;
+    pipeline_execute -> PipelineExecutor;
+  }
+
+  subgraph cluster_PullingPipelineExecutor {
+    graph[label="PullingPipelineExecutor";fontsize=20;];
+    pull_chunk[
+      shape="record";
+      label="{{
+        pull|
+        bool pull(Chunk& chunk);
+      }}";
+    ];
+    pull_chunk -> {
+      pipeline_execute;
+      executeStep;
+      pulling_format_getChunk;
+    }[color="#3fc1c9"];
+    pulling_format_getChunk -> getChunkInfo;
+    getChunkInfo[
+      shape="record";
+      label="{{
+        getChunkInfo|
+        Chunk::getChunkInfo
+      }}";
+    ];
+
+    pull_block[
+      shape="record";
+      label="{{
+        pull|
+        bool pull(Block& block);
+      }}";
+    ]
+
+    pull_block -> {
+      pull_chunk;
+      getChunkInfo;
+      pulling_format_getPort;
+      pulling_format;
+      getHeader;
+    }[color="#b83b5e"]
+
+    pull_chunk -> pipeline;
+
+  }
+}

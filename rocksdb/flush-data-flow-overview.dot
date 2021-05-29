@@ -1,0 +1,41 @@
+digraph flush_data_flow_overview {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  BackgroundFlush[shape="record";
+    label="{{
+      BackgrounFlush|
+      后台线程将队列\l 
+      FlushRequest\l
+      刷盘\l
+    }}";
+  ];
+  WriteLevel0Table[shape="record";
+    label="{{
+      WriteLevel0Table|
+      调用TableBuilder将\l 
+      MemTable写入文件中\l
+    }}";
+  ];
+  SSTableFile[shape="record";
+    label="{{
+      SSTableFile|
+      最终SSTable文件
+    }}";
+  ];
+  flush_queue_[shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      flush_queue_|
+      FlushRequest队列
+    }}";
+  ];
+  subgraph cluster_Disk {
+    graph[label="Disk";fontsize=20;];
+    SSTableFile;
+  }
+  flush_queue_ -> BackgroundFlush -> FlushJob -> WriteLevel0Table -> TableBuilder -> SSTableFile;
+  BackgroundFlush -> IsFlushPending;
+}

@@ -1,0 +1,79 @@
+digraph ddl_intereface {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ReaderWriter {
+    graph[label="kv/kv.go";fontsize=20;style=rounded]
+    readerWriter_Set[label="Set"];
+  }
+
+  subgraph cluster_txstucture {
+    graph[label="txstucture";fontsize=20;style=rounded]
+    txn_Set[label="Set"];
+    txn_HSet[label="HSet"];
+    txn_HSet -> updateHash -> readerWriter_Set;
+    txn_Set -> readerWriter_Set;
+  }
+
+  subgraph cluster_meta {
+    graph[label="meta/meta.go";fontsize=20;style=rounded]
+    CreateDatabase -> {
+      txn_HSet;
+    };
+    UpdateDatabase -> {
+      txn_HSet
+    };
+    SetSchemaDiff -> {txn_Set};
+  }
+
+  subgraph cluster_ddl_api {
+    graph[label="ddl/ddl_api.go";fontsize=20;style=rounded]
+    CreateSchema;
+    AlterSchema;
+    DropSchema;
+  }
+
+  subgraph cluster_ddl {
+    graph[label="ddl/ddl.go";fontsize=20;style=rounded]
+    doDDLJob;
+  }
+
+  subgraph cluster_ddl_worker {
+    graph[label="ddl/ddl_worker.go";fontsize=20;style=rounded]
+    runDDLJob;
+  }
+
+  subgraph cluster_model_ddl {
+    graph[label="model/ddl.go";fontsize=20;style=rounded]
+    FinishDBJob;
+  }
+
+  subgraph cluster_ddl_schema {
+    graph[label="ddl/ddl_schema.go";fontsize=20;style=rounded]
+    onCreateSchema;
+    onDropSchema;
+    updateSchemaVersion;
+    onModifySchemaCharsetAndCollate -> {UpdateDatabase; updateSchemaVersion};
+    onDropSchema -> {updateSchemaVersion;UpdateDatabase;}
+  }
+
+  onCreateSchema ->{
+    CreateDatabase;
+    updateSchemaVersion;
+  };
+
+  updateSchemaVersion -> SetSchemaDiff;
+
+  CreateSchema -> doDDLJob[label="ActionCreateSchema"];
+  AlterSchema -> doDDLJob[label="ActionModifySchemaCharsetAndCollate"];
+  DropSchema -> doDDLJob[label="ActionDropSchema"];
+
+  doDDLJob -> runDDLJob[style=dashed;label="QueueDDLJob"]
+  runDDLJob -> {
+    onCreateSchema;
+    onModifySchemaCharsetAndCollate;
+    onDropSchema;
+  } -> FinishDBJob;
+
+}

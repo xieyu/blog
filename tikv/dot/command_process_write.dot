@@ -1,0 +1,27 @@
+#include "styles.h"
+digraph process_write {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  cmd_process_write -> {
+    Prewrite;
+    PrewritePessimistic;
+    AcquirePessimisticLock;
+    Commit
+    Cleanup
+    Rollback
+    PessimisticRollback
+    ResolveLock
+    TxnHeartBeat
+    CheckTxnStatus
+    CheckSecondaryLocks
+    Pause
+  }
+  Prewrite -> {
+    can_skip_constraint_check;
+    check_max_ts_synced;
+    MvccTxn_new;
+    write_result;
+  }
+}

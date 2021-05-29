@@ -1,0 +1,81 @@
+#include "styles.h"
+digraph release_lock {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Latch {
+    graph[label="Latch";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Latch[style_struct;label="{{
+      Latch|
+        pub waiting: VecDeque\<Option\<(u64, u64)\>\>,\l
+    }}"]
+    get_first_req_by_hash;
+      
+  }
+  subgraph cluster_Latches {
+    graph[label="Latches";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Latches[style_struct;label="{{
+      Latches|
+        slots: Vec\<CachePadded\<Mutex\<Latch\>\>\>,\l|
+        size: usize,\l
+    }}"]
+    Latches -> Latch;
+    release[style_func;label="{{
+      release|
+      release all latches owned by\l 
+      the lock of command with ID\l
+    }}"]
+    release -> {
+      lock_latch;
+      get_first_req_by_hash;
+    }
+    lock_latch -> Latch;
+    acquire -> {
+      lock_latch;
+    };
+      
+  }
+  subgraph cluster_Scheduler {
+    graph[label="Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    TaskContext[style_struct;label="{{
+      TaskContext|
+        task: Option\<Task\>,\l|
+        lock: Lock,\l|
+        cb: Option\<StorageCallback\>,\l|
+        pr: Option\<ProcessResult\>,\l
+    }}"]
+    TaskContext -> Lock;
+    Lock[style_var;label="{{
+      Lock|
+        pub required_hashes: Vec\<u64\>,\l|
+        pub owned_count: usize,\l
+    }}"]
+    release_lock[style_func;label="{{
+      release_lock|
+      对于wakeup_list中每个wcid\l
+      调用try_to_wake_up\l
+    }}"]
+    release_lock -> {
+       Lock;
+       release;
+       try_to_wake_up;
+    }
+    try_to_wake_up[style_func;label="{{
+      try_to_wake_up|
+      重新去获lock\l
+      然后执行task\l
+    }}"]
+    acquire_lock[style_func;label="{{
+      acquire_lock|
+      Tries to acquire all the\l 
+      required latches for a command\l
+    }}"]
+    acquire_lock -> acquire;
+    try_to_wake_up -> {
+       acquire_lock;
+       execute;
+    }
+  }
+  
+}

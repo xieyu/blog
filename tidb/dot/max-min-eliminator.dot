@@ -1,0 +1,51 @@
+digraph max_min_eliminate {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  splitAggFuncAndCheckIndices[
+    shape="record";
+    label="{{
+      splitAggFuncAndCheckIndices|
+      split the agg to multiple aggs\l
+      and check wether each agg need a sort\l|
+      select max(a), min(a), max(b) from t to\l
+      select max(a) from t\l
+      seelct min(a) rom t\l
+    }}"];
+  checkColCanUseIndex[
+    shape="record";
+    label="{{
+      checkColCanUseIndex|
+      checks whether there is\l 
+      an AccessPath satisfy\l 
+      the conditions\l
+    }}"];
+  eliminateSingleMaxMin[
+    shape="record";
+    label="{{
+      eliminateSingleMaxMin|
+      convert a single max/min\l
+      to Lmit+Sort operators\l
+    }}"];
+
+  optimize -> eliminateMaxMin;
+  eliminateMaxMin -> {
+    eliminateMaxMin;
+    splitAggFuncAndCheckIndices;
+    eliminateSingleMaxMin;
+  }
+  eliminateSingleMaxMin -> {
+    LogicalSort;
+    LogicalLimit;
+  }
+  splitAggFuncAndCheckIndices -> {
+    checkColCanUseIndex;
+    LogicalAggregation;
+    PruneColumns;
+  }
+  checkColCanUseIndex -> {
+    checkColCanUseIndex;
+    DetachCondsForColumn;
+  }
+}

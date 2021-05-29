@@ -1,0 +1,46 @@
+#include "styles.h"
+
+digraph PredicatePushDown {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  DataSource[style_struct;label="{{
+    DataSource|
+    field(allConds, []expression.Expression)
+    field(pushedDownConds,[]expression.Expression)
+  }}"]
+  AccessPath[style_struct;label="{{
+    AccessPath|
+    field(Ranges, []*ranger.Range)
+    field(AccessConds, []expression.Expression)
+    field(TableFilters, []expression.Expression)
+    tail_field(IndexFilters, []expression.Expression)
+  }}"]
+
+  PredicatePushDown -> {
+    DataSource:allConds;
+    DataSource:pushedDownConds;
+  }
+  DataSource:pushedDownConds -> {
+    deriveCommonHandleTablePathStats;
+    deriveIndexPathStats;
+    fillIndexPath;
+  }[style=dashed;color=green]
+
+  subgraph cluster_CascadesPlanner {
+    graph[label="CascadesPlanner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    FindBestPlan -> onPhaseImplementation -> implGroup -> fillGroupStats -> DeriveStats;
+  }
+  optimize -> FindBestPlan;
+  optimize -> DoOptimize -> physicalOptimize -> recursiveDeriveStats -> DeriveStats;
+  DoOptimize -> logicalOptimize -> ppdSolver_optimize -> PredicatePushDown;
+
+  DeriveStats -> {
+    fillIndexPath;
+    deriveStatsByFilter;
+    deriveCommonHandleTablePathStats;
+    deriveIndexPathStats;
+    deriveTablePathStats;
+  } -> AccessPath;
+}

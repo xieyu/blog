@@ -1,0 +1,44 @@
+#include "styles.h"
+digraph advance_append {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RaftPoller_end -> {
+    poll_ctx_has_ready;
+  }
+  poll_ctx_has_ready -> handle_raft_ready[style_edge_data];
+  handle_raft_ready -> post_raft_ready_append;
+
+  ctx_ready_res -> post_raft_ready_append;
+  post_raft_ready_append -> {
+    peer_post_raft_ready_append;
+    handle_raft_ready_advance;
+  }
+
+
+  handle_raft_ready_advance -> {
+    RawNode_advance_append;
+  }
+  poll -> {
+    handle_normal;
+    RaftPoller_end;
+  }
+  handle_normal -> {
+    collect_ready;
+    handle_msgs;
+  }
+  handle_msgs ->{
+    on_apply_res;
+    PeerMsg_ApplyRes;
+  }
+  on_apply_res -> {
+    post_apply;
+  }
+  
+  PeerMsg_ApplyRes -> on_apply_res;
+  post_apply -> {
+    RawNode_advance_apply_to;
+  }
+
+}

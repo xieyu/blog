@@ -1,0 +1,109 @@
+#include "styles.h"
+digraph process_by_worker {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+    cmd_process_read;
+    cmd_process_write;
+  subgraph cluster_Scheduler {
+    graph[label="Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    subgraph cluster_SchedulerInner {
+      graph[label="SchedulerInner";fontsize=20;style="rounded,dashed";color="slategrey"]
+      high_priority_pool;
+      worker_pool;
+      dequeue_task_context;
+    }
+    get_sched_pool[style_func;label="{{
+      get_sched_pool|
+      get_sched_pool(task.cmd.priority)\l
+    }}"]
+    high_priority_pool[style_struct;label="{{
+      high_priority_pool|
+        高优先级的sched_pool\l|
+        pub pool: FuturePool,\l
+    }}"]
+    worker_pool[style_struct;label="{{
+      worker_pool|
+        pub pool: FuturePool,\l
+    }}"]
+    get_sched_pool -> {
+      high_priority_pool;
+      worker_pool;
+    }
+    spawn[style_func;label="{{
+      spawn|
+      在schedPool中\l 
+      执行异步任务\l
+    }}"]
+    process_read[style_func;label="{{
+      process_read|
+      if task.cmd.readonly\l|
+      如果cmd是read only的\l
+      则执行process_read\l
+    }}"]
+    cmd_process_read[style_func;label="{{
+      Command::process_read
+    }}"]
+    cmd_process_write[style_func;label="{{
+      Command::process_write
+    }}"]
+    cmd_process_write -> WriteResult -> {
+      async_write_ext;
+      on_write_finished;
+    }
+    async_write_ext -> on_write_finished[style_edge_data];
+    cmd_process_read -> ProcessResult -> on_read_finished[style_edge_data];
+    process_by_worker -> {
+      get_sched_pool;
+      spawn;
+    }
+    get_sched_pool -> spawn[style_edge_data];
+    spawn -> {
+      process_read;
+      process_write;
+    }
+    process_read -> {
+      cmd_process_read;
+      on_read_finished;
+    }
+    on_read_finished -> {
+      schedule_command;
+      release_lock;
+      cb_execute;
+    }
+    on_write_finished -> {
+      dequeue_task_context
+      release_lock
+      schedule_command
+      drop_lock_guards;
+      cb_execute;
+    }
+    cb_execute[style_func;label="{{
+      cb_execute|
+      执行TaskContext中的cb
+    }}"]
+    release_lock[style_func;label="{{
+      release_lock|
+      释放掉latches lock\l|
+      调度等待latch的cmd\l
+    }}"]
+    schedule_command[style_func;label="{{
+      schedule_command|
+      执行cmd返回的NextCommand\l
+    }}"]
+    process_write -> {
+      cmd_process_write;
+      on_write_finished;
+      async_write_ext;
+    }
+    async_write_ext[style_func;label="{{
+      async_write_ext|
+      将WriteResult中的\l 
+      to_be_write数据\l
+      写入store engine\l|
+      写成功后回调on_write_finished\l
+    }}"]
+  }
+  
+}

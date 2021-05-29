@@ -1,0 +1,113 @@
+#include "styles.h"
+digraph handle_heartbeat_response {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ProgressTracker[style_struct;label="{{
+    ProgressTracker|
+    progress: ProgressMap\l|
+    <conf> conf: Configuration\l|
+    votes: HashMap\<u64, bool\>\l|
+    max_inflight: usize\l|
+    group_commit: bool\l|
+    pub(crate) logger: Logger\l
+  }}"]
+  ProgressState[style_struct;label="{{
+    ProgressState|
+    Probe\l|
+    Replicate\l|
+    Snapshot\l
+  }}"]
+  Configuration[style_struct;label="{{
+    Configuration|
+    pub(crate) voters: JointConfig\l|
+    pub(crate) learners: HashSet\<u64\>\l|
+    pub(crate) learners_next: HashSet\<u64\>\l|
+    pub(crate) auto_leave: bool\l
+  }}"]
+  Configuration -> JointConfig;
+
+  JointConfig[style_struct;label="{{
+    JointConfig|
+    pub(crate) incoming: MajorityConfig\l|
+    pub(crate) outgoing: MajorityConfig\l
+  }}"]
+  ProgressTracker:conf -> Configuration;
+
+  ProgressTracker -> ProgressMap -> Progress -> ProgressState;
+  ProgressMap[style_struct;label="{{
+    ProgressMap|
+    pub type ProgressMap = HashMap\<u64, Progress\>
+  }}"]
+  Progress[style_struct;label="{{
+    Progress|
+    <matched> pub matched: u64\l|
+    <next_idx> pub next_idx: u64\l|
+    pub state: ProgressState\l|
+    <committed_index> pub committed_index: u64\l|
+    pub ins: Inflights\l|
+    <recent_active> pub recent_active: bool,
+    ...\l
+  }}"]
+
+  step_leader -> handle_heartbeat_response -> {
+    get_mut;
+    update_committed;
+    recent_active;
+    Progress:matched
+    resume;
+    free_first_one;
+    send_append;
+    pending_request_snapshot;
+    recv_ack;
+    has_quorum;
+    advance;
+    handle_ready_read_index;
+  }
+  get_mut[style_func;label="{{
+    get_mut|
+    get_mut(m.from)\l|
+    获取follower的progress\l
+  }}"]
+  get_mut -> Progress[style_edge_data];
+  update_committed[style_func;label="{{
+    update_committed|
+    pr.update_committed(m.commit);\l|
+    更新pr的commited index\l
+    在后面计算major commit\l 
+    index时候会用到\l
+  }}"]
+  update_committed -> Progress:committed_index;
+  recent_active[style_func;label="{{
+    recent_active|
+    pr.recent_active = true;
+  }}"]
+  recent_active -> Progress:recent_active;
+  Progress:matched -> send_append[style_edge_data];
+  send_append[style_func;label="{{
+    send_append|
+    if pr.mached \< self.r.raft_log.last_index() \l
+     pr.pending_request_snapshot != INVALID_INDEX\l|
+     向该follower发送要补齐的消息消息\l
+  }}"]
+  send_append -> maybe_send_append -> {
+    prepare_send_entries;
+    prepare_send_snapshot;
+    try_batching;
+  }
+  prepare_send_entries[style_func;label="{{
+    prepare_send_entries|
+    准备向follower发送一批entries, 从pr.next_idx开始|
+    let ents = self.raft_log.entries(pr.next_idx,
+      self.max_msg_size);
+  }}"]
+  prepare_send_snapshot[style_func;label="{{
+    prepare_send_snapshot|
+    let term = self.raft_log.term(pr.next_idx - 1);\l|
+    如果term为None说明\l 
+    follower的next_idx是无效的\l
+    发送snapshot\l
+  }}"]
+}

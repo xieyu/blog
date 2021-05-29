@@ -1,0 +1,166 @@
+#include "styles.h"
+digraph tikv_raft_log {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  /*
+  handle_raft_ready_append -> {
+    handle_raft_committed_entries;
+  }
+  handle_raft_committed_entries -> {
+    find_propose_time;
+    maybe_renew_leader_lease;
+    ctx_apply_router_schedule_task_ApplyTask_apply;
+  }
+  */
+  //ctx_apply_router_schedule_task_ApplyTask_apply -> ApplyFsm_handleTasks[style_edge_data];
+
+  subgraph cluster_ApplyContext {
+    graph[label="ApplyContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    apply_ctx_flush -> {
+      write_to_db;
+      notifier_notify;
+    }
+    apply_res[style_var;label="{{
+      apply_res|
+      Vec\<ApplyRes\<EK::Snapshot\>\>,\l
+    }}"]
+    apply_res_push -> apply_res -> notifier_notify;
+    notifier_notify[style_var;label="{{
+      notifier_notify|
+      发送给RaftPoller线程\l
+      消息为apply_res\l
+    }}"]
+
+    apply_ctx_finish_for -> {
+      delegate_write_apply_state;
+      kv_wb_mut;
+      commit_opt;
+      apply_res_push;
+    }
+    apply_ctx_commit -> {
+      commit_opt;
+      delegate_write_apply_state;
+    }
+    commit_opt -> {
+      write_to_db;
+      prepare_for_delegate;
+      kv_wb_mut_clear;
+      on_flush_apply;
+      cbs_invoke_all;
+    }
+
+    subgraph cluster_WriteBatch {
+      graph[label="WriteBatch";fontsize=20;style="rounded,dashed";color="slategrey"]
+      apply_ctx_kv_wb_mut_set_save_point;
+      apply_ctx_kv_wb_mut_pop_save_point;
+      apply_ctx_kv_wb_mut;
+      kv_wb_mut;
+      WriteBatch_put;
+      WriteBatch_put_cf;
+      kv_wb_mut_clear;
+      kv_wb_write_opt -> RocksWriteBatchVec;
+      kv_wb_mut_put_msg_cf;
+      write_to_db[style_func;label="{{
+        write_to_db|
+        writes all the\l 
+        changes to rocksdb\l
+      }}"]
+      write_to_db -> {
+        kv_wb_write_opt;
+      }
+    }
+
+    apply_ctx_kv_wb_should_write_to_engine;
+    apply_ctx_commit;
+    apply_ctx_sync_log_hint;
+    apply_ctx_host_pre_apply;
+    apply_ctx_host_on_apply_cmd;
+    apply_ctx_exec_ctx;
+  }
+
+
+  subgraph cluster_ApplyDelegate {
+    graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    
+    ApplyDelegate_handle_raft_committed_entries -> {
+      handle_raft_entry_normal;
+      handle_raft_entry_conf_change;
+      apply_ctx_finish_for;
+    }
+    handle_raft_entry_normal -> {
+      should_write_to_engine;
+      apply_ctx_kv_wb_should_write_to_engine;
+      apply_ctx_commit;
+      ApplyResult_Yield;
+      process_raft_cmd;
+      set_applied_index;
+    }
+    process_raft_cmd -> {
+      should_sync_log;
+      apply_ctx_sync_log_hint;
+      ApplyResult_WaitMergeSource;
+      apply_raft_cmd;
+      apply_ctx_host_pre_apply;
+      apply_ctx_host_on_apply_cmd;
+    }
+    apply_raft_cmd -> {
+      apply_ctx_exec_ctx;
+      new_ctx;
+      apply_ctx_kv_wb_mut_set_save_point;
+      exec_raft_cmd;
+      apply_ctx_kv_wb_mut_pop_save_point;
+      apply_ctx_kv_wb_mut_rollback_to_save_point;
+      ApplyResult_Res;
+    }
+
+    exec_raft_cmd -> {
+      exec_write_cmd;
+      exec_admin_cmd;
+      check_region_epoch;
+    }
+    exec_write_cmd -> {
+      handle_put;
+      handle_delete;
+      handle_delete_range;
+      handle_ingest_sst;
+    }
+    handle_put -> {
+      apply_ctx_kv_wb_mut;
+      WriteBatch_put_cf;
+      WriteBatch_put;
+    }
+    delegate_write_apply_state -> {
+      kv_wb_mut_put_msg_cf;
+    }
+  }
+
+  subgraph cluster_ApplyFsm {
+    graph[label="ApplyFsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ApplyFsm_handleTasks -> {
+      handle_apply;
+      handle_snapshot;
+    }
+    handle_apply -> {
+      append_proposal;
+      ApplyDelegate_handle_raft_committed_entries;
+    }
+    append_proposal -> {
+      notify_stale_command;
+      set_conf_change;
+      append_normal;
+    }  
+  }
+
+  end -> apply_ctx_flush;
+  handle_normal -> ApplyFsm_handleTasks;
+
+  subgraph cluster_ApplyPoller {
+    graph[label="ApplyPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    end;
+    handle_normal;
+    {rank=same;end;handle_normal}
+  }
+  apply_res;
+}

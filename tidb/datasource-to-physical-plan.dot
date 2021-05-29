@@ -1,0 +1,63 @@
+digraph datasource_to_physicalplan {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  skylinePruning[label="skylinePruning\l对acesspath剪支\l返回candidate列表"];
+  findBestTask[label="findBestTask\l基于cost选择最优plan"];
+  findBestTask -> skylinePruning;
+  findBestTask -> {
+    convertToTableScan;
+    convertToIndexScan;
+    convertToIndexMergeScan;
+  }[label="candidate"];
+  subgraph cluster_candidate {
+    graph[label="candidate";fontsize=20;];
+    convertToTableScan;
+    convertToIndexScan;
+    convertToIndexMergeScan;
+  };
+  {
+    rank=same;
+    convertToTableScan;
+    convertToIndexScan;
+    convertToIndexMergeScan;
+  }
+
+  convertToTableScan -> PhysicalTableScan;
+  convertToIndexScan -> PhysicalTableScan[label="isSingleScan"];
+  convertToIndexScan -> PhysicalIndexScan;
+
+  convertToIndexMergeScan -> {
+    convertToPartialTableScan;
+    convertToPartialIndexScan;
+    buildIndexMergeTableScan;
+  }
+
+  convertToPartialTableScan -> PhysicalTableScan;
+  convertToPartialIndexScan -> PhysicalIndexScan;
+  buildIndexMergeTableScan -> PhysicalTableScan;
+
+  PhysicalIndexScan -> PhysicalIndexReader[label="finishCopTask"];
+  PhysicalIndexScan -> PhysicalIndexLookUpReader[label="finishCopTask"];
+  PhysicalTableScan -> PhysicalTableReader[label="finishCopTask"];
+  PhysicalTableScan -> PhysicalIndexLookUpReader[label="finishCopTask"];
+  subgraph cluster_coptask {
+    graph[label="coptask\l下推到tikv层";fontsize=20;];
+    PhysicalIndexReader;
+    PhysicalIndexLookUpReader;
+    PhysicalTableReader;
+  }
+  PhysicalTableReader -> TableReaderExecutor[label="buildTableReader"];
+  PhysicalIndexReader -> IndexReaderExecutor[label="buildIndexReader"];
+  PhysicalIndexLookUpReader -> IndexLookUpExecutor[label="buildIndexLookUpReader"];
+
+  subgraph cluster_executor {
+    graph[label="executor\l生成对应的executor";fontsize=20;];
+    TableReaderExecutor;
+    IndexReaderExecutor;
+    IndexLookUpExecutor;
+  }
+}
+
+

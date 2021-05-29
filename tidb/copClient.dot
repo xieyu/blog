@@ -1,0 +1,42 @@
+digraph cop_client{
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  a-> b;
+
+  subgraph cluster_RegionCache {
+    graph[label="RegionCache";fontsize=20;style=rounded];
+    LocateKey -> findRegionByKey;
+    findRegionByKey -> {
+      searchCachedRegion;
+      loadRegion;
+      insertRegionToCache;
+    };
+
+    subgraph cluster_pdClient {
+      graph[label="pdClient";fontsize=20;style=rounded];
+      GetPrevRegion;
+      GetRegion;
+    };
+  }
+
+  loadRegion -> {
+    GetRegion;
+    GetPrevRegion;
+  };
+
+  subgraph cluster_CopClient {
+    graph[label="CopClient";fontsize=20;style=rounded];
+    Send -> {
+      buildCopTasks;
+      copIterator_open;
+    }
+    buildCopTasks -> splitRanges;
+    splitRanges -> LocateKey;
+  }
+
+  subgraph cluster_copIterator {
+    graph[label="copIterator";fontsize=20;style=rounded];
+    copIterator_open[label="open"];
+  }
+}

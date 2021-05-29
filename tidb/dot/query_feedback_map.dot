@@ -1,0 +1,56 @@
+digraph query_feedback_map {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_QueryFeedbackMap {
+    graph[label="QueryFeedbackMap";fontsize=20;style="rounded,dashed";color="slategrey"]
+    QueryFeedbackMap_append -> {
+      Feedbacks;
+    }
+    QueryFeedbackMap[
+      shape="record";
+      label="{{
+        QueryFeedbackMap|
+          Size      int\l|
+          Feedbacks map[QueryFeedbackKey][]*QueryFeedback\l
+      }}"];
+    QueryFeedbackKey[
+      shape="record";
+      label="{{
+        QueryFeedbackKey|
+	        PhysicalID int64\l|
+	        HistID     int64\l|
+	        Tp         int\l
+      }}"];
+    Feedback[
+      shape="record";
+      label="{{
+        Feedback|
+	        Lower  *types.Datum\l|
+	        Upper  *types.Datum\l|
+	        Count  int64\l|
+	        Repeat int64
+      }}"];
+    QueryFeedback[
+      shape="record";
+      label="{{
+        QueryFeedback|
+	        PhysicalID int64\l|
+	        Hist       *Histogram\l|
+	        Tp         int\l|
+	        Feedback   []Feedback\l|
+	        Expected   int64\l|
+	        actual     int64\l|
+	        Valid      bool  \l|
+	        desc       bool\l
+      }}"];
+    QueryFeedback -> Feedback;
+    QueryFeedbackMap -> {
+      QueryFeedbackKey;
+      QueryFeedback;
+    }
+    QueryFeedbackMap_append -> QueryFeedbackMap[style=dashed;]
+    QueryFeedback_CalcErrorRate;
+  }
+}

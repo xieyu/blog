@@ -1,0 +1,57 @@
+digraph sql_recordset_driver {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_server_driver {
+    graph[label="server/driver.go";fontsize=20;];
+    subgraph cluster_resultset {
+      graph[label="RecordSet Interface";fontsize=20;];
+      RecordSet_Next[label="Next"];
+    }
+  }
+
+  subgraph cluster_executor {
+    graph[label="executor/executor.go";fontsize=20;];
+    Executor_Next[label="Next"];
+  }
+  Executor_Next -> {
+    HashJoinExec;
+    ShowExec;
+    ExplainExec;
+    IndexReaderExecutor;
+    ProjectionExec;
+  }
+
+  subgraph cluster_executor_adapter {
+    graph[label="executor/adapter.go";fontsize=20;];
+    subgraph cluster_recordSet {
+      graph[label="recordSet\l实现RecordSet接口";fontsize=20;];
+      recordSet_Next;
+    }
+  }
+
+  RecordSet_Next -> recordSet_Next -> Executor_Next;
+
+
+  subgraph cluster_server_conn {
+    graph[label="server/conn.go";fontsize=20;];
+    subgraph cluster_clientConn {
+      graph[label="clientConn";fontsize=20;];
+      dispatch -> {
+        handleStmtExecute;
+        handleQuery;
+        handleStmtFetch;
+      } -> writeResultset -> {
+        writeChunks;
+        writeChunksWithFetchSize;
+      } -> {
+        RecordSet_Next;
+        writePacket;
+        writeEOF;
+      }
+    }
+  }
+
+
+}

@@ -1,0 +1,44 @@
+#include "styles.h"
+digraph prewrite_rollback {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  cmd_prewrite[style_func;label="{{
+    Prewriter::prewrite
+  }}"]
+
+  actions_prewrite[style_func;label="{{
+    actions/prewrite\l
+  }}"]
+
+  reader_seek_write[style_func;label="{{
+    MvccReader::seek_write|
+    seek_write(self.key, TimeStamp::max())\l|
+    读要prewrite key的 write record\l
+  }}"]
+
+  cmd_prewrite -> actions_prewrite;
+  WriteType_Rollback[style_func;label="{{
+    WriteType_Rollback|
+    如果write_record的commit_ts\l
+    和当前事务start_ts一样，且\l
+    类型为Rollback\l
+    报write_conflict_error\l
+  }}"]
+  write_conflict_error;
+  reader_seek_write -> WriteType_Rollback -> write_conflict_error[style_edge_data];
+  check_for_newer_version[style_func;label="{{
+    check_for_newer_version|
+    检查key对应的write record\l
+    是否已经被更新的事务所write了\l
+    或者已经被rollback了\l
+  }}"]
+
+  actions_prewrite -> check_for_newer_version;
+  check_for_newer_version -> {
+    reader_seek_write;
+    WriteType_Rollback;
+  }
+  
+}

@@ -1,0 +1,28 @@
+digraph Column {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Column {
+    graph[label="Column";fontsize=20;style="rounded,dashed";color="slategrey"]
+      ResolveIndices -> resolveIndices;
+      ColInfo2Col;
+  }
+
+  buildDataSource -> {
+    TableByName;
+    BuildDataSourceFromView;
+    buildMemTable;
+    IsVirtualTable;
+    GetPartitionInfo;
+    FindPartitionByName;
+    NewPartitionTableithGivenSets;
+    getPossibleAccessPaths;
+    filterPathByIsolationRead;
+    toInfo;
+    FieldName;
+    AllocPlanColumnID;
+    IntHandleCols;
+    IsPKHandleColumn;
+  }
+}

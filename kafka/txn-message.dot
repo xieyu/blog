@@ -1,0 +1,41 @@
+digraph txn_message {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  TxnTransitMetadata[
+    shape="record";
+    label="{{
+      TxnTransitMetadata|
+      producerId: Long\l|
+      lastProducerId: Long\l|
+      producerEpoch: Short\l|
+        lastProducerEpoch: Short\l|
+        txnTimeoutMs: Int\l|
+        txnState: TransactionState\l|
+        topicPartitions: immutable.Set[TopicPartition]\l|
+        txnStartTimestamp: Long\l|
+        txnLastUpdateTimestamp: Long\l
+      }}";
+  ];
+  TransactionLog[
+    shape="record";
+    label="{
+      TransactionLog|
+      msg|
+      <msg> msg|
+      ...
+    }";
+  ];
+  Msg[
+    shape="record";
+    label="{{
+      Msg|
+      <key> key\l|
+      <val> value\
+    }}";
+  ];
+  TransactionLog:msg -> Msg;
+  Msg:key -> TransactionalId;
+  Msg:val -> TxnTransitMetadata;
+  appendTransactionToLog -> TransactionLog:msg;
+}

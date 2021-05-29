@@ -1,0 +1,150 @@
+digraph stream_processor_context {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  ProcessorContext[shape="record";
+    label="{{
+      Interface ProcessorContext|
+        String applicationId()\l|
+        TaskId taskId();\l|
+        Serde\<?\> keySerde();\l|
+        Serde\<?\> valueSerde();\l|
+        File stateDir();\l|
+        StreamsMetrics metrics();\l|
+        void register(final StateStore store,\l
+                  final StateRestoreCallback stateRestoreCallback);\l|
+                  
+        <store> StateStore getStateStore(final String name);\l|
+        schedule\l|
+        forward\l|
+        commit\l|
+        String topic \l|
+        int partition\l|
+        long offset \l|
+        Headers headers\l|
+        long timestamp\l|
+        Map<String, Object> appConfigs\l|
+        Map<String, Object> appConfigsWithPrefix\l
+    }}";
+  ];
+  InternalProcessorContext[
+    shape="record";
+    label="{{
+      InternalProcessorContext|
+      StreamsMetricsImpl metrics()\l|
+      ProcessorRecordContext recordContext()\l|
+      void setRecordContext(ProcessorRecordContext recordContext)\l|
+      void setCurrentNode(ProcessorNode currentNode)\l|
+      ProcessorNode currentNode()\l|
+      ThreadCache getCache()\l|
+      void initialize()\l|
+      void uninitialize()\l|
+      StateStore getStateStore()\l
+    }}";
+  ];
+  AbstractProcessorContext[
+    shape="record";
+    label="{{
+      AbstractProcessorContext|
+      TaskId taskId\l|
+      String applicationId\l|
+      StreamsConfig config\l|
+      StreamsMetricsImpl metrics\l|
+      Serde keySerde\l|
+      ThreadCache cache\l|
+      Serde valueSerde\l|
+      bool initialized;
+      ProcessorRecordContext recordContext\l|
+      ProcessorNode currentNode\l|
+      StateManager stateManager;\l
+    }}";
+  ];
+  ProcessorContextImpl[
+    shape="record";
+    label="{{
+      ProcessorContextImpl|
+      StreamTask task\l|
+      RecordCollector collector\l|
+      ToInternal toInternal\l|
+      ProcessorStateManager stateManager\l
+    }}";
+  ];
+  StreamTask[
+    shape="record";
+    label="{{
+      StreamTask|
+      Time time;\l|
+      long maxTaskIdleMs;\l|
+      int maxBufferedSize;\l|
+      StreamsMetricsImpl streamsMetrics;\l|
+      PartitionGroup partitionGroup;\l|
+      RecordCollector recordCollector;\l|
+      PartitionGroup.RecordInfo recordInfo;\l|
+      Map<TopicPartition, Long> consumedOffsets;\l|
+      PunctuationQueue streamTimePunctuationQueue;\l|
+      PunctuationQueue systemTimePunctuationQueue;\l|
+      ProducerSupplier producerSupplier;\l|
+      Sensor closeTaskSensor;\l|
+      Sensor processLatencySensor;\l|
+      Sensor punctuateLatencySensor;\l|
+      Sensor commitSensor;\l|
+      Sensor enforcedProcessingSensor;\l|
+      Sensor recordLatenessSensor;\l|
+      long idleStartTime;\l|
+      Producer<byte[], byte[]> producer;\l|
+      boolean commitRequested = false;\l|
+      boolean transactionInFlight = false;\l|
+      final String threadId;\l
+    }}";
+  ];
+  AbstractTask[
+    shape="record";
+    label="{{
+      AbstractTask|
+      TaskId id;\l|
+      String applicationId;\l|
+      ProcessorTopology topology;\l|
+      ProcessorStateManager stateMgr;\l|
+      Set<TopicPartition> partitions;\l|
+      Consumer<byte[], byte[]> consumer;\l|
+      String logPrefix;\l|
+      boolean eosEnabled;\l|
+      Logger log;\l|
+      LogContext logContext;\l|
+      StateDirectory stateDirectory;\l|
+      boolean taskInitialized;\l|
+      boolean taskClosed;\l|
+      boolean commitNeeded;\l|
+      InternalProcessorContext processorContext;\l|
+    }}";
+  ];
+  Task[
+    shape="record";
+    label="{{
+      Interface Task|
+      initializeMetadata()\l|
+      initializeStateStores\l|
+      commitNeeded()\l|
+      initializeTopology()\l|
+      resume()\l|
+      close \l|
+      getStore\l|
+      ProcessorTopology topology()\l|
+      ProcessorContext context()\l|
+      TaskId id()\l|
+      Set\<TopicPartition\> partitions()\l|
+      Collection\<TopicPartition\> changelogPartitions()l\l
+      boolean hasStateStores()\l|
+      String toString()\l
+    }}";
+  ];
+  ProcessorNodePunctuator  -> StreamTask;
+  Task -> AbstractTask -> StreamTask;
+  ProcessorContext -> InternalProcessorContext -> AbstractProcessorContext;
+  AbstractProcessorContext -> {
+    GlobalProcessorContextImpl;
+    StandbyContextImpl;
+    ProcessorContextImpl
+  }
+}

@@ -1,0 +1,94 @@
+#include "styles.h"
+digraph yatp_future_waker {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  future_Runner_handle[style_func;label="{{
+    future::Runner::handle
+  }}"]
+
+  future_Runner_handle -> {
+    Context_from_waker;
+    waker;
+    Context_from_waker;
+    wake_task;
+    task_future_poll;
+  }
+  waker[style_func;label="{{
+    waker|
+    Waker中包含了task 常指针\l
+    Waker::from_raw(RawWaker::new(
+      task as *const()\l|
+      &RawWakerVTable::new(\l 
+      clone_raw, wake_raw, wake_ref_raw, drop_raw),\l
+  }}"]
+  RawWaker[style_func;label="{{
+    RawWaker|
+    data: *const (),\l|
+    vtable: &'static RawWakerVTable\l
+  }}"]
+  waker -> RawWaker -> RawWakerVTable;
+  RawWakerVTable[style_func;label="{{
+    RawWakerVTable|
+    clone: unsafe fn(*const ()) -\> RawWaker\l|
+    wake: unsafe fn(*const ()),\l|
+    wake_by_ref: unsafe fn(*const ()),\l|
+    drop: unsafe fn(*const ()),\l
+  }}"]
+  Context_from_waker[style_func;label="{{
+    Context::from_waker|
+    Context\{waker, _marker: PhantomData\}
+  }}"]
+  wake_raw[style_func;label="{{
+    wake_raw|
+    将task指针转为task_cell\l
+    然后调用wake_impl\l|
+    let task_cell = task_cell(this as *const Task);\l
+    wake_impl(Cow::Owned(task_cell.0))\l
+  }}"]
+  drop_raw[style_func;label="{{
+    drop_raw|
+    drop(task_cell(this as *const Task))\l
+  }}"]
+
+  Context_from_waker -> {
+    waker
+  }[style_edge_data]
+
+  Context_from_waker -> task_future_poll[style_edge_data];
+
+  RawWakerVTable -> {
+    clone_raw;
+    wake_raw;
+    wake_ref_raw;
+    drop_raw;
+  }
+  wake_raw -> {
+    wake_impl;
+    task_cell;
+  }
+  wake_ref_raw -> {
+    wake_impl;
+    task_cell;
+    ManuallyDrop_new;
+  }
+  wake_impl -> wake_task;
+  wake_impl[style_func;label="{{
+    wake_impl|
+    如果task的状态为IDEL\l
+    compare_exchange_weak(IDLE, NOTIFIED,..)\l
+    将状态改为NOTIFIED, 然后调用wake_task\l
+  }}"]
+
+  wake_task[style_func;label="{{
+    wake_task|
+    将task重新加入remote/local队列\l
+  }}"]
+
+  task_future_poll[style_func;label="{{
+    task.future.poll|
+      调用future.poll\l
+  }}"]
+
+}

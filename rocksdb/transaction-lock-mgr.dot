@@ -1,0 +1,263 @@
+digraph tranaction_lock_mgr {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PessimisticTransaction {
+    graph[label="PessimisticTransaction";fontsize=20;];
+    ClearWaitingTxn -> {
+      waiting_txn_ids_;
+      wait_mutex_;
+    };
+    SetWaitingTxn -> {
+      waiting_cf_id_;
+      wait_mutex_;
+      waiting_txn_ids_;
+    };
+    GetID[
+      shape="record";
+      label="{{
+        GetID|
+        获取事务ID\l
+      }}";
+    ];
+  } // end of PessimisticTransaction
+
+  subgraph cluster_TransactionOptions {
+    graph[label="TransactionOptions";fontsize=20;];
+    GetExpirationTime;
+    GetLockTimeout;
+  } // end of TransactionOptions
+
+  subgraph cluster_LockMap {
+    graph[label="LockMap";fontsize=20;];
+    GetStripe -> num_stripes_;
+    lock_maps_cache_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        lock_maps_cache_|
+          std::unique_ptr\<ThreadLocalPtr\>\l lock_maps_cache_;\l
+      }}"
+    ];
+    lock_maps_cache_ -> LockMaps;
+    LockMaps -> LockMap;
+    LockMap[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        LockMap|
+          const size_t num_stripes_;\l|
+          std::atomic\<int64_t\> lock_cnt\{0\};\l|
+          std::vector\<LockMapStripe*\> lock_map_stripes_;\l
+      }}"
+    ];
+    LockMap -> LockMapStripe;
+    subgraph cluster_LockMapStripe {
+      graph[label="LockMapStripe";fontsize=20;];
+      LockMapStripe[
+        shape="record"
+        label="{{
+          LockMapStripe|
+            <stripe_mutex> std::shared_ptr\<TransactionDBMutex\> stripe_mutex\l|
+            <stripe_cv> std::shared_ptr\<TransactionDBCondVar\> stripe_cv;\l|
+            <LockInfo> std::unordered_map\<std::string, LockInfo\> keys;\l
+        }}"
+      ];
+      LockMapStripe -> {
+        TransactionDBMutex;
+        TransactionDBCondVar;
+        LockInfo;
+      }
+    }
+    TransactionDBMutex[
+      shape="record"
+      label="{{
+        TransactionDBMutex|
+          virtual Status Lock() = 0;\l|
+          virtual Status TryLockFor(int64_t timeout_time) = 0;\l|
+          virtual void UnLock() = 0;\l
+      }}"
+    ];
+    TransactionDBCondVar[
+      shape="record"
+      label="{{
+        TransactionDBCondVar|
+          virtual Status Wait(std::shared_ptr\<TransactionDBMutex\> mutex) = 0;\l|
+          virtual Status WaitFor(std::shared_ptr\<TransactionDBMutex\> mutex,\l
+                         int64_t timeout_time) = 0;\l|
+          virtual void Notify() = 0;\l|
+          virtual void NotifyAll() = 0;\l
+      }}"
+    ];
+    LockInfo[
+      shape="record"
+      label="{{
+        LockInfo\l|
+        bool exclusive;\l|
+        autovector\<TransactionID\> txn_ids;\l|
+        uint64_t expiration_time;\l
+      }}"
+    ];
+  }
+  subgraph cluster_TransactionLockMgr {
+    graph[label="TransactionLockMgr";fontsize=20;];
+    TryLock[
+      shape="record";
+      label="{{
+        TryLock|
+        获取LockMapStripe\l
+        然后调用AcquireWithTimeout获取lock\l
+      }}";
+    ];
+    TryLock -> {
+      GetLockMap;
+      GetExpirationTime;
+      GetLockTimeout;
+      AcquireWithTimeout;
+      GetStripe;
+    }[color="#b83b5e"];
+
+    GetStripe[
+      shape="record";
+      label="{{
+        GetStrip|
+        根据key获取对应的stripe\l
+      }}";
+    ];
+
+    AcquireWithTimeout[
+      shape="record";
+      label="{{
+        AcquireWithTimeout|
+        获取key对应的lock\l|
+        1.先获取key对应的stripe mutex lock\l
+        已方便对stripe操作\l
+        2.调用AcquireLocked获取key锁\l
+        3.未timeout，循环尝试获取key锁\l
+      }}";
+    ];
+
+    AcquireWithTimeout -> {
+      AcquireLocked;
+      SetWaitingTxn;
+      IsDeadlockDetect;
+      IncrementWaiters;
+      ClearWaitingTxn;
+      DecrementWaiters;
+      LockMapStripe:stripe_mutex;
+      LockMapStripe:stripe_cv;
+    }[color="#3f72af"];
+
+    AcquireLocked[
+      shape="record";
+      label="{{
+        AcquireLocked|
+        获取key锁:\l
+        1. 从stripe的keys中查找key\l|
+        2. 如果stripe.keys中不存在该key，\l 
+        就获取了key的lock 将自己插到map中\l|
+        3. 如果key被占用，如果是排它锁 \l 
+          3.1 检查key对应的事务是否是自己\l
+          3.2 检查key对应的事务是否过期了\l|
+        4.非排它锁，把自己加到keys后面\l
+        5.返回等待该key的事务id列表\l
+      }}";
+    ];
+
+    AcquireLocked -> {
+      IsLockExpired;
+      wait_ids
+    }
+    wait_ids[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        wait_ids|
+        等待key的事务id\l
+      }}";
+    ];
+    wait_ids -> {
+      IncrementWaiters;
+      SetWaitingTxn;
+      DecrementWaiters;
+    }[style=dashed];
+
+    IsLockExpired[
+      shape="record";
+      label="{{
+        IsLockExpired|
+        检查事务是否过期了\l
+      }}";
+    ];
+
+    IsLockExpired -> {
+      LockInfo;
+    }
+    GetLockMap[
+      shape="record";
+      label="{{
+        GetLockMap|
+        根据column_family_id\l 
+        从ThreadLocal cache中获取lockmap\l
+        失败就用mutex去全局获取lockmap并更新cache\l
+      }}";
+    ];
+
+    GetLockMap -> {
+      lock_maps_cache_;
+      LockMaps;
+    }
+
+
+    IsDeadlockDetect[
+      shape="record";
+      label="{{
+        IsDeadlockDetect|
+        是否开启了死锁检测\l
+      }}";
+    ];
+    IsDeadlockDetect -> IncrementWaiters[style=dashed];
+
+    IncrementWaiters[
+      shape="record";
+      label="{{
+        IncrementWaiters|
+        Deadlock检测？
+      }}";
+    ];
+    DecrementWaiters; 
+
+    // Unlock
+    Unlock[
+      shape="record";
+      label="{{
+        Unlock|
+        释放掉txn对应的keys锁\l
+      }}";
+    ];
+    Unlock -> {
+      GetLockMap;
+      GetStripe
+      UnLockKey;
+      TransactionDBCondVar;
+      TransactionDBMutex;
+    }[color="#17b978"];
+
+    UnLockKey[
+      shape="record";
+      label="{{
+        UnLockKey|
+        将事务从key对应的\l 
+        LockInfo的txn_ids中去掉\l
+      }}";
+    ];
+
+    UnLockKey -> {
+      LockMapStripe:LockInfo;
+    }
+  }
+}

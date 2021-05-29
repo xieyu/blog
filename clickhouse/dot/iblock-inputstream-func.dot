@@ -1,0 +1,174 @@
+digraph IBlockOutputStream {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  read -> {
+    readImpl;
+    progressImpl;
+    isCancelledOrThrowIfKilled;
+    checkTimeLimit;
+    updateExtremes;
+    checkQuota;
+    cancel;
+    progress;
+  }[color="#f08a5d"]
+
+  updateExtremes[
+    shape="record";
+    label="{{
+      updateExtremes|
+      根据读到的block\l 
+      更新极值\l
+    }}";
+  ];
+
+  updateExtremes -> {
+    extremes;
+  }
+
+  readPrefix -> {
+    child_readPrefix;
+    readPrefixImpl;
+  }
+
+  readSuffix -> {
+    child_readSuffix;
+    readSuffixImpl;
+  }
+
+  progressImpl[
+    shape="record";
+    label="{{
+      progressImpl|
+      调用progress_callback
+    }}";
+  ];
+  progressImpl -> {
+    progress_callback;
+    updateProgressIn;
+    updatePerformanceCounters;
+    process_list_elem;
+    cancel;
+    last_profile_events_update_time;
+    limits;
+    quota;
+  }[color="#3f72af"];
+
+  setProgressCallback[
+    shape="record";
+    label="{{
+      setProgressCallback|
+      设置progress回调
+    }}";
+  ];
+
+  subgraph cluster_children {
+    graph[label="children";fontsize=20;];
+    children_getExtremes[
+      shape="record";
+      label="{{
+        getExtremes|
+        获取children的Extremes
+      }}";
+    ];
+    child_readPrefix[
+      shape="record";
+      label="{{
+        readPrefix|
+        遍历childrens数组\l
+        调用每个children的readPefix
+      }}";
+    ];
+    child_readSuffix[
+      shape="record";
+      label="{{
+        readSuffix|
+        遍历childrens数组\l
+        调用每个children的readSuffix
+      }}";
+    ];
+    child_cancel[
+      shape="record";
+      label="{{
+        cancel|
+        遍历childrens数组\l
+        调用每个children的cancel
+      }}";
+    ];
+  }
+
+  readImpl[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+      readImpl\l|
+      Derived classes must implement this function
+    }}";
+  ];
+
+  readPrefixImpl[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+      readPrefixImpl\l|
+       Here you can do a \l 
+       preliminary initialization.\l|
+       子类的readPreffixImpl实现\l
+    }}";
+  ];
+
+  readSuffixImpl[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+    readSuffixImpl\l|
+    Here you need to do a\l 
+    finalization, which can\l 
+    lead to an exception.\l|
+    子类实现
+    }}";
+  ];
+
+  updateExtremes -> {
+    extremes;
+    getExtremes;
+  }
+
+  getExtremes -> {
+    extremes;
+    children_getExtremes;
+  }
+
+  subgraph cluster_DataMembers {
+    graph[label="DataMembers";fontsize=20;];
+    is_cancelled;
+    extremes;
+    is_killed;
+    progress_callback;
+    process_list_elem;
+    limits;
+    quota;
+    last_profile_events_update_time;
+  }
+  setProgressCallback -> progress_callback;
+
+  isCancelledOrThrowIfKilled -> {
+    is_cancelled;
+    is_killed;
+  }[color="#3fc1c9"];
+
+  cancel -> {
+    is_killed;
+    is_cancelled;
+    child_cancel;
+  }[color="#b83b5e"];
+
+  checkQuota -> {
+    limits;
+    quota;
+  }
+}

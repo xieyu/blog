@@ -1,0 +1,134 @@
+#include "styles.h"
+digraph DeriveStats {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  AccessPath[style_struct;label="{{
+    AccessPath|
+    field(Ranges, []*ranger.Range)
+    field(AccessConds, []expression.Expression)
+    field(TableFilters, []expression.Expression)
+    tail_field(IndexFilters, []expression.Expression)
+  }}"]
+
+  DeriveStats -> {
+    fillIndexPath;
+    deriveStatsByFilter;
+    deriveCommonHandleTablePathStats;
+    deriveIndexPathStats;
+    deriveTablePathStats;
+  }
+
+  deriveIndexPathStats -> {
+    SplitCorColAccessCondFromFilters;
+    splitIndexFilterConditions;
+    Selectivity;
+  }
+
+  deriveTablePathStats[style_func;label="{{
+    deriveTablePathStats|
+    填充table类型的\l 
+    AccessPath访问信息\l
+  }}"]
+  deriveTablePathStats -> {
+    FullIntRange;
+    deriveCommonHandleTablePathStats;
+    DetachCondsForColumn;
+    BuildTableRange;
+  }
+  splitIndexFilterConditions -> {
+    isCoveringIndex;
+  } -> {
+    indexConditions;
+    tableConditions;
+  }
+  indexConditions[style_var];
+  tableConditions[style_var];
+  indexConditions -> AccessPath:IndexFilters;
+  tableConditions -> AccessPath:TableFilters;
+
+  deriveCommonHandleTablePathStats -> {
+    DetachCondAndBuildRangeForIndex;
+  }
+
+  fillIndexPath -> {
+    DetachCondAndBuildRangeForIndex;
+  }
+
+  deriveStatsByFilter[style_func;label="{{
+    deriveStatsByFilter|
+    生成stats统计信息\l
+  }}"]
+  deriveStatsByFilter -> {
+    Selectivity;
+    basePlan:stats
+  }
+  basePlan[style_struct;label="{{
+    basePlan|
+	  field(tp,          string)
+	  field(id,          int)
+	  field(ctx,         sessionctx.Context)
+	  field(stats,       *property.StatsInfo)
+	  tail_field(blockOffset, int)
+  }}"];
+  DataSource[style_struct];
+  logicalSchemaProducer[style_struct];
+  baseLogicalPlan[style_struct];
+  BuildTableRange[style_func;label="{{
+    BuildTableRange|
+    将AccessConds转换为\l
+    Ranges\l
+  }}"]
+
+  BuildTableRange -> Ranges;
+  FullIntRange -> Ranges;
+  Ranges[style_var];
+  Ranges -> AccessPath:Ranges;
+
+  DetachCondsForColumn[style_func;label="{{
+      DetachCondsForColumn|
+      将对pkCol上的条件拆出来\l
+      作为AccessConds\l
+  }}"]
+  FullIntRange[style_func;label="{{
+    FullIntRange|
+    如果没有pk column 则\l
+    用整个intRange(全表扫描)\l
+  }}"]
+  deriveCommonHandleTablePathStats[style_func;label="{{
+    deriveCommonHandleTablePathStats|
+    暂时不明白这个CommonHanle是啥
+  }}"]
+  DetachCondAndBuildRangeForIndex -> DetachRangeResult;
+  DetachRangeResult[style_struct;label="{{
+  DetachRangeResult|
+    field(Ranges, []*Ranges)
+    field(AccessConds, []expression.Expression)
+    field(RemainedConds, []expression.RemainedConds)
+  }}"];
+  DetachRangeResult:RemainedConds -> TableFilters[style_edge_data];
+  DetachRangeResult:Ranges -> Ranges;
+  fillIndexPath[style_func;label="{{
+    fillIndexPath|
+    填充Index类型的AcessPath\l
+  }}"]
+
+  DetachCondsForColumn -> {
+    AccessConds;
+    TableFilters;
+  }[style=dashed;color=green];
+  TableFilters[style_var]
+  TableFilters -> AccessPath:TableFilters;
+
+  AccessConds -> BuildTableRange[style=dashed;color=greeen]
+  AccessConds[style_var];
+
+  DataSource -> logicalSchemaProducer -> baseLogicalPlan -> basePlan;
+
+  {
+    DetachCondAndBuildRangeForIndex;
+    deriveIndexPathStats;
+  } -> AccessPath;
+}

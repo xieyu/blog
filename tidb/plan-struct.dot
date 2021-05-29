@@ -1,0 +1,120 @@
+digraph plan_struct {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  baseLogicalPlan[
+    shape="record";
+    label="{{
+      baseLogicalPlan|
+        <basePlan> basePlan\l|
+        <task> taskMap   map[string]task\l|
+        self      LogicalPlan\l|
+        maxOneRow bool\l|
+        children  []LogicalPlan\l
+    }}";
+  ];
+
+  basePlan[
+    shape="record";
+    label="{{
+       basePlan|
+	      tp          string\l|
+	      id          int\l|
+	      ctx         sessionctx.Context\l|
+	      stats       *property.StatsInfo\l|
+	      blockOffset int\l
+    }}";
+  ];
+
+  basePhysicalPlan [
+    shape="record";
+    label="{{
+      basePhysicalPlan |
+        <basePlan> basePlan \l|
+        childrenReqProps []*property.PhysicalProperty\l|
+        self             PhysicalPlan\l|
+        children         []PhysicalPlan\l
+    }}";
+  ];
+
+  task[
+    shape="record";
+    label="{{
+      task|
+        count() float64\l|
+        addCost(cost float64)\l|
+        cost() float64\l|
+        copy() task\l|
+        plan() PhysicalPlan\l|
+        invalid() bool\l|
+    }}";
+  ];
+
+  logicalSchemaProducer[
+    shape="record";
+    label="{{
+      logicalSchemaProducer|
+        schema *expression.Schema\l|
+        names  types.NameSlice\l|
+        <baseLogicalPlan> baseLogicalPlan\l
+    }}";
+  ];
+
+  DataSource [
+    shape="record";
+    label="{{
+      DataSource|
+      <logicalSchemaProducer> logicalSchemaProducer\l|
+      indexHints []*ast.IndexHint\l|
+      table      table.Table\l|
+      tableInfo  *model.TableInfo\l|
+      Columns    []*model.ColumnInfo\l|
+      DBName     model.CIStr\l|
+      ...
+    }}";
+  ];
+  LogicalSelection[
+    shape="record";
+    label="{{
+      LogicalSelection|
+      <baseLogicalPlan> baseLogicalPlan \l|
+      Conditions []expression.Expression\l
+    }}";
+  ];
+
+  LogicalProjection[
+    shape="record";
+    label="{{
+      LogicalProjection|
+      <logicalSchemaProducer> logicalSchemaProducer\l|
+      Exprs []expression.Expression\l|
+	    calculateGenCols bool\l|
+      CalculateNoDelay bool\l|
+      AvoidColumnEvaluator bool\l|
+    }}";
+  ];
+
+  LogicalJoin[
+    shape="record";
+    label="{{
+      LogicalJoin|
+        <logicalSchemaProducer> logicalSchemaProducer\l|
+        ...\l|
+        JoinType      JoinType\l|
+        ...
+    }}";
+]
+
+  copTask -> task[label="impl"];
+rootTask -> task[label="impl"];
+
+baseLogicalPlan:task -> task;
+basePhysicalPlan:basePlan -> basePlan;
+baseLogicalPlan:basePlan -> basePlan;
+
+logicalSchemaProducer:baseLogicalPlan -> baseLogicalPlan;
+DataSource:logicalSchemaProducer -> logicalSchemaProducer;
+LogicalSelection:baseLogicalPlan -> baseLogicalPlan;
+LogicalProjection:logicalSchemaProducer -> logicalSchemaProducer;
+LogicalJoin:logicalSchemaProducer -> logicalSchemaProducer;
+}

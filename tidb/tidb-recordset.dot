@@ -1,0 +1,105 @@
+digraph record_set {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  RecordSet [
+    shape="record";
+  label="{{
+    RecordSet |
+      <executor> executor \l|
+      <Next> Next \l
+  }}";
+  ];
+
+  Executor [
+    shape="record";
+    label="{{
+      Executor |
+      <Next> Next \l|
+      <Open> Open \l|
+      <Close> Close \l|
+      <Schema> Schema\l
+    }}";
+  ];
+
+  subgraph cluster_insert {
+    graph[label="executor/insert.go";fontsize=20;style=rounded]
+    InsertExec [
+      shape="record";
+      label="{{
+        InsertExec |
+        <InsertValues> *InsertValues \l|
+        <exec> exec \l|
+        <Next> Next\l
+      }}";
+    ];
+
+    InsertValues [
+      shape="record";
+      label="{{
+        InsertValues |
+        <baseExecutor> baseExecutor \l
+      }}";
+    ];
+
+    baseExecutor [
+      shape="record";
+      label="{{
+        baseExecutor |
+        children []Executor\l
+      }}";
+    ]
+
+    InsertExec:InsertValues -> InsertValues;
+    InsertValues:baseExecutor -> baseExecutor;
+
+    InsertExec:Next -> insertRows;
+    insertRows ->  doBatchInsert;
+    insertRows -> InsertExec:exec[label="exec"];
+
+    InsertExec:exec -> {
+      batchCheckAndInsert;
+      addRecord;
+    };
+    doBatchInsert -> NewBufferStore;
+    addRecord -> SetLastInsertID;
+  }
+
+  addRecord -> Table_AddRecord;
+  subgraph cluster_table {
+    graph[label="table";fontsize=20;style=rounded]
+    Table_AddRecord[label="AddRecord"];
+    Table_AddRecord -> {
+      addIndices;
+      EncodeRow[label="EncodeRow\l对应value"];
+      RecordKey[label="RecordKey\l根据recordID计算存储的key"];
+      Txn_Set[label="txn.Set(key, value)\l底层设置key,value"];
+    }
+  }
+
+Exec -> handleNoDelay -> handleNoDelayExecutor -> InsertExec:Next;
+
+subgraph cluster_conn {
+  graph[label="clientConn";fontsize=20;style=rounded]
+  dispatch -> {
+    handleQuery;
+    handleStmtFetch;
+    handleStmtExecute;
+  } -> writeResultset;
+
+  writeMultiResultset -> writeResultset;
+
+  writeResultset -> {
+    writeChunksWithFetchSize;
+    writeChunks;
+  } -> {
+    RecordSet:Next;
+    writePacket;
+    writeEOF;
+  }
+  
+}
+
+  RecordSet:Next -> Executor:Next -> InsertExec:Next;
+}

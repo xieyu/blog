@@ -1,0 +1,228 @@
+#include "styles.h"
+digraph handle_append_response {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ProgressTracker[style_struct;label="{{
+    ProgressTracker|
+    progress: ProgressMap\l|
+    <conf> conf: Configuration\l|
+    votes: HashMap\<u64, bool\>\l|
+    max_inflight: usize\l|
+    group_commit: bool\l|
+    pub(crate) logger: Logger\l
+  }}"]
+  ProgressState[style_struct;label="{{
+    ProgressState|
+    Probe\l|
+    Replicate\l|
+    Snapshot\l
+  }}"]
+  Configuration[style_struct;label="{{
+    Configuration|
+    pub(crate) voters: JointConfig\l|
+    pub(crate) learners: HashSet\<u64\>\l|
+    pub(crate) learners_next: HashSet\<u64\>\l|
+    pub(crate) auto_leave: bool\l
+  }}"]
+  Configuration -> JointConfig;
+
+  JointConfig[style_struct;label="{{
+    JointConfig|
+    pub(crate) incoming: MajorityConfig\l|
+    pub(crate) outgoing: MajorityConfig\l
+  }}"]
+  ProgressTracker:conf -> Configuration;
+
+  ProgressTracker -> ProgressMap -> Progress -> ProgressState;
+  ProgressMap[style_struct;label="{{
+    ProgressMap|
+    pub type ProgressMap = HashMap\<u64, Progress\>
+  }}"]
+  Progress[style_struct;label="{{
+    Progress|
+    pub matched: u64\l|
+    <next_idx> pub next_idx: u64\l|
+    pub state: ProgressState\l|
+    <committed_index> pub committed_index: u64\l|
+    pub ins: Inflights\l|
+    ...\l
+  }}"]
+  prs_get_mut[style_func;label="{{
+    ProgressTracker.get_mut(m.form)\l|
+    找到发送消息peer\l 
+    对应的Progress\l
+  }}"]
+  prs_get_mut -> {
+    Progress;
+    ProgressTracker;
+  }[style_edge_data];
+
+  subgraph cluster_Progress {
+    graph[label="Progress";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Progress;
+    ProgressState;
+    pr_update_committed[style_func;label="{{
+      Progress.update_committed\l
+      (&mut self, committed_index: u64)\l|
+      update followers committed\l 
+      index via append response\l
+    }}"]
+    pr_maybe_update[style_func;label="{{
+      Progress.maybe_update(&mut self, n:u64)\l|
+      return false if the given n index comes\l 
+      from an outdated message\l
+      Otherwise it updates the \l 
+      progress and return true\l
+    }}"]
+    pr_update_committed -> Progress:committed_index;
+    pr_maybe_update -> Progress:next_idx;
+    pr_maybe_decr_to[style_func;label="{{
+      maybe_decr_to\l|
+      收到消息m.rejct为true\l
+      需要调整发送的index\l
+    }}"]
+    pr_become_probe[style_func;label="{{
+      become_probe\l
+    }}"]
+    pr_maybe_snapshot_abort[style_func;label="{{
+      maybe_snapshot_abort|
+      如果peer当前状态为SnapShot\l
+      且maybe_snapshot_abort
+    }}"]
+    pr_become_replicate[style_func;label="{{
+      become_replicate
+    }}"]
+    pr_maybe_snapshot_abort -> pr_become_probe[style_edge_data];
+    pr_maybe_decr_to -> pr_become_probe[style_edge_data]
+    update_committed_leader[style_func;label="{{
+      update_committed|
+      更新leader的commited index\l
+    }}"]
+    update_committed_leader -> Progress:committed_index;
+  }
+
+  handle_append_response -> {
+    prs_get_mut;
+    pr_update_committed;
+    pr_maybe_update;
+    pr_maybe_snapshot_abort;
+    pr_become_probe;
+    pr_become_replicate;
+    pr_maybe_decr_to;
+    maybe_commit;
+    should_bcast_commit;
+    bcast_append;
+    send_append;
+    maybe_send_append;
+  }[color="#b83b5e"];
+
+  maybe_commit[style_func;label="{{
+    maybe_commit|
+    Attempts to advance the commit index\l
+    return true if the commit index changed\l
+    in which case the caller should call\l
+    r.bcast_append\l
+  }}"]
+  maybe_commit -> should_bcast_commit -> bcast_append[style_edge_data];
+  maybe_commit -> {
+    mut_prs;
+    maximal_committed_index;
+    raft_log_maybe_commit;
+    update_committed_leader;
+  }
+  Progress -> old_paused[style_edge_data];
+  {maybe_commit;old_paused} -> send_append[style_edge_data];
+
+  mut_prs[style_func;label="{{
+    mut_prs|
+    获取prs: ProgressTracker的\l
+    可变引用\l
+  }}"]
+
+  mut_prs -> {
+    ProgressTracker;
+    maximal_committed_index;
+  }[style_edge_data];
+  maximal_committed_index[style_func;label="{{
+    maximal_committed_index|
+    Return the maximal committed\l
+    index for the cluster\l
+    the bool flag indicates\l
+    whether the index is computed\
+    by group commit\l 
+    algorithm successfully\l
+  }}"]
+
+  maximal_committed_index -> {
+    conf_voters_committed_index;
+  }
+  conf_voters_committed_index -> committed_index;
+
+
+  should_bcast_commit -> {
+    skip_bcast_commit;
+    has_pending_conf;
+  }
+  bcast_append -> {
+    ProgressTracker;
+    msgs;
+  }
+
+  conf_voters_committed_index;
+  JointConfig;
+
+  conf_voters_committed_index[style_func;label="{{
+    conf.voters.committed_index|
+    Returns the largest committed index\l 
+    for the given joint quorum\l|
+    An index is jointly committed if \l
+    it is committed in both constituent majorities\l
+  }}"]
+
+  conf_voters_committed_index -> JointConfig;
+  committed_index[style_func;label="{{
+    committed_index|
+    Computes the committed index \l 
+    from those supplied via the\l
+    provided AckedIndexer (for the active config).\l|
+    使用了Progress.machted来统计\l
+  }}"]
+  acked_index[style_func;label="{{
+    acked_index|
+    获取vote_id对应的index
+  }}"]
+  ProgressMap -> acked_index ->  committed_index[style_edge_data];
+  maximal_committed_index -> raft_log_maybe_commit[style_edge_data];
+  raft_log_maybe_commit -> update_committed_leader[style_edge_data];
+  maybe_send_append[style_func;label="{{
+    maybe_send_append|
+    We've updated flow control \l 
+    information above, which may\l
+    allow us to send multiple \l 
+    (size-limited) in-flight messages\l
+  }}"]
+
+  subgraph cluster_RaftLog {
+    graph[label="RaftLog";fontsize=20;style="rounded,dashed";color="slategrey"]
+    raft_log_maybe_commit[style_func;label="{{
+      maybe_commit|
+      Sets the last committed\l 
+      value to the passed in value\l
+    }}"]
+    raft_log_maybe_commit -> {
+      commit_to;
+    }
+    RaftLog[style_struct;label="{{
+      RaftLog|
+        pub store: T\l|
+        pub unstable: Unstable\l|
+        <committed> pub committed: u64\l|
+        pub persisted: u64\l|
+        pub applied: u64\l
+    }}"]
+    commit_to -> RaftLog:committed;
+  }
+
+}

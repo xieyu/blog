@@ -1,0 +1,96 @@
+#include "styles.h"
+
+digraph predicate_push_down_flow {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  DeriveStats[style_func;label="{{
+    DeriveStats|
+    将Datasource中conds\l 
+    信息填充到每个accessPath上\l
+  }}"]
+  PredicatePushDown -> DataSource;
+  getPossibleAccessPath -> DataSource:possibleAccessPaths;
+  DataSource[style_struct;label="{{
+    DataSource|
+      field(pushedDownConds, []expression.Expression)
+      field(allConds, []expression.Expression)
+      tail_field(possibleAccessPaths, []*util.AccessPath)
+  }}"]
+
+  DataSource -> DeriveStats -> AccessPath;
+
+  AccessPath[style_struct;label="{{
+    AccessPath|
+    field(Ranges, []*ranger.Range)
+    field(AccessConds, []expression.Expression)
+    field(TableFilters, []expression.Expression)
+    tail_field(IndexFilters, []expression.Expression)
+  }}"]
+
+  AccessPath -> {
+    PhysicalSelection;
+    PhysicalIndexScan;
+    PhysicalTableScan;
+  }
+  PhysicalSelection -> tipb_Selection;
+  PhysicalIndexScan -> tipb_IndexScan;
+  PhysicalTableScan -> tipb_TableScan;
+
+  subgraph cluster_tipb {
+    graph[label="tipb";fontsize=20;style="rounded,dashed";color="slategrey"]
+    tipb_TableScan[style_struct;
+      label="{{
+        tipb.TableScan|
+        TableID int64\l|
+        Columns          []*ColumnInfo \l|
+        Desc             bool      \l|
+        NextReadEngine   EngineType\l|
+        <Ranges>Ranges           []KeyRange  \l|
+        PrimaryColumnIds []int64\l
+        }}"];
+
+    tipb_Selection[style_struct;
+      label="{{
+        tipb.Selection|
+          <Conditions> Conditions       []*Expr\l|
+          RpnConditions    []*RpnExpr\l|
+          <Child> Child            *Executor\l
+      }}"];
+    tipb_IndexScan[style_struct;
+      label="{{
+        tipb.IndexScan|
+          TableId          int64\l|
+          IndexId          int64\l|     
+          Columns          []*ColumnInfo\l|
+          Desc             bool\l|
+          Unique           *bool\l|
+          PrimaryColumnIds []int64\l
+      }}"];
+
+      tipb_Selection:Child -> {
+        tipb_TableScan;
+        tipb_IndexScan;
+      }[style_edge_data];
+  }
+
+    PhysicalIndexScan[style_struct;label="{{
+        PhysicalIndexScan|
+          AccessCondition []expression.Expression\l|
+          <Ranges> Ranges     []*ranger.Range\l
+      }}"];
+
+    PhysicalSelection[style_struct;
+      label="{{
+        PhysicalSelection|
+          Conditions []expression.Expression
+      }}"];
+
+    PhysicalTableScan[style_struct;label="{{
+        PhysicalTableScan|
+        <Ranges> Ranges []*ranger.Range\l|
+	      AccessCondition []expression.Expression\l|
+        filterCondition []expression.Expression\l
+      }}"];
+}

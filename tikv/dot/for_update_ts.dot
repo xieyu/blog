@@ -1,0 +1,117 @@
+#include "styles.h"
+digraph for_update_ts {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  TransactionContext[style_func;label="{{
+    TransactionContext|
+      <forUpdateTS> forUpdateTS uint64\l|
+      <StartTS> StartTS     uint64\l|
+      ...
+  }}"]
+  LockCtx[style_func;label="{{
+    LockCtx|
+      ForUpdateTS           uint64\l|
+      LockWaitTime          int64\l|
+      WaitStartTime         time.Time\l
+  }}"]
+
+  
+  TransactionContext -> newLockCtx -> LockCtx[style_edge_data];
+  newLockCtx
+  newLockCtx[style_func;label="{{
+    newLockCtx|
+    将TransactionContext的\l 
+    forUpdateTS 传给LockCtx
+  }}"]
+
+  UpdateForUpdateTS -> SetForUpdateTS -> TransactionContext:forUpdateTS;
+  UpdateForUpdateTS[style_func;label="{{
+    UpdateForUpdateTS|
+    if newForUpdateTS == 0\l
+		Because the ForUpdateTS is \l 
+    used for the snapshot for\l 
+    reading data in DML.\l|
+		We can avoid allocating\l 
+    a global TSO here to speed\l 
+    it up by using the local TSO.\l
+  }}"]
+  UpdateForUpdateTS -> {
+    GetStore_CurrentVersion;
+  }
+  subgraph cluster_adapter {
+    graph[label="executor/adapter.go";fontsize=20;style="rounded,dashed";color="slategrey"]
+    UpdateForUpdateTS;
+      
+  }
+  subgraph cluster_executorBuilder {
+    graph[label="executorBuilder";fontsize=20;style="rounded,dashed";color="slategrey"]
+      refreshForUpdateTSForRC -> {
+        UpdateForUpdateTS;
+        GetSessionVars_TxnCtx_GetStmtFutureForRC;
+      }
+      updateForUpdateTSIfNeeded -> {
+        UpdateForUpdateTS;
+        refreshForUpdateTSForRC;
+      }
+      IsPessimisticReadConsistency -> refreshForUpdateTSForRC[style_edge_data];
+      getSnapshotTS[style_func;label="{{
+        getSnapshotTS|
+        returns the timestamp\l
+        of the snapshot\l
+        that a reader should read\l
+      }}"]
+
+      getSnapshotTS -> {
+        refreshForUpdateTSForRC;
+        IsPessimisticReadConsistency;
+      }
+
+      buildDelete -> updateForUpdateTSIfNeeded;
+      buildUpdate -> updateForUpdateTSIfNeeded;
+      buildInsert -> updateForUpdateTSIfNeeded;
+      buildInsert[style_func;label="{{
+        buildInsert|
+        if v.SelectPlan != nil\l
+		    Try to update the forUpdateTS for\l 
+        insert/replace into select statements.\l
+        Set the selectPlan parameter to nil\l 
+        to make it always update the forUpdateTS.\l
+      }}"]
+  }
+  /*
+  subgraph cluster_Oracle {
+    graph[label="Oracle";fontsize=20;style="rounded,dashed";color="slategrey"]
+    GetTimestamp;
+    GetStaleTimestamp
+  }
+  */
+
+  subgraph cluster_session {
+    graph[label="session";fontsize=20;style="rounded,dashed";color="slategrey"]
+    /*
+    PrepareTxnCtx -> TransactionContext;
+    PrepareStmt -> {
+      PrepareTxnCtx;
+      PrepareTSFuture;
+    }
+    PrepareStmt[style_func;label="{{
+      PrepareStmt|
+      used for executing the next\l
+      statments start a new transaction\l
+      with the latest InfoSchema\l
+    }}"]
+
+    PrepareTSFuture -> {
+      SetStmtFutureForRC;
+      getTxnFuture;
+    }
+    */
+  }
+
+
+  //checkStmtLimit -> NewTxn;
+
+}

@@ -1,0 +1,58 @@
+#include "styles.h"
+digraph raft_log_batch {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_RaftLogBatch {
+    graph[label="RaftLogBatch";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RaftLogBatch_append[style_func;label="{{
+      append
+    }}"]
+    RaftLogBatch_cut_logs[style_func;label="{{
+      cut_logs|
+      cut_Logs(region_id,\l 
+      last_index + 1,\l 
+      prev_last_index)
+      delete any previous append\l
+      log entries which never committed\l
+    }}"]
+  }
+
+  subgraph cluster_WriteBatch {
+    graph[label="rocksdb/WriteBatch";fontsize=20;style="rounded,dashed";color="slategrey"]
+    WriteBatch_put[style_func;label="{{
+      put
+    }}"]
+  }
+
+  subgraph cluster_RocksWriteBatch {
+    graph[label="RocksWriteBatch";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RaftLogBatch_append -> {
+      RocksWriteBatch_append;
+    }
+    RaftLogBatch_cut_logs -> RocksWriteBatch_cut_logs;
+
+    RocksWriteBatch_append -> append_impl;
+    RocksWriteBatch_append[style_func;label="{{
+      append|
+      将数据写入write_batch\l
+    }}"]
+    append_impl -> {
+      raft_log_key;
+      entry_write_to_vec;
+      put;
+    }
+    put -> WriteBatch_put;
+    RocksWriteBatch_cut_logs[style_func;label="{{
+      cut_logs
+    }}"]
+
+    RocksWriteBatch_cut_logs -> {
+      raft_log_key;
+      delete;
+    }
+  }
+  
+}

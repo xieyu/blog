@@ -1,0 +1,86 @@
+digraph renderresourceNode{
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RenderResourcesNode[
+    shape="record";
+    label="{{
+      RenderResourcesNode|
+        command_queue: CommandQueue,\l|
+        dynamic_uniforms: bool,\l|
+        _marker: PhantomData\<T\>,\l
+    }}";
+  ];
+  _Node[
+    shape="record";
+    label="{{
+      trait Node\l|
+      update
+    }}";
+  ];
+  SystemNode[
+    shape="record";
+    label="{{
+      trait SystemNode\l|
+        fn get_system(&self, commands: &mut Commands) -\> Box\<dyn System\> \l
+    }}";
+  ];
+  RenderResource[
+    shape="record";
+    label="{{
+      trait RenderResource|
+      Trait
+    }}";
+  ];
+  RenderResources[
+    shape="record";
+    label="{{
+    trait RenderResources
+    }}";
+  ];
+  RenderResources -> RenderResource;
+  RenderResources -> derive_render_resources;
+  derive_render_resources[
+    shape="record";
+    label="{{
+      derive_render_resources|
+      自动生成impl RenderResources代码\l
+    }}";
+  ];
+
+  RenderResourcesNode -> {
+    _Node
+    SystemNode
+  }
+  _Node -> update -> CommandQueue_execute;
+  SystemNode -> {
+    render_resources_node_system;
+    insert_local_resource;
+  }
+  render_resources_node_system[
+    shape="record";
+    label="{{
+      render_resources_node_system|
+      query 带有RenderResources的entity
+    }}";
+  ];
+
+  render_resources_node_system -> {
+    RenderResources;
+    prepare_uniform_buffers;
+    setup_uniform_texture_resources;
+  }
+  setup_uniform_texture_resources[
+    shape="record";
+    label="{{
+      setup_uniform_texture_resources|
+      绑定texture名字和texture id
+    }}";
+  ];
+  setup_uniform_texture_resources -> {
+    get_render_resource_name;
+    render_resource_bindings_set;
+  }
+}

@@ -1,0 +1,21 @@
+digraph frame_trait {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  Encode[shape="record";
+    label="{{
+      Encode|
+        encode \l
+    }}";
+  ]
+
+  Decode[shape="record";
+    label="{{
+      Decode|
+        decode\l|
+        decode_eof\l|
+        framed\l|
+    }}";
+  ]
+}

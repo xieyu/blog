@@ -1,0 +1,75 @@
+digraph vecGroupChecker {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  groupOffset[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      groupOffset|
+        groupOffset []int\l
+    }}"
+  ];
+  sameGroup[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      sameGroup|
+        sameGroup []bool\l
+    }}"
+  ];
+
+  splitIntoGroups -> {
+    reset;
+    nextGroupID;
+    getFirstAndLastRowDatum;
+    EncodeValue;
+    evalGroupItemsAndResolveGroups;
+    groupOffset;
+    groupCount;
+    sameGroup;
+    firstGroupKey;
+    lastGroupKey;
+  }[color="#b83b5e"]
+  getFirstAndLastRowDatum -> {
+    EvalInt;
+    firstRowDatums;
+    lastRowDatums;
+  }
+  evalGroupItemsAndResolveGroups -> {
+    sameGroup;
+    EvalExpr;
+  }
+  cols[
+    shape="record";
+    label="{{
+      cols|
+      result * chunk.Column\l
+    }}"];
+  getNextGroup -> nextGroupID[label="自增";color=yellow];
+
+  edge[style=dashed; color=blue];
+  groupOffset -> groupCount;
+  firstRowDatums -> EncodeValue;
+  lastRowDatums -> EncodeValue;
+  EncodeValue -> {
+    firstGroupKey;
+    lastGroupKey;
+  }
+  {
+    groupOffset;
+    nextGroupID;
+  }-> getNextGroup;
+
+  {
+    groupCount;
+    nextGroupID;
+  } -> isExhausted;
+  sameGroup -> groupOffset;
+  {firstGroupKey; lastGroupKeyOfPrevChk} -> isFirstGroupSameAsPrev;
+  lastGroupKey -> lastGroupKeyOfPrevChk;
+  EvalExpr -> cols -> sameGroup;
+}

@@ -1,0 +1,59 @@
+digraph merge_tree_data_file_sruct {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Data -> PartitionExpression -> {
+    PartDirectory;
+    PartDirectory2;
+  }
+  PartDirectory -> {
+    checksums_txt;
+    columns_txt;
+    primary_idx;
+    Column_bin;
+    Column_mrk;
+  }
+  Column_bin[
+    shape="record";
+    label="{{
+      Column.bin|
+        contains compressed\l 
+        column data.\l
+    }}";
+  ];
+
+  columns_txt[
+    shape="record";
+    label="{{
+      columns.txt|
+        contains the list of \l
+        all files along with \l
+        their sizes and checksums.\l
+    }}"];
+  Column_mrk[
+    shape="record";
+    label="{{
+      Column.mrk|
+         marks, pointing to seek \l
+         positions allowing to \l
+         skip n * k rows.\l
+    }}"];
+
+  primary_idx[
+    shape="record"
+    label="{{
+      primary.idx|
+        contains the primary index.
+  }}"]
+  checksums_txt[
+    shape="record"
+    label="{{
+      checksums.txt|
+        contains the list of \l
+        all files along with name \l
+        their sizes and checksums.\l
+  }}"]
+
+}

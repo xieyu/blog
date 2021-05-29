@@ -1,0 +1,164 @@
+#include "styles.h"
+digraph Fsm {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RaftPoller {
+    graph[label="RaftPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PeerFsm;
+    StoreFsm;
+  }
+  subgraph cluster_ApplyPollder {
+    graph[label="ApplyPollder";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ControlFsm;
+    ApplyFsm;
+  }
+
+  Fsm[style_var;label="{{
+    Fsm|
+      A Fsm is a finite\l 
+      state machine.\l|
+      fn is_stopped\l|
+      fn set_mailbox\l
+      设置mailbox\l,后面通过\l 
+      mailbox发消息给fsm |
+      fn take_mailbox\l
+  }}"]
+  Receiver[style_struct;label="{{
+    Receiver|
+    receiver: channel::Receiver\<T\>,\l|
+    state: Arc\<State\>,\l
+  }}"]
+  State[style_struct;label="{{
+    State|
+    sender_cnt: AtomicIsize,\l|
+    connected: AtomicBool,\l
+  }}"]
+  BasicMailbox[style_struct;label="{{
+    BasicMailbox|
+    sender: mpsc::LooseBoundedSender\<Owner::Message\>,\l|
+    state: Arc\<FsmState\<Owner\>\>,\l
+  }}"]
+
+  FsmState[style_struct;label="{{
+    FsmState|
+    status: AtomicUsize,\l|
+    data: AtomicPtr\<N\>,\l
+  }}"]
+
+  ControlFsm[style_struct;label="{{
+    ControlFsm|
+     pub struct ControlFsm;\l
+     空的Fsm，占位用\l
+  }}"]
+
+  ApplyFsm[style_struct;label="{{
+    ApplyFsm|
+    delegate: ApplyDelegate\<EK\>,\l|
+    receiver: Receiver\<Msg\<EK\>\>,\l|
+    mailbox: Option\<BasicMailbox\<ApplyFsm\<EK\>\>\>,\l
+  }}"]
+  StoreFsm[style_struct;label="{{
+    StoreFsm|
+    control类型状态机\l|
+    store: Store,\l|
+    receiver: Receiver\<StoreMsg\<EK\>\>,\l
+  }}"]
+  PeerFsm[style_struct;label="{{
+    PeerFsm|
+    normal类型状态机\l|
+    pub peer: Peer\<EK, ER\>,\l|
+    mailbox: Option\<BasicMailbox\<PeerFsm\<EK, ER\>\>\>,\l|
+    pub receiver: Receiver\<PeerMsg\<EK\>\>,\l
+    batch_req_builder: BatchRaftCmdRequestBuilder\<EK\>,\l
+  }}"]
+  KvEngine[style_var;label="{{
+    KvEngine|
+    trait KvEngine\l|
+    A TiKV key-value store\l
+  }}"]
+  RaftEngine[style_var;label="{{
+    RaftEngine|
+    trait RaftEngine\l
+    处理Raft日志和raft状态
+  }}"]
+  RawNode[style_struct;label="{{
+    RawNode|
+    raft.RawNode模块\l
+  }}"]
+  ApplyDelegate[style_struct;label="{{
+    ApplyDelegate|
+    The apply delegate of a Region\l 
+    which is responsible for\l 
+    endsnippet handling committed\l
+    raft log entries of a Region.\l|
+    id: u64,\l|
+    term: u64,\l|
+    region: Region,\l
+  }}"]
+  FsmScheduler[style_var;label="{{
+    FsmScheduler|
+    schedulers Fsm for later handlers\l
+  }}"]
+
+  Fsm -> {
+    ApplyFsm;
+    PeerFsm;
+    ControlFsm;
+    StoreFsm;
+  }
+
+  Fsm -> BasicMailbox;
+
+  BasicMailbox -> {
+    FsmState;
+  }
+
+  ApplyFsm -> {
+    KvEngine;
+    ApplyDelegate;
+    Receiver;
+  }
+
+  StoreFsm -> {
+    Store;
+    Receiver;
+  }
+
+  PeerFsm -> {
+    KvEngine;
+    RaftEngine;
+    Peer;
+    Receiver;
+    BatchRaftCmdRequestBuilder;
+  }
+
+  Peer -> {
+    RawNode;
+    ProposalQueue;
+    ReadIndexQueue;
+    PeerStorage;
+  }
+  PeerStorage -> {
+    KvEngine;
+    RaftEngine;
+  }
+  Receiver -> State;
+  KvEngine -> RocksEngine;
+  RaftEngine -> {
+    RaftLogEngine;
+    RocksEngine;
+  }
+  BasicMailbox -> {
+    FsmScheduler;
+  }
+  FsmScheduler -> {
+    NormalScheduler;
+    ControlScheduler;
+  }
+  NormalScheduler[style_struct;label="{{
+    NormalScheduler|
+      sender: channel::Sender\<FsmTypes\<N, C\>\>,\l
+  }}"]
+}

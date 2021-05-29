@@ -1,0 +1,60 @@
+digraph goroutine_stack_switch {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_groutine_switch {
+    graph[label="groutine_switch";fontsize=20;];
+    g[shape="record";
+      label="{{
+        g|
+          stack stack\l|
+          <sched> sched gobuf\l
+      }}";
+    ];
+
+    gobuf[shape="record";
+      label="{{
+        gobuf|
+          sp uintptr\l|
+          pc uintptr\l|
+          g guintptr\l|
+          lr uintptr\l|
+          bp uintptr\l
+      }}";
+    ];
+
+    gogo[shape="record";
+      label="{{
+        gogo|
+          restore state from Gobuf; longjmp\l
+      }}";
+    ];
+    cpu_registers[shape="record";
+      label="{{
+        cpu_registers|
+          sp \l|
+          pc \l|
+          bp \l
+      }}";
+    ];
+
+    gosave[shape="record";
+      label="{{
+        gosave|
+          func gosave(buf*gobuf)\l
+          save sate in gobuf;setJmp\l
+      }}";
+    ];
+    mcall[shape="record";
+      label="{{
+        mcall|
+          switch to m-\>g0 stack call fn(g)\l
+      }}";
+    ];
+
+    g:sched -> gobuf;
+    gobuf -> gogo -> cpu_registers;
+    cpu_registers -> gosave -> gobuf;
+    cpu_registers -> mcall -> gobuf;
+  }
+}

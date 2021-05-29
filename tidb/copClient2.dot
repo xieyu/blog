@@ -1,0 +1,133 @@
+digraph cop_client2 {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PD {
+    graph[label="PD";fontsize=20;style=rounded];
+    PD_GetRegion[label="GetRegion"];
+    PD_GetPrevRegion[label="GetPrevRegion"];
+  }
+
+  subgraph cluster_TiKV {
+    graph[label="TiKV";fontsize=20;style=rounded];
+    TiKV_Coproccssor[label="Coprocessor"];
+  }
+
+  subgraph cluster_tidb {
+    graph[label="TiDB";fontsize=20;style=rounded];
+    subgraph cluster_kv {
+      graph[label="kv";fontsize=20;style=rounded];
+      Client[
+        shape="record";
+      label="{{
+        Client|
+          <Send> Send\l|
+          IsRequestTypeSupported\l|
+      }}";
+      ];
+      Response[
+        shape="record";
+      label="{{
+        Response|
+          <Next> Next\l|
+          Close\l
+      }}";
+      ];
+    }
+
+    subgraph cluster_RegionCache {
+      graph[label="RegionCache";fontsize=20;style=rounded];
+      LocateKey -> findRegionByKey;
+      findRegionByKey -> {
+        searchCachedRegion;
+        loadRegion;
+        insertRegionToCache;
+      };
+
+      cache_UpdateLeader[label="UpdateLeader"];
+      cache_OnRegionEpochNotMatch[label="OnRegionEpochNotMatch"];
+      cache_InvalidateCachedRegion[label="InvalidateCachedRegion"];
+
+      subgraph cluster_pdClient {
+        graph[label="pdClient";fontsize=20;style=rounded];
+        GetPrevRegion -> PD_GetPrevRegion[label="RPC"];
+        GetRegion -> PD_GetRegion[label="RPC"];
+      };
+      loadRegion -> {
+        GetRegion;
+        GetPrevRegion;
+      };
+    }
+
+    subgraph cluster_rpcClient {
+      graph[label="rpcClient";fontsize=20;style=rounded];
+      SendRequest -> tikvrpc_CallRPC;
+      tikvrpc_CallRPC -> TiKV_Coproccssor[label="RPC"];
+    }
+
+    subgraph cluster_RegionRequestSender {
+      graph[label="RegionRequestSender";fontsize=20;style=rounded];
+      RegionRequestSender_SendReqCtx[label="SendReqCtx"];
+      RegionRequestSender_SendReqCtx -> {
+        sendReqToRegion;
+        onRegionError;
+        GetRegionError;
+        GetTiFlashRPCContext;
+        GetTiKVRPCContext;
+      };
+      sendReqToRegion -> {
+        SendRequest;
+      };
+      onRegionError -> {
+        cache_UpdateLeader;
+        cache_OnRegionEpochNotMatch;
+        cache_InvalidateCachedRegion;
+      }
+    }
+
+    subgraph cluster_copIteratorWorker{
+      graph[label="copIteratorWorker";fontsize=20;style=rounded];
+      worker_run[label="run"];
+      worker_run -> handleTask;
+      handleTask -> {
+        handleTaskOnce;
+        sendToRespCh;
+      }
+      worker_run -> taskCh[label="range"];
+      handleTaskOnce -> RegionRequestSender_SendReqCtx;
+      sendToRespCh -> respCh[label="将resp放入channel中"];
+    };
+
+    subgraph cluster_copTaskIterTaskSender{
+      graph[label="copTaskIterTaskSender";fontsize=20;style=rounded];
+      taskSender_run -> sendToTaskCh;
+      sendToTaskCh -> taskCh;
+    }
+
+    subgraph cluster_copIterator {
+      graph[label="copIterator";fontsize=20;style=rounded];
+      copIterator_open[label="open"];
+      copIterator_open -> {
+        worker_run;
+        taskSender_run;
+      }[label="go routine"];
+      Next -> recvFromRespCh;
+
+      recvFromRespCh -> respCh[label="从channel中获取resp"];
+    }
+
+
+    subgraph cluster_CopClient {
+      graph[label="CopClient";fontsize=20;style=rounded];
+      Send -> {
+        buildCopTasks;
+        copIterator_open;
+      }
+      buildCopTasks -> splitRanges;
+      splitRanges -> LocateKey;
+    };
+
+    Client:Send -> Send;
+    Response:Next -> Next;
+  }
+}

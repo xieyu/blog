@@ -1,0 +1,53 @@
+digraph insert_exec {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  InsertExec[
+    shape="record";
+    label="{{
+    InsertExec\l|
+      InsertValues\l|
+	    OnDuplicate    []*expression.Assignment\l|
+	    evalBuffer4Dup chunk.MutRow\l|
+	    curInsertVals  chunk.MutRow\l|
+	    row4Update     []types.Datum\l
+    }}";
+  ];
+  InsertValues[
+    shape="record";
+    label="{{
+      InsertValues|
+        baseExecutor\l|
+        ...\l
+        SelectExec Executor\l
+    }}";
+  ];
+  baseExecutor[
+    shape="record";
+    label="{{
+      baseExecutor|
+	      ctx           sessionctx.Context\l|
+	      id            int
+	      schema        *expression.Schema // output schema\l|
+	      initCap       int\l|
+	      maxChunkSize  int\l|
+	      children      []Executor\l|
+	      retFieldTypes []*types.FieldType\l|
+	      runtimeStats  *execdetails.BasicRuntimeStats\l
+    }}";
+  ];
+  Executor[
+    shape="record";
+    label="{{
+      Executor|
+	      base() *baseExecutor\l|
+	      Open(context.Context) error\l|
+	      Next(ctx context.Context, req *chunk.Chunk) error\l|
+	      Close() error\l|
+	      Schema() *expression.Schema\l
+    }}";
+  ];
+  InsertExec -> InsertValues -> baseExecutor -> Executor;
+}

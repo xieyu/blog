@@ -1,0 +1,56 @@
+digraph tcp_stream {
+  graph[fontsize=2];
+  node[shape=box;style="rounded";];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_TcpStream {
+    graph[label="TcpStream";fontsize=20;]
+    
+    subgraph cluster_AsyncRead {
+      graph[label="AsyncRead";fontsize=20;]
+      poll_read;
+      poll_read_buf;
+    }
+
+    subgraph cluster_AsyncWrite {
+      graph[label="AsyncWrite";fontsize=20;]
+      poll_write;
+      poll_write_buf;
+    }
+    poll_read_priv;
+    poll_read_buf_priv;
+    poll_write_priv;
+    poll_write_buf_priv;
+  }
+
+  subgraph cluster_PolledEvent{
+    graph[label="PollEvented";fontsize=20;]
+    poll_read_ready;
+    clear_read_ready;
+    poll_write_ready;
+    clear_write_ready;
+    poll_write_buf_priv;
+  }
+
+  subgraph cluster_mio {
+    graph[label="mio";fontsize=20;]
+    mio_read[label="read"];
+    mio_write[label="wrie"];
+    mio_read_bufs[label="read_bufs"];
+    mio_write_bufs[label="write_bufs"];
+  }
+
+  subgraph cluster_systpcstream {
+    graph[label="sys::TpcStream";fontsize=20;]
+    sys_read[label="read"];
+    sys_write[label="write"];
+  }
+
+  poll_read -> poll_read_priv -> {poll_read_ready; mio_read; clear_read_ready;};
+  poll_read_buf-> poll_read_buf_priv -> {poll_read_ready, mio_read_bufs; clear_read_ready;};
+  poll_write -> poll_write_priv -> {poll_write_ready; clear_write_ready; mio_write;};
+  poll_write_buf -> poll_write_buf_priv -> {poll_write_ready; clear_write_ready; mio_write_bufs;};
+
+  mio_read -> sys_read;
+  mio_write ->sys_write;
+}

@@ -1,0 +1,48 @@
+digraph async_write {
+  node[shape=box;];
+  newrank=true;
+  rankdir=TD;
+  AsyncWrite[shape="record";
+    label="{
+      AsyncWrite|
+        poll_write\l|
+        poll_write_buf\l|
+        poll_flush\l|
+        poll_shutdown\l
+    }";
+  ];
+
+  net[shape="record";
+  label="{
+    net|
+      TcpStream\l|
+      UnixStream\l|
+      WriteHalf\l|
+      ChildStdout\l|
+      ChildStdin\l|
+      PollEvented\l|
+      BufStream\l
+  }";];
+
+  io[shape="record";
+  label="{
+    io|
+      Take\l|
+      Chain\l|
+      BufReader\l|
+      BufWriter\l|
+      BufStream\l
+  }";]
+
+  fs[shape="record";
+    label="{
+      fs|
+        Blocking\l|
+        File\l|
+        Stdout\l|
+        Stderr\l
+    }";]
+
+  Vec;
+  
+}

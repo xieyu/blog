@@ -1,0 +1,97 @@
+digraph transaction_lock_level {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_TransactionLockMgr {
+    graph[label="TransactionLockMgr";fontsize=20;];
+    lock_maps_cache_[
+      shape="record";
+      label="{{
+        lock_maps_cache_|
+          对LockMaps的ThreadLocal Cache\l|
+          在cache中找不到的\l 
+          使用mutex访问\l
+          全局LockMaps并\l 
+          更新线程局部cache\l|
+          std::unique_ptr\<ThreadLocalPtr\>\l lock_maps_cache_;\l
+      }}";
+    ];
+    lock_maps_cache_ -> LockMaps;
+    LockMaps[
+      shape="record"
+      label="{{
+        LockMaps|
+          从ColumnFaimlyID到LockMap的映射\l|
+          using LockMaps =\l 
+          std::unordered_map\<uint32_t, \l 
+          std::shared_ptr\<LockMap\>\>;\l
+      }}"
+    ];
+    LockMaps -> LockMap;
+
+    LockMap[
+      shape="record";
+      label="{{
+        LockMap|
+          key被划分为不同stripe, 降低锁的粒度\l|
+          const size_t num_stripes_;\l|
+          std::atomic\<int64_t\> lock_cnt\{0\};\l|
+          std::vector\<LockMapStripe*\> lock_map_stripes_;\l
+      }}"
+    ];
+
+    LockMap -> LockMapStripe;
+    LockMapStripe[
+      shape="record"
+        label="{{
+          LockMapStripe|
+            mutex用于保护对keys的操作\l
+            cv用于wait和notify\l|
+            <stripe_mutex> std::shared_ptr\<TransactionDBMutex\> stripe_mutex\l|
+            <stripe_cv> std::shared_ptr\<TransactionDBCondVar\> stripe_cv;\l|
+            <LockInfo> std::unordered_map\<std::string, LockInfo\> keys;\l
+        }}"
+    ];
+    LockMapStripe -> {
+      TransactionDBMutex;
+      TransactionDBCondVar;
+      LockInfo;
+    }
+    TransactionDBMutex[
+      shape="record"
+        label="{{
+          TransactionDBMutex|
+          对mutex的接口抽象\l|
+            virtual Status Lock() = 0;\l|
+            virtual Status TryLockFor(int64_t timeout_time) = 0;\l|
+            virtual void UnLock() = 0;\l
+        }}"
+    ];
+    TransactionDBCondVar[
+      shape="record"
+        label="{{
+          TransactionDBCondVar|
+          对condvar的接口抽象\l|
+            virtual Status Wait(std::shared_ptr\<TransactionDBMutex\> mutex) = 0;\l|
+            virtual Status WaitFor(std::shared_ptr\<TransactionDBMutex\> mutex,\l
+                int64_t timeout_time) = 0;\l|
+            virtual void Notify() = 0;\l|
+            virtual void NotifyAll() = 0;\l
+        }}"
+    ];
+    LockInfo[
+      shape="record"
+        label="{{
+          LockInfo\l|
+          保存了key对应的lock信息\l
+          是否是排他锁\l 
+          持有该key 的事务id\l 
+          过期时间\l|
+            bool exclusive;\l|
+            autovector\<TransactionID\> txn_ids;\l|
+            uint64_t expiration_time;\l
+        }}"
+    ];
+  } // end of TransactionLockMgr
+}

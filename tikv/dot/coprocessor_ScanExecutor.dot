@@ -1,0 +1,165 @@
+#include "styles.h"
+digraph ScanExecutor {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_LazyBatchColumnVec {
+    graph[label="LazyBatchColumnVec";fontsize=20;style="rounded,dashed";color="slategrey"]
+    columns_mut_raw_push;
+      
+  }
+  subgraph cluster_IndexScanExecutorImpl {
+    graph[label="IndexScanExecutorImpl";fontsize=20;style="rounded,dashed";color="slategrey"]
+    IndexScanExecutorImpl_process_kv_pair[style_func;label="{{
+      process_kv_pair
+    }}"]
+    IndexScanExecutorImpl_process_kv_pair -> {
+      process_kv_general;
+      process_old_collation_kv;
+      get_index_version;
+    }
+    process_kv_general -> {
+      build_operations;
+      decode_index_columns;
+      decode_handle_columns;
+      decode_pid_columns;
+    }
+  }
+
+  subgraph cluster_storage {
+    graph[label="storage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    storage_get;
+    storage_begin_scan;
+    storage_scan_next;
+  }
+
+  subgraph cluster_RangesIterator {
+    graph[label="RangesIterator";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    RangesIterator[style_func;label="{{
+      RangesIterator|
+        <in_range> in_range: bool,\l|
+        iter: std::vec::IntoIter\<Range\>,\l
+    }}"]
+    ranges_iter_next;
+    notify_drained -> RangesIterator:in_range;
+    ranges_iter_next[style_func;label="{{
+      next
+    }}"]
+
+    ranges_iter_next -> RangesIterator:in_range;
+    notify_drained[style_func;label="{{
+      notify_drained|
+      Notify that current \l 
+      range is drained\l
+    }}"]
+      
+  }
+
+  subgraph cluster_RageScanner {
+    graph[label="RageScanner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    scanner_next[style_func;label="{{
+      next
+    }}"]
+
+    scanner_next -> {
+      ranges_iter_next;
+      notify_drained;
+      storage_get;
+      storage_scan_next;
+      storage_begin_scan;
+      update_scanned_range_from_new_point;
+      update_scanned_range_from_new_range;
+      update_scanned_range_from_scanned_row;
+    }
+
+    take_scanned_range -> {
+      scan_backward_in_range;
+      working_range_begin_key;
+      working_range_end_key;
+    }
+
+    is_scanned_range_aware -> {
+      update_scanned_range_from_new_point;
+      update_scanned_range_from_new_range;
+      update_working_range_end_key;
+    }[style_edge_data];
+
+    update_scanned_range_from_new_point -> {
+      update_working_range_end_key;
+      current_range;
+      update_working_range_begin_key;
+    }
+
+    update_scanned_range_from_new_range -> {
+      update_working_range_end_key;
+      update_working_range_begin_key;
+      current_range;
+    }
+
+    update_working_range_begin_key -> {
+      working_range_begin_key;
+      scan_backward_in_range;
+    }
+    update_working_range_end_key -> {
+      working_range_end_key;
+      scan_backward_in_range;
+    }
+    update_scanned_range_from_scanned_row -> {
+      working_range_end_key;
+      scan_backward_in_range;
+      working_range_end_key;
+    }
+  }
+
+  subgraph cluster_TableScanExecutorImpl {
+    graph[label="TableScanExecutorImpl";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    TableScanExecutorImpl_process_kv_pair[style_func;label="{{
+      process_kv_pair
+    }}"]
+    TableScanExecutorImpl_process_kv_pair -> {
+      process_v2;
+      process_v1;
+      decode_int_handle;
+      decode_common_handle;
+      primary_column_ids;
+      column_id_index;
+    };
+    process_v2 -> {
+      column_id_index;
+      search_in_non_null_ids;
+      write_v2_as_datum;
+      columns_mut_raw_push;
+    };
+    process_v1 -> {
+      read_var_i64;
+      split_datum;
+      is_column_filled;
+      columns_mut_raw_push;
+    }
+  }
+
+  subgraph cluster_ScanExecutor {
+    graph[label="ScanExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    next_batch -> {
+      build_column_vec;
+      fill_column_vec;
+      BatchExecuteResult;
+    };
+
+    fill_column_vec -> {
+      scanner_next;
+      process_kv_pair;
+      truncate_into_equal_length;
+    }
+    process_kv_pair -> {
+      TableScanExecutorImpl_process_kv_pair;
+      IndexScanExecutorImpl_process_kv_pair;
+    }
+      
+  }
+  
+}

@@ -1,0 +1,145 @@
+digraph blobput {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_MemTableInserter {
+    graph[label="MemTableInserter";fontsize=20;];
+    PutBlobIndexCF -> PutCFImpl;
+  }
+  subgraph cluster_BlobFile {
+    graph[label="BlobFile";fontsize=20;];
+    ExtendExpirationRange;
+    BlobRecordAdded;
+    BlobFile_ctor[
+      shape="record"
+      label="{{
+        BlobFile|
+        BlobFile构造函数\l
+      }}"
+    ];
+    subgraph cluster_BlobLogWriter {
+      graph[label="BlobLogWriter";fontsize=20;];
+      EmitPhysicalRecord;
+    }
+  }
+
+
+  subgraph cluster_BlobIndex {
+    graph[label="BlobIndex";fontsize=20;];
+    EncodeInlinedTTL;
+    EncodeBlob;
+    EncodeBlobTTL;
+  }
+
+  subgraph cluster_WriteBatchInternal {
+    graph[label="WriteBatchInternal";fontsize=20;];
+    PutBlobIndex[
+      shape="record"
+      label="{{
+        PutBlobIndex|
+        将key,BlobIndex写入writeBatch中\l
+      }}"
+    ];
+    PutBlobIndex -> {
+      kTypeBlobIndex;
+      kTypeColumnFamilyBlobIndex;
+    }
+    PutBlobIndex -> PutBlobIndexCF[style=dashed];
+  }
+
+  subgraph cluster_BlobDBImpl {
+    graph[label="BlobDBImpl";fontsize=20;];
+    Put -> PutUntil;
+    PutWithTTL -> PutUntil;
+    PutUntil -> {
+      write_mutex_;
+      PutBlobValue;
+    }
+    PutBlobValue -> {
+      EncodeInlinedTTL;
+      PutBlobIndex;
+      ConstructBlobHeader;
+      CheckSizeAndEvictBlobFiles;
+      SelectBlobFileTTL;
+      SelectBlobFile;
+      AppendBlob;
+      ExtendExpirationRange;
+    }
+    AppendBlob[
+      shape="record"
+      label="{{
+        AppendBlob|
+        将blob写入blob日志\l
+        并生成blockIndex, Encode为string\l
+      }}"
+    ];
+    AppendBlob -> {
+      EmitPhysicalRecord;
+      EncodeBlob;
+      EncodeBlobTTL;
+    }[color="#b83b5e"]
+
+    index_entry[
+      shape="record"
+      label="{{
+        index_entry String|
+        BlockIndex encode
+      }}"
+    ];
+    {EncodeBlob; EncodeBlobTTL}-> index_entry -> PutBlobIndex[style=dashed];
+
+    SelectBlobFile -> {
+      CreateBlobFileAndWriter;
+      RegisterBlobFile;
+      open_non_ttl_file_;
+    }
+    SelectBlobFileTTL -> {
+      FindBlobFileLocked;
+      CreateBlobFileAndWriter;
+      RegisterBlobFile;
+    }[color="#3f72af"];
+
+    RegisterBlobFile -> blob_files_;
+    FindBlobFileLocked -> {
+      open_ttl_files_;
+    }
+    CreateBlobFileAndWriter[
+      shape="record"
+      label="{{
+        CreateBlobFileAndWriter|
+        新建blobFile\l
+        写入blob header\l
+      }}"
+    ];
+    CreateBlobFileAndWriter -> {
+      NewBlobFile;
+      CheckOrCreateWriterLocked;
+      WriteHeader;
+      SetFileSize;
+      BlobFile_ctor;
+    }
+    CreateBlobFileAndWriter -> open_non_ttl_file_[style=dashed;color=red];
+    CreateBlobFileAndWriter -> open_ttl_files_[style=dashed;color=red];
+    CreateBlobFileAndWriter -> RegisterBlobFile[style=dashed;color=red];
+    open_non_ttl_file_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        open_non_ttl_file_|
+          std::shared_ptr\<BlobFile\>\l open_non_ttl_file_;
+      }}"
+    ];
+
+    open_ttl_files_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        open_ttl_files_|
+          std::set\<std::shared_ptr\<BlobFile\>,\l BlobFileComparatorTTL\>\l open_ttl_files_;
+      }}"
+    ];
+  }
+}

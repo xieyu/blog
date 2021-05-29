@@ -1,0 +1,14 @@
+digraph ddl_worker_create_tables {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  main -> BootstrapSession -> runInBootstrapSession -> bootstrap -> doDDLWorks
+  doDDLWorks -> {
+    CreateStatsMetaTable;
+    CreateStatsExtended;
+    CreateStatsBucketsTable;
+    CreateStatsFeedbackTable;
+    CreateStatsTopNTable;
+  }
+}

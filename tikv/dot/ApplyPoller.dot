@@ -1,0 +1,184 @@
+#include "styles.h"
+digraph ApplyPoller {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  {rank=same; handle_normal;end}
+  subgraph cluster_RaftApplyState {
+    graph[label="RaftApplyState";fontsize=20;style="rounded,dashed";color="slategrey"]
+    apply_state_set_commit_index;
+    apply_state_set_commit_term;
+  }
+
+  subgraph cluster_ApplyContext {
+    graph[label="ApplyContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    apply_ctx_commit[style_func;label="{{
+      commit
+    }}"]
+    apply_ctx_flush[style_func;label="{{
+      flush
+    }}"]
+    apply_ctx_flush -> {
+      write_to_db;
+    }
+    write_to_db[style_func;label="{{
+      write_to_db|
+      将kv_wb写入rocksdb中
+    }}"]
+    commit_opt -> {
+      write_to_db;
+    }
+  }
+  apply_ctx_commit -> {
+    delegate_write_apply_state;
+    commit_opt;
+  }
+  {
+    process_raft_cmd;
+    delegate_write_apply_state 
+  } -> write_to_db[style_edge_data];
+
+
+  subgraph cluster_AppDelegate {
+    graph[label="AppDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_raft_committed_entries[style_func;label="{{
+      handle_raft_committed_entries|
+      处理committed raft log\l
+    }}"]
+    handle_raft_entry_conf_change[style_func;label="{{
+      handle_raft_entry_conf_change|
+      处理conf_change类型的LogEntry
+    }}"]
+    handle_raft_entry_normal[style_func;label="{{
+      handle_raft_entry_normal|
+      处理正常的log entry\l
+    }}"]
+
+    handle_raft_committed_entries -> {
+      handle_raft_entry_normal;
+      handle_raft_entry_conf_change;
+    } -> process_raft_cmd;
+    process_raft_cmd[style_func;label="{{
+      process_raft_cmd|
+      将日志写入kv_wb writeBatch中\l
+      在apply_ctx flush时会写写入\l
+      rocksdb中\l
+    }}"]
+    ApplyDelegate_from_registration[style_func;label="{{
+      from_registration|
+      创建一个AppDelegate\l
+    }}"]
+    delegate_write_apply_state[style_func;label="{{
+      write_apply_state
+    }}"]
+    delegate_destory[style_func;label="{{
+      destory|
+      关闭给自己发消息的channel\l|
+      通知region removed\l
+    }}"]
+    delegate_destory -> {
+      notify_region_removed;
+      router_close;
+    }
+    last_sync_apply_index[style_var;label="{{
+      last_sync_apply_index|
+      The lastest synced apply index
+    }}"]
+  }
+
+  apply_ctx_flush -> last_sync_apply_index[style_edge_data];
+
+  handle_normal -> {
+    handle_tasks;
+    normal_reciver_try_recv;
+  }
+  normal_reciver_try_recv[style_func;label="{{
+    normal_reciver_try_recv|
+    尝试从ApplyFsm.receiver\l 
+    中接收消息\l
+  }}"]
+  handle_tasks -> {
+    handle_apply;
+    handle_registration;
+    handle_destroy;
+    logs_up_to_date_for_merge;
+    handle_snapshot;
+    handle_change;
+  }[color="#b83b5e"];
+
+  handle_destroy[style_func;label="{{
+    handle_destroy|
+    Handles per destroy\l
+    When a peer is destroyed\l
+    the corresponding app delegate 
+    should be removed too\l|
+    释放peer对应的AppDelegate\l
+  }}"]
+  handle_registration[style_func;label="{{
+    handle_registration|
+    when a peer is created\l 
+    it will register an \l
+    apply delegate\l|
+    处理Registration task\l
+    创建peer对应的AppDelegate\l
+  }}"]
+
+  handle_apply[style_func;label="{{
+    handle_apply|
+    Handles apply tasks\l
+    and used the apply delgate to\l
+    handle the comitted entries\l
+  }}"]
+  handle_apply -> {
+    append_proposal;
+    handle_raft_committed_entries;
+    apply_state_set_commit_index;
+    apply_state_set_commit_term;
+  }
+
+  handle_registration -> {
+    clear_all_commands_as_stale;
+    ApplyDelegate_from_registration;
+  }
+
+  handle_snapshot -> {
+    delegate_write_apply_state;
+    apply_ctx_flush;
+    snap_task_generate_and_schedule_snapshot;
+  }
+
+  handle_change -> {
+    apply_ctx_commit;
+    cb_invoke_read;
+  }
+  handle_destroy -> {
+    destroy;
+    notify_one;
+  }
+  destroy -> {
+    delegate_destory;
+  }
+
+  begin -> {
+    cfg_tracker;
+    messages_per_tick;
+  }
+  begin[style_func;label="{{
+    begin|
+    根据cfg_tracker配置\l
+    设置message_per_tick大小\l
+  }}"]
+
+  handle_normal[style_func;label="{{
+    handle_normal|
+    从reciver中最多\l 
+    读取message_per_tick个数消息\l
+  }}"]
+
+  end -> {
+    apply_ctx_flush;
+    last_sync_apply_index;
+  }
+  messages_per_tick -> normal_reciver_try_recv[style_edge_data];
+}

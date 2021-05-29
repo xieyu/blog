@@ -1,0 +1,136 @@
+digraph StorageMergeTreeMutate {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Settings {
+    graph[label="Settings";fontsize=20;];
+    mutations_sync;
+  }
+
+  subgraph cluster_BackgroundProcessingPool {
+    graph[label="BackgroundProcessingPool";fontsize=20;];
+    pool_wake_event_notify_one -> wake_event_wait[style=dashed];
+    pool_wake_event_notify_one[
+      shape="record";
+      label="{{
+      wake_event_notify_one
+      }}";
+    ];
+    wake_event_wait -> workLoopFunc;
+    wake_event_wait[
+      shape="record";
+      label="{{
+      wake_event_wait|
+      等待唤醒\l
+      }}";
+    ];
+    workLoopFunc[
+      shape="record";
+      label="{{
+      workLoopFunc\l|
+        后台工作线程主循环
+      }}";
+    ];
+  }
+
+  subgraph cluster_BackgroundProcessingPoolTaskInfo {
+    graph[label="BackgroundProcessingPoolTaskInfo";fontsize=20;];
+    signalReadyToRun -> {
+      pool_rescheduleTask;
+      pool_wake_event_notify_one;
+    }
+    merging_mutating_task_handle;
+    merging_mutating_task_handle -> signalReadyToRun[style=dashed];
+  }
+
+  subgraph cluster_mutation_wait_event {
+    graph[label="mutation_wait_event";fontsize=20;];
+    mutation_wait_event_wait;
+    mutation_wait_event_notify_all;
+    
+  }
+  merging_mutating_task_handle -> mergeMutateTask;
+
+  mutate -> {
+    startMutation;
+    waitForMutation;
+    mutations_sync;
+  }
+
+  mutations_sync -> waitForMutation[style=dashed];
+
+  startMutation -> {
+    getStoragePolicy;
+    currently_processing_in_background_mutex;
+    MergeTreeMutationEntry_ctor;
+    current_mutations_by_version;
+    merging_mutating_task_handle;
+    signalReadyToRun;
+  }[color="#b83b5e"]
+
+  waitForMutation[
+    shape="record";
+    label="{{
+    waitForMutation|
+    等待mutation task结束
+    }}";
+  ];
+  MergeTreeMutationEntry_ctor -> current_mutations_by_version[style=dashed];
+
+  current_mutations_by_version[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      current_mutations_by_version|
+    }}";
+  ];
+
+  waitForMutation -> {
+    isMutationDone;
+    mutation_wait_mutex;
+    mutation_wait_event_wait;
+  }
+
+  mergeMutateTask[
+    shape="record";
+    label="{{
+      mergeMutateTask|
+      由后台线程池执行的task
+    }}";
+  ];
+
+  mergeMutateTask -> {
+    time_after_previous_cleanup;
+    clearOldMutations;
+    clearOldWriteAheadLogs;
+    merge;
+    tryMutatePart;
+  }[color="#3fc1c9"];
+
+  merge -> {
+    lockForShare;
+    getInMemoryMetadataPtr;
+    getCurrentMutationVersion;
+    getMaxSourcePartsSizeForMerge;
+    selectPartsToMerge;
+    selectAllPartsToMergeWithinPartition;
+    writePartLog;
+  }[color="#3f72af"];
+
+  current_mutations_by_version -> tryMutatePart[style=dashed];
+  tryMutatePart -> {
+    mutation_wait_event_notify_all;
+    mutatePartToTemporaryPart;
+    renameTempPartAndReplace;
+    write_part_log;
+  }[color="#17b978"];
+
+  shutdown -> {
+    mutation_wait_event_notify_all;
+  }
+  killMutation -> {
+    mutation_wait_event_notify_all;
+  }
+}

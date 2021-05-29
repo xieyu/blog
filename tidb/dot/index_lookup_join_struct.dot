@@ -1,0 +1,94 @@
+digraph index_lookup_join_struct {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  IndexLookUpJoin[
+    shape="record";
+    label="{{
+      IndexLookUpJoin|
+        baseExecutor\l|
+	      resultCh   \<-chan *lookUpJoinTask\l|
+	      cancelFunc context.CancelFunc\l|
+	      workerWg   *sync.WaitGroup\l|
+	      outerCtx outerCtx\l|
+	      innerCtx innerCtx\l|
+	      task       *lookUpJoinTask\l|
+	      joinResult *chunk.Chunk\l|
+	      innerIter  chunk.Iterator\l|
+	      joiner      joiner\l|
+	      isOuterJoin bool\l|
+	      requiredRows int64\l|
+	      indexRanges   []*ranger.Range\l|
+	      keyOff2IdxOff []int\l|
+	      innerPtrBytes [][]byte\l|
+	      lastColHelper *plannercore.ColWithCmpFuncManager\l|
+	      memTracker *memory.Tracker\l|
+	      stats *indexLookUpJoinRuntimeStats\l
+    }}"];
+
+  IndexLookUpJoin ->  {
+    lookUpJoinTask;
+    outerCtx;
+    innerCtx;
+  }
+  lookUpJoinTask[
+    shape="record";
+    label="{{
+      lookUpJoinTask|
+	      outerResult *chunk.List\l|
+	      outerMatch  [][]bool\l|
+	      innerResult       *chunk.List\l|
+	      encodedLookUpKeys []*chunk.Chunk\l|
+	      lookupMap         *mvmap.MVMap\l|
+	      matchedInners     []chunk.Row\l|
+	      doneCh   chan error\l|
+	      cursor   chunk.RowPtr\l|
+	      hasMatch bool\l|
+	      hasNull  bool\l|
+	      memTracker *memory.Tracker // track memory usage.\l
+    }}"];
+  innerCtx[
+    shape="record";
+    label="{{
+      innerCtx|
+	      readerBuilder *dataReaderBuilder\l|
+	      rowTypes      []*types.FieldType\l|
+	      keyCols       []int\l|
+	      hashCols      []int\l|
+	      colLens       []int\l|
+	      hasPrefixCol  bool\l
+    }}"];
+  outerCtx[
+    shape="record";
+    label="{{
+      outerCtx|
+	      rowTypes []*types.FieldType\l|
+	      keyCols  []int\l|
+	      hashCols []int\l|
+	      filter   expression.CNFExprs\l
+    }}"];
+  lookUpJoinTask -> MVMap;
+  MVMap[
+    shape="record";
+    label="{{
+      MVMap|
+	      entryStore entryStore\l|
+	      dataStore  dataStore\l|
+	      hashTable  map[uint64]entryAddr\l|
+	      length     int\l
+    }}"];
+  innerCtx -> {
+    dataReaderBuilder;
+  }
+  dataReaderBuilder[
+    shape="record";
+    label="{{
+      dataReaderBuilder|
+        The executor can be used\l
+        to read data in the ranges\l 
+        which are constructed by datums.\l|
+        plannercore.Plan\l|
+        *executorBuilder\l
+    }}"];
+}

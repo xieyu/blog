@@ -1,0 +1,246 @@
+digraph raft_sub_problem {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Raft -> {
+    LeaderElection;
+    LogReplication;
+    Safty;
+  }
+  LogReplication[
+    shape="record"
+    label="{{
+      LogReplication|
+      leader从client接收logEntry\l
+      然后复制到各个follower上\l
+      follower和leader的日志保持一致\l
+    }}"
+  ];
+
+  LeaderElection -> {
+    ElectionTimer;
+    Term;
+    AppendEntities;
+    RequestForVote;
+    SplitVote;
+  }[color="#b83b5e"];
+
+  Term[
+    shape="record"
+    label="{{
+      Term|
+      candidate发起投票时，\l 
+      将自己的term += 1\l
+    }}"
+  ];
+  SplitVote[
+    shape="record"
+    label="{{
+      SplitVote|
+      所有的candidate都\l 
+      没收到marjority的投票\l
+      需要开始新一轮的选举\l
+    }}"
+  ];
+  RandomElectionTimer[
+    shape="record"
+    label="{{
+      RandomElectionTimer|
+      为了避免几个candidate同时选举\l
+      从而导致可能的split vote\l
+      每个candidate的electionTimer\l
+      electionTime有个随机值\l
+      避免几个candidate同时选举\l
+    }}"
+  ];
+  AppendEntities[
+    shape="record"
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      AppendEntities|
+      Leader周期性的发送心跳信息给follower\l|
+      follower 收到Leader发送的AE请求时\l
+      如果term比follower的current_term小\l 
+      ，则返回自己的current_term,返回相应错误\l
+      leader收到错误反馈后，转变为follower\l
+      否则就重置ElectionTimer\l
+    }}"
+  ];
+  ElectionTimeOut[
+    shape="record"
+    label="{{
+      ElectionTimeOut|
+      有一段时间没收到Leader\l 
+      的AE心跳请求了\l
+      follower转变为candidate\l|
+      1.投票给自己\l
+      2.将自己term++\l 
+      3.开始向所有的\l
+      server发送RequestVote请求\l
+    }}"
+  ];
+  RequestForVote[
+    shape="record"
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      RequestForVote|
+      如果candidate收到了大多数投票\l
+      就成为了leader,开始发送AE心跳信息\l
+    }}"
+  ];
+
+  Safty -> {
+    ElectionSafty;
+    LeaderAppendOnly;
+    LogMatching;
+    LeaderCompleteness;
+    StateMachineSafty;
+  }[color="#17b978"];
+
+  LogMatching[
+    shape="record"
+    label="{{
+      LogMatching|
+      if two log contain an entry\l 
+      with the same index and term\l
+      then the logs are identical\l
+      in all entries up through the given index\l
+    }}"
+  ];
+  ElectionSafty[
+    shape="record"
+    label="{{
+      ElectionSafty|
+      每个term最多有一个leader
+    }}"
+  ];
+  LeaderAppendOnly[
+    shape="record"
+    label="{{
+      LeaderAppendOnly|
+      Leader自己的日志只能append\l
+      不能删除或者覆盖\l
+    }}"
+  ];
+  LeaderCompleteness[
+    shape="record"
+    label="{{
+      LeaderCompleteness|
+      如果一个log entry在某\l 
+      个任期内被commit了\l
+      那么它会在后面的\l 
+      任期中一直存在\l
+    }}"
+  ];
+  StateMachineSafty[
+    shape="record"
+    label="{{
+      StateMachineSafty|
+      if a server has applied a log entry\l
+      at a given index to its state machine\l
+      no other sever will evver apply a diferent\l
+      log entry for the same index\l
+    }}"
+  ];
+  StateMachineSafty -> LeaderCommitIndex;
+  LeaderCommitIndex[
+    shape="record"
+    label="{{
+      LeaderCommitIndex|
+      Commited定义:\l 
+      the leader decides when it is safe to apply\l
+      a log entry to the state machines\l
+      such an entry is called committed\l 
+      日志entry被put到major follower上了\l|
+      每次AE请求中带了LeaderCommitIndex\l
+      follower发现log entry被commit了\l
+      才会apply到state machine上\l
+    }}"
+  ];
+  MatchIndex[
+    shape="record"
+    label="{{
+      MatchIndex[]|
+      MatchIndex[i]表示第i个服务器\l 
+      已经复制的log index\l|
+      每次leader当选时候会重置\l
+    }}"
+  ];
+  NextIndex[
+    shape="record"
+    label="{{
+      NextIndex[]|
+      NextIndex[i]表示下一次要\l 
+      发送个server i的日志index\l|
+      每次leader当选时候会重置\l
+    }}"
+  ];
+  LogMatching -> {
+    SameTermIndexSameCommand;
+    SamePrecedingEntries;
+  }
+  SameTermIndexSameCommand[
+    shape="record";
+    label="{{
+      SameTermIndexSameCommand\l|
+      如果log entry的index和term一样\l
+      那么他的command也一样\l
+    }}"
+  ];
+  SamePrecedingEntries[
+    shape="record"
+    label="{{
+      SamePrecedingEntries|
+        如果log entry的index和term一样\l
+        那么该log entry之前的所有log entry也一样\l
+    }}"
+  ];
+  LogReplication -> ConsistentCheck;
+  ConsistentCheck -> NextIndex;
+  ConsistentCheck[
+    shape="record"
+    label="{{
+      ConsistentCheck|
+      从新选举leader之后\l
+      follower上日志可能有\l 
+      缺失或者多余uncommited\l|
+      找到followerlog 和leader log共同点\l
+      从哪个点开始，删掉follower日志\l
+      leader发送之后所有日志\l
+    }}"
+  ];
+
+  {
+    edge[style=dashed];
+    AppendEntities -> ElectionTimer;
+    AppendEntities -> ConsistentCheck;
+
+    RandomElectionTimer -> ElectionTimer;
+    ElectionTimer -> ElectionTimeOut;
+    ElectionTimeOut -> RequestForVote;
+    ElectionTimeOut -> Term;
+    Term -> RequestForVote;
+    SplitVote -> RandomElectionTimer;
+    LeaderCompleteness -> LeaderCommitIndex;
+    AppendEntities -> {
+      MatchIndex;
+      NextIndex;
+    }
+    NextIndex -> MatchIndex;
+    MatchIndex -> LeaderCommitIndex;
+
+    LogReplication -> {
+      StateMachineSafty;
+      LeaderAppendOnly;
+      LogMatching;
+      LeaderCompleteness;
+    }
+    LeaderElection -> ElectionSafty;
+    SameTermIndexSameCommand -> ConsistentCheck;
+    RequestForVote -> SplitVote;
+  }
+}

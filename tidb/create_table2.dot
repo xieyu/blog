@@ -1,0 +1,85 @@
+digraph create_table2 {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_kv {
+    graph[label="kv";fontsize=20;style=rounded]
+    Mutator_Set[label="Set(k key, v []byte) error"];
+    Mutator_Delete[label="Delete(key) error"];
+  }
+
+  subgraph cluster_TxStructur{
+    graph[label="TxStructure";fontsize=20;style=rounded]
+    readWriter_set[label="readWriter.Set(metaKey, meta.Value())"];
+    txn_HSet -> updateHash -> readWriter_set;
+    txn_HDel ->  readWriter_Delete;
+    txn_HDel ->  readWriter_Set;
+    readWriter_set -> Mutator_Set;
+    readWriter_Delete -> Mutator_Delete;
+    {rank=same; txn_HSet; updateHash; readWriter_set}
+  }
+
+  subgraph cluster_meta {
+    graph[label="meta";fontsize=20;style=rounded]
+    CreateTableOrView -> {
+      checkDBExists;
+      checkTableNotExists;
+      json_Marshal[label="json.Marshal(tableInfo)"];
+      txn_HSet[label="m.txn.HSet(dbkey, tableKey, data)"];
+    };
+    DropTableOrView -> {
+      checkDBExists;
+      checkTableExists;
+      txn_HDel[label="m.txn.Del(dbkey, tableKey)"];
+    };
+  }
+
+
+  subgraph cluster_ddl{
+    graph[label="ddl";fontsize=20;style=rounded];
+    CreateTable -> {
+        checkTableInfoValid;
+        handleAutoIncID;
+        buildTableInfoWithCheck;
+        doDDLJob;
+        handleAutoIncID;
+        splitPartitionTableRegion;
+        splitTableRegion;
+    };
+    DropTable ->  doDDLJob[label="ActionDropTable"];
+    doDDLJob -> onDropTableOrView[style="dashed";label="放到队列中,由worker执行"];
+
+    subgraph cluster_ddl_table {
+      graph[label="ddl_table";fontsize=20;style=rounded]
+      onCreateTable -> createTableOrViewWithCheck -> CreateTableOrView;
+      {rank=same; onCreateTable; createTableOrViewWithCheck;}
+      onDropTableOrView -> checkTableExistAndCancelNonExistJob;
+      onDropTableOrView -> DropTableOrView;
+      {rank=same; onDropTableOrView; checkTableExistAndCancelNonExistJob}
+    }
+
+    doDDLJob -> onCreateTable[style=dashed;label="放到DDLJobQueue队列中\l，由worker执行"]
+
+    {
+      checkTableInfoValid;
+      handleAutoIncID;
+      buildTableInfoWithCheck;
+    } -> TableFromMeta;
+
+    buildTableInfoWithCheck -> buildTableInfo -> genGlobalIDs -> txn_Inc;
+  }
+
+  subgraph cluster_DDLExec {
+    graph[label="DDLExec";fontsize=20;style=rounded];
+    DDLExec_Next [label="Next"];
+    DDLExec_Next -> {
+      executeCreateTable;
+      executeDropTableOrView;
+    };
+    {rank=same; DDLExec_Next; executeCreateTable};
+    executeCreateTable -> CreateTable;
+    executeDropTableOrView -> DropTable;
+  }
+
+}

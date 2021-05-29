@@ -1,0 +1,11 @@
+probe begin {
+  printf("hello world %d, %s, var count %d, var cout as str %s\n", $1, @2, $#, @#)
+}
+
+probe end {
+  printf("good bye\n")
+}
+
+probe timer.s(10) {
+  printf("hello world\n")
+}

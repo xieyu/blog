@@ -1,0 +1,74 @@
+#include "styles.h"
+digraph last_kv_policy {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Cursors {
+    graph[label="Cursors";fontsize=20;style="rounded,dashed";color="slategrey"]
+    move_write_cursor_to_next_user_key;
+  }
+
+  subgraph cluster_LastKvPolicy {
+    graph[label="LastKvPolicy";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_lock -> {
+      scan_latest_handle_lock;
+    }
+    scan_latest_handle_lock -> {
+      cfg_isolation_level;
+      check_ts_conflict;
+      cursors_lock_next;
+      move_write_cursor_to_next_user_key;
+      cursors_lock_value;
+      Lock_parse;
+      result_err;
+    }
+    cfg_isolation_level[style_func;label="{{
+      cfg_isolation_level|
+      只有IsolationLevel为SI\l 
+      的需要检查lock\l
+    }}"];
+    result_err[style_func;label="{{
+      result_err|
+      有lock冲突\l
+      移动到下一个user_key\l
+    }}"]
+    result_err -> move_write_cursor_to_next_user_key;
+
+    handle_write -> {
+      check_gc_fence_as_latest_version;
+      WriteRef_parse;
+      write_type;
+      ensure_default_cursor;
+      near_load_data_by_write;
+      cursors_wirte_next;
+      move_write_cursor_to_next_user_key;
+    }
+
+    subgraph cluster_loop {
+      graph[label="loop";fontsize=20;style="rounded,dashed";color="slategrey"]
+      check_gc_fence_as_latest_version;
+      WriteRef_parse;
+      write_type;
+      WriteType_PUT;
+      WriteType_Delete;
+      WriteType_Lock;
+      cursors_wirte_next;
+
+      write_type -> {
+        WriteType_PUT;
+        WriteType_Delete;
+        WriteType_Lock;
+      }
+    }
+  }
+  subgraph cluster_ForwardScanner {
+    graph[label="ForwardScanner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    read_next -> {
+      handle_lock;
+      handle_write;
+      move_write_cursor_to_ts;
+    };
+  }
+}

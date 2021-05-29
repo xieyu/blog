@@ -1,0 +1,87 @@
+digraph atomic_flush {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ColumnFamilyData {
+    graph[label="ColumnFamilyData";fontsize=20;];
+    NeedsCompaction;
+  }
+
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    SwitchMemtable[
+      shape="record"
+      label="{{
+        SwitchMemtable|
+        将memtable加到Imm list中\l
+        并创建新的memtable\l
+      }}"
+    ];
+    SchedulePendingCompaction[
+      shape="record"
+      label="{{
+        SchedulePendingCompaction|
+        将columnFamilyData加入队列\l
+      }}"
+    ];
+    MaybeScheduleFlushOrCompaction[
+      shape="record"
+      label="{{
+        MaybeScheduleFlushOrCompaction|
+        触发后台线程compact\l
+      }}"
+    ];
+    FlushMemTableToOutputFile[
+      shape="record"
+      label="{{
+        FlushMemTableToOutputFile|
+        将memtable刷到level0\l
+        sstable文件\l
+      }}"
+    ];
+    {
+      //CreateColumnFamilyImpl;
+      //CreateColumnFamilyWithImport;
+      //DeleteFile;
+      //DeleteFilesInRanges;
+      //IngestExternalFile;
+      AtomicFlushMemTablesToOutputFiles;
+      FlushMemTableToOutputFile;
+      //CompactFilesImpl;
+      SwitchMemtable;
+    }-> InstallSuperVersionAndScheduleWork;
+
+    InstallSuperVersionAndScheduleWork ->{
+      SchedulePendingCompaction;
+      MaybeScheduleFlushOrCompaction;
+    }
+    MaybeScheduleFlushOrCompaction -> BackgroundCompaction[style=dashed]
+
+    //SuggestCompactRange -> SehedulePendingCompaction;
+    SchedulePendingCompaction -> AddToCompactionQueue;
+
+    BackgroundCompaction -> {
+      AddToCompactionQueue;
+      NeedsCompaction;
+      InstallSuperVersionAndScheduleWork
+    }[color="#b83b5e"]
+
+    NeedsCompaction -> AddToCompactionQueue[style=dashed];
+    AddToCompactionQueue -> { compaction_queue_;}
+
+    compaction_queue_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        compaction_queue_|
+          std::deque\<ColumnFamilyData*\>\l 
+          compaction_queue_;\l
+      }}";
+    ];
+  }
+  //{rank=same;BackgroundCompaction;CompactionPicker_PickCompaction;}
+}

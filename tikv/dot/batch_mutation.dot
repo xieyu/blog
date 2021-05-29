@@ -1,0 +1,42 @@
+#include "styles.h"
+digraph batch_mutations {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  KVTxn -> twoPhaseCommitter -> groupMutations -> batchMutations -> batchExecutor -> twoPhaseCommitAction -> TiKV;
+  twoPhaseCommitter[style_func;label="{{
+    twoPhaseCommitter|
+    遍历MemDB\l
+    转换成memBufferMutations\l
+  }}"]
+  KVTxn -> KVUnionStore -> MemDB -> memBufferMutations -> groupMutations[style_edge_data];
+  KVTxn[style_func;label="{{
+    KVTxn|
+    write操作先保存在MemDB中\l
+    commit时转成memBufferMutations\l
+  }}"]
+  batchMutations -> twoPhaseCommitAction;
+  twoPhaseCommitAction[style_var;label="{{
+    twoPhaseCommitAction|
+    handleSingleBatch\l
+    处理一批mutations\l
+    会发送一些cmd请求到TiKV\l
+  }}"]
+  groupMutations[style_func;label="{{
+    groupMutations|
+    先对mutation根据\l 
+    region做分组\l
+  }}"]
+  batchMutations[style_func;label="{{
+    batchMutations|
+    对每个分组内的mutations \l
+    按照size limit 做batch\l
+  }}"]
+  batchExecutor[style_func;label="{{
+    batchExecutor|
+    并发处理batchMutations\l
+  }}"]
+  
+}

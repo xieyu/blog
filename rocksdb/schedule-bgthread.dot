@@ -1,0 +1,96 @@
+digraph schedule_bgthread {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  edge[color=gray40];
+
+  //线程池调度
+  Schedule[shape="record";
+    label="{{
+      Schedule|
+      线程池调度
+    }}";
+  ];
+  Schedule -> {
+    ThreadPoolImpl_Schedule;
+  }
+  subgraph cluster_ThreadPoolImpl {
+    graph[label="ThreadPoolImpl";fontsize=20;];
+    ThreadPoolImpl_Schedule[shape="record";
+      label="{{
+        ThreadPoolImpl::Schedule|
+        线程池调度\l
+      }}";
+    ];
+    ThreadPoolImpl_Schedule -> Submit -> {
+      StartBGThreads;
+      queque_;
+      WakeUpAllThreads;
+      bsignal__notify_one;
+    }
+    Submit[shape="record";
+      label="{{
+        Submit|
+        1.将任务放入任务队列\l
+        2.如果需要的话:启动后台新线程\l
+        3.唤醒后台线程\l
+      }}";
+    ];
+    queque_[shape="record";
+      label="{{
+        queque_|
+        任务队列\l
+      }}";
+    ];
+    StartBGThreads[shape="record";
+      label="{{
+        StartBGThreads|
+        保证线程池中线程为\l
+        total_threads_limit_
+      }}";
+    ];
+    StartBGThreads -> {
+      BGThreadWrapper;
+      port_Thread;
+    }
+    WakeUpAllThreads -> bsignal__notify_all;
+    subgraph cluster_bsignal_ {
+      graph[label="bsignal_";fontsize=20;];
+      {
+        bsignal__notify_one;
+        bsignal__notify_all;
+      } -> bsignal__wait[style=dashed;color=gray50];
+    }
+
+    port_Thread[shape="record";
+      label="{{
+        port_Thread|
+        启动新线程，线程入口为\l
+        BGThreadWrapper\l
+      }}";
+    ];
+    port_Thread -> BGThreadWrapper[style=dashed;color=gray40];
+
+    BGThreadWrapper[shape="record";
+      label="{{
+        BGThreadWrapper|
+        注册线程，进入主循环\l
+      }}";
+    ];
+    BGThreadWrapper -> {
+      BGThread;
+      RegisterThread;
+    }
+
+    //后台线程主循环
+    BGThread[shape="record";
+      label="{{
+        BGThread|
+        后台线程主循环\l
+        从队列中取任务\l
+      }}";
+    ];
+    queque_ -> BGThread[style=dashed;color=gray70];
+    bsignal__wait -> BGThread[style=dashed;color=gray40];
+  }
+}

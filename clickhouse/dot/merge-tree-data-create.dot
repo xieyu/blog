@@ -1,0 +1,69 @@
+digraph merge_tree_data_create {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_MergeTreeData {
+    graph[label="MergeTreeData";fontsize=20;];
+    {
+      cloneAndLoadDataPartOnSameDisk;
+      loadPartAndFixMetadata;
+    } -> createPart;
+    selectPartsAndMove -> {
+      moveParts;
+      selectPartsAndMove_Tagger;
+    }
+    selectPartsAndMove_Tagger[
+      shape="record";
+      label="{{
+        selectPartsAndMove
+      }}";
+    ];
+    selectPartsAndMove_Tagger -> moveParts[style=dashed];
+    createPart -> {
+      MergeTreeDataPartCompact;
+      MergeTreeDataPartWide;
+      MergeTreeDataPartInMemory;
+    }
+    changeSettings;
+    swapActivePart;
+
+    loadDataParts -> createPart;
+  }
+  moveParts -> {
+    clonePart;
+    swapClonedPart;
+  }
+
+  changeSettings -> startBackgroundMovesIfNeeded;
+
+  subgraph cluster_MergeTreeDataMover {
+    graph[label="MergeTreeDataMover";fontsize=20;];
+    clonePart -> createPart;
+    swapClonedPart -> {
+      getActiveContainingPart;
+      renameTo;
+      swapActivePart;
+    }
+  }
+  subgraph cluster_BackgrounSchedulePool {
+    graph[label="BackgrounSchedulePool";fontsize=20;];
+    createTask;
+    startTask;
+  }
+
+  subgraph cluster_StorageMergeTree {
+    graph[label="StorageMergeTree";fontsize=20;];
+    movePartsTask -> selectPartsAndMove;
+    startup -> startBackgroundMovesIfNeeded;
+    startBackgroundMovesIfNeeded -> {
+      createTask;
+      startTask;
+    }
+    createTask -> movePartsTask[style=dashed];
+    replacePartitionFrom -> cloneAndLoadDataPartOnSameDisk;
+    movePartitionToTable -> cloneAndLoadDataPartOnSameDisk;
+  }
+
+}

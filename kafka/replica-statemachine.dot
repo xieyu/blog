@@ -1,0 +1,61 @@
+digraph replica_state_machine {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_ReplicaState {
+    graph[label="Replica State Machine";fontsize=20;];
+    NewReplica[shape="record";
+      label="{{
+        NewReplica|
+          刚创建时候状态\l 
+          只能作为follower\l
+      }}";
+    ];
+    OnlineReplica[shape="record";
+      label="{{
+        onlineReplicas|
+          replica开始后的状态\l
+          可以作为leader和follower\l
+      }}";
+    ];
+    OfflineReplica[shape="record";
+      label="{{
+        OfflineReplica|
+          replica下线了,由于\l 
+          存储该replica的broker下线了\l
+      }}";
+    ];
+    ReplicaDeletionStarted[shape="record";
+      label="{{
+        ReplicaDeletionStarted|
+          replica开始进入删除状态\l
+      }}";
+    ];
+    ReplicaDeletionSuccessful[shape="record";
+      label="{{
+        ReplicaDeletionSuccessful|
+          replica删除请求返回成功\l
+      }}";
+    ];
+    ReplicaDeletionIneligible[shape="record";
+      label="{{
+        ReplicaDeletionIneligible|
+          replica删除失败\l
+      }}";
+    ];
+    NonExistentReplica[shape="record";
+      label="{{
+        NonExistentReplica|
+         replica删除成功\l
+      }}";
+    ];
+
+    NonExistentReplica -> NewReplica;
+    {NewReplica, OnlineReplica,OfflineReplica} -> OnlineReplica;
+    {NewReplica, OnlineReplica} -> OfflineReplica;
+    {OfflineReplica} -> ReplicaDeletionStarted;
+    {ReplicaDeletionStarted} -> ReplicaDeletionSuccessful;
+    {ReplicaDeletionStarted, OfflineReplica} -> ReplicaDeletionIneligible;
+    ReplicaDeletionStarted -> NonExistentReplica;
+  }
+}

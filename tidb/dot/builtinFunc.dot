@@ -1,0 +1,24 @@
+digraph builtInFunc {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  vecBuiltinFunc ->  builtInFunc;
+  reverseBuiltinFunc -> builtInFunc;
+  builtInFunc -> baseBuiltinFunc;
+  subgraph cluster_math {
+    graph[label="math";fontsize=20;style="rounded,dashed";color="slategrey"]
+    builtinAbsIntSig;
+    builtinRoundIntSig;
+    builtinCeilRealSig;
+    builtinSinSig;
+  }
+
+  baseBuiltinFunc -> {
+    builtinAbsIntSig;
+    builtinRoundIntSig;
+    builtinCeilRealSig;
+    builtinSinSig;
+  }
+}

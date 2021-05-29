@@ -1,0 +1,27 @@
+digraph snapshot {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_snapshot {
+    graph[label="snapshot";fontsize=20;];
+    Client -> req1 -> Master;
+    req1[
+      shape="record"
+      label="{{
+        snapshot request|
+        client发送file或者dir tree的\l 
+        snapshot请求\l
+      }}"
+    ];
+    Master[
+      shape="record"
+      label="{{
+        Master|
+        1. master收回file或dir tree对应的chunk的primary lease\l
+        这样client下次写的时候，必须经过master\l
+        2. 复制file 或者dir tree的metadata 指向相同的chunk\l
+      }}"
+    ];
+  }
+}

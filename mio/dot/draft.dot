@@ -1,0 +1,245 @@
+#include "styles.h"
+digraph mio {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_epoll {
+    graph[label="epoll";fontsize=20;style="rounded,dashed";color="slategrey"]
+    epoll_Selector[style_struct;label="{{
+      epoll::Selector|
+      ep 是epoll的fd\l
+      <id>id: usize,\l|
+      <ep>ep: RawFd,\l|
+      <has_waker> has_waker: AtomicBool,\l
+    }}"]
+    RawFd[style_func;label="{{
+      RawFd|
+      std::os::unix::io::RawFd\l
+    }}"]
+
+    epoll_Selector -> {
+      RawFd;
+    }
+    epoll_Selector_new -> {
+      epoll_create1;
+      NEXT_ID_fetch_add;
+      libc_O_CLOEXEC;
+      libc_EPOLL_CLOEXEC;
+    }
+    NEXT_ID_fetch_add[style_func;label="{{
+      NEXT_ID.fetch_add(1, Ordering::Relaxed)
+    }}"]
+
+    NEXT_ID_fetch_add -> epoll_Selector:id;
+    epoll_create1 -> epoll_Selector:ep;
+
+    register -> {
+      epoll_event;
+      interests_to_epoll;
+      epoll_ctl;
+      ibc_EPOLL_CTL_ADD;
+    }
+    reregister -> {
+      epoll_event;
+      interests_to_epoll;
+      libc_EPOLL_CTL_MOD;
+    }
+
+    deregister -> {
+      epoll_ctl;
+      libc_EPOLL_CTL_DELETE;
+    }
+
+    register_waker -> epoll:has_waker;
+
+    select -> {
+      Events;
+      epoll_wait;
+      time_out;
+    }
+    epoll_wait -> Events[style_edge_data];
+
+    drop -> {
+      close;
+    }
+    close[style_func;label="{{
+      close|
+      关闭epoll:ep
+    }}"]
+    close -> epoll:ep;
+    interests_to_epoll -> {
+      is_readable;
+      is_writable;
+    }
+    is_readable[style_func;label="{{
+      is_readable|
+      kind = kind \|EPOLLIN\|EPOLLRDHUP
+    }}"]
+    is_writable[style_func;label="{{
+      is_writable|
+      kind \= EPOLLOUT\l
+    }}"]
+
+    Event[style_struct;label="{{
+      Event|
+      libc::epoll_event;
+    }}"]
+    Events[style_struct;label="{{
+      Events|
+      Vec\<Event\>\l
+    }}"]
+    Events -> Event;
+  }
+
+  subgraph cluster_poll {
+    graph[label="poll";fontsize=20;style="rounded,dashed";color="slategrey"]
+    poll -> select;
+    Poll[style_func;label="{{
+      Poll|
+      registry: Registry,\l
+    }}"]
+    Registry[style_struct;label="{{
+      Registry|
+      selector: sys::Selector,\l
+    }}"]
+
+    Poll -> {
+      Registry;
+    }
+
+    Registry -> {
+      sys_Selector;
+    }
+
+    sys_Selector -> {
+      epoll_Selector;
+    }
+    poll_new -> epoll_Selector_new;
+  }
+
+  subgraph cluster_Events {
+    graph[label="Events";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //对events实现了iter, trait
+    // poll.poll(&mut events, Some(Duration::from_millis(100)))?;
+    // for event in events.iter() {
+    //     println!("Got an event for {:?}", event.token());
+    from_sys_event_ref;
+    from_sys_event_ref[style_func;label="{{
+      from_sys_event_ref|
+      将sys_eve强转为Event
+    }}"]
+  }
+
+  TcpSocket;
+  SocketAddr;
+  TcpStream;
+  connect -> TcpStream;
+  listen -> TcpListener;
+  TcpStream -> peer_addr -> SocketAddr;
+  TcpStream[style_struct;label="{{
+    TcpStream|
+      inner: IoSource\<net::TcpStream\>,\l
+  }}"]
+  TcpStream -> IoSource;
+  IoSource[style_struct;label="{{
+    IoSource|
+    state: IoSourceState,\l|
+    inner: T,\l|
+    selector_id: SelectorId,\l
+  }}"]
+  IoSource -> IoSourceState;
+  Source[style_struct;label="{{
+    trait Source|
+    fn register\l
+    fn reregister\l
+    fn deregister\l|
+  an event source that maybe\l
+  registered with Registry\l
+  }}"]
+  Source -> IoSource;
+  Source -> SourceFd;
+  SourceFd[style_func;label="{{
+    SourceFd|
+      pub struct SourceFd\<'a\>(pub &'a RawFd);\l
+  }}"]
+  Interest[style_struct;label="{{
+    Interest|
+      pub struct Interest(NonZeroU8);\l
+  }}"]
+
+
+
+
+  Trait_Read -> TcpStream;
+  Trait_Write -> TcpStream;
+  Trait_IntoRawFd -> TcpStream;
+  Trait_AsRawFd -> TcpStream;
+  Trait_IntoRawSocket -> TcpStream;
+  Trait_AsRawSocket -> TcpStream;
+
+  Trait_IntoRawSocket -> TcpSocket;
+  Trait_AsRawSocket -> TcpSocket;
+  Trait_FromRawSocket -> TcpSocket;
+
+
+  //TcpListener
+  Trait_AsRawFd -> TcpListener;
+  Trait_IntoRawFd -> TcpListener;
+  Trait_IntoRawSocket -> TcpListener;
+  Trait_AsRawSocket -> TcpListener;
+
+  TcpListener -> IoSource;
+  TcpListener[style_struct;label="{{
+    TcpListener|
+    inner: IoSource\<net::TcpListener\>,\l|
+    A structure representing a socket server\l
+  }}"]
+  accept[style_func;label="{{
+    accept|
+    Accetps a new `TcpStream`\l
+    pub fn accept(&self) -\>\l 
+    io::Result\<(TcpStream, SocketAddr)\> \l
+  }}"]
+  TcpListener -> accept[style_edge_data];
+
+  accept -> {
+   TcpStream;
+   PeerSocketAddr;
+  }
+  PeerSocketAddr[style_func;label="{{
+    SocketAddr|
+    the remote address of the peer\l
+  }}"]
+  SocketAddr[style_func;label="{{
+    SocketAddr|
+    sockaddr: libc::sockaddr_un,\l|
+    socklen: libc::socklen_t,\l
+  }}"]
+
+  subgraph cluster_TcpSocket {
+    graph[label="TcpSocket";fontsize=20;style="rounded,dashed";color="slategrey"]
+    bind[style_func;label="{{
+      bind|
+      Bind `addr` to The Tcp socket\l
+      sys::tcp::bind(self.sys, addr)\l
+    }}"]
+    TcpSocket[style_struct;label="{{
+      TcpSocket|
+        sys: sys::tcp::TcpSocket,\l|
+        A non-blocking Tcp socket\l
+        used to configure a stream or listener\l
+    }}"]
+    TcpSocket;
+    listen[style_func;label="{{
+      listen|
+        Listen for inbound connections,\l 
+        converting the socket to a
+        `TcpListener`.
+    }}"]
+    bind -> listen[style_edge_data];
+    connect;
+  }
+
+}

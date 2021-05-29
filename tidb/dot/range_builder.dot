@@ -1,0 +1,45 @@
+#include "styles.h"
+digraph range_builder {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  build -> {
+    buildFromColumn;
+    buildFromScalarFunc;
+    buildFromConstant;
+  }
+  buildFromConstant[style_func;label="{{
+    buildFromConstant|
+    能够转为Bool 的const\l
+  }}"]
+
+  buildFromConstant -> {
+    Eval;
+    ToBool;
+  }
+  buildFromColumn -> {
+    MinNotNullDatum;
+    MaxValueDatum;
+  }
+
+  buildFromScalarFunc -> {
+    buildFormBinOp;
+    intersection;
+    union;
+    buildFromIsTrue;
+    buildFromIsFalse;
+    buildFromIn;
+    buildFromNot;
+  }
+  buildFormBinOp -> Eval;
+  Eval[style_func;label="{{
+    Eval|
+    获取expression(arg)对应值
+  }}"]
+  buildFormBinOp[style_func;label="{{
+    buildFormBinOp|
+    处理EQ/NE/LT/LE/GT/GE等函数|
+    a = 1/a>1等\l
+  }}"]
+}

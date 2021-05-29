@@ -1,0 +1,70 @@
+digraph pingcap_raft_lab {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Raft[
+    shape="record";
+    label="{{
+      Struct Raft|
+      <RaftClient> peers: Vec\<RaftClient\>\l|
+      <Persister> persister: Box\<dyn Persister\>\l|
+      me: usize\l|
+      <State> state: Arc\<State\>\l
+    }}";
+  ];
+  Raft:Persister -> Persister;
+  Raft:State -> State;
+  State[
+    shape="record";
+    label="{{
+      State|
+      pub term: u64\l|
+      pub is_leader: bool\l
+    }}";
+  ];
+  Persister[
+    shape="record";
+    label="{{
+      trait Persister|
+    fn raft_state(\&self) -\> Vec\<u8\>;\l|
+    fn save_raft_state(\&self, state: Vec\<u8\>);\l|
+    fn save_state_and_snapshot(\&self, state: Vec\<u8\>, snapshot: Vec\<u8\>);\l|
+    fn snapshot(\&self) -\> Vec\<u8\>;\l|
+    }}";
+  ];
+  RaftNode[
+    shape="record";
+    label="{{
+      Raft服务节点Node|
+      实现Raft rcp接口\l
+      new\l|
+      start\l|
+      term\l|
+      is_leader\l|
+      get_state\l
+      kill \l
+    }}";
+  ];
+  RaftNode -> RaftService;
+  RaftClient[
+    shape="record";
+    label="{{
+      RaftClient|
+      rpc client\l
+    }}";
+  ];
+  RaftClient -> RaftService;
+  Raft:RaftClient -> RaftClient;
+
+  RaftService[
+    shape="record";
+    label="{{
+      rpc 服务\l |
+      RaftService\l|
+      request_vote\l|
+      append_entries\l|
+    }}";
+  ];
+  RaftNode -> Raft;
+}

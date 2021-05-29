@@ -1,0 +1,126 @@
+#include "styles.h"
+digraph raft_poller_handle_raft_ready {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_RaftEngine {
+    graph[label="RaftEngine";fontsize=20;style="rounded,dashed";color="slategrey"]
+    consume_and_shrink;
+  }
+  subgraph cluster_WriteBatch {
+    graph[label="WriteBatch";fontsize=20;style="rounded,dashed";color="slategrey"]
+    write_opt;
+  }
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    post_ready;
+    post_ready[style_func;label="{{
+      post_ready|
+      update memory state after ready\l
+      chages are flushed to disk successfully\l|
+      使用invoke_ctx中的state\\l
+      更新自己的成员变量\l|
+      self.raft_state = ctx.raft_state;\l|
+      self.apply_state = ctx.apply_state;\l|
+      self.last_term = ctx.last_term;\l
+    }}"]
+    post_ready -> {
+      raft_state;
+      apply_state;
+      last_term;
+      clear_extra_data;
+      is_initialized;
+      schedule_applying_snapshot;
+      ApplySnapResult;
+    }
+    ApplySnapResult[style_struct;label="{{
+      如果ctx.snap_region不为None\l|
+      ApplySnapResult\l|
+      pub prev_region: metapb::Region,\l|
+      pub region: metapb::Region,\l|
+      pub destroyed_regions: Vec\<metapb::Region\>,\l
+    }}"]
+    schedule_applying_snapshot -> {
+      set_snap_state;
+      region_sched_schedule;
+    }
+    region_sched_schedule[style_func;label="{{
+      self.region_sched.schedule(task)|
+      RegionTask::Apply(...)\l
+    }}"]
+  }
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    peer_post_raft_ready_append[style_func;label="{{
+      post_raft_ready_append
+    }}"]
+    activate[style_func;label="{{
+      activate|
+      Register self to apply_scheduler\l
+      so that peer is then usable\l
+    }}"]
+    peer_post_raft_ready_append -> {
+     post_ready;
+     activate;
+    }
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    post_raft_ready_append -> {
+      peer_post_raft_ready_append;
+    }
+
+    CollectedReady[style_func;label="{{
+      CollectedReady|
+       pub batch_offset: usize,\l|
+       <invoke_ctx> pub ctx: InvokeContext,\l|
+       pub ready: Ready,\l
+    }}"]
+    CollectedReady:invoke_ctx -> InvokeContext -> post_ready;
+
+    InvokeContext[style_var;label="{{
+      InvokeContext|
+      pub region_id: u64,\l|
+      pub raft_state: RaftLocalState,\l|
+      pub apply_state: RaftApplyState,\l|
+      <last_term> last_term: u64,\l|
+      pub has_new_entries: bool,\l|
+      pub snap_region: Option\<Region\>,\l|
+      pub destroyed_regions: Vec\<metapb::Region\>,\l
+    }}"]
+  }
+
+  subgraph cluster_PollContext {
+    graph[label="ollContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PollContext[style_struct;label="{{
+      PollContext|
+        <kv_wb> pub kv_wb: EK::WriteBatch,\l|
+        <raft_wb> pub raft_wb: ER::LogBatch,\l|
+        <ready> pub ready_res: Vec\<CollectedReady\>,\l
+    }}"]
+    PollContext:ready -> CollectedReady;
+  }
+
+  subgraph cluster_RaftPoller {
+    graph[label="RaftPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_raft_ready -> {
+      write_opt;
+      consume_and_shrink;
+      post_raft_ready_append;
+    }
+    PollContext:ready -> post_raft_ready_append;
+
+    write_opt -> PollContext:kv_wb;
+    consume_and_shrink -> PollContext:raft_wb;
+    handle_raft_ready[style_func;label="{{
+      handle_raft_ready|
+      1.将kv_wb, raft_wb数据写入rocksdb中\l
+      2.遍历ready_res 回调post_raft_ready_append\l
+    }}"]
+      
+  }
+  
+}

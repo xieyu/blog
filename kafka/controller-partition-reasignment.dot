@@ -1,0 +1,31 @@
+digraph partitionReassignment {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_zkClient {
+    graph[label="zkClient";fontsize=20;style=rounded];
+    getPartitionReassignment;
+  };
+  subgraph cluster_controllerContext {
+    graph[label="controllerContext";fontsize=20;style=rounded];
+    partitionFullReplicaAssignment;
+    partitionReplicaAssignment;
+  };
+
+  processZkPartitionReassignment -> {
+    getPartitionReassignment;
+    maybeBuildReassignment;
+    maybeTriggerPartitionReassignment;
+    maybeRemoveFromZkReassignment;
+  }
+
+  maybeBuildReassignment -> {
+    partitionFullReplicaAssignment;
+  }
+
+  maybeTriggerPartitionReassignment -> {
+    isTopicQueuedUpForDeletion;
+    partitionReplicaAssignment;
+    onPartitionReassignment;
+  }
+}

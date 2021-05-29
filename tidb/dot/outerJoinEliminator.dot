@@ -1,0 +1,44 @@
+digraph outerJoinEliminator {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  IsColsAllFromOuterTable[
+    shape="record";
+    label="{{
+      IsColsAllFromOuterTable|
+      check whether the cols\l 
+      all from outer plan\l
+    }}"];
+  GetDupAgnosticAggCols[
+    shape="record";
+    label="{{
+      GetDupAgnosticAggCols|
+      checks whether a LogicalPlan\l 
+      is LogicalAggregation\l
+    }}"];
+
+  optimize -> doOptimize;
+  doOptimize -> {
+    tryToEliminateOuterJoin;
+    GetDupAgnosticAggCols;
+    doOptimize;
+  }
+  tryToEliminateOuterJoin -> {
+    IsColsAllFromOuterTable;
+    extractInnerJoinKeys;
+    isInnerJoinKeysContainUniqueKey;
+    isInnerJoinKeysContainIndex;
+  }
+  IsColsAllFromOuterTable -> outerUniqueIDs;
+  isInnerJoinKeysContainUniqueKey -> {
+    Schema:Keys;
+  }
+  isInnerJoinKeysContainIndex -> {
+    possibleAccessPaths;
+  }
+
+  edge[style=dashed]
+  extractInnerJoinKeys -> innerJoinKeys -> isInnerJoinKeysContainUniqueKey;
+}

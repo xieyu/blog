@@ -1,0 +1,121 @@
+digraph raft {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Leader {
+    graph[label="Leader";fontsize=20;];
+    PersistentState[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        PersistentState|
+        需要持久化存储的状态\l|
+        currentTerm\l|
+        votedFor\l|
+        log[]\l
+      }}"
+    ];
+    PersistentState -> Log;
+    VolatileState[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        VolatileState|
+        comitIndex\l|
+        lastApplied\l
+      }}"
+    ];
+    LeaderVolatileState[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        LeaderVolatileState|
+        每次选举后重新初始化\l|
+        nextIndex[]\l|
+        matchIndex[]\l
+      }}"
+    ];
+    Log[
+      shape="record"
+      label="{{
+        Log|
+        logItem1\l|
+        logItem2\l|
+        ...
+      }}"
+    ];
+    Log -> LogItem;
+    LogItem[
+      shape="record"
+      label="{{
+        LogIndex\l|
+        Term\l
+      }}"
+    ];
+    Leader;
+  }
+
+  subgraph cluster_Follower {
+    graph[label="Follower";fontsize=20;];
+    Follower;
+    Candidate;
+    Follower -> electionTimeout -> Candidate[style=dashed];
+    Candidate -> majorityVote -> Leader[style=dashed];
+
+    PersistentState2[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        PersistentState|
+        需要持久化存储的状态\l|
+        currentTerm\l|
+        votedFor\l|
+        log[]\l
+      }}"
+    ];
+    VolatileState2[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        VolatileState|
+        comitIndex\l|
+        lastApplied\l
+      }}"
+    ];
+  }
+  Candidate -> RequestVote -> {Follower;Leader}[color="#17b978"];
+  Leader -> AppendEntries -> {Follower;Candidate;}[color="#b83b5e"]
+  client -> Leader;
+
+  AppendEntries[
+    shape="record"
+    label="{{
+      AppendEntries|
+      req:请求参数\l|
+      term leader的任期\l|
+      leaderId l\l|
+      prevLogIndex \l|
+      entries[]\l|
+      leaderCommit\l|
+      resp:返回结果\l|
+      term\l 如果follower返回|
+      success\l
+    }}"
+  ];
+  RequestVote[
+    shape="record"
+    label="{{
+      RequestVote|
+      candidate term\l|
+      candidate id\l|
+      lastLogIndex\l|
+      lastLogTerm\l|
+    }}"
+  ];
+}

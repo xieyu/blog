@@ -1,0 +1,354 @@
+#include "styles.h"
+digraph BatchExecutor {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RpnExpression[style_func;label="{{
+    RpnExpression|
+      RpnExpression(Vec\<RpnExpressionNode\>);\l
+  }}"]
+  RpnExpression -> {
+    RpnExpressionNode;
+  }
+
+  RpnExpressionNode -> {
+    FnCall;
+    Constant;
+    ColumnRef;
+  }
+  FnCall[style_func;label="{{
+    FnCall|
+      func_meta: RpnFnMeta,\l|
+      args_len: usize,\l|
+      field_type: FieldType,\l|
+      metadata: Box\<dyn Any + Send\>,\l
+  }}"]
+  FnCall -> {
+    RpnFnMeta;
+    FieldType;
+  }
+  RpnFnMeta[style_func;label="{{
+    RpnFnMeta|
+    pub name: &'static str,\l|
+    pub validator_ptr: fn(expr: &Expr) -\> Result\<()\>,\l|
+    pub metadata_expr_ptr: fn(expr: &mut Expr) -\> Result\<Box\<dyn Any + Send\>\>,\l|
+    pub fn_ptr: fn(\l|
+        ctx: &mut EvalContext,\l|
+        output_rows: usize,\l|
+        args: &[RpnStackNode\<'_\>],\l|
+        // Uncommon arguments are grouped together\l|
+        extra: &mut RpnFnCallExtra\<'_\>,\l|
+        metadata: &(dyn Any + Send),\l
+  }}"]
+
+  Constant[style_func;label="{{
+    Constant|
+      value: ScalarValue,\l|
+      field_type: FieldType,\l
+  }}"]
+  ScalarValue[style_func;label="{{
+    ScalarValue|
+    Int(Option\<super::Int\>),\l|
+    Real(Option\<super::Real\>),\l|
+    Decimal(Option\<super::Decimal\>),\l|
+    Bytes(Option\<super::Bytes\>),\l|
+    DateTime(Option\<super::DateTime\>),\l|
+    Duration(Option\<super::Duration\>),\l|
+    Json(Option\<super::Json\>),\l|
+    Enum(Option\<super::Enum\>),\l|
+    Set(Option\<super::Set\>),\l
+  }}"]
+
+  Constant -> {
+     ScalarValue;
+     FieldType;
+  }
+  ColumnRef[style_func;label="{{
+    ColumnRef|
+    offset: usize;
+  }}"]
+
+
+
+  EvalConfig[style_func;label="{{
+    EvalConfig|
+    pub tz: Tz,\l|
+    pub flag: Flag,\l|
+    pub max_warning_cnt: usize,\l|
+    pub sql_mode: SqlMode,\l
+  }}"]
+  EvalContext -> {
+    EvalConfig;
+    EvalWarnings;
+  }
+  RangesScanner[style_func;label="{{
+    RangesScanner|
+    storage: T,\l|
+    ranges_iter: RangesIterator,\l|
+    scan_backward_in_range: bool,\l|
+    is_key_only: bool,\l|
+    scanned_rows_per_range: Vec\<usize\>,\l|
+    is_scanned_range_aware: bool,\l|
+    current_range: IntervalRange,\l|
+    working_range_begin_key: Vec\<u8\>,\l|
+    working_range_end_key: Vec\<u8\>,\l
+  }}"]
+
+  RangesIterator[style_func;label="{{
+    RangesIterator|
+    in_range: bool,\l|
+    iter: std::vec::IntoIter\<Range\>,\l
+  }}"]
+  RangesIterator -> {
+    Range;
+  }
+  Range[style_func;label="{{
+    Range|
+    Point(PointRange),\l|
+    Interval(IntervalRange),\l
+  }}"]
+  Range -> {
+    PointRange;
+    IntervalRange;
+  }
+
+  PointRange[style_func;label="{{
+    PointRange|
+      pub Vec\<u8\>\l
+  }}"]
+  IntervalRange[style_func;label="{{
+    IntervalRange|
+    pub lower_inclusive: Vec\<u8\>,\l|
+    pub upper_exclusive: Vec\<u8\>,\l
+  }}"]
+
+  RangesScanner -> {
+    RangesIterator;
+    IntervalRange;
+  }
+
+  ScanExecutor[style_func;label="{{
+    ScanExecutor|
+    imp: I,\l|
+    scanner: RangesScanner\<S\>,\l|
+    is_ended: bool,\l
+  }}"]
+  ScanExecutor -> {
+    ScanExecutorImpl;
+    RangesScanner;
+  }
+  ScanExecutorImpl[style_func;label="{{
+    ScanExecutorImpl|
+    fn schema(&self) -\> &[FieldType];\l|
+    fn mut_context(&mut self) -\> &mut EvalContext;\l|
+    fn build_column_vec(&self, scan_rows: usize)\l 
+    -\> LazyBatchColumnVec;\l|
+    fn process_kv_pair(..)\l
+  }}"]
+
+  ScanExecutorImpl -> {
+    TableScanExecutorImpl;
+    IndexScanExecutorImpl;
+  }[style_edge_data];
+
+  BatchTableScanExecutor[style_func;label="{{
+    BatchTableScanExecutor|
+      ScanExecutor\<S, TableScanExecutorImpl\>;\l
+  }}"]
+  BatchTableScanExecutor -> {
+    ScanExecutor;
+    TableScanExecutorImpl;
+  }
+  TableScanExecutorImpl[style_func;label="{{
+    TableScanExecutorImpl|
+    context: EvalContext,\l|
+    schema: Vec\<FieldType\>,\l|
+    columns_default_value: Vec\<Vec\<u8\>\>,\l|
+    column_id_index: HashMap\<i64, usize\>,\l|
+    handle_indices: HandleIndicesVec,\l|
+    primary_column_ids: Vec\<i64\>,\l|
+    is_column_filled: Vec\<bool\>,\l
+  }}"]
+  TableScanExecutorImpl -> {
+    EvalContext;
+    FieldType;
+    HandleIndicesVec;
+  }
+
+  BatchIndexScanExecutor[style_func;label="{{
+    BatchIndexScanExecutor|
+    ScanExecutor\<S, IndexScanExecutorImpl\>\l
+  }}"]
+  BatchIndexScanExecutor ->{
+    ScanExecutor;
+    IndexScanExecutorImpl;
+  };
+
+  IndexScanExecutorImpl[style_func;label="{{
+    IndexScanExecutorImpl|
+    context: EvalContext,\l|
+    schema: Vec\<FieldType\>,\l|
+    columns_id_without_handle: Vec\<i64\>,\l|
+    columns_id_for_common_handle: Vec\<i64\>,\l|
+    decode_handle_strategy: DecodeHandleStrategy,\l|
+    pid_column_cnt: usize,\l|
+    index_version: i64,\l
+  }}"]
+  IndexScanExecutorImpl -> {
+    EvalContext;
+    FieldType;
+    DecodeHandleStrategy;
+  }
+
+  BatchSelectionExecutor[style_func;label="{{
+    BatchSelectionExecutor|
+    context: EvalContext,\l|
+    src: Src,\l|
+    conditions: Vec\<RpnExpression\>,\l
+  }}"]
+
+  BatchSelectionExecutor -> {
+    EvalContext;
+    RpnExpression;
+  };
+
+  BatchSimpleAggregationExecutor[style_func;label="{{
+    BatchSimpleAggregationExecutor|
+    AggregationExecutor\<Src, SimpleAggregationImpl\>,\l
+  }}"]
+
+  BatchSimpleAggregationExecutor -> {
+    AggregationExecutor;
+    SimpleAggregationImpl;
+  };
+  SimpleAggregationImpl[style_func;label="{{
+    SimpleAggregationImpl|
+    states: Vec\<Box\<dyn AggrFunctionState\>\>,\l
+  }}"]
+  AggrFunctionState[style_func;label="{{
+    trait AggrFunctionState|
+    fn push_result(&self, ctx: &mut EvalContext,\l
+    target: &mut [VectorValue]) -\> Result\<()\>;\l
+  }}"]
+  SimpleAggregationImpl -> AggrFunctionState;
+
+  BatchFastHashAggregationExecutor[style_func;label="{{
+    BatchFastHashAggregationExecutor|
+    AggregationExecutor\<Src, FastHashAggregationImpl\>,\l
+  }}"]
+  BatchFastHashAggregationExecutor -> {
+    AggregationExecutor;
+    FastHashAggregationImpl;
+  };
+  FastHashAggregationImpl[style_func;label="{{
+   FastHashAggregationImpl|
+    states: Vec\<Box\<dyn AggrFunctionState\>\>,\l|
+    groups: Groups,\l|
+    group_by_exp: RpnExpression,\l|
+    group_by_field_type: FieldType,\l|
+    states_offset_each_logical_row: Vec\<usize\>,\l
+  }}"]
+
+  FastHashAggregationImpl -> {
+    AggrFunctionState;
+    RpnExpression;
+    Groups;
+  }
+
+  Groups[style_func;label="{{
+    Groups|
+    Int(HashMap\<Option\<Int\>, usize\>),\l|
+    Real(HashMap\<Option\<Real\>, usize\>),\l|
+    Bytes(HashMap\<Option\<Bytes\>, usize\>),\l|
+    Duration(HashMap\<Option\<Duration\>, usize\>),\l|
+    Decimal(HashMap\<Option\<Decimal\>, usize\>),\l|
+    DateTime(HashMap\<Option\<DateTime\>, usize\>),\l
+  }}"]
+
+  BatchSlowHashAggregationExecutor -> {
+    AggregationExecutor;
+    SlowHashAggregationImpl;
+  };
+  SlowHashAggregationImpl[style_func;label="{{
+    SlowHashAggregationImpl|
+    states: Vec\<Box\<dyn AggrFunctionState\>\>,\l|
+    groups: HashMap\<GroupKeyRefUnsafe, usize\>,\l|
+    group_by_exps: Vec\<RpnExpression\>,\l|
+    extra_group_by_col_index: Vec\<usize\>,\l|
+    original_group_by_col_index: Vec\<usize\>,\l|
+    group_key_buffer: Box\<Vec\<u8\>\>,\l|
+    group_key_offsets: Vec\<usize\>,\l|
+    states_offset_each_logical_row: Vec\<usize\>,\l|
+    group_by_results_unsafe: Vec\<RpnStackNode\<'static\>\>,\l|
+    cached_encoded_result: Vec\<Option\<Vec\<u8\>\>\>,\l
+  }}"]
+
+  SlowHashAggregationImpl -> {
+   AggrFunctionState;
+   RpnStackNode;
+  }
+  BatchStreamAggregationExecutor -> {
+    AggregationExecutor;
+    BatchStreamAggregationImpl;
+  };
+  BatchStreamAggregationImpl[style_func;label="{{
+    BatchStreamAggregationImpl|
+    group_by_exps: Vec\<RpnExpression\>,\l|
+    group_by_exps_types: Vec\<EvalType\>,\l|
+    group_by_field_type: Vec\<FieldType\>,\l|
+    keys: Vec\<ScalarValue\>,\l|
+    states: Vec\<Box\<dyn AggrFunctionState\>\>,\l|
+    group_by_results_unsafe: Vec\<RpnStackNode\<'static\>\>,\l|
+    aggr_expr_results_unsafe: Vec\<RpnStackNode\<'static\>\>,\l
+  }}"]
+
+  BatchStreamAggregationImpl -> {
+    RpnExpression;
+    AggrFunctionState;
+    RpnStackNode;
+    ScalarValue;
+  }
+  AggregationExecutor[style_func;label="{{
+    AggregationExecutor|
+    imp: I,\l|
+    is_ended: bool,\l|
+    entities: Entities\<Src\>,\l
+  }}"]
+
+  AggregationExecutor -> {
+    Entities;
+  }
+  Entities[style_func;label="{{
+    Entities|
+    pub src: Src,\l|
+    pub context: EvalContext,\l|
+    pub schema: Vec\<FieldType\>,\l|
+    pub each_aggr_fn: Vec\<Box\<dyn AggrFunction\>\>,\l|
+    pub each_aggr_cardinality: Vec\<usize\>,\l|
+    pub each_aggr_exprs: Vec\<RpnExpression\>,\l|
+    pub all_result_column_types: Vec\<EvalType\>,\l
+  }}"]
+  Entities -> {
+    EvalContext;
+    FieldType;
+    AggrFunction;
+    RpnExpression;
+    EvalType;
+  }
+
+  BatchLimitExecutor[style_func;label="{{
+    BatchLimitExecutor|
+    src: Src,\l|
+    remaining_rows: usize,\l|
+    is_src_scan_executor: bool,\l
+  }}"]
+  BatchLimitExecutor -> {
+  };
+  BatchTopNExecutor -> {
+    RpnStackNode;
+    RpnExpression;
+    EvalContext;
+  };
+}

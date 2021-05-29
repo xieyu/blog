@@ -1,0 +1,82 @@
+#include "styles.h"
+digraph read_local {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RaftKV {
+    graph[label="RaftKV";fontsize=20;style="rounded,dashed";color="slategrey"]
+    async_snapshot[style_func;label="{{async_snapshot|
+    发送CmdType::Snap请求\l
+    }}"]
+    async_snapshot -> exec_snapshot;
+    exec_snapshot -> {
+      router_read;
+    }
+    router_read[style_func;label="{{self.router.read|
+      发送cmd到Raft
+    }}"]
+    StoreCallback_Read[style_func;label="{{StoreCallback::Read|
+    Read ready后的回调函数
+    }}"]
+    exec_snapshot-> StoreCallback_Read[style_edge_data];
+  }
+  get_snapshot -> invoke_read[style_edge_data];
+
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    commit_index;
+  }
+  subgraph cluster_PollContext {
+    graph[label="PollContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    execute[style_func;label="{{execute|
+    生成response
+    }}"]
+    execute -> {
+      CmdType_Get;
+      CmdType_Snap;
+      CmdType_ReadIndex;
+    };
+    CmdType_Get -> {
+      get_value;
+    }
+    CmdType_Snap -> {
+      get_snapshot;
+    }
+    get_snapshot[style_func;label="{{get_snapshot|
+      Arc::new(self.engines.kv.snapshot())|
+      获取当前kv的snapshot\l
+    }}"]
+    CmdType_ReadIndex -> set_read_index;
+    set_read_index[style_func;label="{{set_read_index|
+      let mut res = ReadIndexResponse::default();\l
+      res.set_read_index(read_index);\l
+      resp.set_read_index(res);\l
+    }}"]
+  }
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    propose -> {
+      read_local;
+    }
+    commit_index -> CmdType_ReadIndex;
+
+    read_local -> {
+      commit_index;
+      handle_read;
+      invoke_read;
+    }
+    handle_read -> {
+      execute;
+    }
+    handle_read[style_func;label="{{handle_read|
+      生成resp
+    }}"]
+    handle_read -> invoke_read[style_edge_data];
+    invoke_read[style_func;label="{{invoke_read|
+    调用回调函数
+    }}"]
+    invoke_read -> StoreCallback_Read;
+  }
+  
+}

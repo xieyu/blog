@@ -1,0 +1,83 @@
+#include "styles.h"
+digraph exec_change_peer {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ApplyDelegate {
+    graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    exec_change_peer -> {
+      PeerState_Tombstone;
+      PeerState_Normal;
+      write_peer_state;
+      region_mut_peers;
+      ConfChangeType_RemoveNode;
+      ConfChangeType_AddNode;
+      ExecResult_ChangePeer;
+    }
+    ConfChangeType_RemoveNode -> {
+      pending_remove;
+      stopped;
+    }
+    pending_remove[style_func;label="{{
+      pending_remove|
+      将pending_remove设置为true\l
+    }}"]
+    stopped[style_func;label="{{
+      stopped|
+      不用再apply log了\l
+      停止ApplyFsm\l 
+    }}"]
+    pending_remove -> handle_raft_committed_entries[style_edge_data];
+    handle_raft_committed_entries[style_func;label="{{
+      handle_raft_committed_entries|
+      如果pending_remove，\l 
+      就skip掉所有log entry\l
+    }}"]
+    ConfChangeType_RemoveNode[style_func;label="{{
+      ConfChangeType_RemoveNode|
+      如果self.id == peer.get_id\l
+      self.stopped = true\l
+      self.pending_remove = true\l|
+      从region peer列表中删除
+    }}"]
+    pending_remove -> {
+      PeerState_Normal;
+      PeerState_Tombstone;
+    } -> write_peer_state[style_edge_data];
+    region_mut_peers -> Region:peers; 
+    PeerState_Tombstone[style_func;label="{{
+      PeerState_Tombstone|
+      设置region的PeerState为TombStone\l
+      后续会清理该Region的数据\l
+    }}"]
+
+    ExecResult_ChangePeer[style_var;label="{{
+      ExecResult::ChangePeer|
+      要发给peerFsmDelegate的消息\l|
+    pub index: u64,\l|
+    pub conf_change: ConfChangeV2,\l|
+    pub changes: Vec\<ChangePeerRequest\>,\l|
+    pub region: Region,\l
+    }}"]
+    ExecResult_ChangePeer -> Region;
+
+    Region[style_var;label="{{
+      Region|
+    pub start_key: ::std::vec::Vec\<u8\>,\l|
+    pub end_key: ::std::vec::Vec\<u8\>,\l|
+    pub region_epoch: ::protobuf::SingularPtrField\<RegionEpoch\>,\l|
+    <peers> pub peers: ::protobuf::RepeatedField\<Peer\>,\l|
+    pub encryption_meta: ::protobuf::SingularPtrField\<super::encryptionpb::EncryptionMeta\>,\l
+    }}"]
+
+    ConfChangeType_AddNode[style_func;label="{{
+      ConfChangeType::AddNode|
+      peer存在且为learner\l
+      将role设置为Voter\l|
+      不存在则在增加到peers列表\l
+    }}"]
+  }
+  
+}

@@ -1,0 +1,118 @@
+#include "styles.h"
+digraph MvccReader {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  MvccReader[style_struct;label="{{
+    MvccReader|
+    snapshot: S,\l|
+    pub statistics: Statistics,\l|
+    data_cursor: Option\<Cursor\<S::Iter\>\>,\l|
+    lock_cursor: Option\<Cursor\<S::Iter\>\>,\l|
+    pub write_cursor: Option\<Cursor\<S::Iter\>\>,\l|
+    scan_mode: Option\<ScanMode\>,\l|
+    current_key: Option\<Key\>,\l|
+    key_only: bool,\l|
+    fill_cache: bool,\l|
+    isolation_level: IsolationLevel,\l
+  }}"]
+
+  MvccReader -> {
+    Snapshot;
+    Statistics;
+    Cursor;
+    ScanMode;
+    Key;
+    IsolationLevel;
+  }
+  Snapshot -> {
+    RegionSnapshot;
+    MockRangeSnapshot;
+    RocksSnapshot;
+    BTreeEngineSnapshot;
+  }
+  Cursor -> ScanMode;
+
+  Cursor[style_struct;label="{{
+    Cursor|
+    iter: I,\l|
+    scan_mode: ScanMode,\l|
+    prefix_seek: bool,\l|
+    min_key: Option\<Vec\<u8\>\>,\l|
+    max_key: Option\<Vec\<u8\>\>,\l|
+    cur_key_has_read: Cell\<bool\>,\l|
+    cur_value_has_read: Cell\<bool\>,\l
+  }}"]
+  Cursor -> {
+    BTreeEngineIterator;
+    RegionIterator;
+    RocksEngineIterator;
+    MockRangeSnapshotIter;
+  }
+  IsolationLevel[style_struct;label="{{
+    IsolationLevel|
+    Si = 0,\l|
+    Rc = 1,\l
+  }}"]
+  Key[style_struct;label="{{
+    Key|
+      pub struct Key(Vec\<u8\>);\l
+  }}"]
+  Snapshot[style_var;label="{{
+    trait Snapshot|
+    fn get(&self, key: &Key)\l|
+    fn get_cf(&self, cf: CfName, key: &Key)\l|
+    fn get_cf_opt(&self, opts: ReadOptions, cf: CfName, key: &Key)\l|
+    fn iter(&self, iter_opt: IterOptions, mode: ScanMode)\l|
+    ...
+  }}"]
+  ScanMode[style_struct;label="{{
+    pub enum ScanMode|
+    Forward,\l|
+    Backward,\l|
+    Mixed,\l
+  }}"]
+  Statistics -> {
+    CfStatistics;
+  }
+  Statistics[style_struct;label="{{
+    Statistics|
+    pub lock: CfStatistics,\l|
+    pub write: CfStatistics,\l|
+    pub data: CfStatistics,\l
+  }}"]
+  CfStatistics[style_struct;label="{{
+    CfStatistics|
+    pub processed_keys: usize,\l|
+    pub get: usize,\l|
+    pub next: usize,\l|
+    pub prev: usize,\l|
+    pub seek: usize,\l|
+    pub seek_for_prev: usize,\l|
+    pub over_seek_bound: usize,\l|
+    pub flow_stats: FlowStatistics,\l|
+    pub next_tombstone: usize,\l|
+    pub prev_tombstone: usize,\l|
+    pub seek_tombstone: usize,\l|
+    pub seek_for_prev_tombstone: usize,\l
+  }}"]
+  RegionSnapshot[style_struct;label="{{
+    RegionSnapshot|
+    snap: Arc\<S\>,\l|
+    region: Arc\<Region\>,\l|
+    apply_index: Arc\<AtomicU64\>,\l|
+    pub max_ts_sync_status: Option\<Arc\<AtomicU64\>\>,\l
+  }}"]
+  RegionSnapshot -> RocksSnapshot[style_edge_data];
+  RocksSnapshot[style_struct;label="{{
+    RocksSnapshot|
+    db: Arc\<DB\>,\l|
+    snap: UnsafeSnap,\l
+  }}"]
+  UnsafeSnap[style_struct;label="{{
+    UnsafeSnap|
+    inner: *const DBSnapshot,
+  }}"]
+  RocksSnapshot -> UnsafeSnap;
+}

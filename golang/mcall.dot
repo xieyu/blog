@@ -1,0 +1,35 @@
+digraph mcall {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  {
+    Gosched;
+    goschedguarded;
+    gopark;
+    goexit1;
+    exitsyscall;
+  } -> mcall;
+  {
+    GC;
+    gcStart;
+    gcMarkTermination;
+    proc_main;
+    exitsyscall;
+  }-> Gosched;
+
+  mcall -> {
+    gosched_m;
+    park_m;
+    goschedguarded_m;
+    exitsyscall0;
+  }
+  subgraph cluster_g0stack{
+    graph[label="在g0 goroutine stack上执行";fontsize=20;];
+    gosched_m -> goschedImpl -> schedule
+      schedule -> execute -> gogo;
+    park_m -> {schedule, dropg};
+    exitsyscall0 -> {schedule, stopm}
+    goschedguarded_m -> {goschedImpl, gogo}
+  }
+
+}

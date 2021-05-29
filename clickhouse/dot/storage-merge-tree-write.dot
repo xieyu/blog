@@ -1,0 +1,79 @@
+digraph storage_merge_tree_write {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  write -> {
+    max_partitions_per_insert_block;
+    metadata_snapshot;
+    MergeTreeBlockOutputStream;
+  }
+
+  subgraph cluster_settings {
+    graph[label="settings";fontsize=20;];
+    max_parts_in_total;
+    max_partitions_per_insert_block;
+  }
+
+  subgraph cluster_MergeTreeData {
+    graph[label="MergeTreeData";fontsize=20;];
+    delayInsertOrThrowIfNeeded -> {
+      getPartsCount;
+      getMaxPartsCountForPartition;
+      max_parts_in_total;
+    }
+  }
+
+  subgraph cluster_metedata_snapshot {
+    graph[label="metadata_snapshot";fontsize=20;];
+    hasPartitionKey;
+    getPartitionKey;
+  }
+
+  subgraph cluster_MergeTreeDataWriter {
+    graph[label="MergeTreeDataWriter";fontsize=20;];
+    splitBlockIntoParts -> {
+      hasPartitionKey;
+      getPartitionKey;
+      buildScatterSelector;
+      ExpressionAction_execute;
+    }
+    getPartitionKey -> KeyDescription -> ExpressionAction_execute[style=dashed]
+  }
+  subgraph cluster_PartLog {
+    graph[label="PartLog";fontsize=20;];
+    addNewPart;
+  }
+
+  subgraph cluster_BackgroundProcessingPoolTaskInfo {
+    graph[label="BackgroundProcessingPoolTaskInfo";fontsize=20;];
+    signalReadyToRun
+  }
+  signalReadyToRun -> mergeMutateTask[style=dashed];
+
+  subgraph cluster_MergeTreeBlockOutputStream {
+    graph[label="MergeTreeBlockOutputStream ";fontsize=20;];
+    m_write[shape="record"; label="{{write}}";];
+    MergeTreeBlockOutputStream;
+    m_write -> {
+      delayInsertOrThrowIfNeeded;
+      splitBlockIntoParts;
+      writeTempPart;
+      renameTempPartAndAdd;
+      addNewPart;
+      signalReadyToRun;
+    }
+  }
+
+  //函数之间数据依赖关系
+  node[shape="record"; fillcolor="#95e1d3" style=filled;];
+  part_blocks;
+  parts;
+  node[shape=box;style=stroke;];
+
+  edge[style=dashed]
+  splitBlockIntoParts -> part_blocks ->  writeTempPart[style=dashed];
+  writeTempPart -> parts -> renameTempPartAndAdd[style=dashed];
+  parts -> addNewPart;
+}

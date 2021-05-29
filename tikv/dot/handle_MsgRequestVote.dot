@@ -1,0 +1,24 @@
+#include "styles.h"
+digraph handleMsgRequestVote {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  step -> {
+    is_up_to_date;
+    can_vote;
+    priority;
+    last_index;
+    log_vote_approve;
+    vote_resp_msg_type;
+    MsgRequestVoteResponse;
+    MsgRequestPreVoteResponse;
+  }
+  is_up_to_date[style_func;label="{{
+    is_update_to_date|
+    self.raft_log.is_update_to_date(\l 
+    m.index, m.log_term)\l|
+    检查日志是否比自己新
+  }}"]
+}

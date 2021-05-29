@@ -1,0 +1,125 @@
+digraph getGroupKey {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_localSliceBuffer {
+    graph[label="localSliceBuffer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    globalColumnAllocator_get -> {
+      globalColumnAllocator;
+      newBuffer;
+    };
+    globalColumnAllocator_put -> {
+      globalColumnAllocator;
+    };
+
+    globalColumnAllocator[
+      shape="record";
+      label="{{
+        globalColumnAllocator|
+	        sync.Mutex\l|
+	        buffers []*chunk.Column\l|
+	        head    int\l|
+	        tail    int\l
+      }}"];
+  }
+  subgraph cluster_Expression {
+    graph[label="Expression";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PutColumn[
+      shape="record";
+      label="{{
+        PutColumn|
+        release a column buffer\l
+      }}"];
+    GetColumn[
+      shape="record";
+      label="{{
+        GetColumn|
+        allocates a column buffer\l 
+        with the spcific eval type\l
+        and capacity\l
+      }}"];
+    EvalExpr -> {
+      VecEvalInt;
+    };
+    result[
+      shape="record";
+      label="{{
+        result|
+        *chunk.Column
+      }}"];
+    edge[style=dashed;color=blue];
+    GetColumn -> result -> PutColumn;
+    EvalExpr -> result;
+  }
+  getGroupKey[
+    shape="record";
+    label="{{
+      getGroupKey|
+      遍历groupByItems\l
+      按列计算groupKey\l
+      hash后的byte依次append在\l
+      groupKey[i]上\l
+    }}"];
+  groupKey[
+    shape="record";
+    label="{{
+      groupKey|
+      [][]byte\l|
+      groupKey[i] 表示\l 
+      第i行的groupKey\l
+    }}"];
+
+  getGroupKey -> {
+    GetColumn;
+    EvalExpr;
+    PutColumn;
+    HashGroupKey;
+    groupKey;
+  }[color="#b83b5e"];
+
+  HashGroupKey[
+    shape="record";
+    label="{{
+      HashGroupKey|
+      encodes each row\l
+      of this column\l
+      and append encoded\l
+      data into buf;\l
+    }}"];
+
+  HashGroupKey -> {
+    encodeSignedInt;
+    encodeBytes;
+    append;
+  }
+  encodeSignedInt -> {
+    EncodeInt;
+    EncodeVarint;
+  }
+  EncodeInt -> {
+    EncodeIntToCmpUint;
+    append;
+  }
+  append[
+    shape="record";
+    label="{{
+      append|
+      将数据append到\l 
+      groupKey[i]\l|
+    }}"];
+
+  input[
+    shape="record";
+    label="{{
+      input|
+      *chunk.Chunk\l
+    }}"];
+  edge[style=dashed;color=blue];
+  result -> HashGroupKey;
+  input -> getGroupKey;
+  GetColumn -> globalColumnAllocator_get;
+  PutColumn -> globalColumnAllocator_put;
+  HashGroupKey -> groupKey;
+  append -> groupKey;
+}

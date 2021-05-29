@@ -1,0 +1,207 @@
+digraph arch {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Job -> jobImpl
+  jobImpl[shape="record";
+    label="{{
+      jobImpl|
+	    namespace string\l|
+	    queue     string\l|
+	    id        string\l|
+	    body      []byte\l|
+	    ttl       uint32\l|
+	    delay     uint32\l
+    }}";
+  ];
+  subgraph cluster_Timer {
+    graph[label="Timer";fontsize=20;];
+    LUA_T_PUMP;
+  }
+  subgraph cluster_Timer {
+    graph[label="Timer";fontsize=20;];
+    subgraph cluster_MetricTimer {
+      graph[label="MetricTimer";fontsize=20;];
+      metric_timerAddJobs;
+      metric_timerDueJobs;
+      metric_timerFullBatches;
+    }
+
+    Timer[shape="record";
+      label="{{
+        Timer|
+	      name     string\l|
+	      redis    *RedisInstance\l|
+	      interval time.Duration\l|
+	      shutdown chan struct\{\}\l|
+	      lua_pump_sha string\l
+      }}";
+    ];
+    zsetElement[shape="record";
+      label="{{
+        zset中元素|
+        Score: now + delaySecond\l|
+        Member: \l
+	      \{namespace len\}\{namespace\}\l 
+        \{queue len\}\{queue\}\l 
+        \{tries\}\{jobID len\}\l 
+        \{jobID\}\l
+      }}";
+    ];
+    Timer_Add -> {
+      metric_timerAddJobs;
+      redis_Conn_Zadd;
+    };
+    redis_Conn_Zadd -> zsetElement;
+    redis_Conn_Zadd[shape="record";
+      label="{{
+        redis_Conn_Zadd|
+        加入到以timer.name为名的zset中\l
+        score为调度的绝对时间\l
+      }}";
+    ];
+    tick[shape="record";
+      label="{{
+        tick|
+        go routine, 执行tick\l
+        每秒钟执行一次\l
+      }}";
+    ];
+    pump[shape="record";
+      label="{{
+        pump|
+        通过reids lua脚本\l
+        将到期任务\l 
+        放入ready list\l
+      }}";
+    ];
+    NewTimer -> Timer;
+    NewTimer -> tick -> pump;
+    pump -> {
+      redis_Conn_EvalSha;
+      redis_Conn_ScriptLoad;
+      metric_timerDueJobs;
+      metric_timerFullBatches;
+    }
+    redis_Conn_ScriptLoad -> LUA_T_PUMP;
+    subgraph cluster_redisConn {
+      graph[label="redisConn";fontsize=20;];
+      redis_Conn_Zadd;
+      redis_Conn_EvalSha;
+      redis_Conn_ScriptLoad;
+    }
+  }
+  subgraph cluster_Queue{
+    graph[label="Queue";fontsize=20;];
+    NewQueue;
+    Queue[shape="record";
+      label="{{
+        Queue|
+        name QueueName\l|
+        redis *RedisInstance\l|
+        timer *Timer\l|
+        lua_destroy_sha string\l
+      }}";
+    ];
+    NewQueue -> Queue;
+    Queue_Poll[shape="record";
+      label="{{
+        Queue_Poll|
+        timeoutSecond\l|
+        ttrSecond\l
+      }}";
+    ];
+    Queue_Poll -> {
+      PollQueues;
+    }
+    PollQueues -> {
+      redis_Conn_BRPop;
+      redis_Conn_RPop;
+      Timer_Add;
+    }
+  }
+
+  subgraph cluster_Engine {
+    graph[label="Engine";fontsize=20;];
+    subgraph cluster_metrics {
+      graph[label="metrics";fontsize=20;];
+      metric_publishJobs;
+      metric_publishQueueJobs;
+      metric_consumeJobs;
+      metric_consumerQueueJobs;
+    }
+
+    Engine_Publish -> {
+      metric_publishJobs;
+      metric_publishQueueJobs;
+      meta_RecordIfNotExist;
+      monitor_MonitorIfNotExist;
+      NewJob;
+      pool_Add;
+      NewQueue;
+      Timer_Add;
+    }
+    Consume[shape="record";
+      label="{{
+        Consume|
+          namespace string\l|
+          queue string\l|
+          ttrSecond uint32 \l|
+          timeoutSecond uint32 \l
+      }}";
+    ];
+
+    Consume -> {
+      metric_consumeJobs;
+      metric_consumerQueueJobs;
+      NewQueue;
+      Queue_Poll;
+      metric_jobElaspedMs;
+      NewJobWithID;
+      pool_Get;
+    }
+
+    ConsumeMulti -> {
+      metrics_consumeMultiJobs;
+      metric_consumerQueueJobs;
+      PollQueues;
+      pool_Get;
+    }
+
+    Engine_Delete -> {
+      pool_Delete;
+      ElapsedMilliSecondFromUniqueID;
+      metrics_AckElaspedMs;
+    }
+  }
+  subgraph cluster_ApiServer {
+    graph[label="ApiServer";fontsize=20;];
+    handlers_Delete -> {
+      Engine_Delete
+    }
+    handlers_Publish -> {
+      Engine_Delete;
+      Engine_Publish;
+    }
+    handlers_Consume -> {
+      BatchConsume;
+      Consume;
+    }
+    handler_CollectMetrics_delete -> {
+      metric_HTTPCodes;
+      metric_Latencies;
+    }
+  }
+
+  subgraph cluster_LmstfyClient {
+    graph[label="LmstfyClient";fontsize=20;];
+    Ack -> {
+      handlers_Delete;
+      handler_CollectMetrics_delete;
+    }
+    Client_Publish -> Client_publish;
+    Client_RePublish -> Client_publish;
+    Client_publish -> handlers_Publish;
+  }
+}

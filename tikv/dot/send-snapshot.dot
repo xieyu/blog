@@ -1,0 +1,92 @@
+#include "styles.h"
+digraph snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Snapshot[style_struct;label="{{
+    Snapshot|
+    pub data: ::std::vec::Vec\<u8\>\l|
+    pub metadata: ::protobuf::SingularPtrField\<SnapshotMetadata\>\l
+  }}"]
+  MsgSnapshot[style_var;label="{{
+    MsgSnapshot|
+    type: MessageType::MsgSnapshot\l|
+    <snapshot> pub snapshot: ::protobuf::SingularPtrField\<Snapshot\>\l
+  }}"]
+  MsgSnapshot:snapshot -> Snapshot;
+
+  maybe_send_append[style_func;label="{{
+    maybe_send_append|
+    Sends an append RPC with\l 
+    new entries to \l
+    the given peer\l
+  }}"]
+  handle_append_response -> {
+    maybe_decr_to;
+    maybe_send_append;
+    become_probe;
+  }
+  maybe_decr_to[style_func;label="{{
+    maybe_decr_to|
+    将m.request_index设置给\l 
+    pending_request_snapshot\l
+  }}"]
+  maybe_decr_to -> {become_probe; send_append}[style_edge_data];
+  send_append -> maybe_send_append;
+
+  handle_append_response[style_func;label="{{
+    handle_append_response|
+    处理Peer发送的Append Response\l
+    if m.reject \{
+      if pr.maybe_decr_to(\l 
+      m.index,\l
+      m.reject_hint,\l 
+      m.request_snapshot) \l
+      ...
+    \}
+  }}"]
+  maybe_decr_to -> pr_pending_request_snapshot[style_edge_data];
+
+  maybe_send_append -> {
+    prepare_send_snapshot;
+    pr_pending_request_snapshot;
+  }
+  pr_pending_request_snapshot[style_var;label="{{
+    Progress.pending_request_snapshot|
+    If there is a pending request\l 
+    snapshot, this will be\l 
+    set to the request \l 
+    index of the snapshot.\l
+  }}"]
+  pr_pending_request_snapshot -> {
+    prepare_send_snapshot;
+    raft_log_snapshot;
+  }[style_edge_data];
+
+
+  prepare_send_snapshot -> {
+    MsgSnapshot;
+    raft_log_snapshot;
+    pr_become_snapshot;
+  }
+  set_state_ProgressState_Snapshot[style_func;label="{{
+    Progress.set_state(ProgressSate::Snapshot);
+  }}"]
+  pr_become_snapshot[style_func;label="{{
+    Progresss.become_snapshot|
+    Changes the progress to a snapshot\l|
+    设置状态为Snapshot\l
+    pending_snapshot  = snapshot_idx\l
+  }}"]
+
+  pr_become_snapshot -> {
+    set_state_ProgressState_Snapshot;
+  }
+  raft_log_snapshot -> {
+    unstable_snapshot;
+    store_snapshot;
+  }
+  store_snapshot -> Snapshot;
+
+}

@@ -1,0 +1,95 @@
+digraph joinReOrderSolver {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  optimize -> optimizeRecursive;
+  optimizeRecursive -> {
+    extractJoinGroup;
+    optimizeRecursive;
+    baseSingleGroupJoinOrderSolver;
+    joinReorderGreedySolver;
+    joinReorderDPSolver;
+    groupSolver_solve;
+    dpSolver_solve;
+  }
+  extractJoinGroup[
+    shape="record";
+    label="{{
+      extractJoinGroup|
+      extracts all the join nodes\l 
+      connected with continuous InnerJoins\l
+      to construct a join group\l
+    }}"];
+
+  extractJoinGroup -> {
+    extractJoinGroup;
+  }
+  subgraph cluster_JoinReorderDPSolver {
+    graph[label="JoinReorderDPSolver";fontsize=20;style="rounded,dashed";color="slategrey"]
+    joinReorderDPSolver;
+    dpSolver_solve;
+    dpSolver_solve -> {
+      recursiveDeriveStats;
+      findNodeIndexInGroup;
+      bfsGraph;
+      dpGraph;
+      makeBushyJoin;
+    }
+    dpGraph[
+      shape="record";
+      label="{{
+        dpGrap|
+          bestPlan[S:set of node] =\l 
+          the best one among Join(\l 
+          bestPlan[S1:subset of S], bestPlan[S2: S/S1])\l
+      }}"];
+  }
+
+  subgraph cluster_joinReorderGreedySolver {
+    graph[label="joinReorderGreedySolver";fontsize=20;style="rounded,dashed";color="slategrey"]
+    joinReorderGreedySolver[
+      shape="record";
+      label="{{
+        joinReorderGreedySolver|
+        base on a greedy algorithm
+      }}"];
+    joinReorderGreedySolver -> groupSolver_solve[style=dashed]
+    groupSolver_solve[
+      shape="record";
+      label="{{
+        solve
+      }}"];
+    groupSolver_solve ->{
+      recursiveDeriveStats;
+      makeBushyJoin;
+      sort_SliceStable;
+      constructConnectedJoinTree;
+    };
+    constructConnectedJoinTree -> {
+      checkConnectionAndMakeJoin;
+      recursiveDeriveStats;
+      calcJoinCumCost;
+    }
+    calcJoinCumCost[
+      shape="record";
+      label="{{
+        calcJoinCumCost|
+        RowCount + lNode.cumCost + rNode.cumCost\l
+      }}"];
+    recursiveDeriveStats -> {
+      ExtractColGroups;
+      recursiveDeriveStats;
+      DeriveStats;
+    }
+    makeBushyJoin -> {
+      newCartesianJoin;
+    }
+    newCartesianJoin -> {
+      LogicalJoin;
+      SelectBlockOffset;
+      MergeSchema;
+    }
+  }
+}

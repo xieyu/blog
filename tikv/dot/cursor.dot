@@ -1,0 +1,192 @@
+#include "styles.h"
+digraph cursor {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  subgraph cluster_Cursor{
+    graph[label="Cursor";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    subgraph cluster_Iterator {
+      graph[label="Iterator";fontsize=20;style="rounded,dashed";color="slategrey"]
+      validate_key;
+      iter_valid[style_func;label="{{
+        valid
+      }}"]
+      iter_key[style_func;label="{{
+        key
+      }}"]
+      iter_next[style_func;label="{{
+        next
+      }}"]
+      iter_prev[style_func;label="{{
+        prev
+      }}"]
+      iter_key[style_func;label="{{
+        key
+      }}"]
+    }
+    seek[style_func;label="{{
+      seek|
+      查找指定的key\l|
+      seek(&mut self, key: &key, \l 
+      statistics: &mut CfStatistics)\l
+      -\> Result\<bool\>\l
+    }}"]
+    seek -> {
+      max_key;
+      validate_key;
+      internal_seek;
+      self_valid;
+      self_key;
+    }
+    self_key -> {
+      iter_key;
+      mark_key_read;
+    }
+    max_key[style_var;label="{{
+      max_key|
+        max_key: Option\<Vec\<u8\>\>,\l
+    }}"]
+    cur_key_has_read[style_var;label="{{
+      cur_key_has_read|
+        cur_key_has_read: Cell\<bool\>,\l
+    }}"]
+    cur_value_has_read[style_var;label="{{
+      cur_value_has_read|
+        cur_value_has_read: Cell\<bool\>,\l
+    }}"]
+
+    prefix_seek[style_var;label="{{
+      prefix_seek|
+      prefix_seek: bool\l
+    }}"]
+    mark_unread -> {
+      cur_key_has_read;
+      cur_value_has_read;
+    }
+
+    internal_seek -> {
+      mark_unread;
+      StatsCollector_new;
+      iter_seek;
+    }
+
+    near_seek[style_func;label="{{
+      near_seek|
+      Seek the specified key\l
+      假定key就在当前curso附近\l
+    }}"]
+    self_key_cmp[style_func;label="{{
+      self.key(statistics).cmp(key.as_encoded())|
+      当前key和目标key做比较\l
+    }}"]
+
+    near_seek -> {
+      self_key_cmp;
+      max_key;
+      validate_key;
+      near_loop_macro;
+      prefix_seek;
+      valid;
+    }
+    near_loop_macro[style_func;label="{{
+      near_loop!|
+      在key附近SEEK_BOUND 次\l|
+      SEEK_BOUND: u64 = 8;\l|
+      调用next或者prev然后\l 
+      和目标key比较\l
+      如果超过SEEK_ROUND次还没找到\l
+      就fallback到seek方法\l
+    }}"]
+    near_loop_macro -> {
+      next;
+      prev;
+      seek;
+    }
+    next -> {
+      mark_unread;
+      iter_next;
+    }
+    prev -> {
+      mark_unread;
+      iter_prev;
+    }
+    valid -> {
+      iter_valid;
+      handle_error_status;
+    }
+
+    get[style_func;label="{{
+      get|
+      获取key对应的value
+    }}"]
+    get -> {
+      scan_mode;
+      near_seek;
+      near_seek_for_prev;
+    }
+    subgraph cluster_ScanMode {
+      graph[label="ScanMode";fontsize=20;style="rounded,dashed";color="slategrey"]
+      Forward;
+      Backward;
+      Mixed;
+    }
+
+    scan_mode[style_var;label="{{
+      scan_mode|
+        scan_mode: ScanMode,\l
+    }}"]
+    scan_mode -> {
+      Forward;
+      Backward;
+      Mixed;
+    }
+
+    near_seek_for_prev -> {
+      seek_for_prev;
+      self_key_cmp;
+      near_loop_macro_for_prev;
+    }
+    near_loop_macro_for_prev[style_func;label="{{
+      near_loop!|
+      fallback为seek_for_prev\l
+    }}"]
+
+    near_loop_macro_for_prev -> {
+      next;
+      prev;
+      seek_for_prev;
+    }
+    seek_for_prev[style_func;label="{{
+      seek_for_prev|
+    }}"]
+    seek_for_prev -> {
+      min_Key;
+      iter_validate_key;
+      internal_seek_for_prev;
+    }
+
+    reverse_seek -> {
+      seek_for_prev;
+      self_key;
+    }
+    near_reverse_seek -> {
+      near_seek_for_prev;
+      self_key;
+    }
+
+    internal_seek_for_prev -> iter_seek_for_prev;
+    seek_to_first -> {
+      mark_unread;
+      iter_seek_to_first;
+    }
+    seek_to_last -> {
+      mark_unread;
+      iter_seek_to_last;
+    }
+  }
+  
+}

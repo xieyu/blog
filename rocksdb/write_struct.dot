@@ -1,0 +1,95 @@
+digraph write_struct {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  edge[weight=5;color=gray40];
+  DBImpl[
+    shape="record";
+    label="{{
+      DBImpl|
+        <WriteThread> WriteThread write_thread_;\l
+    }}";
+  ];
+  DBImpl:WriteThread -> WriteThread;
+
+  WriteGroup[
+    shape="record";
+    label="{{
+      WriteGroup|
+        <Writer> Writer* leader = nullptr;\l|
+        Writer* last_writer = nullptr;\l|
+        SequenceNumber last_sequence;\l|
+        Status status;\l|
+        std::atomic<size_t> running;\l
+    }}";
+  ];
+  WriteGroup:Writer -> Writer;
+
+  Writer[
+    shape="record";
+    label="{{
+      Writer|
+        WriteBatch* batch;\l|
+        bool sync;\l|
+        bool no_slowdown;\l|
+        bool disable_wal;\l|
+        bool disable_memtable;\l|
+        size_t batch_cnt;\l|
+        PreReleaseCallback* pre_release_callback;\l|
+        uint64_t log_used;\l|
+        uint64_t log_ref;\l|
+        WriteCallback* callback;\l|
+        <state> std::atomic\<uint8_t\> state;\l|
+        WriteGroup* write_group;\l
+        std::aligned_storage\<sizeof(std::mutex)\>\l::type state_mutex_bytes;\l|
+        std::aligned_storage\<sizeof(\lstd::condition_variable)\>::type state_cv_bytes;\l|
+        <Older> 双向链表\lWriter* link_older;\l|
+        Writer* link_newer;\l
+    }}";
+  ];
+  Writer:Older -> Writer2 -> Write3;
+  Writer2[
+    shape="record";
+    label="{{
+      Writer2|
+      Writer双向链表上\l 
+      其他Writer..
+    }}";
+  ];
+  WriteThread[
+    shape="record";
+    label="{{
+      WriteThread|
+        <Writer>
+        当前writer链表队列\l
+        std::atomic\<Writer*\> newest_writer_;\l|
+        std::atomic\<Writer*\> newest_memtable_writer_;\l|
+        Writer write_stall_dummy_;\l|
+        SequenceNumber last_sequence_;\l|
+        const bool enable_pipelined_write_;\l|
+        const uint64_t max_write_batch_group_size_bytes;\l|
+        port::Mutex stall_mu_;\l|
+        port::CondVar stall_cv_;\l
+    }}";
+  ];
+  EnterAsBatchGroupLeader[
+    shape="record";
+    label="{{
+      EnterAsBatchGroupLeader|
+      将WriteGroup\l 
+      Writer关联起来\l
+    }}";
+  ];
+  LinkOne[
+    shape="record";
+    label="{{
+      LinkOne|
+      将Writer加入newsest_writer_队列开头
+    }}";
+  ];
+  JoinBatchGroup -> LinkOne;
+  WriteThread:Writer -> Writer;
+  LinkOne -> WriteThread:Writer;
+  WriteImpl -> JoinBatchGroup;
+  WriteImpl -> EnterAsBatchGroupLeader -> {Writer, WriteGroup}
+}

@@ -1,0 +1,33 @@
+#include "styles.h"
+digraph handle_apply_res {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftPoller_handle_normal -> {
+    PeerFsmDelegate_handle_msgs;
+  }
+  PeerFsmDelegate_handle_msgs -> {
+    on_apply_res;
+  }
+  on_apply_res -> {
+    on_ready_result;
+    register_pd_heartbeat_tick;
+    peer_post_apply;
+  }
+  peer_post_apply -> {
+    RawNode_advance_apply_to;
+    get_applied_index;
+    PeerStorage_set_applied_state;
+    PeerStorage_set_applied_term;
+    post_pending_read_index_on_replica;
+    ready_to_handle_read;
+    response_read;
+    pending_reads;
+    pending_reads_gc;
+    ReadProgress_applied_index_term;
+    store_meata_lock;
+    maybe_update_read_progress;
+  }
+}

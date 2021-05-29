@@ -1,0 +1,182 @@
+digraph PipelineWriteImpl {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  edge[weight=5;color=gray40];
+  PipelineWriteImpl -> {
+    JoinBatchGroup;
+    AllowWriteBatching;
+    WaitForMemTableWriters;
+    PreprocessWrite;
+    EnterAsBatchGroupLeader;
+    UpdateLastSequence;
+    ShouldWriteToMemtable;
+    ExitAsBatchGroupLeader;
+    EnterAsMemTableWriter;
+    LaunchParallelMemTableWriters;
+    ExitAsMemTableWriter;
+    CompleteParallelMemTableWriter;
+  }
+  JoinBatchGroup[
+    shape="record";
+    label="{{
+      JoinBatchGroup|
+      1.加入batchGroup\l
+      2.要么作为leader，要么等到目标状态\l
+    }}";
+  ];
+  JoinBatchGroup -> {
+    LinkOne;
+    SetState;
+    AwaitState;
+  }[color="#3f72af"];
+
+  LaunchParallelMemTableWriters -> {
+    SetState;
+  }
+
+  SetState[
+    shape="record";
+    label="{{
+      SetState|
+      设置Writer的状态，并通知\l 
+      等待writer状态变化的condvar\l
+    }}";
+  ];
+
+  SetState -> {
+    Writer:state;
+    StateCV_noitfy_one;
+  }
+
+  AwaitState[
+    shape="record";
+    label="{{
+      AwaitState|
+    AwaitState(w, \lSTATE_GROUP_LEADER \l\| STATE_MEMTABLE_WRITER_LEADER \l\|
+                      STATE_PARALLEL_MEMTABLE_WRITER \l\| STATE_COMPLETED)\l
+      1.轮询两百次直到state变为目标状态\l|
+      2.使用thread yield\l|
+      3.等待condVar\l
+    }}";
+  ];
+  AwaitState -> {
+    Writer:state;
+    AsmVolatilePause;
+    std_this_thread_yield;
+    BlockingAwaitState;
+  }
+  EnterAsBatchGroupLeader -> {
+    CreateMissingNewerLinks;
+    AllowWriteBatching;
+    WriteGroup;
+  }
+  ExitAsBatchGroupLeader -> {
+    ShouldWriteToMemtable;
+    CompleteFollower;
+    CompleteLeader;
+    FindNextLeader;
+    SetState;
+    AwaitState;
+  }
+  PreprocessWrite -> {
+    SwitchWAL;
+    WaitForPendingWrites;
+    HandleWriteBufferFull;
+    TrimMemtableHistory;
+    ScheduleFlushes;
+    log_sync_cv__Wait;
+  }
+
+  WaitForPendingWrites -> {
+    WaitForMemTableWriters;
+    switch_cv__wait;
+  }
+
+  HandleWriteBufferFull -> {
+    SelectColumnFamiliesForAtomicFlush;
+    GetColumnFamilySet;
+    MaybeFlushStatsCF;
+    EnterUnbatched;
+    SwitchMemtable;
+    UnrefAndTryDelete;
+    AssignAtomicFlushSeq;
+    FlushRequested;
+    GenerateFlushRequest;
+    SchedulePendingFlush;
+    MaybeScheduleFlushOrCompaction;
+  }
+
+  SwitchWAL -> {
+    alive_log_files_;
+    FindMinLogContainingOutstandingPrep;
+    allow_2pc;
+    SelectColumnFamiliesForAtomicFlush;
+    MaybeFlushStatsCF;
+    SwitchMemtable;
+    FlushRequested;
+    GenerateFlushRequest;
+    SchedulePendingFlush;
+    MaybeScheduleFlushOrCompaction;
+  }
+
+  TrimMemtableHistory -> {
+    trim_history_scheduler_;
+    TakeNextColumnFamily;
+    ApproximateMemoryUsage;
+    InstallSuperVersion;
+    UnrefAndTryDelete;
+  }
+
+  ScheduleFlushes -> {
+    flush_scheduler_;
+    SelectColumnFamiliesForAtomicFlush;
+    TakeNextColumnFamily;
+    MaybeFlushStatsCF;
+    EnterUnbatched;
+    SwitchMemtable;
+    UnrefAndTryDelete;
+    ExitUnbatched;
+    GenerateFlushRequest;
+    SchedulePendingFlush;
+    MaybeScheduleFlushOrCompaction;
+  }
+
+  SchedulePendingFlush -> {
+    flush_queue_
+  }
+
+  flush_queue_ -> BackgroundFlush;
+  MaybeScheduleFlushOrCompaction -> {
+    GetBGJobLimits;
+    GetBackgroundThreads;
+    Schedule;
+  }
+  Schedule -> BGWorkFlush;
+
+  BGWorkFlush -> {
+    BackgroundCallFlush;
+  }
+
+  BackgroundCallFlush -> {
+    BackgroundFlush;
+    bg_cv__SignalAll;
+    SleepForMicroseconds;
+    ReleaseFileNumberFromPendingOutputs;
+    FindObsoleteFiles;
+    FlushBufferToLog;
+    MaybeScheduleFlushOrCompaction;
+    atomic_flush_install_cv__SignalAll;
+  }
+
+  BackgroundFlush -> {
+    IsBGWorkStopped;
+    IsRecoveryInProgress;
+    PopFirstFromFlushQueue;
+    IsFlushPending;
+    GetBGJobLimits;
+    FlushMemTablesToOutputFiles;
+  }
+
+  FlushMemTablesToOutputFiles -> 
+}

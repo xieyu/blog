@@ -1,0 +1,174 @@
+digraph txn_coordinator{
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_zkClient {
+    graph[label="zkClient";fontsize=20;style=rounded];
+    zk_getDataAndVersion -> ProducerIdBlockZNode;
+    conditionalUpdatePath;
+  };
+
+  subgraph cluster_PorudcerIdManager {
+    graph[label="PorudcerIdManager";fontsize=20;style=rounded];
+    producerIdManager_shutdown[
+      shape="record";
+      label="{{
+        shutdown|
+        打印nextProducerId\l
+      }}";
+    ];
+    generateProducerId[shape="record";
+      label="{{
+        generateProducerId|
+        生成唯一producerId\l
+      }}";
+    ];
+    getNewProducerIdBlock[shape="record";
+      label="{{
+        getNewProducerIdBlock|
+        从zk中获取新的一段\lproducerId范围\l
+      }}";
+    ];
+    generateProducerId ->{
+      currentProducerIdBlock;
+      getNewProducerIdBlock;
+    }
+    getNewProducerIdBlock -> {
+      zk_getDataAndVersion;
+      parseProducerIdBlockData;
+      generateProducerIdBlockJson;
+      conditionalUpdatePath;
+    }
+  };
+
+  subgraph cluster_TranscationMetaData {
+    graph[label="TranscationMetaData";fontsize=20;style=rounded];
+    TranscationMetaData;
+    prepareIncrementProducerEpoch;
+    prepareAddPartitions -> { prepareTransitionTo; };
+    pendingState[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="pendingState"
+    ];
+    prepareTransitionTo -> {
+      validPreviousStates;
+      pendingState;
+    }
+  };
+
+  subgraph cluster_ReplicaManager {
+    graph[label="ReplicaManager";fontsize=20;];
+    appendRecords[shape="record";
+      label="{{
+        appendRecords|
+          向topic中写入日志\l
+      }}";
+    ];
+  }
+
+  subgraph cluster_TranscationStateManager {
+    graph[label="TranscationStateManager";fontsize=20;style=rounded];
+    getTransactionState;
+    appendTransactionToLog[shape="record";
+      label="{{
+        appendTransactionToLog|
+          将日志写入TRANSCATION_\lSTATE_TOPIC_NAME topic中\l
+      }}";
+    ];
+    partitionFor[shape="record";
+      label="{{
+        partitionFor|
+        根据transitionId\l 
+        获取相应的partition\l
+      }}";
+    ];
+    transactionMetadataCache[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        transactionMetadataCache|
+          field \l
+      }}";
+    ];
+    putTransactionStateIfNotExists -> getAndMaybeAddTransactionState;
+    getTransactionState -> getAndMaybeAddTransactionState;
+    getAndMaybeAddTransactionState -> {
+      cacheEntry;
+      loadingPartitions;
+      leavingPartitions;
+      transactionMetadataCache;
+    }
+    appendTransactionToLog -> {
+      partitionFor
+      keyToBytes;
+      valueToBytes;
+      getTransactionState;
+      appendRecords;
+    }
+    prepareIncrementProducerEpoch -> {
+    }
+  };
+
+  subgraph cluster_TranscationCoordinator {
+    graph[label="TranscationCoordinator";fontsize=20;style=rounded];
+    handleInitProducerId -> {
+      generateProducerId;
+      getTransactionState;
+      putTransactionStateIfNotExists;
+      TranscationMetaData;
+      handleEndTransaction;
+      appendTransactionToLog;
+      prepareInitProducerIdTransit;
+    }
+
+    handleAddPartitionsToTransaction -> {
+      getTransactionState;
+      prepareAddPartitions;
+      appendTransactionToLog;
+    }
+
+    handleTxnEmigration -> {
+      removeMarkersForTxnTopicPartition;
+      removeTransactionsForTxnTopicPartition;
+    }
+    handleTxnImmigration -> {
+      removeMarkersForTxnTopicPartition;
+      loadTransactionsForTxnTopicPartition;
+    }
+    handleEndTransaction -> {
+      logInvalidStateTransitionAndReturnError;
+      addTxnMarkersToSend;
+      appendTransactionToLog;
+    }
+
+    startup -> schedule -> abortTimedOutTransactions;
+    startup -> {
+      txnMarkerChannelManager_start
+    }
+    shutdown -> {
+      scheduler_shutdown;
+      producerIdManager_shutdown;
+      txnManager_shutdown;
+      txnMarkerChannelManager_shutdown;
+    }
+
+    prepareInitProducerIdTransit -> {
+      prepareIncrementProducerEpoch;
+      prepareProducerIdRotation;
+      isProducerEpochExhausted;
+    }
+  }
+  subgraph cluster_KafkaApi {
+    graph[label="KafkaApi";fontsize=20;];
+    handle -> {
+      handleInitProducerId;
+      handleEndTxnRequest;
+      handleTxnOffsetCommitRequest;
+      handleAddPartitionToTxnRequest;
+    }
+    handleEndTxnRequest -> handleEndTransaction;
+    handleAddPartitionToTxnRequest -> handleAddPartitionsToTransaction;
+  }
+}

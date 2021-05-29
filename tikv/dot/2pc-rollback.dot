@@ -1,0 +1,121 @@
+#include "styles.h"
+digraph sequence{
+  node[shape=point;width=0;height=0];
+  1->2->3->4[arrowhead=none;style=invis]
+
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_CoordinatorLog {
+    graph[label="CoordinatorLog";fontsize=20;style="rounded,dashed";color="slategrey"]
+    write_begin_rollback[style_func;label="{{
+      begin_rollback|
+      向日志中写入begin_commit\l
+    }}"]
+    write_rollback[style_func;label="{{
+      write_rollback|
+      向日志中写入rollback\l
+    }}"]
+    write_end_of_transaction[style_func;label="{{
+      write_end_of_transaction|
+      向日志写入end_of_transaction\l
+    }}"]
+  }
+
+  subgraph cluster_Coordinator {
+    graph[label="Coordinator";fontsize=20;style="rounded,dashed";color="slategrey"]
+    prepare[style_func;label="{{
+      prepare phase|
+      1.写入begin_rollback日志\l
+      2.所有的参与者发送prepare\l
+      3.进入Wait状态,等待participant的回复\l
+    }}"]
+    rollback[style_func;label="{{
+      commit phase|
+        某参与者reply了no\l
+      1.写入rollback 日志\l
+      2. coordinator向所有参与者\l
+      发送rollback.\l
+      3. 进入abort状态\l
+    }}"]
+    rollback_done[style_func;label="{{
+      commit phase|
+      1.收到所有参与者的ack\l
+      2.写入end_of_transaction日志\l
+      3.事务abort完成\l
+    }}"]
+    prepare -> write_begin_rollback;
+    rollback -> write_rollback;
+    rollback_done -> write_end_of_transaction;
+    {rank=same;prepare;rollback;rollback_done};
+  }
+
+
+  subgraph cluster_Participant {
+    graph[label="Participant";fontsize=20;style="rounded,dashed";color="slategrey"]
+      participant_01_prepare[style_func;label="{{
+      participant 1|
+      1. 写入ready record日志\l
+      2. 向coordinator发送yes\l
+      3. 进入ready状态\l|
+      会一直block直到收到\l 
+      coordinator的rollback\l
+      或者rollback\l
+      }}"]
+      participant_01_prepare -> write_ready_log;
+      participant_01_rollback[style_func;label="{{
+        participant 1|
+        收到rollback消息\l 
+        完成rollback\l
+      }}"]
+
+      participant_02_prepare[style_func;label="{{
+      participant 2|
+      1. 写入abort record日志\l
+      2. 向coordinator发送no\l|
+      然后就可以不用管这个事务了\l
+      }}"]
+      participant_02_rollback[style_func;label="{{
+        participant 2|
+        rollback\l
+      }}"]
+      write_ready_log[style_func;label="{{
+        write_ready_log|
+        向日志中写入ready record\l
+      }}"]
+      write_abort_log[style_func;label="{{
+        write_abort_log|
+        向日志中写入abort record\l
+      }}"]
+      participant_02_prepare -> write_abort_log;
+  }
+
+  prepare -> {
+    participant_01_prepare;
+    participant_02_prepare;
+  }[label="prepare";color=green];
+
+  {
+    participant_01_prepare;
+  } -> rollback[label="yes";color=blue];
+  participant_02_prepare -> rollback[label="no";color=red];
+
+  rollback -> {
+    participant_01_rollback;
+    participant_02_rollback;
+  }[label="rollback";color=red];
+  {
+    participant_01_rollback;
+    participant_02_rollback;
+  } -> rollback_done[label="done";color=green];
+
+  {rank=same;1;prepare};
+  {rank=same;2;write_begin_rollback};
+  {rank=same;3;participant_01_prepare};
+  {rank=same;3;participant_02_prepare};
+  {rank=same;4;participant_01_rollback};
+  {rank=same;4;participant_02_rollback};
+
+}

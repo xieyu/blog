@@ -1,0 +1,86 @@
+#include "styles.h"
+digraph mvcc_reader_seek_write {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  subgraph cluster_Cursor {
+    graph[label="Cursor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    near_seek[style_func;label="{{
+      near_seek|
+      Seek the specific key\l
+    }}"]
+    key;
+    value;
+  }
+  subgraph cluster_WriteRef {
+    graph[label="WriteRef";fontsize=20;style="rounded,dashed";color="slategrey"]
+    parse;
+    WriteRef[style_struct;label="{{
+      WriteRef|
+    pub write_type: WriteType,\l|
+    pub start_ts: TimeStamp,\l|
+    pub short_value: Option\<&'a [u8]\>,\l|
+    pub has_overlapped_rollback: bool,\l|
+    pub gc_fence: Option\<TimeStamp\>,\l
+    }}"]
+    parse -> WriteRef
+    WriteRef -> {
+      WriteType;
+    }
+    WriteType[style_func;label="{{
+      WriteType|
+    Put,\l|
+    Delete,\l|
+    Lock,\l|
+    Rollback,\l|
+    }}"]
+  }
+  seek_write[style_func;label="{{
+    seek_write|
+    seek_write(&mut self, key: &Key, ts: Timestamp)\l|
+    Return (commit_ts, write_record) of\l 
+    the write record for `key`\l 
+    committed before or equal to`ts`\l
+  }}"]
+
+  seek_write -> {
+    create_write_cursor;
+    near_seek;
+    key
+    decode_ts_from;
+    parse;
+    value;
+  }
+  create_write_cursor[style_func;label="{{
+    create_write_cursor|
+    CursorBuilder::new\l 
+    (&self.snapshot, CF_WRITE)\l|
+    如果write_cursor为none\l
+    创建write_cursor\l
+  }}"]
+  write_cursor[style_var;label="{{
+    write_cursor
+  }}"]
+  write_cursor -> {
+    near_seek;
+    key;
+  }
+  write_key[style_var;label="{{
+    write_key|
+    包含了ts,格式如下\l
+    key ts\l
+  }}"]
+  near_seek -> value[style_edge_data];
+  value -> parse[style_edge_data];
+  key -> decode_ts_from -> commit_ts[style_edge_data];
+  create_write_cursor -> write_cursor[style_edge_data];
+  key -> write_key -> commit_ts[style_edge_data];
+  decode_ts_from[style_func;label="{{
+    decode_ts_from|
+    将ts从\{key\}\{ts\}\l
+    中解析出来\l
+  }}"]
+}

@@ -1,0 +1,95 @@
+digraph mergeJoinTable_fetchNextOuterGroup {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_megeJionTable {
+    graph[label="megeJionTable";fontsize=20;style="rounded,dashed";color="slategrey"]
+    fetchNextOuterGroup -> {
+      fetchNextChunk;
+      VectorizedFilter;
+      filtersSelected;
+      splitIntoGroups;
+      selectNextGroup;
+      groupRowsIter;
+    }
+    filtersSelected[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        filtersSelected
+      }}"
+    ];
+    childChunk[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        childChunk
+      }}"
+    ];
+    groupRowsIter[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        groupRowsIter
+      }}"
+    ];
+
+    subgraph cluster_vecGroupChecker {
+      graph[label="vecGroupChecker";fontsize=20;style="rounded,dashed";color="slategrey"]
+      splitIntoGroups;
+    }
+    subgraph cluster_Chunk {
+      graph[label="Chunk";fontsize=20;style="rounded,dashed";color="slategrey"]
+      SetSel -> sel;
+      sel[
+        shape=record;
+        style=filled;
+        fillcolor="#95e1d3"
+        label="{{
+          sel [] int;\l|
+          迭代时候只用\l 
+          标记为sel的row\l
+        }}"
+      ];
+      edge[style=dashed;color=blue];
+      sel -> GetRow;
+    }
+    groupRowsSelected[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        groupRowsSelected []int
+      }}"
+    ];
+
+    selectNextGroup -> {
+      groupRowsSelected;
+      hasNullInJoinKey;
+      SetSel;
+    }
+
+    edge[style=dashed;color=blue];
+    childChunk -> groupRowsIter;
+    childChunk -> VectorizedFilter;
+    fetchNextChunk -> childChunk;
+    VectorizedFilter -> filtersSelected;
+    groupRowsSelected -> SetSel;
+  }
+
+  subgraph cluster_MergeJoinExec {
+    graph[label="MergeJoinExec";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Next-> {
+      fetchNextOuterGroup;
+    }
+    Next-> onMissMatch;
+
+    edge[style=dashed]
+    filtersSelected -> onMissMatch;
+    groupRowsIter -> Next;
+  }
+}

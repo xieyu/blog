@@ -1,0 +1,86 @@
+digraph storage_merge_tree_read {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ExpressionAnalyzer {
+    graph[label="ExpressionAnalyzer";fontsize=20;];
+    ExpressionAnalyzer;
+    getActions;
+    getRequiredColumns;
+  }
+  subgraph cluster_MergeTreeData {
+    graph[label="MergeTreeData";fontsize=20;];
+    getDataPartsVector;
+    
+  }
+
+  subgraph cluster_MergeTreeDataSelectExecutor {
+    graph[label="MergeTreeDataSelectExecutor";fontsize=20;];
+    // tea records
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    parts;
+    parts_with_ranges;
+    res[label="{{res|最终返回结果}}"]
+    reader_read[label="read"];
+    column_names_to_return;
+    virt_column_names;
+    real_column_names;
+    virtual_columns_block;
+    add_columns;
+    column_names_to_read;
+    node[shape=box;style=stroke;];
+
+    reader_read -> {
+      readFromParts;
+      getDataPartsVector;
+    }
+    getRequiredColumns ->  add_columns -> column_names_to_read;
+
+    readFromParts -> {
+      metadata_snapshot;
+      getBlockWithPartColumn;
+      filterBlockWithQuery;
+      SyntaxAnalyzer;
+      ExpressionAnalyzer;
+      getRequiredColumns;
+      getActions;
+      createIndexCondition;
+      markRangesFromPKRange;
+      getMarksCount;
+      hasFinalMark;
+      filterMarksUsingIndex;
+      spreadMarkRangesAmongStreamsFinal;
+      SyntaxAnalyzer;
+      spreadMarkRangesAmongStreamsWithOrder;
+      spreadMarkRangesAmongStreams;
+      metadata_snapshot_check;
+    }[color="#b83b5e"]
+
+    // data flow deps
+    edge[style=dashed];
+    column_names_to_return -> {
+      virt_column_names;
+      real_column_names;
+    }
+    real_column_names -> metadata_snapshot_check;
+    getDataPartsVector -> parts;
+    parts -> getBlockWithPartColumn -> virtual_columns_block -> filterBlockWithQuery -> part_values -> parts;
+    parts -> filterMarksUsingIndex -> parts_with_ranges;
+    parts -> markRangesFromPKRange -> parts_with_ranges;
+    {
+      column_names_to_read;
+      virt_column_names
+      parts_with_ranges
+    } -> {
+      spreadMarkRangesAmongStreamsWithOrder;
+      spreadMarkRangesAmongStreams;
+      spreadMarkRangesAmongStreamsFinal;
+    } -> res;
+  }
+
+  read -> {
+    reader_read;
+  }
+}

@@ -1,0 +1,16 @@
+digraph proc_status {
+  node[shape=circle];
+  newrank=true;
+  rankdir=LR;
+  init[shape="box"];
+  init -> _Pgstop;
+  _Pgstop -> _Pidle;
+  _Pidle -> _Prunning[label="wirep"];
+  _Prunning -> _Pidle[label="releasep"];
+  _Prunning -> _Psyscall[label="reentersyscall"];
+  _Psyscall -> _Pdead[label="destroy"];
+  _Psyscall -> _Pidle[label="exitsyscallfast"];
+
+  _Pgcstop -> _Pidle[label="结束GC"];
+  {_Prunning, _Pidle, _Psyscall} -> _Pgcstop{label="GC"};
+}

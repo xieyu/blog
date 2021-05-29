@@ -1,0 +1,179 @@
+digraph MergeTreeDataPartWriterCompact {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_MergeTreeDataPartWriterOnDisk {
+    graph[label="MergeTreeDataPartWriterOnDisk";fontsize=20;];
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    index_file_stream[
+      shape="record";
+      label="{{
+        index_file_stream|
+        part_path + 'primary.idx'
+      }}";
+    ];
+    index_stream[
+      shape="record";
+      label="{{
+        index_stream|
+        HashingWriteBuffer
+      }}";
+    ];
+    skip_indices_streams
+    index_stream -> index_file_stream;
+    node[shape=box;style=stroke;];
+    initSkipIndices -> skip_indices_streams;
+
+    index_stream_next -> index_stream;
+
+    calculateAndSerializeSkipIndices -> {
+      skip_stream_marks;
+      skip_stream_compressed;
+      skip_indices_streams;
+      writeIntBinary;
+      serializeBinary;
+    }
+    calculateAndSerializePrimaryIndex -> {
+      index_stream;
+    }
+    finishSkipIndicesSerialization -> {
+      kip_stream_compressed;
+      skip_stream_finalize;
+      skip_indices_streams;
+    }
+
+    finishPrimaryIndexSerialization -> {
+      index_stream;
+      index_stream_next;
+    }
+    computeIndexGranularity -> computeIndexGranularityImpl;
+    initPrimaryIndex -> {
+      index_stream;
+    }
+
+    edge[style=dashed]
+    writeIntBinary -> skip_stream_marks[style=dashed];
+    serializeBinary -> skip_stream_compressed[style=dashed];
+    skip_stream_compressed -> skip_indices_streams;
+    skip_stream_marks -> skip_indices_streams;
+  }
+
+  subgraph cluster_MergeTreeDataPartWriterCompact {
+    graph[label="MergeTreeDataPartWriterCompact";fontsize=20;];
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    stream[
+      shape="record";
+      label="{{
+        MergeTreeDataPartWriterOnDisk::stream|
+        在构造函数中初始化\l
+        对应数据部分，后缀为.bin\l|
+        <marks> marks\l|
+        reset()\l|
+      }}";
+    ];
+    node[shape=box;style=stroke;];
+
+    write -> {
+      writeBlock;
+      computeIndexGranularity;
+      fillIndexGranularity;
+    }
+    writeBlock -> {
+      writeIntBinary;
+      writeColumnSingleGranule;
+      stream:marks;
+    }
+
+    writeColumnSingleGranule -> {
+      writeBlock;
+      stream_finalize;
+      stream_addToChecksums;
+    }
+
+    finishDataSerialization -> {
+      writeBlock;
+      stream:marks;
+      stream_finalize;
+      stream_addToChecksums;
+      stream_reset;
+    }
+    {
+      stream_finalize;
+      stream_addToChecksums;
+      stream_reset;
+    } -> stream;
+  }
+
+  subgraph cluster_MergeBlockOutPutStream {
+    graph[label="MergeBlockOutPutStream";fontsize=20;];
+    writeImpl -> {
+      write;
+      calculateAndSerializePrimaryIndex;
+      calculateAndSerializeSkipIndices;
+    }[color="#17b978"];
+
+    writeSuffixAndFinalizePart -> {
+      finishDataSerialization;
+      finishPrimaryIndexSerialization;
+      finishSkipIndicesSerialization;
+    }[color="#3fc1c9"];
+    writePrefix;
+    writeWithPermutation -> writeImpl;
+    MergeBlockOutPutStream -> {
+      initPrimaryIndex;
+      initSkipIndices;
+    }[color="#3f72af"];
+  }
+  subgraph cluster_MergeTreeDataWriter {
+    graph[label="MergeTreeDataWriter";fontsize=20;];
+    writeTempPart -> {
+      writePrefix;
+      writeSuffixAndFinalizePart;
+      writeWithPermutation;
+      MergeBlockOutPutStream;
+    }[color="#b83b5e"]
+  }
+  subgraph cluster_MergeTreeBlockOutPutStream {
+    graph[label="MergeTreeBlockOutPutStream";fontsize=20;];
+    mt_write[
+      shape="record";
+      label="{{
+        write
+      }}";
+    ];
+    mt_write -> {
+      writeTempPart;
+    }
+    MergeTreeBlockOutPutStream;
+  }
+  subgraph cluster_StorageMergeTree {
+    graph[label="StorageMergeTree";fontsize=20;];
+    st_write[
+      shape="record";
+      label="{{
+        write|
+        获取BlockOutputStreamPtr\l
+        用于后续写入数据\l
+      }}";
+    ];
+    st_write -> MergeTreeBlockOutPutStream;
+  }
+
+  subgraph cluster_TcpHandler{
+    graph[label="TcpHandler";fontsize=20;];
+    receiveData[
+      shape="record";
+      label="{{
+        receiveData|
+        收到数据，调用storage-\>write接口获取\l
+        writer，写入block数据\l\l
+      }}";
+    ];
+    receiveData -> {
+      mt_write;
+      st_write;
+    }
+  }
+}

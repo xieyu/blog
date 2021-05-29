@@ -1,0 +1,57 @@
+digraph texture_asset {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RenderResourceContext {
+    graph[label="RenderResourceContext";fontsize=20;];
+    create_sampler;
+    create_texture;
+  }
+
+  subgraph cluster_Events {
+    graph[label="Events";fontsize=20;];
+    events_a[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="events_a"
+    ];
+    events_b[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="events_b"
+    ];
+    send -> {
+      events_a;
+      events_b;
+    }
+  }
+  subgraph cluster_EventsReader {
+    graph[label="EventsReader";fontsize=20;];
+    {
+      events_a;
+      events_b;
+    } -> reader_iter[style=dashed];
+  }
+
+  subgraph cluster_Assets {
+    graph[label="Assets";fontsize=20;];
+    {
+      add_default
+      set;
+      add;
+    } -> send;
+  }
+
+  add_system_to_stage -> texture_resource_system;
+  RENDER_RESOURCE -> texture_resource_system;
+
+  texture_resource_system -> {
+    reader_iter;
+    remove_current_texture_resources;
+    create_sampler;
+    create_texture;
+  }
+}

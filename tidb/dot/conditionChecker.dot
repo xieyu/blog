@@ -1,0 +1,48 @@
+#include "styles.h"
+
+digraph conditionChecker {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  check -> {
+    checkScalarFunction;
+    checkColumn;
+    Constant;
+  }
+  Constant -> true;
+  ast_IsNull;
+  ast_LogicOr[style_case];
+  ast_LogicAnd[style_case];
+  ast_IsNull[style_case];
+  ast_Compare[style_func;label="{{
+    ast_Compare|
+    EQ/NE/GE/GT/LE/LT/NULLEQ
+  }}"]
+  Constant[style_case];
+  ast_IsNull -> checkColumn;
+  checkScalarFunction-> {
+    ast_IsNull;
+    ast_Compare;
+  }
+  ast_Compare -> checkColumn;
+  checkScalarFunction -> {ast_LogicOr;ast_LogicAnd} -> {
+    check;
+    GetArgs;
+  }
+  checkScalarFunction -> {
+    checkColumn;
+    checkLikeFunc;
+  }
+  checkLikeFunc -> {
+    checkColumn;
+    GetArgs;
+  }
+  checkColumn[
+    shape="record";
+    label="{{
+      checkColumn|
+        return c.colUniqueID == col.UniqueID\l
+    }}"];
+}

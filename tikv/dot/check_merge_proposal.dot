@@ -1,0 +1,83 @@
+#include "styles.h"
+digraph check_merge_proposal {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    in_joint_state;
+    region;
+    propose;
+    propose_normal;
+
+    propose -> propose_normal;
+    propose_normal -> pre_propose;
+    pre_propose-> {
+      pre_propose_prepare_merge;
+      ctx_insert_ProposalContext_PREPARE_MERGE;
+    }
+    pre_propose_prepare_merge[style_func;label="{{
+      pre_propose_prepare_merge|
+      1.检查min_committed到NO_LIMIT\l
+      之间的raft log entry. |
+      2.检查gap\l
+    }}"]
+    raft_log_entries[style_func;label="{{
+      raft_log_entries|
+      遍历raft_log.entries\l 
+      (min_committed + 1, NO_LIMIT)\l|
+      检查log entry类型\l
+    }}"]
+
+    pre_propose_prepare_merge -> {
+      get_min_progress;
+      raft_log_entries;
+      EntryType_EtnryConfChange;
+      EntryType_EtnryConfChangeV2;
+    }
+  }
+
+  subgraph cluster_store_meta {
+    graph[label="store_meta";fontsize=20;style="rounded,dashed";color="slategrey"]
+    regions;
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    propose_raft_command -> {
+      check_merge_proposal;
+      propose;
+    }
+    check_merge_proposal -> {
+      has_prepare_merge;
+      has_commit_merge;
+      in_joint_state;
+      get_prepare_merge_get_target;
+      get_commit_merge_get_source;
+      regions;
+    }
+    get_prepare_merge_get_target -> target_region_id -> regions -> target_region;
+    get_commit_merge_get_source -> source_region;
+    source_region -> is_sibling_regions;
+    source_region -> region_on_same_stores;
+    is_sibling_regions[style_func;label="{{
+      is_sibling_regions|
+      check they share borders \l
+      and don't overlap\l
+    }}"]
+    region_on_same_stores[style_func;label="{{
+      region_on_same_stores|
+      check if replicas of two\l
+      regions are on the\l 
+      same stores\l
+    }}"]
+
+    {target_region;region} -> {
+     is_sibling_regions;
+     region_on_same_stores;
+    }
+
+  }
+  
+}

@@ -1,0 +1,30 @@
+digraph stat_handle {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ExecRestrictedSQL -> mysql_stats_meta;
+  Update -> {
+    ExecRestrictedSQL;
+    getTableByPhysicalID;
+    tableStatsFromStorage;
+    statsCache_Update;
+    getFullTableName;
+  }[color="#b83b5e"];
+  tableStatsFromStorage;
+  rows[
+    shape="record";
+    label="{{
+      rows|
+      遍历rows\l|
+      version\l|
+      physicalID\l|
+      modifyCount\l|
+      count \l
+    }}"];
+  edge[style=dashed;color=darkblue]
+  getTableByPhysicalID -> tableStatsFromStorage;
+  mysql_stats_meta -> rows -> getTableByPhysicalID;
+  tableStatsFromStorage -> statsCache_Update;
+  getFullTableName -> statsCache_Update;
+}

@@ -1,0 +1,79 @@
+#include "./styles.h"
+digraph buildDataSourceSchema {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_table {
+    graph[label="table";fontsize=20;style="rounded,dashed";color="slategrey"]
+    WritableCols -> TableCommon_WritableCols;
+    FullHiddenColsAndVisibleCols -> TableCommon_FullHiddenColsAndVisibleCols;
+    TableCommon_WritableCols[style_func;label="{{
+      WritableCols|
+      TableCommon的实现\l|
+      过滤掉状态为\l
+      StateDeleteOnly\l 
+      StateDeleteReorganization\l
+    }}"]
+    Cols;
+    TableCommon_FullHiddenColsAndVisibleCols[style_func;label="{{
+      FullHiddenColsAndVisibleCols|
+      TableCommon的实现|
+      Column是hiden或者\l 
+      是StatePublic状态的\l
+    }}"];
+  }
+
+  buildDataSource -> {
+    Cols;
+    WritableCols;
+    FullHiddenColsAndVisibleCols;
+    inUpdateStmt;
+    inDeleteStmt;
+    newExtraHandleSchemaCol;
+  }
+  {
+    Cols;
+    WritableCols;
+    FullHiddenColsAndVisibleCols;
+  } -> columns;
+  //columns -> schema -> logicalSchemaProducer:Schema;
+
+  inUpdateStmt[style_case];
+  inDeleteStmt[style_case];
+  columns[style_var;label="{{
+    columns|
+    调用toInfo转换为models.ColumnInfo\l
+    转换为expression.Column\l
+  }}"];
+
+  dep_ctrl(inUpdateStmt, WritableCols);
+  dep_ctrl(inDeleteStmt, FullHiddenColsAndVisibleCols);
+  dep_data(columns, logicalSchemaProducer:Schema);
+  dep_data(newExtraHandleSchemaCol, logicalSchemaProducer:Schema);
+  dep_data(newExtraHandleSchemaCol, DataSource:TblCols)
+  dep_data(columns, DataSource:Columns)
+
+  dep_data(columns, IsPKHandleColumn);
+  dep_data(NewCommonHandleCols, DataSource:handleCols)
+  dep_ctrl(IsPKHandleColumn, DataSource:handleCols)
+
+  DataSource[style_struct;label="{{
+    DataSource|
+    field(logicalSchemaProducer,)
+    field(indexMergeHints, []indexMergeHints)
+    field(possibleAccessPaths, []*util.AccessPath)
+    field(handleCols, HandleCols)
+    field(preferStoreType, int)
+    field(TblCols, []*expression.Column)
+    tail_field(Columns, []*models.ColumnInfo)
+  }}"]
+  DataSource:logicalSchemaProducer -> logicalSchemaProducer;
+  logicalSchemaProducer[style_struct;label="{{
+    logicalSchemaProducer|
+    field(schema, *expression.Schema)
+    field(names, types.NameSlice)
+    tail_field(baseLogicalPlan,)
+  }}"]
+}

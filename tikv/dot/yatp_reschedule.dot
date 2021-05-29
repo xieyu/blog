@@ -1,0 +1,108 @@
+#include "styles.h"
+digraph reschedule {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  NEED_RESCHEDULE
+  NEED_RESCHEDULE[style_var;label="{{
+    NEED_RESCHEDULE|
+      Cell\<bool\> = Cell::new(false);\l
+  }}"]
+  Reschedule[style_func;label="{{
+    Reschedule|
+    <first_poll> first_poll: bool
+  }}"]
+
+  poll[style_func;label="{{
+    Reschedule::poll|
+    first_poll 将first_poll设置为false\l
+    让后将NEED_RESCHEDULE thread local var\l
+    设置为true\l
+    调用wake_by_ref 唤醒自己\l|
+    第二次poll返回Poll::Ready\l
+  }}"]
+  poll -> {
+    Reschedule:first_poll;
+    NEED_RESCHEDULE;
+    wake_by_ref;
+  }
+  wake_by_ref -> wake_impl;
+  
+  handle -> { 
+     poll;
+     NEED_RESCHEDULE;
+     wake_task;
+     check_Notified;
+  }
+  wake_impl[style_func;label="{{
+    wake_impl|
+    此时task出于POLLING状态\l
+    wake_impl状态改为NOTIFIED\l
+  }}"]
+  check_Notified[style_func;label="{{
+    task.future.poll 结束后\l 
+    检查task状态\l 
+    是否为NOTIFIED\l
+  }}"]
+  wake_impl -> check_Notified[style_edge_data];
+  check_Notified -> poll[label="repoll"];
+  check_Notified -> {
+    NEED_RESCHEDULE;
+    wake_task;
+    need_preempt;
+    repoll_times;
+  }
+
+  repoll_times[style_func;label="{{
+    repoll_times|
+    每次repoll, repoll_times会+1\l
+    超过了repoll_limit, 且调度队列\l 
+    中有其他任务\l
+    就调用wake_task\l
+    把自己放到调度队列中\l
+  }}"]
+  wake_task[style_func;label="{{
+    wake_task|
+    wake_task(Cow::Owned(task),\l 
+    need_reschedule);\l
+    并返回false\l
+  }}"]
+
+  handle[style_func;label="{{
+    future::Runner::handle|
+    处理一个async task\l
+  }}"]
+
+  wake_by_ref[style_func;label="{{
+    ctx.wake_by_ref
+  }}"]
+
+  need_preempt[style_func;label="{{
+    need_preempt|
+    Returns wheter there\l 
+    are preemtive task to run\l|
+    只有在队列中还有其他task时\l
+    采用调wake_task\l
+    如果队列为空\l
+    直接在循环中repoll这个task\l
+  }}"]
+
+  has_tasks_or_pull[style_func;label="{{
+    has_tasks_or_pull|
+    如果local queue中有task\l
+    返回true, 否则从全局queue\l
+    中拉取任务\l
+  }}"]
+
+  need_preempt -> {
+    has_tasks_or_pull;
+  }
+  {
+    NEED_RESCHEDULE;
+    need_preempt;
+    repoll_times;
+  } -> wake_task[style_edge_data];
+  
+}

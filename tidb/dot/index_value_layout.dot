@@ -1,0 +1,43 @@
+#include "styles.h"
+
+digraph IndexValueLayout {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ValueLayout[style_struct;label="{{
+    IndexValueLayout|
+    <TailLen> TaiLen 1\l|
+    <Options> Options len(options)\l|
+    <Padding> Padding len(padding)\l|
+    [IntHandle] 8\l|
+    [UntouchedFlag] 1\l
+  }}"]
+  ValueLayout:TailLen -> TailLen;
+  TailLen[style_struct;label="{{
+    TailLen|
+    len(Padding) + len(IntHandle) + len(UntouchedFlag)\l
+  }}"]
+  ValueLayout:Options -> {
+    CommonHandle;
+    GlobalIndex;
+    NewCollation;
+  }
+  CommonHandle[style_struct;label="{{
+    CommonHandle|
+    CHandle Flag 1|
+    CHandle Len 2|
+    Chandle len(Chandle)
+  }}"]
+
+  GlobalIndex[style_struct;label="{{
+    GlobalIndex|
+    PidFloag 1|
+    PartitionID 8
+  }}"]
+
+  NewCollation[style_struct;label="{{
+    NewCollation|
+    restoreData len(restoreData)
+  }}"]
+}

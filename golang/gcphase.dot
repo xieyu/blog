@@ -1,0 +1,128 @@
+digraph gcphase {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  setGCPhase_GCmark[
+    fillcolor="#f38181";
+    style=filled;
+    shape=box;
+    label="setGCPhase(_GCmark)"
+  ];
+  setGCPhase_GCoff[
+    fillcolor="#f38181";
+    style=filled;
+    shape=box;
+    label="setGCPhase(_GCoff)"
+  ];
+  setGCPhase_GCmarktermination[
+    fillcolor="#f38181";
+    style=filled;
+    shape=box;
+    label="setGCPhase(_GCmarktermination)"
+  ];
+  gcBgMarkWorker[shape="record";
+    label="{{
+      gcBgMarkWorker|
+        每个p启动一个go routine\l
+    }}";
+  ];
+  gcDrain[shape="record";
+    label="{{
+      gcDrain|
+        scans roots and objects\l
+        in worker buffers, blackening\l
+        grey objects util it is unabel to \l
+        get more work;\l
+    }}";
+  ];
+  wbBufFlush1[shape="record";
+    label="{{
+      wbBufFlush1|
+        flushes p's write barrier\l 
+        buffer to the GC work queue\l
+    }}";
+  ];
+  gcSweep[shape="record";
+    label="{{
+      gcSweep|
+        需要在systemStack上执行\l
+    }}";
+  ];
+
+  subgraph cluster_GCMark {
+    graph[label="GCMark";fontsize=20;];
+    subgraph cluster_stw1 {
+      graph[label="stw1: prepare";fontsize=20;];
+      setGCPhase_GCmark;
+      gcBgMarkPrepare;
+      gcMarkRootPrepare;
+      gcMarkTinyAllocs;
+      startCycle;
+      finishsweep_m;
+    };
+    gcMarkDone;
+    gcDrain;
+  };
+  subgraph cluster_stw2 {
+    graph[label="stw2";fontsize=20;];
+    wbBufFlush1;
+    subgraph cluster_GCmarktermination {
+      graph[label="GCmarktermination";fontsize=20;];
+      setGCPhase_GCmarktermination;
+      gcMark;
+      gcSetTriggerRatio;
+    };
+    subgraph cluster_Gcoffstw{
+      graph[label="GcoffSTW";fontsize=20;];
+      setGCPhase_GCoff;
+      gcSweep;
+    };
+  };
+  subgraph cluster_GCoff {
+    graph[label="GCoff";fontsize=20;];
+    prepareFreeWorkbufs;
+    prepareForSweep;
+    freeStackSpans;
+  };
+  gcStart -> {
+    setGCPhase_GCmark;
+    gcBgMarkPrepare;
+    gcMarkRootPrepare;
+    gcMarkTinyAllocs;
+    stopTheWorldWithSema;
+    gcResetMarkState;
+    gcBgMarkStartWorkers;
+    finishsweep_m;
+    clearpools;
+    startCycle;
+    startTheWorldWithSema;
+  };
+  gcBgMarkStartWorkers -> gcBgMarkWorker[label="go"];
+  gcBgMarkWorker -> {
+    gcDrain;
+    gcMarkDone;
+  };
+  gcMarkDone -> {
+    gcMarkTermination;
+    wbBufFlush1;
+    stopTheWorldWithSema;
+  };
+  gcMarkTermination -> {
+    setGCPhase_GCmarktermination;
+    gcSweep;
+    setGCPhase_GCoff;
+    gcMark;
+    gcSetTriggerRatio;
+    startTheWorldWithSema;
+    prepareFreeWorkbufs;
+    prepareForSweep;
+    freeStackSpans;
+  };
+  gcSweep -> sweep_g[label="ready"];
+  sweep_g -> bgsweep;
+  {
+    rank=same;
+    startTheWorldWithSema;
+    stopTheWorldWithSema;
+  }
+}

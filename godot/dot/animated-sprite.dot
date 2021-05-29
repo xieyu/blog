@@ -1,0 +1,55 @@
+digraph animated_sprite {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  AnimatedSprite -> SpriteFrames;
+  AnimatedSprite[
+    shape="record";
+    label="{{
+      AnimatedSprite|
+      String	animation	\"default\"\l|
+      bool	centered	true\l|
+      bool	flip_h	false\l|
+      bool	flip_v	false\l|
+      int	frame	0\l|
+      SpriteFrames	frames	 \l|
+      Vector2	offset	Vector2( 0, 0 )\l|
+      bool	playing	false\l|
+      float	speed_scale	1.0\l
+    }}";
+  ];
+  subgraph cluster_SpriteFrame {
+    graph[label="SpriteFrame";fontsize=20;];
+    SpriteFrames[
+      shape="record";
+      label="{{
+        SpriteFrame|
+        Contains frames and \l 
+        animation data for playback.|
+        Array frames\l
+      }}";
+    ];
+  }
+
+  subgraph cluster_Texture {
+    graph[label="Texture";fontsize=20;];
+    Texture -> {
+      AnimatedTexture;
+      AtlasTexture;
+      CameraTexture;
+      CurveTexture;
+      ExternalTexture;
+      GradientTexture;
+      ImageTexture;
+      LargeTexture;
+      MeshTexture;
+      NoiseTexture;
+      ProxyTexture;
+      StreamTexture;
+      ViewportTexture;
+    }
+  }
+
+  SpriteFrames -> Texture;
+}

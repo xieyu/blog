@@ -1,0 +1,529 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Storage - blog</title>
+        
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../about.html"><strong aria-hidden="true">1.</strong> About</a></li><li class="chapter-item expanded "><a href="../papers/index.html"><strong aria-hidden="true">2.</strong> Paper notes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../papers/raft.html"><strong aria-hidden="true">2.1.</strong> raft paper</a></li><li class="chapter-item expanded "><a href="../papers/gfs.html"><strong aria-hidden="true">2.2.</strong> gfs</a></li></ol></li><li class="chapter-item expanded "><a href="../leveldb/index.html"><strong aria-hidden="true">3.</strong> LevelDB</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../leveldb/draft.html"><strong aria-hidden="true">3.1.</strong> draft</a></li><li class="chapter-item expanded "><a href="../leveldb/code-struct.html"><strong aria-hidden="true">3.2.</strong> 代码模块间关系</a></li><li class="chapter-item expanded "><a href="../leveldb/write.html"><strong aria-hidden="true">3.3.</strong> Write 流程</a></li><li class="chapter-item expanded "><a href="../leveldb/read.html"><strong aria-hidden="true">3.4.</strong> Read 流程</a></li><li class="chapter-item expanded "><a href="../leveldb/table-format.html"><strong aria-hidden="true">3.5.</strong> SSTable 文件格式和读写</a></li><li class="chapter-item expanded "><a href="../leveldb/versionset.html"><strong aria-hidden="true">3.6.</strong> versionset和Manifest</a></li><li class="chapter-item expanded "><a href="../leveldb/table-compact.html"><strong aria-hidden="true">3.7.</strong> Do Compact</a></li><li class="chapter-item expanded "><a href="../leveldb/iterator.html"><strong aria-hidden="true">3.8.</strong> Iterator迭代器</a></li><li class="chapter-item expanded "><a href="../leveldb/bloom-filter.html"><strong aria-hidden="true">3.9.</strong> Bloom filter</a></li></ol></li><li class="chapter-item expanded "><a href="../rocksdb/index.html"><strong aria-hidden="true">4.</strong> RocksDB</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../rocksdb/draft.html"><strong aria-hidden="true">4.1.</strong> draft</a></li><li class="chapter-item expanded "><a href="../rocksdb/column-family.html"><strong aria-hidden="true">4.2.</strong> 主要struct引用关系</a></li><li class="chapter-item expanded "><a href="../rocksdb/wal.html"><strong aria-hidden="true">4.3.</strong> Write Ahead Log</a></li><li class="chapter-item expanded "><a href="../rocksdb/write.html"><strong aria-hidden="true">4.4.</strong> write 并发控制</a></li><li class="chapter-item expanded "><a href="../rocksdb/flush-and-compact.html"><strong aria-hidden="true">4.5.</strong> 后台flush和compact线程</a></li><li class="chapter-item expanded "><a href="../rocksdb/leveled-compaction-picker.html"><strong aria-hidden="true">4.6.</strong> Leveled Compaction Picker</a></li><li class="chapter-item expanded "><a href="../rocksdb/read.html"><strong aria-hidden="true">4.7.</strong> read 流程</a></li><li class="chapter-item expanded "><a href="../rocksdb/blob.html"><strong aria-hidden="true">4.8.</strong> Blob</a></li><li class="chapter-item expanded "><a href="../rocksdb/transaction.html"><strong aria-hidden="true">4.9.</strong> 事务</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../rocksdb/optimistic-transaction.html"><strong aria-hidden="true">4.9.1.</strong> Optimistic Transaction</a></li><li class="chapter-item expanded "><a href="../rocksdb/transaction-lock-mgr.html"><strong aria-hidden="true">4.9.2.</strong> Transaction lock mgr</a></li><li class="chapter-item expanded "><a href="../rocksdb/two-phase-commit.html"><strong aria-hidden="true">4.9.3.</strong> two phase commit</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../tidb/index.html"><strong aria-hidden="true">5.</strong> TiDB</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/note.html"><strong aria-hidden="true">5.1.</strong> tidb学习资料整理</a></li><li class="chapter-item expanded "><a href="../tidb/main.html"><strong aria-hidden="true">5.2.</strong> Server Main Loop</a></li><li class="chapter-item expanded "><a href="../tidb/insert.html"><strong aria-hidden="true">5.3.</strong> Insert 语句</a></li><li class="chapter-item expanded "><a href="../tidb/select.html"><strong aria-hidden="true">5.4.</strong> Select 语句</a></li><li class="chapter-item expanded "><a href="../tidb/types.html"><strong aria-hidden="true">5.5.</strong> 数据类型</a></li><li class="chapter-item expanded "><a href="../tidb/expression.html"><strong aria-hidden="true">5.6.</strong> expression</a></li><li class="chapter-item expanded "><a href="../tidb/ddl.html"><strong aria-hidden="true">5.7.</strong> Online DDL</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/ddl-schema-in-tikv.html"><strong aria-hidden="true">5.7.1.</strong> Schema 存储</a></li><li class="chapter-item expanded "><a href="../tidb/ddl-schema-load.html"><strong aria-hidden="true">5.7.2.</strong> Schema Cache和加载</a></li><li class="chapter-item expanded "><a href="../tidb/ddl-schema-modification.html"><strong aria-hidden="true">5.7.3.</strong> Schema Modification</a></li><li class="chapter-item expanded "><a href="../tidb/ddl-online-schema-change.html"><strong aria-hidden="true">5.7.4.</strong> Online Schema Change</a></li></ol></li><li class="chapter-item expanded "><a href="../tidb/stat.html"><strong aria-hidden="true">5.8.</strong> 统计信息</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/basic-concepts.html"><strong aria-hidden="true">5.8.1.</strong> 基本概念</a></li><li class="chapter-item expanded "><a href="../tidb/stat-tables.html"><strong aria-hidden="true">5.8.2.</strong> stats tables</a></li><li class="chapter-item expanded "><a href="../tidb/stat-analyze.html"><strong aria-hidden="true">5.8.3.</strong> Analyze</a></li><li class="chapter-item expanded "><a href="../tidb/stat-feedback.html"><strong aria-hidden="true">5.8.4.</strong> Query Feedback</a></li><li class="chapter-item expanded "><a href="../tidb/use-stat.html"><strong aria-hidden="true">5.8.5.</strong> 统计信息使用场景</a></li></ol></li><li class="chapter-item expanded "><a href="../tidb/logical-optimize.html"><strong aria-hidden="true">5.9.</strong> Logical Optimize</a></li><li class="chapter-item expanded "><a href="../tidb/physical-optimize.html"><strong aria-hidden="true">5.10.</strong> Physical Optimize</a></li><li class="chapter-item expanded "><a href="../tidb/datasource.html"><strong aria-hidden="true">5.11.</strong> DataSource</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/datasource-build.html"><strong aria-hidden="true">5.11.1.</strong> buildDataSource</a></li><li class="chapter-item expanded "><a href="../tidb/range.html"><strong aria-hidden="true">5.11.2.</strong> 索引范围计算</a></li><li class="chapter-item expanded "><a href="../tidb/tablecodec.html"><strong aria-hidden="true">5.11.3.</strong> table/index存储编码</a></li><li class="chapter-item expanded "><a href="../tidb/datasource-paritionProcessor.html"><strong aria-hidden="true">5.11.4.</strong> paritionProcessor</a></li><li class="chapter-item expanded "><a href="../tidb/datasource-predict-push-down.html"><strong aria-hidden="true">5.11.5.</strong> PredicatePushDown</a></li><li class="chapter-item expanded "><a href="../tidb/datasource-physical-optimize.html"><strong aria-hidden="true">5.11.6.</strong> Physical Optimize</a></li><li class="chapter-item expanded "><a href="../tidb/datasource-executors.html"><strong aria-hidden="true">5.11.7.</strong> Executors</a></li></ol></li><li class="chapter-item expanded "><a href="../tidb/distsql.html"><strong aria-hidden="true">5.12.</strong> DistSQL</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/cop-region-cache.html"><strong aria-hidden="true">5.12.1.</strong> ReginCache</a></li><li class="chapter-item expanded "><a href="../tidb/tikv-grpc-client.html"><strong aria-hidden="true">5.12.2.</strong> TiKV GRPC Client</a></li><li class="chapter-item expanded "><a href="../tidb/cop-task.html"><strong aria-hidden="true">5.12.3.</strong> CopTask</a></li><li class="chapter-item expanded "><a href="../tidb/cop-iterator-worker.html"><strong aria-hidden="true">5.12.4.</strong> CopIteratorWorker</a></li><li class="chapter-item expanded "><a href="../tidb/coprocessor.html"><strong aria-hidden="true">5.12.5.</strong> Coprocessor</a></li></ol></li><li class="chapter-item expanded "><a href="../tidb/join.html"><strong aria-hidden="true">5.13.</strong> Join</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/join-alg.html"><strong aria-hidden="true">5.13.1.</strong> Join算法</a></li><li class="chapter-item expanded "><a href="../tidb/join-logical-optimize.html"><strong aria-hidden="true">5.13.2.</strong> Logical Optimize</a></li><li class="chapter-item expanded "><a href="../tidb/join-physical-optimize.html"><strong aria-hidden="true">5.13.3.</strong> Physical Optimize</a></li><li class="chapter-item expanded "><a href="../tidb/hash-join.html"><strong aria-hidden="true">5.13.4.</strong> Executor: Hash Join</a></li><li class="chapter-item expanded "><a href="../tidb/merge-join.html"><strong aria-hidden="true">5.13.5.</strong> Executor: Merge Join</a></li><li class="chapter-item expanded "><a href="../tidb/index-lookup-join.html"><strong aria-hidden="true">5.13.6.</strong> Executor: Index Lookup Join</a></li></ol></li><li class="chapter-item expanded "><a href="../tidb/agg.html"><strong aria-hidden="true">5.14.</strong> Agg</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/agg-func.html"><strong aria-hidden="true">5.14.1.</strong> AggFunc</a></li><li class="chapter-item expanded "><a href="../tidb/hash-agg.html"><strong aria-hidden="true">5.14.2.</strong> Executor: HashAgg</a></li><li class="chapter-item expanded "><a href="../tidb/stream-agg.html"><strong aria-hidden="true">5.14.3.</strong> Executor: StreamAgg</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../pd/index.html"><strong aria-hidden="true">6.</strong> PD</a></li><li class="chapter-item expanded "><a href="../tikv/index.html"><strong aria-hidden="true">7.</strong> TiKV</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tikv/draft/index.html"><strong aria-hidden="true">7.1.</strong> draft</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tikv/PeerFsm.html"><strong aria-hidden="true">7.1.1.</strong> PeerFsm</a></li><li class="chapter-item expanded "><a href="../tikv/mvcc_reader.html"><strong aria-hidden="true">7.1.2.</strong> MvccReader</a></li></ol></li><li class="chapter-item expanded "><a href="../tikv/raft.html"><strong aria-hidden="true">7.2.</strong> raft-rs</a></li><li class="chapter-item expanded "><a href="../tikv/batch-system.html"><strong aria-hidden="true">7.3.</strong> BatchSystem</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tikv/poller.html"><strong aria-hidden="true">7.3.1.</strong> Poller</a></li></ol></li><li class="chapter-item expanded "><a href="../tikv/region.html"><strong aria-hidden="true">7.4.</strong> Region</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tikv/peer_storage.html"><strong aria-hidden="true">7.4.1.</strong> Peer Storage</a></li><li class="chapter-item expanded "><a href="../tikv/raft_client.html"><strong aria-hidden="true">7.4.2.</strong> Raft Client</a></li><li class="chapter-item expanded "><a href="../tikv/conf-change.html"><strong aria-hidden="true">7.4.3.</strong> Conf Change</a></li><li class="chapter-item expanded "><a href="../tikv/split-region.html"><strong aria-hidden="true">7.4.4.</strong> Split Region</a></li><li class="chapter-item expanded "><a href="../tikv/merge-region.html"><strong aria-hidden="true">7.4.5.</strong> Merge Region</a></li></ol></li><li class="chapter-item expanded "><a href="../tikv/raft-kv.html"><strong aria-hidden="true">7.5.</strong> RaftKV</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tikv/async_snapshot.html"><strong aria-hidden="true">7.5.1.</strong> async snapshot</a></li><li class="chapter-item expanded "><a href="../tikv/async_write.html"><strong aria-hidden="true">7.5.2.</strong> async write</a></li></ol></li><li class="chapter-item expanded "><a href="../tikv/storage.html"><strong aria-hidden="true">7.6.</strong> Storage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tikv/percolator.html"><strong aria-hidden="true">7.6.1.</strong> Percolator</a></li><li class="chapter-item expanded "><a href="../tikv/txn_types.html"><strong aria-hidden="true">7.6.2.</strong> Txn Types</a></li><li class="chapter-item expanded "><a href="../tikv/tidb_txn.html"><strong aria-hidden="true">7.6.3.</strong> TiDB txn</a></li><li class="chapter-item expanded "><a href="../tikv/storage_scanner.html"><strong aria-hidden="true">7.6.4.</strong> Scanner</a></li><li class="chapter-item expanded "><a href="../tikv/MvccTxn.html"><strong aria-hidden="true">7.6.5.</strong> MvccTxn</a></li><li class="chapter-item expanded "><a href="../tikv/scheduler.html"><strong aria-hidden="true">7.6.6.</strong> Scheduler</a></li><li class="chapter-item expanded "><a href="../tikv/command.html"><strong aria-hidden="true">7.6.7.</strong> Command</a></li></ol></li><li class="chapter-item expanded "><a href="../tikv/coprocessor.html"><strong aria-hidden="true">7.7.</strong> Coprocessor</a></li><li class="chapter-item expanded "><a href="../tikv/yatp.html"><strong aria-hidden="true">7.8.</strong> yatp</a></li></ol></li><li class="chapter-item expanded "><a href="../rust/index.html"><strong aria-hidden="true">8.</strong> Rust</a></li><li class="chapter-item expanded "><a href="../golang/index.html"><strong aria-hidden="true">9.</strong> Go</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../golang/pgm.html"><strong aria-hidden="true">9.1.</strong> Runtime PGM调度模型</a></li><li class="chapter-item expanded "><a href="../golang/goroutine-stack.html"><strong aria-hidden="true">9.2.</strong> Goroutine Stack</a></li><li class="chapter-item expanded "><a href="../golang/memory.html"><strong aria-hidden="true">9.3.</strong> Memory分配</a></li><li class="chapter-item expanded "><a href="../golang/GC.html"><strong aria-hidden="true">9.4.</strong> GC</a></li><li class="chapter-item expanded "><a href="../golang/context.html"><strong aria-hidden="true">9.5.</strong> Context</a></li><li class="chapter-item expanded "><a href="../golang/defer-panic-recover.html"><strong aria-hidden="true">9.6.</strong> defer-panic-recover</a></li></ol></li><li class="chapter-item expanded "><a href="../clickhouse/index.html"><strong aria-hidden="true">10.</strong> ClickHouse</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../clickhouse/server-main.html"><strong aria-hidden="true">10.1.</strong> Server main</a></li><li class="chapter-item expanded "><a href="../clickhouse/block.html"><strong aria-hidden="true">10.2.</strong> block</a></li><li class="chapter-item expanded "><a href="../clickhouse/blockio.html"><strong aria-hidden="true">10.3.</strong> blockio</a></li><li class="chapter-item expanded "><a href="../clickhouse/storage.html" class="active"><strong aria-hidden="true">10.4.</strong> Storage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../clickhouse/merge-tree-data.html"><strong aria-hidden="true">10.4.1.</strong> MergeTreeData</a></li><li class="chapter-item expanded "><a href="../clickhouse/storage-merge-tree.html"><strong aria-hidden="true">10.4.2.</strong> StorageMergeTree</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../tokio/index.html"><strong aria-hidden="true">11.</strong> tokio</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tokio/executor.html"><strong aria-hidden="true">11.1.</strong> Executor</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tokio/park.html"><strong aria-hidden="true">11.1.1.</strong> Park</a></li><li class="chapter-item expanded "><a href="../tokio/thread-pool.html"><strong aria-hidden="true">11.1.2.</strong> thread pool</a></li></ol></li><li class="chapter-item expanded "><a href="../tokio/driver.html"><strong aria-hidden="true">11.2.</strong> driver</a></li><li class="chapter-item expanded "><a href="../tokio/io.html"><strong aria-hidden="true">11.3.</strong> io</a></li><li class="chapter-item expanded "><a href="../tokio/codec.html"><strong aria-hidden="true">11.4.</strong> codec</a></li><li class="chapter-item expanded "><a href="../tokio/channel.html"><strong aria-hidden="true">11.5.</strong> channel</a></li><li class="chapter-item expanded "><a href="../tokio/waker.html"><strong aria-hidden="true">11.6.</strong> waker</a></li></ol></li><li class="chapter-item expanded "><a href="../kafka/index.html"><strong aria-hidden="true">12.</strong> Kafka</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../kafka/client-producer.html"><strong aria-hidden="true">12.1.</strong> client: producer</a></li><li class="chapter-item expanded "><a href="../kafka/group-coordinator.html"><strong aria-hidden="true">12.2.</strong> group coordinator</a></li><li class="chapter-item expanded "><a href="../kafka/kafka-produce-fetch.html"><strong aria-hidden="true">12.3.</strong> produce and fetch</a></li><li class="chapter-item expanded "><a href="../kafka/log.html"><strong aria-hidden="true">12.4.</strong> log</a></li><li class="chapter-item expanded "><a href="../kafka/partition.html"><strong aria-hidden="true">12.5.</strong> Partition</a></li><li class="chapter-item expanded "><a href="../kafka/controller-main.html"><strong aria-hidden="true">12.6.</strong> Controller</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../kafka/controller-channel-manager.html"><strong aria-hidden="true">12.6.1.</strong> 通信管理 channelManager</a></li><li class="chapter-item expanded "><a href="../kafka/controller-elect.html"><strong aria-hidden="true">12.6.2.</strong> 选举</a></li><li class="chapter-item expanded "><a href="../kafka/controller-zk.html"><strong aria-hidden="true">12.6.3.</strong> zk监听处理</a></li></ol></li><li class="chapter-item expanded "><a href="../kafka/replica-assignment.html"><strong aria-hidden="true">12.7.</strong> 副本迁移</a></li><li class="chapter-item expanded "><a href="../kafka/paritition-replica-statemachine.html"><strong aria-hidden="true">12.8.</strong> Partition/Replica状态机</a></li><li class="chapter-item expanded "><a href="../kafka/txn_coordinator.html"><strong aria-hidden="true">12.9.</strong> 事务</a></li><li class="chapter-item expanded "><a href="../kafka/stream.html"><strong aria-hidden="true">12.10.</strong> Stream</a></li></ol></li><li class="chapter-item expanded "><a href="../python/index.html"><strong aria-hidden="true">13.</strong> python</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../python/records/records.html"><strong aria-hidden="true">13.1.</strong> records</a></li></ol></li><li class="chapter-item expanded "><a href="../godot/index.html"><strong aria-hidden="true">14.</strong> Godot</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../godot/learning-note.html"><strong aria-hidden="true">14.1.</strong> godot 学习笔记</a></li><li class="chapter-item expanded "><a href="../godot/gdquest.html"><strong aria-hidden="true">14.2.</strong> gdquest tutorial</a></li></ol></li><li class="chapter-item expanded "><a href="../bevy/index.html"><strong aria-hidden="true">15.</strong> Bevy</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../bevy/first-impression-draft.html"><strong aria-hidden="true">15.1.</strong> bevy draft</a></li></ol></li><li class="chapter-item expanded "><a href="../blender/index.html"><strong aria-hidden="true">16.</strong> Blender</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../blender/manual-notes.html"><strong aria-hidden="true">16.1.</strong> blender manual notes</a></li></ol></li><li class="chapter-item expanded "><a href="../tensorflow/index.html"><strong aria-hidden="true">17.</strong> tensorflow inside</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tensorflow/executor.html"><strong aria-hidden="true">17.1.</strong> Executor: 执行Computation Sub Graph</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tensorflow/executor-subgraph-preprocess.html"><strong aria-hidden="true">17.1.1.</strong> SubGraph预处理：Node/NodeItem/TaggedNode</a></li><li class="chapter-item expanded "><a href="../tensorflow/flow-control-op.html"><strong aria-hidden="true">17.1.2.</strong> Flow control op: switch/merge/enter/exit/nextIteration</a></li><li class="chapter-item expanded "><a href="../tensorflow/executor-frame.html"><strong aria-hidden="true">17.1.3.</strong> Frame: ControlFlowInfo/FrameInfo/FrameState/IterationState</a></li></ol></li><li class="chapter-item expanded "><a href="../tensorflow/direct-session.html"><strong aria-hidden="true">17.2.</strong> DirectSession: 单机执行computation graph</a></li><li class="chapter-item expanded "><a href="../tensorflow/rendezvous.html"><strong aria-hidden="true">17.3.</strong> RendezVous：跨设备，跨主机通信</a></li><li class="chapter-item expanded "><a href="../tensorflow/device.html"><strong aria-hidden="true">17.4.</strong> Device：计算单元抽象(CPU/GPU)</a></li></ol></li><li class="chapter-item expanded "><a href="../tensorflow/optimize.html"><strong aria-hidden="true">18.</strong> tensorflow模型对接工程优化</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tensorflow/export-keras-model-as-tf-frozen-graph.html"><strong aria-hidden="true">18.1.</strong> 将keras模型导出为tf frozen graph</a></li><li class="chapter-item expanded "><a href="../tensorflow/replace-placeholder-with-iterator.html"><strong aria-hidden="true">18.2.</strong> 使用dataset iterator 优化keras model预测的吞吐量</a></li><li class="chapter-item expanded "><a href="../tensorflow/stat-cpu-gpu-load.html"><strong aria-hidden="true">18.3.</strong> 统计cpu/gpu 负载率脚本</a></li></ol></li><li class="chapter-item expanded "><a href="../pthread/index.html"><strong aria-hidden="true">19.</strong> pthread</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../pthread/pthread-primer.html"><strong aria-hidden="true">19.1.</strong> Pthread Primer笔记</a></li><li class="chapter-item expanded "><a href="../pthread/glibc-pthread-implement-thread-life-cycle.html"><strong aria-hidden="true">19.2.</strong> Pthread线程生命周期</a></li><li class="chapter-item expanded "><a href="../pthread/glibc-pthread-implement-sync.html"><strong aria-hidden="true">19.3.</strong> Pthread线程同步</a></li></ol></li><li class="chapter-item expanded "><a href="../react/index.html"><strong aria-hidden="true">20.</strong> react</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../react/from-jsx-to-dom.html"><strong aria-hidden="true">20.1.</strong> 从jsx到html dom的流程分析</a></li></ol></li><li class="chapter-item expanded "><a href="../java/index.html"><strong aria-hidden="true">21.</strong> hotspot</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../java/hotspot-debug-under-osx.html"><strong aria-hidden="true">21.1.</strong> osx下编译调试hotspot</a></li><li class="chapter-item expanded "><a href="../java/hotspot-thread-created-when-init.html"><strong aria-hidden="true">21.2.</strong> jvm的初始化时创建的线程</a></li><li class="chapter-item expanded "><a href="../java/hotspot-class-file-load-and-run.html"><strong aria-hidden="true">21.3.</strong> class文件的加载和执行</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">blog</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#storage" id="storage">Storage</a></h1>
+<ul>
+<li><a href="#istorage-struct">IStorage Struct</a></li>
+<li><a href="#istorage-interface">IStorage Interface</a>
+<ul>
+<li><a href="#watchreadwrite">watch/read/write</a></li>
+<li><a href="#rename">rename</a></li>
+<li><a href="#alter-adddrop-columns">alter: add/drop columns</a>
+<ul>
+<li><a href="#altercommands">AlterCommands</a></li>
+</ul>
+</li>
+<li><a href="#mutate">mutate</a>
+<ul>
+<li><a href="#mutationcommand">MutationCommand</a></li>
+</ul>
+</li>
+<li><a href="#optimize-backgroud-work">optimize: backgroud work</a></li>
+<li><a href="#startupshutdown">startup/shutdown</a></li>
+</ul>
+</li>
+<li><a href="#storage-inherit">Storage Inherit</a>
+<ul>
+<li><a href="#system-storage">System Storage</a></li>
+<li><a href="#mergetreedata">MergeTreeData</a></li>
+<li><a href="#storagelog">StorageLog</a></li>
+</ul>
+</li>
+</ul>
+<h2><a class="header" href="#istorage-struct" id="istorage-struct">IStorage Struct</a></h2>
+<blockquote>
+<p>Storage. Describes the table. Responsible for</p>
+<ul>
+<li>storage of the table data;</li>
+<li>the definition in which files (or not in files) the data is stored;</li>
+<li>data lookups and appends;</li>
+<li>data storage structure (compression, etc.)</li>
+<li>concurrent access to data (locks, etc.)</li>
+</ul>
+</blockquote>
+<p><img src="./dot/istorage-struct.svg" alt="istorage struct" /></p>
+<pre><code class="language-cpp">struct StorageInMemoryMetadata
+{
+    /// Columns of table with their names, types,
+    /// defaults, comments, etc. All table engines have columns.
+    ColumnsDescription columns;
+    /// Table indices. Currently supported for MergeTree only.
+    IndicesDescription secondary_indices;
+    /// Table constraints. Currently supported for MergeTree only.
+    ConstraintsDescription constraints;
+    /// PARTITION BY expression. Currently supported for MergeTree only.
+    KeyDescription partition_key;
+    /// PRIMARY KEY expression. If absent, than equal to order_by_ast.
+    KeyDescription primary_key;
+    /// ORDER BY expression. Required field for all MergeTree tables
+    /// even in old syntax MergeTree(partition_key, order_by, ...)
+    KeyDescription sorting_key;
+    /// SAMPLE BY expression. Supported for MergeTree only.
+    KeyDescription sampling_key;
+    /// Separate ttl expressions for columns
+    TTLColumnsDescription column_ttls_by_name;
+    /// TTL expressions for table (Move and Rows)
+    TTLTableDescription table_ttl;
+    /// SETTINGS expression. Supported for MergeTree, Buffer and Kafka.
+    ASTPtr settings_changes;
+    /// SELECT QUERY. Supported for MaterializedView and View (have to support LiveView).
+    SelectQueryDescription select;
+    //...
+}
+</code></pre>
+<h2><a class="header" href="#istorage-interface" id="istorage-interface">IStorage Interface</a></h2>
+<h3><a class="header" href="#watchreadwrite" id="watchreadwrite">watch/read/write</a></h3>
+<pre><code class="language-cpp">    virtual BlockInputStreams watch(
+        const Names &amp; /*column_names*/,
+        const SelectQueryInfo &amp; /*query_info*/,
+        const Context &amp; /*context*/,
+        QueryProcessingStage::Enum &amp; /*processed_stage*/,
+        size_t /*max_block_size*/,
+        unsigned /*num_streams*/)
+    {
+        throw Exception(&quot;Method watch is not supported by storage &quot; + getName(), ErrorCodes::NOT_IMPLEMENTED);
+    }
+
+    virtual Pipes read(
+        const Names &amp; /*column_names*/,
+        const StorageMetadataPtr &amp; /*metadata_snapshot*/,
+        const SelectQueryInfo &amp; /*query_info*/,
+        const Context &amp; /*context*/,
+        QueryProcessingStage::Enum /*processed_stage*/,
+        size_t /*max_block_size*/,
+        unsigned /*num_streams*/)
+    {
+        throw Exception(&quot;Method read is not supported by storage &quot; + getName(), ErrorCodes::NOT_IMPLEMENTED);
+    }
+
+    virtual BlockOutputStreamPtr write(
+        const ASTPtr &amp; /*query*/,
+        const StorageMetadataPtr &amp; /*metadata_snapshot*/,
+        const Context &amp; /*context*/)
+    {
+        throw Exception(&quot;Method write is not supported by storage &quot; + getName(), ErrorCodes::NOT_IMPLEMENTED);
+    }
+
+    virtual void drop() {}
+
+    virtual void truncate(
+        const ASTPtr &amp; /*query*/,
+        const StorageMetadataPtr &amp; /* metadata_snapshot */,
+        const Context &amp; /* context */,
+        TableExclusiveLockHolder &amp;)
+    {
+        throw Exception(&quot;Truncate is not supported by storage &quot; + getName(), ErrorCodes::NOT_IMPLEMENTED);
+    }
+
+</code></pre>
+<h3><a class="header" href="#rename" id="rename">rename</a></h3>
+<pre><code class="language-cpp">    virtual void rename(const String &amp; /*new_path_to_table_data*/, const StorageID &amp; new_table_id)
+    /**
+     * Just updates names of database and table without moving any data on disk
+     * Can be called directly only from DatabaseAtomic.
+     */
+    virtual void renameInMemory(const StorageID &amp; new_table_id);
+</code></pre>
+<h3><a class="header" href="#alter-adddrop-columns" id="alter-adddrop-columns">alter: add/drop columns</a></h3>
+<pre><code class="language-cpp">    /** ALTER tables in the form of column changes that do not affect the change
+      * to Storage or its parameters. Executes under alter lock (lockForAlter).
+      */
+    virtual void alter(const AlterCommands &amp; params, const Context &amp; context, TableLockHolder &amp; alter_lock_holder);
+
+    /** Checks that alter commands can be applied to storage. For example, columns can be modified,
+      * or primary key can be changes, etc.
+      */
+    virtual void checkAlterIsPossible(const AlterCommands &amp; commands, const Settings &amp; settings) const;
+
+    /** ALTER tables with regard to its partitions.
+      * Should handle locks for each command on its own.
+      */
+    virtual void alterPartition(const ASTPtr &amp; /* query */, const StorageMetadataPtr &amp; /* metadata_snapshot */, const PartitionCommands &amp; /* commands */, const Context &amp; /* context */)
+    {
+        throw Exception(&quot;Partition operations are not supported by storage &quot; + getName(), ErrorCodes::NOT_IMPLEMENTED);
+    }
+</code></pre>
+<h4><a class="header" href="#altercommands" id="altercommands">AlterCommands</a></h4>
+<pre><code class="language-cpp">/// Operation from the ALTER query (except for manipulation with PART/PARTITION).
+/// Adding Nested columns is not expanded to add individual columns.
+struct AlterCommand
+{
+    /// The AST of the whole command
+    ASTPtr ast;
+
+    enum Type
+    {
+        ADD_COLUMN,
+        DROP_COLUMN,
+        MODIFY_COLUMN,
+        COMMENT_COLUMN,
+        MODIFY_ORDER_BY,
+        ADD_INDEX,
+        DROP_INDEX,
+        ADD_CONSTRAINT,
+        DROP_CONSTRAINT,
+        MODIFY_TTL,
+        MODIFY_SETTING,
+        MODIFY_QUERY,
+        RENAME_COLUMN,
+    };
+...
+</code></pre>
+<h3><a class="header" href="#mutate" id="mutate">mutate</a></h3>
+<pre><code class="language-cpp">    /// Mutate the table contents
+    virtual void mutate(const MutationCommands &amp;, const Context &amp;)
+    {
+        throw Exception(&quot;Mutations are not supported by storage &quot; + getName(), ErrorCodes::NOT_IMPLEMENTED);
+    }
+
+    /// Cancel a mutation.
+    virtual CancellationCode killMutation(const String &amp; /*mutation_id*/)
+    {
+        throw Exception(&quot;Mutations are not supported by storage &quot; + getName(), ErrorCodes::NOT_IMPLEMENTED);
+    }
+</code></pre>
+<h4><a class="header" href="#mutationcommand" id="mutationcommand">MutationCommand</a></h4>
+<pre><code class="language-cpp">/// Represents set of actions which should be applied
+/// to values from set of columns which statisfy predicate.
+struct MutationCommand
+{
+    ASTPtr ast; /// The AST of the whole command
+
+    enum Type
+    {
+        EMPTY,     /// Not used.
+        DELETE,
+        UPDATE,
+        MATERIALIZE_INDEX,
+        READ_COLUMN,
+        DROP_COLUMN,
+        DROP_INDEX,
+        MATERIALIZE_TTL,
+        RENAME_COLUMN,
+    };
+
+    Type type = EMPTY;
+    ...
+}
+</code></pre>
+<h3><a class="header" href="#optimize-backgroud-work" id="optimize-backgroud-work">optimize: backgroud work</a></h3>
+<pre><code class="language-cpp">    /** Perform any background work. For example, combining parts in a MergeTree type table.
+      * Returns whether any work has been done.
+      */
+    virtual bool optimize(
+        const ASTPtr &amp; /*query*/,
+        const StorageMetadataPtr &amp; /*metadata_snapshot*/,
+        const ASTPtr &amp; /*partition*/,
+        bool /*final*/,
+        bool /*deduplicate*/,
+        const Context &amp; /*context*/)
+    {
+        throw Exception(&quot;Method optimize is not supported by storage &quot; + getName(), ErrorCodes::NOT_IMPLEMENTED);
+    }
+</code></pre>
+<h3><a class="header" href="#startupshutdown" id="startupshutdown">startup/shutdown</a></h3>
+<pre><code class="language-cpp">    /** If the table have to do some complicated work on startup,
+      *  that must be postponed after creation of table object
+      *  (like launching some background threads),
+      *  do it in this method.
+      * You should call this method after creation of object.
+      * By default, does nothing.
+      * Cannot be called simultaneously by multiple threads.
+      */
+    virtual void startup() {}
+
+    /** If the table have to do some complicated work when destroying an object - do it in advance.
+      * For example, if the table contains any threads for background work - ask them to complete and wait for completion.
+      * By default, does nothing.
+      * Can be called simultaneously from different threads, even after a call to drop().
+      */
+    virtual void shutdown() {}
+</code></pre>
+<h2><a class="header" href="#storage-inherit" id="storage-inherit">Storage Inherit</a></h2>
+<p>主要分为StorageLog, MergeTree, SystemData还有类似StorageMySQL等external Data的</p>
+<p><img src="./dot/istorage-inherit.svg" alt="istorage inherit" /></p>
+<h3><a class="header" href="#system-storage" id="system-storage">System Storage</a></h3>
+<p>system storage 在clickhouse中可以通过use system, 然后 show tables 看到
+可以通过表查询clickhouse的各种信息。</p>
+<pre><code>&gt;use system;
+&gt;show tables;
+</code></pre>
+<pre><code class="language-cpp"> aggregate_function_combinators │
+│ asynchronous_metrics           │
+│ build_options                  │
+│ clusters                       │
+│ collations                     │
+│ columns                        │
+│ contributors                   │
+│ current_roles                  │
+│ data_type_families             │
+│ databases                      │
+│ detached_parts                 │
+│ dictionaries                   │
+│ disks                          │
+│ distribution_queue             │
+│ enabled_roles                  │
+│ events                         │
+│ formats                        │
+│ functions                      │
+│ grants                         │
+│ graphite_retentions            │
+│ licenses                       │
+│ macros                         │
+│ merge_tree_settings            │
+│ merges                         │
+│ metric_log                     │
+│ metric_log_0                   │
+│ metrics                        │
+│ models                         │
+│ mutations                      │
+│ numbers                        │
+│ numbers_mt                     │
+│ one                            │
+│ parts                          │
+│ parts_columns                  │
+│ privileges                     │
+│ processes                      │
+│ query_log                      │
+│ query_thread_log               │
+│ quota_limits                   │
+│ quota_usage                    │
+│ quotas                         │
+│ quotas_usage                   │
+│ replicas                       │
+│ replication_queue              │
+│ role_grants                    │
+│ roles                          │
+│ row_policies                   │
+│ settings                       │
+│ settings_profile_elements      │
+│ settings_profiles              │
+│ stack_trace                    │
+│ storage_policies               │
+│ table_engines                  │
+│ table_functions                │
+│ tables                         │
+│ trace_log                      │
+│ trace_log_0                    │
+│ users                          │
+│ zeros                          │
+│ zeros_mt                       │
+└────────────
+</code></pre>
+<h3><a class="header" href="#mergetreedata" id="mergetreedata">MergeTreeData</a></h3>
+<h3><a class="header" href="#storagelog" id="storagelog">StorageLog</a></h3>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="../clickhouse/blockio.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="../clickhouse/merge-tree-data.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="../clickhouse/blockio.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="../clickhouse/merge-tree-data.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+        
+        
+        <script type="text/javascript">
+            window.playpen_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

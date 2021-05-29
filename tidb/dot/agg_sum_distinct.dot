@@ -1,0 +1,115 @@
+digraph agg_sum_distinct {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_expression {
+    graph[label="expression";fontsize=20;style="rounded,dashed";color="slategrey"]
+    EvalReal;
+  }
+  subgraph cluster_chunk {
+    graph[label="chunk";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Chunk[
+      shape="record";
+      label="{{
+        Chunk|
+        <sel> sel []int\l|
+        <columns> columns []*Column\l|
+        numVirtualRows int\l|
+        capacity int\l|
+        requiredRows int
+      }}"];
+    AppendNull -> {
+      appendSel;
+      Column_AppendNull;
+      Chunk:columns;
+    }
+    appendSel -> Chunk:sel;
+    AppendFloat64 -> {
+      appendSel;
+      Column_AppendFloat64;
+    };
+    subgraph cluster_Column {
+      graph[label="Column";fontsize=20;style="rounded,dashed";color="slategrey"]
+      Column_AppendNull[
+        shape="record";
+        label="{{
+          AppendNull
+        }}"];
+      Column_AppendFloat64[
+        shape="record";
+        label="{{
+          AppendFloat64
+        }}"];
+    }
+  }
+
+  rowsInGroup[
+    shape="record";
+    label="{{
+      rowsInGroup|
+      []chunk.Row
+    }}"];
+  partialResult4SumDistinctFloat64[
+    shape="record";
+    label="{{
+      partialResult4SumDistinctFloat64|
+	      <val> val    float64\l|
+	      <isNull> isNull bool\l|
+	      <valSet> valSet set.Float64Set\l
+    }}"];
+  partialResult4SumDistinctFloat64:valSet -> Float64Set;
+  Float64Set[
+    shape="record";
+    label="{{
+      Float64Set|
+        Float64Set map[float64]struct\{\}\l|
+        使用map去重
+    }}"];
+
+  sum4DistinctFloat64 -> {
+    AllocPartialResult;
+    ResetPartialResult;
+    UpdatePartialResult;
+    AppendFinalResult2Chunk;
+  }[color="#b83b5e"];
+
+  AllocPartialResult[
+    shape="record";
+    label="{{
+      AllocPartialResult|
+      分配初始的PartialResult\l
+    }}"];
+
+  AllocPartialResult -> {
+    partialResult4SumDistinctFloat64;
+    NewFloat64Set;
+  }
+  UpdatePartialResult[
+    shape="record";
+    label="{{
+      UpdatePartialResult|
+      使用valSet去重
+    }}"];
+  UpdatePartialResult -> {
+    EvalReal;
+    partialResult4SumDistinctFloat64;
+  }
+  NewFloat64Set -> Float64Set;
+
+  AppendFinalResult2Chunk[
+    shape="record";
+    label="{{
+      AppendFinalResult2Chunk|
+      将结果写入chunk中\l
+    }}"];
+  AppendFinalResult2Chunk -> {
+    AppendNull;
+    AppendFloat64;
+  }
+
+  edge[style=dashed;color=blue];
+  rowsInGroup -> UpdatePartialResult;
+  partialResult4SumDistinctFloat64:val -> AppendFinalResult2Chunk;
+  EvalReal -> partialResult4SumDistinctFloat64:val;
+}

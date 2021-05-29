@@ -1,0 +1,819 @@
+lldb)  bt
+  thread #2: tid = 0x8d5f24, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: java_md_macosx.c:890: ContinueInNewThread0
+    frame #2: java.c:2242: ContinueInNewThread
+    frame #3: java_md_macosx.c:1071: JVMInit
+    frame #4: java.c:329: JLI_Launch
+    frame #5: main.c:166: main
+    frame #6: java_md_macosx.c:310: apple_main
+    frame #7: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #8: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #9: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: workerManager.hpp:62: unsigned int WorkerManager::add_workers<AbstractWorkGang>(AbstractWorkGang*, unsigned int, unsigned int, unsigned int, os::ThreadType, bool)
+    frame #3: workgroup.cpp:71: AbstractWorkGang::add_workers(unsigned int, bool)
+    frame #4: workgroup.cpp:58: AbstractWorkGang::add_workers(bool)
+    frame #5: workgroup.cpp:47: AbstractWorkGang::initialize_workers()
+    frame #6: g1CollectedHeap.cpp:1732: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #7: g1CollectedHeap.cpp:1727: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #8: universe.inline.hpp:56: CollectedHeap* Universe::create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>()
+    frame #9: universe.cpp:730: Universe::create_heap()
+    frame #10: universe.cpp:755: Universe::initialize_heap()
+    frame #11: universe.cpp:668: universe_init()
+    frame #12: init.cpp:110: init_globals()
+    frame #13: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #14: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #15: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #16: java.c:1450: InitializeJVM
+    frame #17: java.c:402: JavaMain
+    frame #18: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #19: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #20: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: workerManager.hpp:62: unsigned int WorkerManager::add_workers<AbstractWorkGang>(AbstractWorkGang*, unsigned int, unsigned int, unsigned int, os::ThreadType, bool)
+    frame #3: workgroup.cpp:71: AbstractWorkGang::add_workers(unsigned int, bool)
+    frame #4: workgroup.cpp:58: AbstractWorkGang::add_workers(bool)
+    frame #5: workgroup.cpp:47: AbstractWorkGang::initialize_workers()
+    frame #6: g1CollectedHeap.cpp:1732: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #7: g1CollectedHeap.cpp:1727: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #8: universe.inline.hpp:56: CollectedHeap* Universe::create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>()
+    frame #9: universe.cpp:730: Universe::create_heap()
+    frame #10: universe.cpp:755: Universe::initialize_heap()
+    frame #11: universe.cpp:668: universe_init()
+    frame #12: init.cpp:110: init_globals()
+    frame #13: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #14: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #15: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #16: java.c:1450: InitializeJVM
+    frame #17: java.c:402: JavaMain
+    frame #18: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #19: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #20: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: workerManager.hpp:62: unsigned int WorkerManager::add_workers<AbstractWorkGang>(AbstractWorkGang*, unsigned int, unsigned int, unsigned int, os::ThreadType, bool)
+    frame #3: workgroup.cpp:71: AbstractWorkGang::add_workers(unsigned int, bool)
+    frame #4: workgroup.cpp:58: AbstractWorkGang::add_workers(bool)
+    frame #5: workgroup.cpp:47: AbstractWorkGang::initialize_workers()
+    frame #6: g1CollectedHeap.cpp:1732: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #7: g1CollectedHeap.cpp:1727: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #8: universe.inline.hpp:56: CollectedHeap* Universe::create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>()
+    frame #9: universe.cpp:730: Universe::create_heap()
+    frame #10: universe.cpp:755: Universe::initialize_heap()
+    frame #11: universe.cpp:668: universe_init()
+    frame #12: init.cpp:110: init_globals()
+    frame #13: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #14: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #15: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #16: java.c:1450: InitializeJVM
+    frame #17: java.c:402: JavaMain
+    frame #18: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #19: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #20: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: workerManager.hpp:62: unsigned int WorkerManager::add_workers<AbstractWorkGang>(AbstractWorkGang*, unsigned int, unsigned int, unsigned int, os::ThreadType, bool)
+    frame #3: workgroup.cpp:71: AbstractWorkGang::add_workers(unsigned int, bool)
+    frame #4: workgroup.cpp:58: AbstractWorkGang::add_workers(bool)
+    frame #5: workgroup.cpp:47: AbstractWorkGang::initialize_workers()
+    frame #6: g1CollectedHeap.cpp:1732: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #7: g1CollectedHeap.cpp:1727: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #8: universe.inline.hpp:56: CollectedHeap* Universe::create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>()
+    frame #9: universe.cpp:730: Universe::create_heap()
+    frame #10: universe.cpp:755: Universe::initialize_heap()
+    frame #11: universe.cpp:668: universe_init()
+    frame #12: init.cpp:110: init_globals()
+    frame #13: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #14: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #15: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #16: java.c:1450: InitializeJVM
+    frame #17: java.c:402: JavaMain
+    frame #18: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #19: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #20: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: workerManager.hpp:62: unsigned int WorkerManager::add_workers<AbstractWorkGang>(AbstractWorkGang*, unsigned int, unsigned int, unsigned int, os::ThreadType, bool)
+    frame #3: workgroup.cpp:71: AbstractWorkGang::add_workers(unsigned int, bool)
+    frame #4: workgroup.cpp:58: AbstractWorkGang::add_workers(bool)
+    frame #5: workgroup.cpp:47: AbstractWorkGang::initialize_workers()
+    frame #6: g1CollectedHeap.cpp:1732: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #7: g1CollectedHeap.cpp:1727: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #8: universe.inline.hpp:56: CollectedHeap* Universe::create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>()
+    frame #9: universe.cpp:730: Universe::create_heap()
+    frame #10: universe.cpp:755: Universe::initialize_heap()
+    frame #11: universe.cpp:668: universe_init()
+    frame #12: init.cpp:110: init_globals()
+    frame #13: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #14: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #15: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #16: java.c:1450: InitializeJVM
+    frame #17: java.c:402: JavaMain
+    frame #18: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #19: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #20: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: workerManager.hpp:62: unsigned int WorkerManager::add_workers<AbstractWorkGang>(AbstractWorkGang*, unsigned int, unsigned int, unsigned int, os::ThreadType, bool)
+    frame #3: workgroup.cpp:71: AbstractWorkGang::add_workers(unsigned int, bool)
+    frame #4: workgroup.cpp:58: AbstractWorkGang::add_workers(bool)
+    frame #5: workgroup.cpp:47: AbstractWorkGang::initialize_workers()
+    frame #6: g1CollectedHeap.cpp:1732: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #7: g1CollectedHeap.cpp:1727: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #8: universe.inline.hpp:56: CollectedHeap* Universe::create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>()
+    frame #9: universe.cpp:730: Universe::create_heap()
+    frame #10: universe.cpp:755: Universe::initialize_heap()
+    frame #11: universe.cpp:668: universe_init()
+    frame #12: init.cpp:110: init_globals()
+    frame #13: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #14: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #15: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #16: java.c:1450: InitializeJVM
+    frame #17: java.c:402: JavaMain
+    frame #18: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #19: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #20: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: workerManager.hpp:62: unsigned int WorkerManager::add_workers<AbstractWorkGang>(AbstractWorkGang*, unsigned int, unsigned int, unsigned int, os::ThreadType, bool)
+    frame #3: workgroup.cpp:71: AbstractWorkGang::add_workers(unsigned int, bool)
+    frame #4: workgroup.cpp:58: AbstractWorkGang::add_workers(bool)
+    frame #5: workgroup.cpp:47: AbstractWorkGang::initialize_workers()
+    frame #6: g1CollectedHeap.cpp:1732: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #7: g1CollectedHeap.cpp:1727: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #8: universe.inline.hpp:56: CollectedHeap* Universe::create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>()
+    frame #9: universe.cpp:730: Universe::create_heap()
+    frame #10: universe.cpp:755: Universe::initialize_heap()
+    frame #11: universe.cpp:668: universe_init()
+    frame #12: init.cpp:110: init_globals()
+    frame #13: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #14: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #15: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #16: java.c:1450: InitializeJVM
+    frame #17: java.c:402: JavaMain
+    frame #18: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #19: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #20: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: workerManager.hpp:62: unsigned int WorkerManager::add_workers<AbstractWorkGang>(AbstractWorkGang*, unsigned int, unsigned int, unsigned int, os::ThreadType, bool)
+    frame #3: workgroup.cpp:71: AbstractWorkGang::add_workers(unsigned int, bool)
+    frame #4: workgroup.cpp:58: AbstractWorkGang::add_workers(bool)
+    frame #5: workgroup.cpp:47: AbstractWorkGang::initialize_workers()
+    frame #6: g1CollectedHeap.cpp:1732: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #7: g1CollectedHeap.cpp:1727: G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy*)
+    frame #8: universe.inline.hpp:56: CollectedHeap* Universe::create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>()
+    frame #9: universe.cpp:730: Universe::create_heap()
+    frame #10: universe.cpp:755: Universe::initialize_heap()
+    frame #11: universe.cpp:668: universe_init()
+    frame #12: init.cpp:110: init_globals()
+    frame #13: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #14: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #15: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #16: java.c:1450: InitializeJVM
+    frame #17: java.c:402: JavaMain
+    frame #18: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #19: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #20: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: concurrentGCThread.cpp:41: ConcurrentGCThread::create_and_start(ThreadPriority)
+    frame #3: concurrentG1RefineThread.cpp:66: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #4: concurrentG1RefineThread.cpp:51: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #5: concurrentG1Refine.cpp:210: ConcurrentG1Refine::create(CardTableEntryClosure*, int*)
+    frame #6: g1CollectedHeap.cpp:1814: G1CollectedHeap::initialize()
+    frame #7: universe.cpp:758: Universe::initialize_heap()
+    frame #8: universe.cpp:668: universe_init()
+    frame #9: init.cpp:110: init_globals()
+    frame #10: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #11: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #12: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #13: java.c:1450: InitializeJVM
+    frame #14: java.c:402: JavaMain
+    frame #15: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #16: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #17: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: concurrentGCThread.cpp:41: ConcurrentGCThread::create_and_start(ThreadPriority)
+    frame #3: concurrentG1RefineThread.cpp:66: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #4: concurrentG1RefineThread.cpp:51: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #5: concurrentG1Refine.cpp:210: ConcurrentG1Refine::create(CardTableEntryClosure*, int*)
+    frame #6: g1CollectedHeap.cpp:1814: G1CollectedHeap::initialize()
+    frame #7: universe.cpp:758: Universe::initialize_heap()
+    frame #8: universe.cpp:668: universe_init()
+    frame #9: init.cpp:110: init_globals()
+    frame #10: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #11: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #12: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #13: java.c:1450: InitializeJVM
+    frame #14: java.c:402: JavaMain
+    frame #15: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #16: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #17: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: concurrentGCThread.cpp:41: ConcurrentGCThread::create_and_start(ThreadPriority)
+    frame #3: concurrentG1RefineThread.cpp:66: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #4: concurrentG1RefineThread.cpp:51: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #5: concurrentG1Refine.cpp:210: ConcurrentG1Refine::create(CardTableEntryClosure*, int*)
+    frame #6: g1CollectedHeap.cpp:1814: G1CollectedHeap::initialize()
+    frame #7: universe.cpp:758: Universe::initialize_heap()
+    frame #8: universe.cpp:668: universe_init()
+    frame #9: init.cpp:110: init_globals()
+    frame #10: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #11: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #12: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #13: java.c:1450: InitializeJVM
+    frame #14: java.c:402: JavaMain
+    frame #15: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #16: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #17: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: concurrentGCThread.cpp:41: ConcurrentGCThread::create_and_start(ThreadPriority)
+    frame #3: concurrentG1RefineThread.cpp:66: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #4: concurrentG1RefineThread.cpp:51: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #5: concurrentG1Refine.cpp:210: ConcurrentG1Refine::create(CardTableEntryClosure*, int*)
+    frame #6: g1CollectedHeap.cpp:1814: G1CollectedHeap::initialize()
+    frame #7: universe.cpp:758: Universe::initialize_heap()
+    frame #8: universe.cpp:668: universe_init()
+    frame #9: init.cpp:110: init_globals()
+    frame #10: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #11: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #12: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #13: java.c:1450: InitializeJVM
+    frame #14: java.c:402: JavaMain
+    frame #15: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #16: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #17: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: concurrentGCThread.cpp:41: ConcurrentGCThread::create_and_start(ThreadPriority)
+    frame #3: concurrentG1RefineThread.cpp:66: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #4: concurrentG1RefineThread.cpp:51: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #5: concurrentG1Refine.cpp:210: ConcurrentG1Refine::create(CardTableEntryClosure*, int*)
+    frame #6: g1CollectedHeap.cpp:1814: G1CollectedHeap::initialize()
+    frame #7: universe.cpp:758: Universe::initialize_heap()
+    frame #8: universe.cpp:668: universe_init()
+    frame #9: init.cpp:110: init_globals()
+    frame #10: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #11: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #12: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #13: java.c:1450: InitializeJVM
+    frame #14: java.c:402: JavaMain
+    frame #15: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #16: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #17: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: concurrentGCThread.cpp:41: ConcurrentGCThread::create_and_start(ThreadPriority)
+    frame #3: concurrentG1RefineThread.cpp:66: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #4: concurrentG1RefineThread.cpp:51: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #5: concurrentG1Refine.cpp:210: ConcurrentG1Refine::create(CardTableEntryClosure*, int*)
+    frame #6: g1CollectedHeap.cpp:1814: G1CollectedHeap::initialize()
+    frame #7: universe.cpp:758: Universe::initialize_heap()
+    frame #8: universe.cpp:668: universe_init()
+    frame #9: init.cpp:110: init_globals()
+    frame #10: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #11: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #12: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #13: java.c:1450: InitializeJVM
+    frame #14: java.c:402: JavaMain
+    frame #15: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #16: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #17: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: concurrentGCThread.cpp:41: ConcurrentGCThread::create_and_start(ThreadPriority)
+    frame #3: concurrentG1RefineThread.cpp:66: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #4: concurrentG1RefineThread.cpp:51: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #5: concurrentG1Refine.cpp:210: ConcurrentG1Refine::create(CardTableEntryClosure*, int*)
+    frame #6: g1CollectedHeap.cpp:1814: G1CollectedHeap::initialize()
+    frame #7: universe.cpp:758: Universe::initialize_heap()
+    frame #8: universe.cpp:668: universe_init()
+    frame #9: init.cpp:110: init_globals()
+    frame #10: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #11: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #12: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #13: java.c:1450: InitializeJVM
+    frame #14: java.c:402: JavaMain
+    frame #15: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #16: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #17: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: concurrentGCThread.cpp:41: ConcurrentGCThread::create_and_start(ThreadPriority)
+    frame #3: concurrentG1RefineThread.cpp:66: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #4: concurrentG1RefineThread.cpp:51: ConcurrentG1RefineThread::ConcurrentG1RefineThread(ConcurrentG1Refine*, ConcurrentG1RefineThread*, CardTableEntryClosure*, unsigned int, unsigned int, unsigned long, unsigned long)
+    frame #5: concurrentG1Refine.cpp:210: ConcurrentG1Refine::create(CardTableEntryClosure*, int*)
+    frame #6: g1CollectedHeap.cpp:1814: G1CollectedHeap::initialize()
+    frame #7: universe.cpp:758: Universe::initialize_heap()
+    frame #8: universe.cpp:668: universe_init()
+    frame #9: init.cpp:110: init_globals()
+    frame #10: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #11: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #12: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #13: java.c:1450: InitializeJVM
+    frame #14: java.c:402: JavaMain
+    frame #15: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #16: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #17: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: concurrentGCThread.cpp:41: ConcurrentGCThread::create_and_start(ThreadPriority)
+    frame #3: g1YoungRemSetSamplingThread.cpp:42: G1YoungRemSetSamplingThread::G1YoungRemSetSamplingThread()
+    frame #4: g1YoungRemSetSamplingThread.cpp:40: G1YoungRemSetSamplingThread::G1YoungRemSetSamplingThread()
+    frame #5: concurrentG1Refine.cpp:229: ConcurrentG1Refine::create(CardTableEntryClosure*, int*)
+    frame #6: g1CollectedHeap.cpp:1814: G1CollectedHeap::initialize()
+    frame #7: universe.cpp:758: Universe::initialize_heap()
+    frame #8: universe.cpp:668: universe_init()
+    frame #9: init.cpp:110: init_globals()
+    frame #10: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #11: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #12: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #13: java.c:1450: InitializeJVM
+    frame #14: java.c:402: JavaMain
+    frame #15: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #16: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #17: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: concurrentGCThread.cpp:41: ConcurrentGCThread::create_and_start(ThreadPriority)
+    frame #3: concurrentMarkThread.cpp:54: ConcurrentMarkThread::ConcurrentMarkThread(G1ConcurrentMark*)
+    frame #4: concurrentMarkThread.cpp:51: ConcurrentMarkThread::ConcurrentMarkThread(G1ConcurrentMark*)
+    frame #5: g1ConcurrentMark.cpp:441: G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap*, G1RegionToSpaceMapper*, G1RegionToSpaceMapper*)
+    frame #6: g1ConcurrentMark.cpp:435: G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap*, G1RegionToSpaceMapper*, G1RegionToSpaceMapper*)
+    frame #7: g1CollectedHeap.cpp:1923: G1CollectedHeap::initialize()
+    frame #8: universe.cpp:758: Universe::initialize_heap()
+    frame #9: universe.cpp:668: universe_init()
+    frame #10: init.cpp:110: init_globals()
+    frame #11: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #12: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #13: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #14: java.c:1450: InitializeJVM
+    frame #15: java.c:402: JavaMain
+    frame #16: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #17: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #18: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: workerManager.hpp:62: unsigned int WorkerManager::add_workers<AbstractWorkGang>(AbstractWorkGang*, unsigned int, unsigned int, unsigned int, os::ThreadType, bool)
+    frame #3: workgroup.cpp:71: AbstractWorkGang::add_workers(unsigned int, bool)
+    frame #4: workgroup.cpp:58: AbstractWorkGang::add_workers(bool)
+    frame #5: workgroup.cpp:47: AbstractWorkGang::initialize_workers()
+    frame #6: g1ConcurrentMark.cpp:504: G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap*, G1RegionToSpaceMapper*, G1RegionToSpaceMapper*)
+    frame #7: g1ConcurrentMark.cpp:435: G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap*, G1RegionToSpaceMapper*, G1RegionToSpaceMapper*)
+    frame #8: g1CollectedHeap.cpp:1923: G1CollectedHeap::initialize()
+    frame #9: universe.cpp:758: Universe::initialize_heap()
+    frame #10: universe.cpp:668: universe_init()
+    frame #11: init.cpp:110: init_globals()
+    frame #12: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #13: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #14: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #15: java.c:1450: InitializeJVM
+    frame #16: java.c:402: JavaMain
+    frame #17: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #18: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #19: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: workerManager.hpp:62: unsigned int WorkerManager::add_workers<AbstractWorkGang>(AbstractWorkGang*, unsigned int, unsigned int, unsigned int, os::ThreadType, bool)
+    frame #3: workgroup.cpp:71: AbstractWorkGang::add_workers(unsigned int, bool)
+    frame #4: workgroup.cpp:58: AbstractWorkGang::add_workers(bool)
+    frame #5: workgroup.cpp:47: AbstractWorkGang::initialize_workers()
+    frame #6: g1ConcurrentMark.cpp:504: G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap*, G1RegionToSpaceMapper*, G1RegionToSpaceMapper*)
+    frame #7: g1ConcurrentMark.cpp:435: G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap*, G1RegionToSpaceMapper*, G1RegionToSpaceMapper*)
+    frame #8: g1CollectedHeap.cpp:1923: G1CollectedHeap::initialize()
+    frame #9: universe.cpp:758: Universe::initialize_heap()
+    frame #10: universe.cpp:668: universe_init()
+    frame #11: init.cpp:110: init_globals()
+    frame #12: thread.cpp:3623: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #13: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #14: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #15: java.c:1450: InitializeJVM
+    frame #16: java.c:402: JavaMain
+    frame #17: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #18: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #19: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: thread.cpp:3653: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #3: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #4: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #5: java.c:1450: InitializeJVM
+    frame #6: java.c:402: JavaMain
+    frame #7: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #8: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #9: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: thread.cpp:1602: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #3: thread.cpp:1593: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #4: jvm.cpp:2815: ::JVM_StartThread(JNIEnv *, jobject)
+    frame #5: 0x000000010582dbb0 0x000000010582dbb0
+    frame #6: 0x000000010580b4a3 0x000000010580b4a3
+    frame #7: 0x000000010580b4a3 0x000000010580b4a3
+    frame #8: 0x00000001058009f1 0x00000001058009f1
+    frame #9: javaCalls.cpp:410: JavaCalls::call_helper(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #10: os_bsd.cpp:3682: os::os_exception_wrapper(void (*)(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*), JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #11: javaCalls.cpp:306: JavaCalls::call(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #12: instanceKlass.cpp:1119: InstanceKlass::call_class_initializer_impl(instanceKlassHandle, Thread*)
+    frame #13: instanceKlass.cpp:1085: InstanceKlass::call_class_initializer(Thread*)
+    frame #14: instanceKlass.cpp:810: InstanceKlass::initialize_impl(instanceKlassHandle, Thread*)
+    frame #15: instanceKlass.cpp:474: InstanceKlass::initialize(Thread*)
+    frame #16: instanceKlass.cpp:768: InstanceKlass::initialize_impl(instanceKlassHandle, Thread*)
+    frame #17: instanceKlass.cpp:474: InstanceKlass::initialize(Thread*)
+    frame #18: interpreterRuntime.cpp:148: InterpreterRuntime::_new(JavaThread*, ConstantPool*, int)
+    frame #19: 0x000000010584e5b7 0x000000010584e5b7
+    frame #20: 0x000000010580b220 0x000000010580b220
+    frame #21: 0x000000010580b220 0x000000010580b220
+    frame #22: 0x000000010580b220 0x000000010580b220
+    frame #23: 0x000000010580b220 0x000000010580b220
+    frame #24: 0x00000001058009f1 0x00000001058009f1
+    frame #25: javaCalls.cpp:410: JavaCalls::call_helper(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #26: os_bsd.cpp:3682: os::os_exception_wrapper(void (*)(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*), JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #27: javaCalls.cpp:306: JavaCalls::call(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #28: instanceKlass.cpp:1119: InstanceKlass::call_class_initializer_impl(instanceKlassHandle, Thread*)
+    frame #29: instanceKlass.cpp:1085: InstanceKlass::call_class_initializer(Thread*)
+    frame #30: instanceKlass.cpp:810: InstanceKlass::initialize_impl(instanceKlassHandle, Thread*)
+    frame #31: instanceKlass.cpp:474: InstanceKlass::initialize(Thread*)
+    frame #32: interpreterRuntime.cpp:148: InterpreterRuntime::_new(JavaThread*, ConstantPool*, int)
+    frame #33: 0x000000010584e5b7 0x000000010584e5b7
+    frame #34: 0x000000010580b4a3 0x000000010580b4a3
+    frame #35: 0x00000001058009f1 0x00000001058009f1
+    frame #36: javaCalls.cpp:410: JavaCalls::call_helper(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #37: os_bsd.cpp:3682: os::os_exception_wrapper(void (*)(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*), JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #38: javaCalls.cpp:306: JavaCalls::call(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #39: instanceKlass.cpp:1119: InstanceKlass::call_class_initializer_impl(instanceKlassHandle, Thread*)
+    frame #40: instanceKlass.cpp:1085: InstanceKlass::call_class_initializer(Thread*)
+    frame #41: instanceKlass.cpp:810: InstanceKlass::initialize_impl(instanceKlassHandle, Thread*)
+    frame #42: instanceKlass.cpp:474: InstanceKlass::initialize(Thread*)
+    frame #43: thread.cpp:946: initialize_class(Symbol*, Thread*)
+    frame #44: thread.cpp:3461: Threads::initialize_java_lang_classes(JavaThread*, Thread*)
+    frame #45: thread.cpp:3693: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #46: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #47: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #48: java.c:1450: InitializeJVM
+    frame #49: java.c:402: JavaMain
+    frame #50: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #51: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #52: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: thread.cpp:1602: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #3: thread.cpp:1593: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #4: jvm.cpp:2815: ::JVM_StartThread(JNIEnv *, jobject)
+    frame #5: 0x000000010582dbb0 0x000000010582dbb0
+    frame #6: 0x000000010580b4a3 0x000000010580b4a3
+    frame #7: 0x000000010580b4a3 0x000000010580b4a3
+    frame #8: 0x00000001058009f1 0x00000001058009f1
+    frame #9: javaCalls.cpp:410: JavaCalls::call_helper(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #10: os_bsd.cpp:3682: os::os_exception_wrapper(void (*)(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*), JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #11: javaCalls.cpp:306: JavaCalls::call(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #12: instanceKlass.cpp:1119: InstanceKlass::call_class_initializer_impl(instanceKlassHandle, Thread*)
+    frame #13: instanceKlass.cpp:1085: InstanceKlass::call_class_initializer(Thread*)
+    frame #14: instanceKlass.cpp:810: InstanceKlass::initialize_impl(instanceKlassHandle, Thread*)
+    frame #15: instanceKlass.cpp:474: InstanceKlass::initialize(Thread*)
+    frame #16: thread.cpp:946: initialize_class(Symbol*, Thread*)
+    frame #17: thread.cpp:3465: Threads::initialize_java_lang_classes(JavaThread*, Thread*)
+    frame #18: thread.cpp:3693: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #19: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #20: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #21: java.c:1450: InitializeJVM
+    frame #22: java.c:402: JavaMain
+    frame #23: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #24: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #25: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: thread.cpp:1602: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #3: thread.cpp:1593: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #4: os.cpp:385: os::signal_init()
+    frame #5: thread.cpp:3720: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #6: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #7: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #8: java.c:1450: InitializeJVM
+    frame #9: java.c:402: JavaMain
+    frame #10: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #11: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #12: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: thread.cpp:1602: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #3: thread.cpp:3283: CompilerThread::CompilerThread(CompileQueue*, CompilerCounters*)
+    frame #4: thread.cpp:3283: CompilerThread::CompilerThread(CompileQueue*, CompilerCounters*)
+    frame #5: compileBroker.cpp:704: CompileBroker::make_thread(char const*, CompileQueue*, CompilerCounters*, AbstractCompiler*, bool, Thread*)
+    frame #6: compileBroker.cpp:790: CompileBroker::init_compiler_sweeper_threads(int, int)
+    frame #7: compileBroker.cpp:579: CompileBroker::compilation_init(Thread*)
+    frame #8: thread.cpp:3743: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #9: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #10: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #11: java.c:1450: InitializeJVM
+    frame #12: java.c:402: JavaMain
+    frame #13: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #14: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #15: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: thread.cpp:1602: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #3: thread.cpp:3283: CompilerThread::CompilerThread(CompileQueue*, CompilerCounters*)
+    frame #4: thread.cpp:3283: CompilerThread::CompilerThread(CompileQueue*, CompilerCounters*)
+    frame #5: compileBroker.cpp:704: CompileBroker::make_thread(char const*, CompileQueue*, CompilerCounters*, AbstractCompiler*, bool, Thread*)
+    frame #6: compileBroker.cpp:790: CompileBroker::init_compiler_sweeper_threads(int, int)
+    frame #7: compileBroker.cpp:579: CompileBroker::compilation_init(Thread*)
+    frame #8: thread.cpp:3743: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #9: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #10: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #11: java.c:1450: InitializeJVM
+    frame #12: java.c:402: JavaMain
+    frame #13: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #14: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #15: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: thread.cpp:1602: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #3: thread.cpp:3283: CompilerThread::CompilerThread(CompileQueue*, CompilerCounters*)
+    frame #4: thread.cpp:3283: CompilerThread::CompilerThread(CompileQueue*, CompilerCounters*)
+    frame #5: compileBroker.cpp:704: CompileBroker::make_thread(char const*, CompileQueue*, CompilerCounters*, AbstractCompiler*, bool, Thread*)
+    frame #6: compileBroker.cpp:790: CompileBroker::init_compiler_sweeper_threads(int, int)
+    frame #7: compileBroker.cpp:579: CompileBroker::compilation_init(Thread*)
+    frame #8: thread.cpp:3743: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #9: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #10: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #11: java.c:1450: InitializeJVM
+    frame #12: java.c:402: JavaMain
+    frame #13: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #14: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #15: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: thread.cpp:1602: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #3: thread.cpp:3283: CompilerThread::CompilerThread(CompileQueue*, CompilerCounters*)
+    frame #4: thread.cpp:3283: CompilerThread::CompilerThread(CompileQueue*, CompilerCounters*)
+    frame #5: compileBroker.cpp:704: CompileBroker::make_thread(char const*, CompileQueue*, CompilerCounters*, AbstractCompiler*, bool, Thread*)
+    frame #6: compileBroker.cpp:798: CompileBroker::init_compiler_sweeper_threads(int, int)
+    frame #7: compileBroker.cpp:579: CompileBroker::compilation_init(Thread*)
+    frame #8: thread.cpp:3743: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #9: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #10: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #11: java.c:1450: InitializeJVM
+    frame #12: java.c:402: JavaMain
+    frame #13: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #14: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #15: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: thread.cpp:1602: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #3: thread.cpp:3303: CodeCacheSweeperThread::CodeCacheSweeperThread()
+    frame #4: thread.cpp:3303: CodeCacheSweeperThread::CodeCacheSweeperThread()
+    frame #5: compileBroker.cpp:706: CompileBroker::make_thread(char const*, CompileQueue*, CompilerCounters*, AbstractCompiler*, bool, Thread*)
+    frame #6: compileBroker.cpp:807: CompileBroker::init_compiler_sweeper_threads(int, int)
+    frame #7: compileBroker.cpp:579: CompileBroker::compilation_init(Thread*)
+    frame #8: thread.cpp:3743: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #9: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #10: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #11: java.c:1450: InitializeJVM
+    frame #12: java.c:402: JavaMain
+    frame #13: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #14: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #15: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: thread.cpp:1602: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #3: thread.cpp:1593: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #4: jvm.cpp:2815: ::JVM_StartThread(JNIEnv *, jobject)
+    frame #5: 0x000000010582dbb0 0x000000010582dbb0
+    frame #6: 0x000000010580b4a3 0x000000010580b4a3
+    frame #7: 0x000000010580b4a3 0x000000010580b4a3
+    frame #8: 0x000000010580b4a3 0x000000010580b4a3
+    frame #9: 0x000000010580b220 0x000000010580b220
+    frame #10: 0x00000001058009f1 0x00000001058009f1
+    frame #11: javaCalls.cpp:410: JavaCalls::call_helper(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #12: os_bsd.cpp:3682: os::os_exception_wrapper(void (*)(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*), JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #13: javaCalls.cpp:306: JavaCalls::call(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #14: instanceKlass.cpp:1119: InstanceKlass::call_class_initializer_impl(instanceKlassHandle, Thread*)
+    frame #15: instanceKlass.cpp:1085: InstanceKlass::call_class_initializer(Thread*)
+    frame #16: instanceKlass.cpp:810: InstanceKlass::initialize_impl(instanceKlassHandle, Thread*)
+    frame #17: instanceKlass.cpp:474: InstanceKlass::initialize(Thread*)
+    frame #18: linkResolver.cpp:1022: LinkResolver::resolve_static_call(CallInfo&, LinkInfo const&, bool, Thread*)
+    frame #19: linkResolver.cpp:1575: LinkResolver::resolve_invokestatic(CallInfo&, constantPoolHandle const&, int, Thread*)
+    frame #20: linkResolver.cpp:1536: LinkResolver::resolve_invoke(CallInfo&, Handle, constantPoolHandle const&, int, Bytecodes::Code, Thread*)
+    frame #21: interpreterRuntime.cpp:743: InterpreterRuntime::resolve_invoke(JavaThread*, Bytecodes::Code)
+    frame #22: interpreterRuntime.cpp:870: InterpreterRuntime::resolve_from_cache(JavaThread*, Bytecodes::Code)
+    frame #23: 0x000000010584c944 0x000000010584c944
+    frame #24: 0x000000010580b4a3 0x000000010580b4a3
+    frame #25: 0x000000010580b220 0x000000010580b220
+    frame #26: 0x000000010580b220 0x000000010580b220
+    frame #27: 0x000000010580aee0 0x000000010580aee0
+    frame #28: 0x000000010580ac70 0x000000010580ac70
+    frame #29: 0x000000010580ac70 0x000000010580ac70
+    frame #30: 0x000000010580b220 0x000000010580b220
+    frame #31: 0x000000010580b220 0x000000010580b220
+    frame #32: 0x00000001058009f1 0x00000001058009f1
+    frame #33: javaCalls.cpp:410: JavaCalls::call_helper(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #34: os_bsd.cpp:3682: os::os_exception_wrapper(void (*)(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*), JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #35: javaCalls.cpp:306: JavaCalls::call(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #36: javaCalls.cpp:264: JavaCalls::call_static(JavaValue*, KlassHandle, Symbol*, Symbol*, JavaCallArguments*, Thread*)
+    frame #37: javaCalls.cpp:270: JavaCalls::call_static(JavaValue*, KlassHandle, Symbol*, Symbol*, Thread*)
+    frame #38: thread.cpp:3413: call_initPhase2(Thread*)
+    frame #39: thread.cpp:3754: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #40: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #41: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #42: java.c:1450: InitializeJVM
+    frame #43: java.c:402: JavaMain
+    frame #44: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #45: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #46: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: thread.cpp:1602: JavaThread::JavaThread(void (*)(JavaThread*, Thread*), unsigned long)
+    frame #3: serviceThread.hpp:39: ServiceThread::ServiceThread(void (*)(JavaThread*, Thread*))
+    frame #4: serviceThread.hpp:39: ServiceThread::ServiceThread(void (*)(JavaThread*, Thread*))
+    frame #5: serviceThread.cpp:63: ServiceThread::initialize()
+    frame #6: management.cpp:142: Management::initialize(Thread*)
+    frame #7: thread.cpp:3800: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #8: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #9: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #10: java.c:1450: InitializeJVM
+    frame #11: java.c:402: JavaMain
+    frame #12: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #13: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #14: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue
+Process 49512 resuming
+Command #2 'continue' continued the target.
+(lldb)  bt
+  thread #6: tid = 0x8d5f2b, 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create, stop reason = breakpoint 2.1
+    frame #0: 0x00007fffd96688c3 libsystem_pthread.dylib`pthread_create
+    frame #1: os_bsd.cpp:768: os::create_thread(Thread*, os::ThreadType, unsigned long)
+    frame #2: thread.cpp:1201: WatcherThread::WatcherThread()
+    frame #3: thread.cpp:1199: WatcherThread::WatcherThread()
+    frame #4: thread.cpp:1339: WatcherThread::start()
+    frame #5: thread.cpp:3840: Threads::create_vm(JavaVMInitArgs*, bool*)
+    frame #6: jni.cpp:3938: JNI_CreateJavaVM_inner(JavaVM_**, void**, void*)
+    frame #7: jni.cpp:4033: ::JNI_CreateJavaVM(JavaVM **, void **, void *)
+    frame #8: java.c:1450: InitializeJVM
+    frame #9: java.c:402: JavaMain
+    frame #10: 0x00007fffd9668aab libsystem_pthread.dylib`_pthread_body + 180
+    frame #11: 0x00007fffd96689f7 libsystem_pthread.dylib`_pthread_start + 286
+    frame #12: 0x00007fffd96681fd libsystem_pthread.dylib`thread_start + 13
+(lldb)  continue

@@ -1,0 +1,219 @@
+digraph leveled_compaction_overview {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_VersionStorageInfo {
+    graph[label="VersionStorageInfo";fontsize=20;];
+    CompactionScoreLevel;
+    CompactionScore;
+  } // end of VersionStorageInfo
+
+  subgraph cluster_Compaction {
+    graph[label="Compaction";fontsize=20;];
+    Compaction[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        Compaction|
+          VersionStorageInfo* input_vstorage_;\l|
+          const int start_level_;\l|
+          const int output_level_;\l|
+          ColumnFamilyData* cfd_;\l|
+          const std::vector\<CompactionInputFiles\> inputs_;\l
+          std::vector\<FileMetaData*\> grandparents_;\l
+      }}";
+    ];
+  }
+
+  subgraph cluster_LevelCompactionBuilder {
+    graph[label="LevelCompactionBuilder";fontsize=20;];
+    LevelCompactionBuilder_PickCompaction[
+      shape="record"
+      label="{{
+        PickCompaction
+      }}"
+    ];
+    LevelCompactionBuilder_PickCompaction -> {
+      SetupOtherL0FilesIfNeeded;
+      SetupOtherInputsIfNeeded;
+      GetCompaction;
+      SetupInitialFiles;
+    }[color="#b83b5e"];
+
+    SetupOtherL0FilesIfNeeded[shape="record";
+      label="{{
+        SetupOtherL0FilesIfNeeded|
+        如果start_level_为0 \l 
+        且output level不为0\l
+        选择level0中其他和start_level_inputs_\l
+        重叠的file\l
+      }}";
+    ];
+    compaction_inputs_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        compaction_inputs_|
+          std::vector\<CompactionInputFiles\>\l compaction_inputs_;\l
+      }}";
+    ];
+    SetupOtherL0FilesIfNeeded -> {
+      start_level_inputs_;
+    }
+    SetupOtherInputsIfNeeded[
+      shape="record";
+      label="{{
+        SetupOtherInputsIfNeeded|
+        选择其他和input overlap的files\l
+      }}";
+    ];
+
+    SetupOtherInputsIfNeeded -> {
+      compaction_inputs_;
+    }
+    compaction_inputs_ -> GetCompaction[stye=dashed;color=gray40];
+
+    GetCompaction[
+      shape="record";
+      label="{{
+        GetCompaction|
+        根据compaction_inputs_生\l 
+        成最终的Compaction\l
+        并重新计算分数\l
+        将compaction注册到picker中\l
+        防止并行的执行level0的compact\l
+      }}";
+    ];
+    GetCompaction -> {
+      RegisterCompaction;
+      ComputeCompactionScore;
+      MaxFileSizeForLevel;
+      Compaction;
+    }[color="#f08a5d"]
+
+    SetupInitialFiles[shape="record";
+      label="{{
+        SetupInitialFiles|
+        根据compaction score\l
+        选择start_level_\l
+      }}";
+    ];
+
+    SetupInitialFiles -> {
+      CompactionScore;
+      CompactionScoreLevel;
+      PickIntraL0Compaction;
+      PickFileToCompact;
+      PickExpiredTtlFiles;
+      ExpandInputsToCleanCut;
+      PickFilesMarkedForCompaction;
+      PickFilesMarkedForPeriodicCompaction;
+      BottommostFilesMarkedForCompaction;
+      start_level_inputs_;
+      start_level_;
+    }[color="#3f72af"];
+
+    start_level_[shape="record";
+      label="{{
+        start_level_|
+        确定要compact的level
+      }}";
+    ];
+    start_level_ -> {
+      start_level_inputs_;
+      PickFileToCompact;
+    }[style=dashed;color=gray40];
+    {CompactionScore;CompactionScoreLevel} -> start_level_[style=dashed;]
+
+    PickFileToCompact[shape="record";
+      label="{{
+        PickFileToCompact|
+        选择start_level_中\l 
+        需要compact的file\l
+        以及下一层和该file overlap的文件\l
+      }}";
+    ];
+    PickFileToCompact -> start_level_inputs_;
+
+    start_level_inputs_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        start_level_inputs_\l|
+        类型: CompactionInputFiles\l|
+          int level;\l|
+          std::vector\<FileMetaData*\> files;\l|
+          std::vector\<AtomicCompactionUnitBoundary\>\l 
+          atomic_compaction_unit_boundaries;\l
+      }}";
+    ];
+
+    start_level_inputs_ -> {
+      SetupOtherL0FilesIfNeeded
+      SetupOtherInputsIfNeeded
+      compaction_inputs_;
+    } [style=dashed;color=gray;];
+
+    PickIntraL0Compaction[
+      shape="record";
+      label="{{
+        PickIntraL0Compaction|
+        level 0 file之间compaction\l
+        输出还是level 0\l
+        增加read效率，降低写放大\l
+      }}";
+    ];
+
+    PickIntraL0Compaction -> {
+      FindIntraL0Compaction;
+      level0_file_num_compaction_trigger;
+    }
+    FindIntraL0Compaction[shape="record";
+      label="{{
+        FindIntraL0Compaction|
+        将Level0中需要compaction的\l
+        放到start_level_inputs中\l
+      }}";
+    ];
+    FindIntraL0Compaction -> start_level_inputs_[style=dashed];
+
+
+    //PickExpiredTtlFiles
+    PickExpiredTtlFiles[
+      shape="record";
+      label="{{
+        PickExpiredTtlFiles|
+        选择过期的文件\l
+      }}";
+    ];
+    PickExpiredTtlFiles -> start_level_inputs_;
+
+    PickFilesMarkedForPeriodicCompaction[
+      shape="record";
+      label="{{
+        PickFilesMarkedForPeriodicCompaction|
+        选择标记为需要\l 
+        周期性compact的文件\l
+      }}";
+    ];
+
+    PickFilesMarkedForCompaction[
+      shape="record";
+      label="{{
+        PickFilesMarkedForCompaction|
+        选择被标记为compaction的\l
+      }}";
+    ];
+    PickFilesMarkedForCompaction -> start_level_inputs_;
+  }
+
+  subgraph cluster_LevelCompactionPicker {
+    graph[label="LevelCompactionPicker";fontsize=20;];
+    PickCompaction -> LevelCompactionBuilder_PickCompaction;
+  }
+}

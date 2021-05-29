@@ -1,0 +1,132 @@
+digraph schema_state {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  //rank
+  node[style=invis]
+  rank1 -> rank2 -> rank3 -> rank4 -> rank5 -> rank6[style=invis];
+
+  node[shape=box;style=stroke;];
+  StateReplicaOnly[
+    shape="record";
+    label="{{
+      StateReplicaOnly|
+      we're waiting tiflash\l 
+      replica to be finished\l
+    }}"];
+  StateDeleteOnly[
+    shape="record";
+    label="{{
+      StateDeleteOnly|
+      we can only delete items\l 
+      for this schema element\l
+    }}";];
+  StateWriteOnly[
+    shape="record";
+    label="{{
+      StateWriteOnly|
+      we can ouse any write operation\l 
+      on this schema element\l
+      but outer can't read the changed data\l
+    }}";];
+
+  node[shape=record;style=filled;fillcolor="turquoise"];
+  StateDeleteReorganization[
+    shape="record";
+    label="{{
+      StateDeleteReorganization|
+      we are re-organizing whole data\l 
+      after delete only state\l
+    }}"];
+  StateWriteReorganization[
+    shape="record";
+    label="{{
+      StateWriteReorganization|
+      we are re-organizing whole data\l
+      after write only state\l
+    }}"];
+
+  node[shape=record;style=filled;fillcolor="lightgreen"];
+  StatePublic[
+    shape="record";
+    label="{{
+      StatePublic|
+      this schema element is ok\l
+      for all write and read operations\l
+    }}"];
+  StateNone[
+    shape="record";
+    label="{{
+      StateNone|
+      this schema element is\l 
+      absent and can't be used\l
+    }}";];
+
+    //onDopIndex
+    StatePublic
+    -> StateWriteOnly
+    -> StateDeleteOnly
+    -> StateDeleteReorganization 
+    -> StateNone[
+      label="dropIndex";
+      color="salmon";
+      fontcolor="salmon"];
+
+    //onCreateIndex
+    StateNone
+    -> StateDeleteOnly 
+    -> StateWriteOnly
+    -> StateWriteReorganization
+    -> StatePublic[
+      label="createIndex";
+      color=limegreen;
+      fontcolor=limegreen];
+
+    //CreateDatabase
+    StateNone
+    -> StatePublic[
+      label="CreateDatabase";
+      color=burlywood;
+      fontcolor=burlywood];
+
+    //CreateTable
+    StateNone
+    -> StatePublic[label="CreateTable"];
+
+    //addColumn
+    StateNone
+    -> StateDeleteOnly
+    -> StateWriteOnly
+    -> StateWriteReorganization
+    -> StatePublic[
+      label="AddColumn";
+      color=teal;
+      fontcolor=teal];
+
+    //dropColumn
+    StatePublic
+    -> StateWriteOnly
+    -> StateDeleteOnly
+    -> StateDeleteReorganization
+    -> StateNone[
+      label="dropColumn";
+      color=orange;
+      fontcolor=orange];
+
+    //onAddTablePartition
+    StateNone
+    -> StateReplicaOnly
+    -> StatePublic[
+      label="addTablePartition";
+      color=deepskyblue;
+      fontcolor=deepskyblue];
+
+    {rank=same;rank1;StateNone;}
+    {rank=same;rank2;StateDeleteReorganization;}
+    {rank=same;rank3;StateDeleteOnly;StateReplicaOnly;}
+    {rank=same;rank4;StateWriteOnly;}
+    {rank=same;rank5;StateWriteReorganization;}
+    {rank=same;rank6;StatePublic;}
+}

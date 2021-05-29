@@ -1,0 +1,196 @@
+digraph doCompaction {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_DBImpl {
+    graph[label="DoCompaction";fontsize=20;];
+    subgraph cluster_CompactState {
+      graph[label="CompactState";fontsize=20;];
+      builder;
+      inputs_;
+    }
+    subgraph cluster_TableBuilder {
+      graph[label="TableBuilder";fontsize=20;];
+      TableBuilder_Add;
+      TableBuilder_FileSize;
+      TableBuilder_NumEntries;
+      TableBuilder_Finish;
+      New_TableBuilder;
+    }
+    subgraph cluster_VersionEdit {
+      graph[label="VersionEdit";fontsize=20;];
+      VersionEdit_AddFile;
+      VersionEdit_SetPrevLogNumber;
+      VersionEdit_SetLogNumber;
+      VersionEdit_RemoveFile;
+    }
+
+    DoCompactionWork -> {
+      MakeInputIterator;
+      Iterator_SeekToFirst;
+      CompactMemTable;
+      FinishCompactionOutputFile;
+      OpenCompactionOutputFile;
+      TableBuilder_Add;
+      TableBuilder_FileSize;
+      FinishCompactionOutputFile;
+      Iterator_Next;
+      InstallCompactionResults;
+    }[color="#75DAAD"];
+    OpenCompactionOutputFile[shape="record";
+      label="{{
+        OpenCompactionOutputFile|
+        获取新的FileNumer\l
+        创建新的TableBuilder\l
+      }}";
+    ];
+    FinishCompactionOutputFile[shape="record";
+      label="{{
+      FinishCompactionOutputFile|
+      调用Finish将结果刷入磁盘\l
+      }}";
+    ];
+    InstallCompactionResults[shape="record";
+      label="{{
+        InstallCompactionResults|
+        应用压缩结果\l
+        1.将input_列表中文件\l 
+        从VersionEdit中删掉\l
+        2.将新输出的文件加到versionEdit中\l
+        3.最后调用LogAndApply将VersionEdit\l 
+        写入manifest文件,并更改当前version\l
+      }}";
+    ];
+    CompactMemTable[shape="record";
+      label="{{
+        CompactMemTable|
+        将imm_内存的skiplist\l
+        dump到文件中\l
+      }}";
+    ];
+    WriteLevel0Table[shape="record";
+      label="{{
+        WriteLevel0Table|
+        写level0文件\l
+      }}";
+    ];
+    AddInputDeletions[shape="record";
+      label="{{
+        AddInputDeletions|
+        将input_列表中文件加入\l
+        VersionEdit 删除列表\l
+      }}";
+    ];
+    TableFileName[shape="record";
+      label="{{
+        TableFileName|
+        根据FileNumber\l 
+        拼接TableFileName\l
+      }}";
+    ];
+    TableBuilder_Add[shape="record";
+      label="{{
+        TableBuilder_Add|
+        将key,value加入TableBuilder\l
+        TableBuilder负责写入到datablock中\l
+        更新indexBlock等\l
+      }}";
+    ];
+    TableBuilder_Finish[shape="record";
+      label="{{
+        TableBuilder_Finish|
+        将indexBlock,\l 
+        metadatablock,\l 
+        footer等写入文件\l
+      }}";
+    ];
+
+    InstallCompactionResults -> {
+      VersionSet_LogAndApply;
+      VersionEdit_AddFile;
+      AddInputDeletions;
+    }[color="#FF7272"];
+    AddInputDeletions -> VersionEdit_RemoveFile;
+    inputs_ -> AddInputDeletions [style=dashed;color=gray;];
+    VersionEdit_AddFile -> VersionSet_LogAndApply [style=dashed;color=gray;];
+
+    OpenCompactionOutputFile -> {
+      VersionSet_NewFileNumber;
+      TableFileName;
+      New_TableBuilder;
+      builder;
+    }[color="#7A4D1D"];
+    VersionSet_NewFileNumber -> TableFileName -> New_TableBuilder[style=dashed;color=gray];
+
+    New_TableBuilder -> builder ->{
+      TableBuilder_Add;
+      TableBuilder_FileSize;
+      TableBuilder_NumEntries;
+      TableBuilder_Finish;
+    } [style=dashed;color=gray;];
+
+    FinishCompactionOutputFile -> {
+      TableBuilder_NumEntries;
+      TableBuilder_Finish;
+      TableBuilder_FileSize;
+      File_Sync;
+      File_Close;
+    }[color="#FFA41B"];
+
+    CompactMemTable -> {
+      WriteLevel0Table;
+      VersionEdit_SetPrevLogNumber;
+      VersionEdit_SetLogNumber;
+      VersionSet_LogAndApply;
+    };
+
+    WriteLevel0Table -> {
+      BuildTable;
+      VersionEdit_AddFile;
+      VersionSet_NewFileNumber;
+      PickLevelForMemTableOutput;
+    }[color="#00A8cc"];
+
+    subgraph cluster_VersionSet {
+      graph[label="VersionSet";fontsize=20;];
+      VersionSet_LogAndApply;
+      VersionSet_NewFileNumber;
+
+      subgraph cluster_Iterator {
+        graph[label="Iterator";fontsize=20;];
+        MakeInputIterator[shape="record";
+        label="{{
+          MakeInputIterator|
+            创建input iterator\l
+            由多个Iterator合并而来\l
+        }}";
+        ];
+        TableCache_NewIterator[shape="record";
+        label="{{
+          TableCache::NewIterator|
+            每个Table文件对应\l 
+            一个TableCacheIterator\l
+            用于迭代该SStable文件\l
+        }}";
+        ];
+        MakeInputIterator -> {
+          TableCache_NewIterator;
+          NewTwoLevelIterator;
+          LevelFileNumIterator;
+          NewMergingIterator;
+        }[color="#204051"];
+
+        LevelFileNumIterator -> NewTwoLevelIterator[style=dashed;color=gray;]
+        {NewTwoLevelIterator;TableCache_NewIterator} -> NewMergingIterator  [style=dashed;color=gray;];
+        {Iterator_SeekToFirst;Iterator_Next} -> TableBuilder_Add[style=dashed;color=gray;];
+        NewMergingIterator -> {
+          Iterator_Next;
+          Iterator_SeekToFirst;
+        }
+      }
+    }
+    inputs_ -> TableCache_NewIterator[style=dashed;color=gray;];
+    {rank=same;OpenCompactionOutputFile;FinishCompactionOutputFile;MakeInputIterator;CompactMemTable};
+  }
+}

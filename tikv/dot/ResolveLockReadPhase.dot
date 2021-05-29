@@ -1,0 +1,59 @@
+#include "styles.h"
+digraph ResolveLockReadPhase {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_MvccReader {
+    graph[label="MvccReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    MvccReader_new;
+    scan_locks[style_func;label="{{
+      scan_locks|
+    Scan locks that satisfies\l 
+    `filter(lock)` returns true,\l 
+    from the given start key `start`.\l
+    At most `limit` locks will be returned.\l
+    }}"]
+    scan_locks -> {
+      create_lock_cursor;
+      cursor_seek;
+      Lock_parse;
+    }
+  }
+
+  subgraph cluster_ResolveLockReadPhase {
+    graph[label="ResolveLockReadPhase";fontsize=20;style="rounded,dashed";color="slategrey"]
+    scan_key[style_var;label="{{
+      scan_key|
+      Option\<Key\>\l
+    }}"]
+    txn_status[style_var;label="{{
+      txn_status: HashMap\<\l 
+      TimeStamp, TimeStamp\>,\l
+    }}"]
+    filter[style_func;label="{{
+      filter|
+      \|lock\| txn_status.contains_key(&lock.ts),
+    }}"]
+    txn_status -> filter -> scan_locks;
+    scan_key -> scan_locks;
+    process_read[style_func;label="{{
+      process_read|
+      scan locks for \l 
+      resolving accoording to \l
+      txn_status\l
+    }}"]
+    process_read -> {
+      MvccReader_new;
+      scan_locks;
+      ResolveLock_new;
+    }
+    ResolveLock_new[style_func;label="{{
+      ResolveLock::new|
+      如果Kvparis不为空\l
+      ResolveLock 为NextCommand\l
+    }}"]
+  }
+  
+}

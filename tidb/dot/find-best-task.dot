@@ -1,0 +1,28 @@
+digraph findBestTask {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  baseLogicalPlan_findBestTask -> {
+    enumeratePhysicalPlans4Task;
+  }
+  enumeratePhysicalPlans4Task -> {
+    child_findBestTask;
+    rebuildChildTasks;
+    attach2Task;
+    optimizeByShuffle;
+  }
+  attach2Task -> {
+    addCost;
+    attachPlan2Task;
+    finishCopTask;
+  }
+  attachPlan2Task -> {
+    setChildren;
+  }
+  findBestTask -> {
+    baseLogicalPlan_findBestTask;
+    Datasource_findBestTask;
+  };
+}

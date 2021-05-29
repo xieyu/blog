@@ -1,0 +1,70 @@
+digraph RowContainer {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RowContainer[
+    shape="record";
+    label="{{
+      RowContainer|
+        provides a place for many rows\l
+        so many that we might want\l 
+        to spill them into disk.\l|
+	        m struct \{\l|
+	        	sync.RWMutex\l
+	        	<List> records *List\l|
+	        	<ListInDisk> recordsInDisk *ListInDisk\l|
+	        	spillError error\l
+	        \}\l|
+	        fieldType []*types.FieldType\l|
+	        chunkSize int\l|
+	        numRow    int\l|
+	        memTracker  *memory.Tracker\l|
+	        diskTracker *disk.Tracker\l|
+	        actionSpill *SpillDiskAction\l
+      }}"];
+  RowContainer:List -> List;
+  RowContainer:ListInDisk -> ListInDisk;
+  RowContainer -> SpillDiskAction;
+
+  List[
+    shape="record";
+    label="{{
+      List|
+	      fieldTypes    []*types.FieldType\l|
+	      initChunkSize int\l|
+	      maxChunkSize  int\l|
+	      length        int\l|
+	      chunks        []*Chunk\l|
+	      freelist      []*Chunk\l|
+	      memTracker  *memory.Tracker\l|
+	      consumedIdx int\l
+    }}"];
+  ListInDisk[
+    shape="record";
+    label="{{
+      ListInDisk|
+        fieldTypes []*types.FieldType\l|
+        offsets [][]int64\l|
+        offWrite int64\l|
+	      disk          *os.File\l|
+	      w             io.WriteCloser\l|
+	      bufFlushMutex sync.RWMutex\l|
+	      diskTracker   *disk.Tracker \l|
+	      numRowsInDisk int\l
+    }}"];
+  SpillDiskAction[
+    shape="record";
+    label="{{
+      SpillToDisk|
+	      c              *RowContainer\l|
+	      fallbackAction memory.ActionOnExceed\l|
+	      m              sync.Mutex\|
+	      once           sync.Once\l|
+	      cond           spillStatusCond\l|
+
+	      testSyncInputFunc  func()\l|
+	      testSyncOutputFunc func()\l|
+	      testWg             sync.WaitGroup\l
+    }}"];
+}

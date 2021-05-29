@@ -1,0 +1,158 @@
+digraph AnalyzeExec {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  AnalyzeExec_Next -> {
+    analyzeWorker;
+    SaveStatsToStorage;
+    SaveExtendedStatsToStorage;
+    MoveToHistory;
+    taskCh;
+  }[color="#3fc1c9"];
+
+  SaveStatsToStorage[
+    shape="record";
+    label="{{
+      SaveStatsToStorage|
+      将信息插入mysql数据表中\l
+      mysql.stats_meta\l
+      mysql.stats_buckets\l
+      mysql.stats_histograms\l
+    }}"];
+
+  SaveExtendedStatsToStorage[
+    shape="record";
+    label="{{
+      SaveExtendedStatsToStorage|
+      将信息插入mysql数据表中\l
+      msyql.stats_extended\l
+      mysql.stats_meta\l
+    }}"];
+
+  analyzeWorker[
+    shape="record";
+    label="{{
+      analyzeWorker|
+      从taskCh取任务\l
+      然后将结果放入resultCh中\l
+    }}"];
+  resultCh[
+    shape="record";
+    style=filled;
+    fillcolor=lime;
+    label="{{
+      resultCh|
+	      TableID  core.AnalyzeTableID\l|
+	      Hist     []*statistics.Histogram\l|
+	      Cms      []*statistics.CMSketch\l|
+	      ExtStats *statistics.ExtendedStatsColl\l|
+	      Count    int64\l|
+	      IsIndex  int\l|
+	      Err      error\l|
+	      job      *statistics.AnalyzeJob\l
+    }}"];
+  taskCh[
+    shape="record";
+    style=filled;
+    fillcolor=lime;
+    label="{{
+      taskCh|
+	      taskType           taskType\l|
+	      idxExec            *AnalyzeIndexExec\l|
+	      colExec            *AnalyzeColumnsExec\l|
+	      fastExec           *AnalyzeFastExec\l|
+	      idxIncrementalExec *analyzeIndexIncrementalExec\l|
+	      colIncrementalExec *analyzePKIncrementalExec\l|
+	      job                *statistics.AnalyzeJob\l
+    }}"];
+
+    tasks[
+    shape="record";
+    style=filled;
+    fillcolor=lime;
+    label="{{
+      AnalyzeExec.tasks
+    }}"];
+
+  Analyze[
+    shape="record";
+    style=filled;
+    fillcolor=lime;
+    label="{{
+      Analyze|
+	    baseSchemaProducer\l|
+      ColTasks []AnalyzeColumnsTask\l|
+      IdxTasks []AnalyzeIndexTask\l|
+      Opts     map[ast.AnalyzeOptionType]uint64\l
+    }}"];
+
+  analyzeWorker -> {
+    analyzeColumnsPushdown;
+    analyzeIndexPushdown;
+    analyzeFastExec;
+    analyzePKIncremental;
+    analyzeIndexIncremental;
+  }
+  executorBuilder_build
+  -> buildAnalyze 
+  -> {
+    buildAnalyzePKIncremental;
+    buildAnalyzeColumnsPushdown;
+    buildAnalyzeIndexPushdown;
+    buildAnalyzeIndexIncremental;
+  }
+
+  {
+    rank=same;
+    buildAnalyze;
+    AnalyzeExec_Next;
+  }
+
+  subgraph cluster_plan {
+    graph[label="plan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Analyze;
+    Analyze -> {
+      AnalyzeColumnsTask;
+      AnalyzeIndexTask;
+    } -> analyzeInfo;
+    AnalyzeColumnsTask[
+      shape="record";
+      label="{{
+        AnalyzeColumnsTask|
+	        HandleCols HandleCols\l|
+	        ColsInfo   []*model.ColumnInfo\l|
+	        TblInfo    *model.TableInfo\l|
+	        analyzeInfo\l
+      }}"];
+    AnalyzeIndexTask[
+      shape="record";
+      label="{{
+        AnalyzeIndexTask|
+	        IndexInfo *model.IndexInfo\l|
+	        TblInfo   *model.TableInfo\l|
+	        analyzeInfo\l
+      }}"];
+    analyzeInfo[
+      shape="record";
+      label="{{
+        analyzeInfo|
+	        DBName        string\l|
+	        TableName     string\l|
+	        PartitionName string\l|
+	        TableID       AnalyzeTableID\l|
+	        Incremental   bool\l
+      }}"];
+  }
+
+  edge[style=dashed;color=darkblue];
+  taskCh -> analyzeWorker -> resultCh;
+  resultCh -> AnalyzeExec_Next;
+  buildAnalyze -> tasks -> taskCh;
+  resultCh -> {
+    SaveExtendedStatsToStorage;
+    MoveToHistory;
+    SaveStatsToStorage;
+  }
+  Analyze -> buildAnalyze;
+}

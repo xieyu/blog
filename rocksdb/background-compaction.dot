@@ -1,0 +1,92 @@
+digraph atomic_flush {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_CompactionPicker {
+    graph[label="CompactionPicker";fontsize=20;];
+    CompactionPicker_PickCompaction -> {
+      FIFOCompactionPicker;
+      LevelCompactionPicker;
+      UniversalCompactionPicker;
+    } -> Compaction;
+    Compaction[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        Compaction|
+        包含了要compaction的一些metadata\l|
+        const int start_level_;\l
+        const int output_level_;\l
+        VersionStorageInfo* input_vstorage_;\l
+        const std::vector\<CompactionInputFiles\> inputs_;
+      }}";
+    ];
+    {
+      rank=same;
+      FIFOCompactionPicker;
+      LevelCompactionPicker;
+      UniversalCompactionPicker;
+    }
+  }
+
+  subgraph cluster_ColumnFamilyData {
+    graph[label="ColumnFamilyData";fontsize=20;];
+    PickCompaction -> CompactionPicker_PickCompaction;
+  }
+
+  subgraph cluster_CompactionJob {
+    graph[label="CompactionJob";fontsize=20;];
+    //compaction job
+    CompactionJob[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        CompactionJob\l|
+          const std::string& dbname_;\l|
+          <CompactionState> CompactionState* compact_;\l|
+          FSDirectory* output_directory_;\l|
+          VersionSet* versions_;\l|
+          ...
+      }}"
+    ];
+  }
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    MaybeScheduleFlushOrCompaction[
+      shape="record"
+      label="{{
+        MaybeScheduleFlushOrCompaction|
+        触发后台线程compact\l
+      }}"
+    ];
+
+    MaybeScheduleFlushOrCompaction -> BackgroundCompaction[style=dashed]
+
+    //SuggestCompactRange -> SehedulePendingCompaction;
+
+    BackgroundCompaction -> {
+      PickCompactionFromQueue;
+      CompactionJob;
+      CompactionJob_Prepare;
+      CompactionJob_Run;
+    }[color="#b83b5e"]
+
+
+    compaction_queue_[shape="record";
+      label="{{
+        compaction_queue_|
+          std::deque\<ColumnFamilyData*\>\l 
+          compaction_queue_;\l
+      }}";
+    ];
+    compaction_queue_ -> BackgroundCompaction;
+    compaction_queue_ -> PickCompactionFromQueue[style=dashed];
+    //BackgroundCallFlush -> BackgroundFlush -> PopFirstFromCompactionQueue;
+    PickCompactionFromQueue -> PickCompaction;
+    Compaction -> CompactionJob[style=dashed];
+  }
+  //{rank=same;BackgroundCompaction;CompactionPicker_PickCompaction;}
+}

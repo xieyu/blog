@@ -1,0 +1,35 @@
+digraph merge_join {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  Next -> {
+    prepare;
+    joinToChunk;
+  }
+
+  prepare -> {
+    innerTable_init;
+    fetchNextInnerRows;
+    fetchNextOuterRows;
+  };
+
+  joinToChunk -> {
+    fetchNextOuterRows;
+    fetchNextInnerRows;
+    compare;
+    onMissMatch;
+    tryToMatchInners;
+  };
+
+  fetchNextInnerRows -> {
+    rowsWithSameKey;
+    NewIterator4Slice;
+    Begin;
+  }
+
+  fetchNextOuterRows -> {
+    SetRequiredRows;
+    VectorizedFilter;
+    Begin;
+  }
+}

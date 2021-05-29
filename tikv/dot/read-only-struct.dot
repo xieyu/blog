@@ -1,0 +1,69 @@
+#include "styles.h"
+digraph read_only_struct {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftCore[style_struct;label="{{
+    RaftCore|
+    ...\l|
+    pub read_states: Vec\<ReadState\>\l|
+    pub read_only: ReadOnly\l
+  }}"]
+
+  RaftCore -> {
+    ReadState;
+    ReadOnly;
+  }
+  ReadState[style_struct;label="{{
+    ReadState|
+    pub index: u64\l|
+    pub request_ctx: Vec\<u8\>\l
+  }}"]
+  ReadOnly[style_struct;label="{{
+    ReadOnly|
+    pub option: ReadOnlyOption\l|
+    pub pending_read_index: HashMap\<Vec\<u8\>, ReadIndexStatus\>\l|
+    pub read_index_queue: VecDeque\<Vec\<u8\>\>\l
+  }}"]
+  ReadOnly -> {
+    ReadOnlyOption;
+    ReadIndexStatus;
+  }
+  ReadIndexStatus[style_struct;label="{{
+    ReadIndexStatus|
+    pub req: Message\l|
+    pub index: u64\l|
+    pub acks: HashSet\<u64\>\l
+  }}"]
+  ReadOnlyOption -> {
+    Safe;
+    LeaseBased;
+  }
+  ReadOnlyOption[style_struct;label="{{
+    ReadOnlyOption|
+    Safe\l|
+    LeaseBased\l
+  }}"]
+  Safe[style_var;label="{{
+    Safe|
+    Safe guarantees the linearizability\l 
+    of the read only request by\l
+    communicating with the quorum.\l 
+    It is the default and suggested option.\l
+  }}"]
+  LeaseBased[style_var;label="{{
+    LeaseBased|
+    LeaseBased ensures linearizability\l 
+    of the read only request by\l
+    relying on the leader lease.\l 
+    It can be affected by clock drift.\l
+    If the clock drift is unbounded,\l 
+    leader might keep the lease longer than it\l
+    should (clock can move backward/pause\l 
+    without any bound). ReadIndex is not safe\l
+    in that case.\l
+  }}"]
+  ReadIndexStatus -> Message;
+}

@@ -1,0 +1,23 @@
+digraph broker_modification_handler {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  processBrokerModification -> {
+    getBroker;
+    updateBrokerMetadata;
+    onBrokerUpdate;
+  }
+  subgraph cluster_ControllerContext {
+    graph[label="ControllerContext";fontsize=20;style=rounded];
+    liveBrokers[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        liveBrokers
+      }}";
+    ];
+    updateBrokerMetadata -> liveBrokers;
+    onBrokerUpdate -> sendUpdateMetadataRequest;
+  };
+}

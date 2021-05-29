@@ -1,0 +1,63 @@
+digraph aggPushDown {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  aggPushDown[
+    shape="record";
+    label="{{
+      aggPushDown|
+      tries to push down aggregate\l 
+      functions to join paths\l
+    }}"];
+
+  optimize -> aggPushDown;
+  aggPushDown -> {
+    tryToEliminateAggregation;
+    splitAggFuncsAndGbyCols;
+    checkAnyCountAndSum;
+    tryToPushDownAgg;
+    ColumnSubstitute;
+    tryAggPushDownForUnion;
+  }
+
+  tryToPushDownAgg -> {
+    IsAllFirstRow;
+    NewSchema;
+    makeNewAgg;
+    getDefaultValues;
+  }
+  getDefaultValues -> {
+    EvalNullValueInOuterJoin;
+  }
+  checkAnyCountAndSum -> {
+    aggFuncs;
+    AggFuncSum;
+    AggFuncCount;
+  }
+  splitAggFuncsAndGbyCols -> {
+  }
+
+  makeNewAgg -> {
+    LogicalAggregation;
+    NewSchema;
+    NewAggFuncDesc;
+    SetSchema;
+  }
+  tryAggPushDownForUnion -> {
+    isDecomposableWithUnion;
+    pushAggCrossUnion;
+    splitPartialAgg;
+  }
+
+  pushAggCrossUnion -> {
+    LogicalAggregation;
+    ColumnSubstitute;
+    NewAggFuncDesc;
+    ConvertAggToProj;
+  }
+  splitPartialAgg -> {
+    LogicalAggregation;
+    BuildFinalModeAggregation;
+  }
+}

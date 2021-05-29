@@ -1,0 +1,157 @@
+digraph analyzeColumnsPushdown{
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  analyzeWorker -> analyzeColumnsPushdown;
+
+  AnalyzeColumnsExec_open -> {
+    buildResp;
+    tableResultHandler_open;
+  }
+  buildResp -> {
+    reqBuilder;
+    distsql_Analyze;
+  }
+  reqBuilder[
+    shape="record";
+    label="{{
+      reqBuilder|
+      创建发送给TiKV的\l 
+      analyzePB请求\l
+    }}"];
+
+  analyzeColumnsPushdown -> {
+    buildStats;
+  }
+  buildStats -> {
+    nextRaw;
+    HistogramFromProto;
+    MergeHistograms;
+    SampleCollectorFromProto;
+    MergeSampleCollector;
+    ExtractTopN;
+    BuildColumn;
+    CalcDefaultValForAnalyze;
+    BuildExtendedStats;
+  }[color="#b83b5e"];
+
+  MergeHistograms -> {
+    AppendBucket;
+    mergeBuckets;
+    popFirstBucket;
+    updateLastBucket;
+  }
+
+  MergeSampleCollector -> {
+    mergeFMSketch;
+    MergeCMSketch;
+    SampleCollector_collect;
+  }[color="#f08a5d"];
+  SampleCollector_collect -> {
+    FmSketch_InsertValue;
+    CMSketch_InsertBytes;
+  }
+
+  mergeFMSketch -> {
+    insertHashValue;
+    delete_key;
+  }
+  MergeCMSketch -> {
+    mergeTopN;
+  }
+
+
+  SampleCollectorFromProto -> {
+    CMSketchFromProto;
+    FMSketchFromProto;
+  }
+
+  BuildColumn[
+    shape="record";
+    label="{{
+      BuildColumn|
+      builds histogram from \l
+      samples for column\l
+    }}"];
+  BuildColumn -> BuildColumnHist;
+  BuildColumnHist[
+    shape="record";
+    label="{{
+      BuildColumnHist|
+      遍历samples\l
+      创建等深直方图\l
+    }}"];
+  BuildColumnHist -> {
+    NewHistogram;
+    AppendBucket;
+    updateLastBucket;
+    SortSampleItems;
+  }
+  nextRaw[
+    shape="record";
+    label="{{
+      nextRaw|
+      从TiKV层获取结果\l
+    }}"];
+  subgraph cluster_tipb {
+    graph[label="tipb";fontsize=20;style="rounded,dashed";color="slategrey"]
+    AnalyzeColumnsResp[
+      shape="record";
+      label="{{
+        AnalyzeColumnsResp|
+        Collectors []*SampleCollector\l|
+        PkHist *Histogram\l
+      }}"];
+    AnalyzeColumnsResp -> SampleCollector -> {
+      FMSketch;
+      CMSketch;
+    };
+    SampleCollector[
+      shape="record";
+      label="{{
+        SampleCollector|
+	        Samples          [][]byte  \l|
+	        NullCount        int64     \l|
+	        Count            int64     \l|
+	        FmSketch         *FMSketch\l|
+	        CmSketch         *CMSketch \l
+      }}"];
+    FMSketch[
+      shape="record";
+      label="{{
+        FMSketch|
+        used to count distinct\l
+        values for column\l|
+        Mask uint64\l|
+        Hashset []uint64\l|
+      }}"];
+    CMSketch[
+      shape="record";
+      label="{{
+        CMSketch|
+	        Rows             []*CMSketchRow  \l|
+	        TopN             []*CMSketchTopN \l|
+	        DefaultValue     uint64          \l
+      }}"];
+  }
+
+  edge[style=dashed;color=darkblue];
+  nextRaw -> AnalyzeColumnsResp -> HistogramFromProto -> MergeHistograms;
+  AnalyzeColumnsResp -> SampleCollectorFromProto -> MergeSampleCollector;
+  FMSketchFromProto -> mergeFMSketch;
+  CMSketchFromProto -> MergeCMSketch;
+  {
+    MergeSampleCollector;
+    MergeHistograms
+  }
+  -> collectors_i
+  -> {
+    BuildColumn; 
+    BuildExtendedStats;
+  };
+  reqBuilder -> distsql_Analyze -> nextRaw;
+  CMSketch -> CMSketchFromProto;
+  FMSketch -> FMSketchFromProto;
+}

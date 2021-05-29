@@ -1,0 +1,129 @@
+digraph select_query {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  InterpreterSelectQuery_execute[
+    shape="record";
+    label="{{
+      InterpreterSelectQuery::execute|
+      最后创建的queryPlan\l|
+      被放到BlockIO的pipeline字段中返回\l
+    }}";
+  ];
+  InterpreterSelectQuery_execute -> {
+    buildQueryPlan;
+    buildQueryPipeline;
+  }
+  buildQueryPlan[
+    shape="record";
+    label="{{
+      buildQueryPlan|
+      创建各种PlanStep\l
+      并加到plan中\l
+    }}";
+  ];
+  buildQueryPlan -> executeImpl;
+  executeImpl -> {
+    executeFetchColumns;
+    getSelectQuery;
+    executeOrder;
+    executeDistinct;
+    executeExpression;
+    executeLimitBy;
+    executePreLimit;
+    executeAggregation;
+    executeSubqueriesInSetsAndJoins;
+    executeMergeAggregated;
+    executeRollupOrCube;
+    executeHaving;
+    executeMergeSorted;
+    executeWithFill;
+    executeProjection;
+    executeWhere;
+    executeTotalsAndHaving;
+    addStep;
+  }
+  executeFetchColumns[
+    shape="record";
+    label="{{
+      executeFetchColumns|
+      从storage中读取数据\l
+    }}";
+  ];
+
+  executeWhere -> {
+    getCurrentDataStream;
+    FilterStep;
+    addStep;
+  }
+
+  executeAggregation -> {
+    AggregatingStep;
+    addStep;
+  }
+
+  //IQueryPlanStep -> ITransformingStep -> {
+  //  FilterStep;
+  //  AggregatingStep;
+  //}
+  //IQueryPlanStep -> ReadFromStorageStep;
+
+  executeExpression -> {
+    ExpressionStep;
+  }
+  executeProjection -> ExpressionStep;
+  executeFetchColumns -> {
+    setMaxThreads;
+    ReadFromStorageStep;
+  }
+  executeMergeAggregated -> MergingAggregatedStep;
+  executeDistinct -> DistinctStep;
+  executeOrder -> executeOrderOptimized;
+  executeOrder -> PartialSortingStep;
+  executePreLimit -> LimitStep;
+  executeLimitBy -> LimitByStep;
+  executeWithFill -> FillingStep;
+  executeRollupOrCube -> {
+    RollupStep;
+    CubeStep;
+  }
+  executeHaving -> FilterStep;
+  executeTotalsAndHaving -> TotalsHavingStep;
+  executeSubqueriesInSetsAndJoins -> CreatingSetsStep;
+  ReadFromStorageStep[
+    shape="record";
+    label="{{
+      ReadFromStorageStep|
+      从storage中读取指定的行\l
+    }}";
+  ];
+  //ReadFromStorageStep -> {
+  //  read;
+  //}
+  buildQueryPipeline -> {
+    updatePipeline;
+    addInterpreterContext;
+  }
+
+  //subgraph cluster_Storage {
+  //  graph[label="Storage";fontsize=20;];
+  //  read ->  StorageMergeTree_read;
+  //  subgraph cluster_MergeTree {
+  //    graph[label="MergeTree";fontsize=20;];
+  //    MergeTreeDataSelectExecutor_read -> {
+  //      readFromParts;
+  //    }
+  //  }
+  //  subgraph cluster_StorageMergeTree {
+  //    graph[label="StorageMergeTree";fontsize=20;];
+  //    StorageMergeTree_read -> MergeTreeDataSelectExecutor_read;
+  //  }
+  //}
+  //subgraph cluster_QueryPlan {
+  //  graph[label="QueryPlan";fontsize=20;];
+  //  addStep
+  //  setMaxThreads;
+  //  buildQueryPipeline;
+  //}
+}

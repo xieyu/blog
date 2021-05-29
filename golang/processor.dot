@@ -1,0 +1,54 @@
+digraph processor {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  retake -> allp[label="遍历所有p"];
+  allp[
+    fillcolor="#95e1d3"
+    style=filled;
+    shape=box3d;
+    label="allp"
+  ];
+  new_p[label="new(p)"];
+  destroy[shape="record";
+    label="{{
+      destroy|
+        释放不用的p\l
+    }}";
+  ];
+  mache_allocmcache[shape="record";
+    label="{{
+      allocmcache|
+        pp.mcache = allocmcache\l
+    }}";
+  ];
+  mcache_getg[shape="record";
+    label="{{
+      pp.mcache=getg().m.mcache
+    }}";
+  ];
+  procresize[shape="record";
+    label="{{
+      procresize|
+        Change number of processors\l
+    }}";
+  ];
+  startTheWorldWithSema -> procresize[label="gomaxprocs"];
+  rt0_go -> schedinit;
+  schedinit -> procresize[label="ncpu"];
+
+  procresize -> {
+    pidleput;
+    destroy;
+    prepareForSweep;
+    new_p;
+    init;
+  };
+  procresize -> allp[label="指针放入allp中"];
+
+  init -> {
+    mache_allocmcache;
+    mcache_getg;
+    raceproccreate;
+  }
+}

@@ -1,0 +1,119 @@
+#include "styles.h"
+digraph PeerFsmDataStruct {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate[style_struct;label="{{
+    PeerFsmDelete|
+    fsm: &'a mut PeerFsm\<EK, ER\>,\l|
+    ctx: &'a mut PollContext\<EK, ER, T\>,\l
+  }}"]
+
+  PeerFsm[style_struct;label="{{
+    PeerFsm|
+    pub peer: Peer\<EK, ER\>,\l|
+    tick_registry: PeerTicks,\l|
+    missing_ticks: usize,\l|
+    hibernate_state: HibernateState,
+    stopped: bool,\l|
+    has_ready: bool,\l|
+    mailbox: Option\<BasicMailbox\<PeerFsm\<EK, ER\>\>\>,\l|
+    pub receiver: Receiver\<PeerMsg\<EK\>\>\l,
+    skip_split_count: usize,\l|
+    skip_gc_raft_log_ticks: usize,\l|
+    batch_req_builder: BatchRaftCmdRequestBuilder\<EK\>,\l
+  }}"]
+  Peer[style_struct;label="{{
+    Peer|
+    pub raft_group: RawNode\<PeerStorage\<EK, ER\>\>,\l|
+    ...\l
+  }}"]
+
+  PeerStorage[style_struct;label="{{
+    PeerStorage|
+    pub engines: Engines<EK, ER>,\l|
+    peer_id: u64,\l|
+    region: metapb::Region,\l|
+    raft_state: RaftLocalState,\l|
+    apply_state: RaftApplyState,\l|
+    applied_index_term: u64,\l|
+    last_term: u64,\l|
+    snap_state: RefCell<SnapState>,\l|
+    gen_snap_task: RefCell<Option<GenSnapTask>>,\l|
+    region_sched: Scheduler<RegionTask<EK::Snapshot>>,\l|
+    snap_tried_cnt: RefCell<usize>,\l|
+    cache: Option<EntryCache>,\l|
+    pub tag: String,\l|
+  }}"]
+  Fsm[style_var;label="{{
+    trait Fsm|
+    fn is_stopped(&self) -\> bool;\l|
+    fn set_mailbox(&mut self, \l 
+    _mailbox: Cow\<'_, BasicMailbox\<Self\>\>)\l|
+    fn take_mailbox(&mut self)\l 
+    -\> Option\<BasicMailbox\<Self\>\>\l
+  }}"]
+  PollHandler[style_var;label="{{
+    trait PollHandler|
+    fn begin(&mut self,\l 
+      batch_size: usize);\l|
+    fn handle_control(&mut self, \l 
+    control: &mut C) -\> Option\<usize\>;\l
+    fn handle_normal(&mut self,\l 
+    normal: &mut N) -\> Option\<usize\>;
+    fn end(&mut self,\l 
+    batch: &mut [Box\<N\>]);\l|
+    fn pause(&mut self) \{\}\l
+  }}"]
+  Fsm -> {
+    PeerFsm;
+    ApplyFsm;
+    StoreFsm;
+    ControlFsm;
+  }
+
+  PeerFsmDelegate -> PeerFsm;
+  PeerFsm -> {
+    Peer;
+  }
+  Peer -> {
+    RawNode;
+    PeerStorage;
+  }
+  Poller -> {
+    Fsm;
+    PollHandler;
+  }
+  PollHandler -> {
+    ApplyPoller;
+    RaftPoller;
+  }
+  Poller[style_struct;label="{{
+    Poller|
+    router: Router\<N, C, NormalScheduler\<N, C\>,\l 
+    ControlScheduler\<N, C\>\>,\l|
+    fsm_receiver: channel::Receiver\l
+    \< FsmTypes\<N, C\>\>,\l|
+    handler: Handler,\l|
+    max_batch_size: usize,\l|
+    reschedule_duration: Duration,\l
+  }}"]
+
+  RaftPoller[style_struct;label="{{
+    RaftPoller|
+    tag: String,\l|
+    store_msg_buf: Vec\<StoreMsg\<EK\>\>,\l|
+    peer_msg_buf: Vec\<PeerMsg\<EK\>\>,\l|
+    previous_metrics: RaftMetrics,\l|
+    timer: TiInstant,\l|
+    poll_ctx: PollContext\<EK, ER, T\>,\l|
+    messages_per_tick: usize,\l|
+    cfg_tracker: Tracker\<Config\>,\l
+  }}"]
+  RaftPoller -> {
+    PeerFsm;
+    StoreFsm;
+  }[style_edage_data];
+}

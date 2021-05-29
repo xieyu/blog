@@ -1,0 +1,7 @@
+#include "styles.h"
+digraph ReportSplit {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+}

@@ -1,0 +1,108 @@
+digraph gcsweep {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_mspan {
+    graph[label="mspan";fontsize=20;style=rounded];
+    mspan_sweep[label="sweep"];
+    mspan_sweep ->{
+      freespecial;
+      refillAllocCache;
+    }
+    mspan[
+      shape="record";
+      label="{{
+        mspan|
+        <allocBits> allocBits *gcBits\l|
+        <gcmarkBits> gcmarkBits *gcmarkBits\l
+      }}";
+    ];
+    countAlloc[
+      shape="record";
+      label="{{
+        countAlloc|
+        返回span所分配\l
+        对象的个数\l
+      }}";
+    ];
+    resetBits[
+      shape="record";
+      label="{{
+          s.allocBits = s.gcmarkBits\l
+          s.gcmarkBits = newMarkBits(s.nelems)\l
+      }}";
+    ];
+    markBitsForIndex -> mspan:gcmarkBits;
+    countAlloc -> mspan:gcmarkBits;
+    mspan_sweep -> markBitsForIndex[label="检查是否标记special"];
+    mspan_sweep -> resetBits[label="重置gcbits"];
+    mspan_sweep -> countAlloc[label="0表示该span可以free"];
+  };
+
+  gcmarknewobject -> markBitsForIndex;
+  greyobject -> markBitsForIndex[label="标记为黑色对象"];
+  mallocgc -> gcmarknewobject;
+  subgraph cluster_mheap {
+    graph[label="mheap";fontsize=20;style=rounded];
+    mheap_freeSpan[label="freeSpan"];
+    freeSpanLocked;
+    coalesce;
+    sweepSpans[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="sweepSpans"
+    ];
+    free[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="free"
+    ];
+    alloc_m -> sweepSpans[label="push"];
+    freeSpanLocked -> free[label="insert"];
+    alloc_m -> arena_pageInuse[label="|=pageMask"]
+    freeSpanLocked -> arena_pageInuse[label="^=pageMask"];
+  };
+
+  subgraph cluster_mcentral {
+    graph[label="mcentral";fontsize=20;style=rounded];
+    mcentral_freeSpan[label="freeSpan"];
+    mcentral_freeSpan -> nonempty[label="insert"];
+    mcentral_freeSpan -> nonempty[label="remove"];
+    mcentral_freeSpan -> empty[label="remove"];
+    nonempty[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="nonempty"
+    ];
+  };
+
+  gcSweep -> {
+    sweepone;
+    ready;
+    prepareFreeWorkbufs;
+    freeSomeWbufs;
+  };
+  ready -> bgsweep;
+  bgsweep -> {
+    sweepone;
+    Gosched;
+  }
+
+  sweepone -> sweepSpans[label="pop"];
+  sweepone -> mspan_sweep;
+
+  mspan_sweep -> {
+    sysFault;
+    mheap_freeSpan;
+    mcentral_freeSpan;
+  }
+  mspan_sweep -> sweepSpans[label="push"];
+
+  mcentral_freeSpan -> 
+  mheap_freeSpan -> freeSpanLocked;
+  freeSpanLocked -> coalesce
+  sysFault -> mmap;
+}

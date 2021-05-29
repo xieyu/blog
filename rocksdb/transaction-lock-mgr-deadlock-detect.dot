@@ -1,0 +1,178 @@
+digraph dead_lock_detect {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_PessimisticTransaction {
+    graph[label="PessimisticTransaction";fontsize=20;];
+    ClearWaitingTxn -> {
+      waiting_txn_ids_;
+      wait_mutex_;
+    };
+    SetWaitingTxn -> {
+      waiting_cf_id_;
+      wait_mutex_;
+      waiting_txn_ids_;
+    };
+    GetID[
+      shape="record";
+      label="{{
+        GetID|
+        获取事务ID\l
+      }}";
+    ];
+  } // end of PessimisticTransaction
+
+  subgraph cluster_TransactionLockMgr {
+    graph[label="TransactionLockMgr";fontsize=20;];
+    LockInfo[
+      shape="record"
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        LockInfo\l|
+        bool exclusive;\l|
+        autovector\<TransactionID\> txn_ids;\l|
+        uint64_t expiration_time;\l
+      }}"
+    ];
+
+    AcquireWithTimeout[
+      shape="record";
+      label="{{
+        AcquireWithTimeout|
+        获取key对应的lock\l|
+        1.先获取key对应的stripe mutex lock\l
+        已方便对stripe操作\l
+        2.调用AcquireLocked获取key锁\l
+        3.未timeout，循环尝试获取key锁\l
+      }}";
+    ];
+
+    AcquireWithTimeout -> {
+      AcquireLocked;
+      SetWaitingTxn;
+      IsDeadlockDetect;
+      IncrementWaiters;
+      ClearWaitingTxn;
+      DecrementWaiters;
+    }[color="#3f72af"];
+
+    AcquireLocked[
+      shape="record";
+      label="{{
+        AcquireLocked|
+        获取key锁:\l
+        1. 从stripe的keys中查找key\l|
+        2. 如果stripe.keys中不存在该key，\l 
+        就获取了key的lock 将自己插到map中\l|
+        3. 如果key被占用，如果是排它锁 \l 
+          3.1 检查key对应的事务是否是自己\l
+          3.2 检查key对应的事务是否过期了\l|
+        4.非排它锁，把自己加到keys后面\l
+        5.返回等待该key的事务id列表\l
+      }}";
+    ];
+
+    AcquireLocked -> {
+      IsLockExpired;
+      wait_ids
+    }
+    wait_ids[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        wait_ids|
+        等待key的事务id\l
+      }}";
+    ];
+    wait_ids -> {
+      IncrementWaiters;
+      SetWaitingTxn;
+      DecrementWaiters;
+    }[style=dashed];
+
+    IsLockExpired[
+      shape="record";
+      label="{{
+        IsLockExpired|
+        检查事务是否过期了\l
+      }}";
+    ];
+
+    IsLockExpired -> {
+      TryStealingExpiredTransactionLocks;
+      LockInfo;
+    }
+    IsDeadlockDetect[
+      shape="record";
+      label="{{
+        IsDeadlockDetect|
+        是否开启了死锁检测\l
+      }}";
+    ];
+    IsDeadlockDetect -> IncrementWaiters[style=dashed];
+
+    IncrementWaiters[
+      shape="record";
+      label="{{
+        IncrementWaiters|
+        Deadlock检测？
+      }}";
+    ];
+    IncrementWaiters -> {
+      GetID;
+      GetDeadlockDetectDepth;
+      wait_txn_map_mutex_;
+      wait_txn_map_;
+      wait_txn_map_Insert;
+    }
+
+    wait_txn_map_mutex_[
+      shape="record";
+      label="{{
+        wait_txn_map_mutex_|
+        用于guard访问\l
+        wait_txn_map_\l
+      }}";
+    ];
+
+
+    subgraph cluster_wait_txn_map {
+      graph[label="wait_txn_map";fontsize=20;];
+      wait_txn_map_Delete -> wait_txn_map_;
+      wait_txn_map_Insert -> wait_txn_map_;
+      wait_txn_map_[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          wait_txn_map_|
+            <TrackedTrxInfo> HashMap\<TransactionID, TrackedTrxInfo\>\l wait_txn_map_;
+        }}";
+      ];
+      wait_txn_map_ -> TrackedTrxInfo;
+      TrackedTrxInfo[
+        shape="record";
+        label="{{
+          TrackedTrxInfo|
+            autovector\<TransactionID\> m_neighbors;\l|
+            uint32_t m_cf_id;\l|
+            bool m_exclusive;\l|
+            std::string m_waiting_key;\l
+        }}";
+      ];
+    } // end of wait_txn_map
+
+    DecrementWaiters -> {
+      wait_txn_map_mutex_;
+      DecrementWaitersImpl;
+    }
+    DecrementWaitersImpl -> {
+      wait_txn_map_Delete;
+    }
+    
+  } // end of TransactionLockMgr
+}

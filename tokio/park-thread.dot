@@ -1,0 +1,39 @@
+digraph parkthread {
+  node[shape=box;style="rounded"];
+  newrank=true;
+  rankdir=TD;
+
+  subgraph cluster_park {
+    graph[label="park";fontsize=20;];
+    unpark;
+    park;
+    park_timeout;
+  }
+  subgraph cluster_ParkThread {
+    graph[label="ParkThread";fontsize=20;];
+    subgraph cluster_Inner {
+      graph[label="Inner";fontsize=15;];
+      mutex;
+      condvar;
+      inner_park_timeout[label="park_timeout"];
+      inner_park[label="park"];
+      inner_park -> mutex[label="lock"];
+      inner_park -> condvar[label="wait_timeout"];
+      inner_unparker[label="unparker"];
+    }
+
+    pt_park[label="park"];
+    pt_park_timeout[label="park_timeout"];
+    pt_unpark[label="unpark"];
+    pt_with_current[label="with_current"];
+    {pt_park, pt_park_timeout, pt_unpark} -> pt_with_current -> CURRENT_PARKER;
+
+    pt_park -> inner_park;
+    pt_park_timeout -> inner_park_timeout;
+    pt_unpark -> inner_unparker;
+    pt_unpark -> UnparkThread;
+  }
+  park -> pt_park;
+  park_timeout -> pt_park_timeout;
+  unpark -> pt_unpark;
+}

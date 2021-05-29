@@ -1,0 +1,34 @@
+digraph SetupInitialFiles_pri {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  
+  PickIntraL0Compaction[
+    shape="record"
+      label="{{
+        PickIntraL0Compaction|
+          level 0 file之间compaction\l
+          输出还是level 0\l
+          增加read效率，降低写放大\l
+      }}";
+  ];
+
+  PickFileToCompact[
+    shape="record";
+    label="{{
+      PickFileToCompact|
+      选择指定level中需要\l 
+      compact的files\l
+    }}";
+  ];
+  PickFilesMarkedForCompaction[
+    shape="record";
+    label="{{
+      PickFilesMarkedForCompaction|
+      选择VersionStorageInfo中被\l
+      标记为Compaction的files\l
+    }}";
+  ];
+  PickFileToCompact -> PickIntraL0Compaction -> PickFilesMarkedForCompaction -> BottommostFilesMarkedForCompaction -> PickExpiredTtlFiles -> PickFilesMarkedForPeriodicCompaction
+}

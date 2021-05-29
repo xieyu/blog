@@ -1,0 +1,132 @@
+#include "styles.h"
+digraph RawNode {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RawNode_tick -> {
+    Raft_tick;
+  }
+  Raft_tick -> {
+    tick_election;
+    tick_heartbeat;
+  }
+
+  tick_election -> {
+    pass_election_timeout;
+    new_message;
+    Raft_step;
+    promotable;
+  }
+  pass_election_timeout -> {
+    election_elapsed;
+    randomized_election_timeout;
+  }
+  tick_election -> new_message_MsgHup-> new_message -> Raft_step[style_edge_data];
+  new_message_MsgHup[style_var;label="{{
+    MsgHup|
+    INVALID_ID\l|
+    MessageType_MsgHup\l|
+    Some(self.id)\l
+  }}"]
+  messageCheckQuorum[style_var;label="{{
+    MsgCheckQuorum|
+    INVALID_ID\l |
+    MessageType::MsgCheckQuorum\l|
+    Some(self.id)\l
+  }}"]
+  MessageBeat[style_var;label="{{
+    MessageBeat|
+    INVALID_ID\l|
+    MessageType::MsgBeat\l|
+    Some(self.id)\l
+  }}"]
+
+  tick_heartbeat -> {
+    check_quorum;
+    Raft_step;
+    new_message;
+    abort_leader_transfer;
+    MessageBeat;
+  }
+  abort_leader_transfer -> {
+    lead_transferee;
+  }
+  check_quorum -> messageCheckQuorum -> new_message[style_edge_data];
+  MessageBeat -> new_message[style_edge_data];
+
+  MsgAppendResponse[style_var;label="{{
+    MsgAppendResponse|
+      m.from\l|
+      MessageType::MsgAppendResponse\l|
+      None\l
+  }}"]
+  MsgRequestPreVoteResponse[style_var;label="{{
+    MsgRequestPreVoteResponse|
+      m.from\l|
+      MessageType::MsgRequestPreVoteResponse\l|
+      None
+  }}"]
+
+  Raft_step -> {
+    get_msg_type;
+    become_follower;
+    new_message;
+    MsgAppendResponse;
+    MsgRequestVoteResponse;
+    send;
+    raft_log_is_up_to_date;
+    raft_log_last_index;
+    log_vote_approve;
+    log_vote_reject;
+    vote_resp_msg_type;
+    commit_info;
+    maybe_commit_by_vote;
+    step_candidate;
+    step_follower;
+    step_leader;
+  }
+
+  step_candidate -> {
+    become_follower;
+    handle_append_entries;
+    handle_heartbeat;
+    handle_snapshot;
+    Raft_poll;
+    maybe_commit_by_vote;
+  }
+
+  step_follower -> {
+    send;
+    handle_append_entries;
+    handle_heartbeat;
+    handle_snapshot;
+    hup;
+    read_states_push;
+    maybe_commit;
+  }
+  step_leader -> {
+    bcast_heartbeat;
+    check_quorum_active;
+    become_follower;
+    progress;
+    mut_entries;
+    merge_from_bytes;
+    has_pending_conf;
+    set_entry_type;
+    append_entry;
+    bcast_append;
+  }
+
+  append_entry -> {
+    maybe_increase_uncommitted_size;
+    raft_log_last_index;
+    raft_log_append;
+  }
+
+  {
+    MsgAppendResponse;
+    MsgRequestPreVoteResponse; 
+  } ->  send[style_edge_data];
+}

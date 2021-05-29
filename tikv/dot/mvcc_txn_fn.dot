@@ -1,0 +1,157 @@
+#include "styles.h"
+digraph mvcc_txn_fn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_MvccReader {
+    graph[label="MvccReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    get_txn_commit_record;
+    get_write;
+    seek_write;
+  }
+  subgraph cluster_MvccTxn {
+    graph[label="MvccTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    put_lock -> {
+      Modify_Put_CF_LOCK;
+    } -> modifies;
+    modifies[style_struct;label="{{
+      modifies|
+      pub(crate) modifies: Vec\<Modify\>,\l
+    }}"]
+
+    unlock_key -> {
+      Modify_Delete_CF_LOCK;
+      ReleasedLock_new;
+    }
+    ReleasedLock[style_struct;label="{{
+      ReleasedLock|
+        pub hash: u64,\l|
+        pub pessimistic: bool,\l
+    }}"]
+    ReleasedLock_new[style_func;label="{{
+      ReleasedLock::new
+    }}"]
+    ReleasedLock_new -> ReleasedLock;
+
+    Modify_Delete_CF_LOCK -> modifies;
+    {rank=same;put_lock;unlock_key};
+    {rank=same;put_write;delete_write;}
+    {rank=same;put_value;delete_value;}
+    put_write -> {
+      Modify_Put_CF_WRITE;
+    } -> modifies;
+    delete_write -> {
+      Modify_Delete_CF_WRITE
+    } -> modifies;
+    check_write_and_rollback_lock -> {
+      get_txn_commit_record;
+      unlock_key;
+      rollback_lock;
+    }
+    key_exist -> {
+      get_write;
+    }
+    put_value -> {
+      Modify_Put_CF_DEFAULT;
+    } -> modifies;
+
+    delete_value -> {
+      Modify_Delete_CF_DEFAULT;
+    }
+    Modify_Delete_CF_DEFAULT -> modifies;
+
+    rollback_lock -> {
+      delete_value;
+      put_write;
+      make_rollback;
+      collapse_prev_rollback;
+      unlock_key;
+    }
+    collapse_prev_rollback -> {
+      seek_write;
+      delete_write;
+    }
+
+    mark_rollback_on_mismatching_lock -> {
+      lock_rollback_ts;
+      put_lock;
+    }
+    guards[style_var;label="{{
+      guards|
+      Vec\<KeyHandleGuard\>\l
+    }}"]
+    seek_write -> delete_write[style_edge_data];
+
+    Modify_Put_CF_LOCK[style_func;label="{{
+      Modify::Put(CF_LOCK, key, lock.to_bytes)
+    }}"]
+    Modify_Delete_CF_LOCK[style_func;label="{{
+      Modify::Delete(CF_LOCK, key)
+    }}"]
+    Modify_Put_CF_DEFAULT[style_func;label="{{
+      Modify::Put(CF_DEFAULT,\l 
+      key.append_ts(ts), value)\l
+    }}"]
+  }
+  subgraph cluster_ConcurrencyManager {
+    graph[label="ConcurrencyManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    lock_key;
+  }
+  subgraph cluster_Prewrite {
+    graph[label="Prewrite";fontsize=20;style="rounded,dashed";color="slategrey"]
+    write_lock[style_func;label="{{
+      write_lock|
+      给key枷锁，并写入value\l
+    }}"]
+    write_lock -> {
+      put_value;
+      put_lock;
+      async_commit_timestamps;
+    }
+      
+    async_commit_timestamps -> {
+      guards;
+      lock_key;
+    }
+  }
+
+  subgraph cluster_commit {
+    graph[label="commit";fontsize=20;style="rounded,dashed";color="slategrey"]
+    commit[style_func;label="{{
+      commit|
+      提交事务\l
+      释放lock, 提交write\l|
+    }}"]
+    commit -> {
+      get_txn_commit_record;
+      unlock_key;
+      put_write;
+    }
+  }
+  subgraph cluster_rollback {
+    graph[label="rollback";fontsize=20;style="rounded,dashed";color="slategrey"]
+    rollback -> cleanup;
+    cleanup -> {
+      check_write_and_rollback_lock;
+      check_txn_status_missing_lock;
+    }
+    check_txn_status_missing_lock -> {
+      collapse_prev_rollback;
+      mark_rollback_on_mismatching_lock;
+      put_write;
+    }
+  }
+  subgraph cluster_ResolveLock {
+    graph[label="ResolveLock";fontsize=20;style="rounded,dashed";color="slategrey"]
+    process_write -> {
+      cleanup;
+      commit;
+    }
+      
+  }
+  acquire_pessimistic_lock -> check_data_constraint;
+  check_data_constraint -> key_exist;
+
+  
+}

@@ -1,0 +1,35 @@
+digraph loadStatsWorker {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  main
+  -> createStoreAndDomain 
+  -> BootstrapSession 
+  -> UpdateTableStatsLoop;
+
+  UpdateTableStatsLoop -> {
+    loadStatsWorker; 
+    updateStatsWorker;
+    autoAnalyzeWorker;
+  }[label=go];
+
+  loadStatsWorker -> {
+    Update;
+    InitStats;
+    RefreshVars;
+    LoadNeededHistograms;
+  }
+  autoAnalyzeWorker -> {
+    HandleAutoAnalyze;
+  }
+  HandleAutoAnalyze[
+    shape="record";
+    label="{{
+      HandleAutoAnalyze|
+      执行analyze table 语句
+    }}"];
+  HandleAutoAnalyze -> {
+    autoAnalyzeTable;
+  }
+}

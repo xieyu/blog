@@ -1,0 +1,130 @@
+#include "styles.h"
+digraph router_try_send {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Fsm {
+    graph[label="Fsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+    set_mailbox[style_func;label="{{
+      set_mailbox|
+      给fsm设置一个mailbox\l
+      用来给自己发消息\l
+    }}"]
+    set_mailbox -> {
+      PeerFsm;
+      ApplyFsm;
+    }
+    PeerFsm[style_struct;label="{{
+      PeerFsm|
+        mailbox: Option\<BasicMailbox\l 
+        \<PeerFsm\<EK, ER\>\>\>,\l|
+        pub receiver: Receiver\<PeerMsg\<EK\>\>,\l|
+        ...
+    }}"]
+    ApplyFsm[style_struct;label="{{
+      ApplyFsm|
+      delegate: ApplyDelegate\\<EK\\>,\l\l|
+      receiver: Receiver\<Msg\<EK\>\>,\l|
+      mailbox: Option\<BasicMailbox\<ApplyFsm\<EK\>\>\>,\l
+    }}"]
+  }
+  sender_try_send -> {
+    PeerFsm;
+    ApplyFsm;
+  }[style_edge_data];
+
+  subgraph cluster_mailbox {
+    graph[label="mailbox";fontsize=20;style="rounded,dashed";color="slategrey"]
+    mailbox_try_send[style_func;label="{{
+      try_send|
+      发送消息给fsm的reciver\l
+      并且使用state notify\l
+      发送消息给BatchSystem.reciver\l
+      这样poller fetch_fsm 能够取到该fsm\l
+    }}"]
+    sender_try_send[style_func;label="{{
+      self.sender.try_send|
+      mailbox自己的sender\l
+      发消息给fsm的reciver\l
+      poller在handle_normal时\l
+      会从该reciver中接收消息\l
+    }}"]
+    mailbox_try_send -> {
+      sender_try_send;
+      notify;
+    }
+    subgraph cluster_FsmState {
+      graph[label="FsmState";fontsize=20;style="rounded,dashed";color="slategrey"]
+      notify[style_func;label="{{
+        notify|
+        如果为IDLE状态，\l
+        将状态改为NOTIFIED\l
+        然后使用传过来的scheduler\l
+        发消息\l
+      }}"]
+      notify -> {
+        take_fsm;
+        set_mailbox;
+        scheduler_schedule;
+      }
+      scheduler_schedule[style_func;label="{{
+        scheduler.schdule|
+        使用FsmTypes包装fsm box指针\l
+        发送消息给BatchSystem.reciver\l
+      }}"]
+    }
+  }
+  scheduler_schedule -> BatchSystem:reciever;
+  subgraph cluster_Router {
+    graph[label="Router";fontsize=20;style="rounded,dashed";color="slategrey"]
+    try_send[style_func;label="{{
+      try_send|
+      发送normal消息\l
+    }}"]
+    try_send -> {
+      check_do;
+      mailbox_try_send;
+      normal_scheduler;
+    }
+    normal_scheduler[style_func;label="{{
+      normal_scheduler|
+      将normal_scheduler\l 
+      传给mailbox\l
+      用来notify\l
+    }}"]
+    normal_scheduler -> scheduler_schedule[style_edge_data];
+    check_do -> mailbox_try_send[style_edge_data];
+    check_do[style_func;label="{{
+      check_do|
+      根据region addr, 从normals\l 
+      HashMaps, normals找到fsm mailbox\l
+      这个地方所lock\l
+      所以加了一层cache\l
+    }}"]
+
+    check_do -> {
+      caches;
+      normals_lock;
+    }
+    normals_lock[style_func;label="{{
+      normals_lock|
+      let mut boxes = normals.lock().unwrap()\l|
+      let b = match boxes.get_mut(&addr)\l|
+      从normals中获取addr对应mailbox\l
+    }}"]
+    caches[style_var;label="{{
+      caches|
+      放入LRU caches中\l
+      caches怎么考虑\l 
+      失效的问题？\l
+    }}"]
+  }
+  BatchSystem[style_struct;label="{{
+    BatchSystem|
+    router: BatchRouter\<N, C\>,\l|
+    receiver: channel::Receiver\<FsmTypes\<N, C\>\>,\l|
+    ...
+  }}"]
+}

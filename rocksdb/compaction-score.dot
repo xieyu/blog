@@ -1,0 +1,159 @@
+digraph CompactionScore {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_MutalbeCFOptions {
+    graph[label="MutalbeCFOptions";fontsize=20;];
+    max_bytes_for_level_base;
+    max_bytes_for_level_multiplier;
+    ttl
+  } // end of MutalbeCFOptions
+
+  subgraph cluster_FileMetaData {
+    graph[label="FileMetaData";fontsize=20;];
+    being_compacted;
+    compensated_file_size;
+    TryGetOldestAncesterTime;
+    marked_for_compaction;
+  } // end of FileMetaData
+
+  subgraph cluster_VersionStorage {
+    graph[label="VersionStorage";fontsize=20;];
+    ComputeCompactionScore[
+      shape="record";
+      label="{{
+        ComputeCompactionScore|
+        计算每个level的分数并排序\l
+      }}";
+    ];
+    ComputeCompactionScore -> {
+      being_compacted;
+      compensated_file_size;
+      compaction_score_;
+      compaction_level_;
+      ComputeFilesMarkedForCompaction;
+      ComputeBottommostFilesMarkedForCompaction;
+      ComputeExpiredTtlFiles;
+      ComputeFilesMarkedForPeriodicCompaction;
+      EstimateCompactionBytesNeeded;
+      GetExpiredTtlFilesCount;
+      MaxBytesForLevel;
+    }
+    subgraph cluster_Score {
+      graph[label="Score";fontsize=20;];
+      {compensated_file_size;MaxBytesForLevel} -> compaction_score_[style=dashed];
+      compaction_score_[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          compaction_score_|
+          该level所有不在compact\l 
+          File的 compensated_file_size之和\l
+          除以该level最大大小\l|
+          sum(compensated_file_size)\l 
+          /MaxBytesForLevel\l
+        }}";
+      ];
+
+      compaction_level_[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          compaction_level_
+        }}";
+      ];
+
+
+      level_max_bytes_ -> MaxBytesForLevel[style=dashed;];
+      {max_bytes_for_level_base; max_bytes_for_level_multiplier} -> level_max_bytes_[style=dashed];
+
+      level_max_bytes_[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          level_max_bytes_
+        }}";
+      ];
+      ComputeCompensatedSizes -> compensated_file_size;
+    } // end of Score
+
+
+    subgraph cluster_ExpireTtl {
+      graph[label="ExpireTtl";fontsize=20;];
+
+      ttl -> ComputeExpiredTtlFiles[style=dashed];
+      ComputeExpiredTtlFiles[
+        shape="record";
+        label="{{
+          ComputeExpiredTtlFiles|
+          遍历所有level所有fileMetadata\l
+          将过期的file放入expire_ttl_files_中\l
+        }}";
+      ];
+      ComputeExpiredTtlFiles -> {
+        TryGetOldestAncesterTime;
+        expired_ttl_files_;
+      }
+
+      expired_ttl_files_[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          expired_ttl_files_
+        }}";
+      ];
+      expired_ttl_files_ -> ExpiredTtlFiles[style=dashed];
+    } // end of ExpireTtl
+
+    subgraph cluster_FilesMarkedForCompaction {
+      graph[label="FilesMarkedForCompaction";fontsize=20;];
+      ComputeFilesMarkedForCompaction -> {
+        files_marked_for_compaction_;
+        marked_for_compaction;
+      }
+      files_marked_for_compaction_[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          files_marked_for_compaction_|
+        }}";
+      ];
+      files_marked_for_compaction_ -> FilesMarkedForCompaction;
+    } // end of FilesMarkedForCompaction
+
+    subgraph cluster_BottommostFiles {
+      graph[label="BottommostFiles";fontsize=20;];
+      ComputeBottommostFilesMarkedForCompaction -> {
+        bottommost_files_;
+        largest_seqno;
+        bottommost_files_mark_threshold_;
+        bottommost_files_marked_for_compaction_;
+      }
+    } // end of BottommostFiles
+
+    subgraph cluster_PeroidCheck {
+      graph[label="PeroidCheck";fontsize=20;];
+      ComputeFilesMarkedForPeriodicCompaction -> {
+        GetCurrentTime;
+        TryGetFileCreationTime;
+        TryGetOldestAncesterTime;
+        GetFileModificationTime;
+        files_marked_for_periodic_compaction_;
+      }
+    } // end of PeroidCheck
+
+  } // end of VersionStorage
+
+  subgraph cluster_LevelCompactionBuilder {
+    graph[label="LevelCompactionBuilder";fontsize=20;];
+    PickExpiredTtlFiles -> ExpiredTtlFiles;
+    PickFilesMarkedForCompaction -> FilesMarkedForCompaction;
+  } // end of LevelCompactionBuilder
+}

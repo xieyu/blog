@@ -1,0 +1,74 @@
+digraph blob_get {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_BlobIndex {
+    graph[label="BlobIndex";fontsize=20;];
+    BlobIndex_DecodeFrom;
+    BlobIndex_HasTTL;
+    BlobIndex_IsInlined;
+    
+  }
+
+  subgraph cluster_DbImpl {
+    graph[label="DBImpl";fontsize=20;];
+    DBImpl_GetImpl;
+  }
+
+  subgraph cluster_BlobDbImpl {
+    graph[label="BlobDbImpl";fontsize=20;];
+    Get -> GetImpl;
+
+    GetImpl -> {
+      SetSnapshotIfNeeded;
+      DBImpl_GetImpl;
+      GetBlobValue;
+      PinSelf;
+      ReleaseSnapshot;
+    }
+
+    GetBlobValue -> {
+      BlobIndex_DecodeFrom;
+      BlobIndex_HasTTL;
+      BlobIndex_IsInlined;
+      GetRawBlobFromFile;
+      UncompressBlockContentsForCompressionType;
+      PinSelf;
+    }
+    GetRawBlobFromFile[
+      shape="record"
+      label="{{
+        GetRawBlobFromFile|
+        1.根据filenumber从blob_files_\l
+        找到对应的blob\l
+        2.读取blob index中的offset和size读取record\l
+        3.校验crc32\l
+      }}"
+    ];
+    Read[
+      shape="record"
+      label="{{
+        Read|
+        RandomAccessFileReader\l
+        随机读\l
+      }}"
+    ];
+    GetRawBlobFromFile -> {
+      blob_files_
+      GetBlobFileReader;
+      use_direct_io;
+      Read;
+      crc32c;
+    }
+    blob_files_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        blob_files_|
+          std::map\<uint64_t, std::shared_ptr\<BlobFile\>\>\l blob_files_;
+      }}"
+    ];
+  }
+}

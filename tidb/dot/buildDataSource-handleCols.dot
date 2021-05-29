@@ -1,0 +1,54 @@
+#include "./styles.h"
+digraph buildDataSourceSchema {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  buildDataSource -> {
+    newExtraHandleSchemaCol;
+    FindPrimaryIndex;
+    IsPKHandleColumn;
+    NewCommonHandleCols;
+    IsCommonHandle;
+  }
+  //columns -> schema -> logicalSchemaProducer:Schema;
+  columns[style_var;label="{{
+    columns|
+    调用toInfo转换为models.ColumnInfo\l
+    转换为expression.Column\l
+  }}"];
+  IsPKHandleColumn[style_case];
+  IsCommonHandle[style_case];
+
+  dep_ctrl(IsCommonHandle, FindPrimaryIndex);
+  dep_ctrl(IsCommonHandle, NewCommonHandleCols);
+  dep_data(columns, logicalSchemaProducer:Schema);
+  dep_data(newExtraHandleSchemaCol, logicalSchemaProducer:Schema);
+  dep_data(newExtraHandleSchemaCol, DataSource:TblCols)
+  dep_data(columns, DataSource:Columns)
+
+  dep_data(columns, IsPKHandleColumn);
+  dep_data(FindPrimaryIndex, NewCommonHandleCols)
+  dep_data(NewCommonHandleCols, DataSource:handleCols)
+  dep_ctrl(IsPKHandleColumn, DataSource:handleCols)
+
+  DataSource[style_struct;label="{{
+    DataSource|
+    field(logicalSchemaProducer,)
+    field(indexMergeHints, []indexMergeHints)
+    field(possibleAccessPaths, []*util.AccessPath)
+    field(handleCols, HandleCols)
+    field(preferStoreType, int)
+    field(TblCols, []*expression.Column)
+    tail_field(Columns, []*models.ColumnInfo)
+  }}"]
+  DataSource:logicalSchemaProducer -> logicalSchemaProducer;
+  logicalSchemaProducer[style_struct;label="{{
+    logicalSchemaProducer|
+    field(schema, *expression.Schema)
+    field(names, types.NameSlice)
+    tail_field(baseLogicalPlan,)
+  }}"]
+}

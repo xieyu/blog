@@ -1,0 +1,56 @@
+#include "styles.h"
+digraph pessimistic_lock {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  pessimisticLockMutations -> {
+    doActionOnMutations;
+  }
+
+  actionPessimisticLock_handleSingleBatch -> pessimisticLockMutations;
+  amendPessimisticLock -> pessimisticLockMutations;
+  subgraph cluster_twoPhaseCommitter {
+    graph[label="twoPhaseCommitter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    execute -> {
+      checkSchemaValid;
+      calculateMaxCommitTS;
+    }
+    checkSchemaValid -> tryAmendTxn -> amendPessimisticLock;
+    calculateMaxCommitTS -> checkSchemaValid;
+  }
+
+  KVTxn_LockKeys -> pessimisticLockMutations;
+  KVTxn_LockKeys -> {
+    MemBuf_GetFlags_key;
+  }
+  KVTxn[style_func;label="{{
+    KVTxn|
+    isPessimistic bool\l
+  }}"]
+
+  subgraph cluster_KVTxn {
+    graph[label="KVTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    KVTxn_LockKeys;
+    KVTxn;
+  }
+  pessimisticLockMutations -> actionPessimisticLock_handleSingleBatch[style_edge_data];
+  doActionOnMutations -> actionPessimisticLock_handleSingleBatch;
+
+  LazyTxn_LockKeys -> KVTxn_LockKeys;
+  subgraph cluster_executor {
+    graph[label="executor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    executor_LockKeys -> doLockKeys -> KVTxn_LockKeys;
+    BatchPointGetExec_init -> executor_LockKeys;
+  }
+
+  clientConn_handleQuery -> clientConn_prefetchPointPlanKeys -> executor_batch_point_get_LockKeys;
+
+  addIndexWorker_BackfillDataInTxn -> KVTxn_LockKeys;
+  SelectLockExec_Next -> {
+    doLockKeys;
+    newLockCtx;
+    }
+  newLockCtx -> TransactionContext_GetForUpdateTS;
+}

@@ -1,0 +1,225 @@
+#include "styles.h"
+digraph storage_scanner_draft {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Snapshot {
+    graph[label="Snapshot";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Snapshot_Iter;
+     //>lib.rs:232 pub trait Snapshot: Sync + Send + Clone {#F/opt/github/tikv/components/tikv_kv/src/lib.rs#L232
+    Snapshot[style_func;label="{{
+      trait Snapshot|
+      A Snapshot is a consistent \l 
+      view of the underlying engine\l 
+      at a given point in time.\l
+    }}"]
+
+    Snapshot -> {
+      RocksSnapshot;
+    };
+    Snapshot_Iter -> RocksEngineIterator;
+    subgraph cluster_RocksSnapshot {
+      graph[label="RocksSnapshot";fontsize=20;style="rounded,dashed";color="slategrey"]
+      RocksSnapshot[style_func;label="{{
+        RocksSnapshot|
+      db: Arc\<DB\>,\l|
+      snap: UnsafeSnap,\l
+      }}"]
+      RocksEngineIterator[style_func;label="{{
+        RocksEngineIterator|
+          DBIterator\<Arc\<DB\>\>\l
+      }}"]
+    }
+  }
+  IsolationLevel[style_func;label="{{
+    IsolationLevel|
+    SI: snapshot isolation\l|
+    RC: read Commit\l
+  }}"]
+
+  ScannerBuilder[style_func;label="{{
+    ScannerBuilder|
+    ScannerConfig\<S\>\l
+  }}"]
+
+  ScannerConfig -> CursorBuilder;
+  Snapshot -> CursorBuilder -> Cursor[style_edge_data];
+
+  ScannerConfig[style_func;label="{{
+    ScannerConfig|
+    snapshot: S,\l|
+    fill_cache: bool,\l|
+    omit_value: bool,\l|
+    isolation_level: IsolationLevel,\l|
+    lower_bound: Option\<Key\>,\l|
+    upper_bound: Option\<Key\>,\l|
+    hint_min_ts: Option\<TimeStamp\>,\l|
+    hint_max_ts: Option\<TimeStamp\>,\l|
+    ts: TimeStamp,\l|
+    desc: bool,\l|
+    bypass_locks: TsSet,\l|
+    check_has_newer_ts_data: bool,\l
+  }}"]
+
+  ScannerBuilder -> {
+    ScannerConfig;
+  }
+  ScannerConfig -> {
+    IsolationLevel;
+    Snapshot;
+    TsSet;
+    Key;
+  }
+  //>mod.rs:171 pub enum Scanner<S: Snapshot> {#F/opt/github/tikv/src/storage/mvcc/reader/scanner/mod.rs#L171
+  Scanner[style_func;label="{{
+  Scanner|
+    Forward(ForwardKvScanner\<S\>),\l|
+    Backward(BackwardKvScanner\<S\>),\l
+  }}"]
+
+  Scanner -> {
+   ForwardKvScanner;
+   BackwardKvScanner;
+  }
+  DeltaScanner -> {
+   ForwardScanner;
+   DeltaEntryPolicy;
+  }
+  ScanPolicy[style_func;label="{{
+    trait ScanPolicy|
+    type Output\l|
+    fn handle_lock \l|
+    fn handle_write\l
+  }}"]
+
+  ScanPolicy -> {
+    DeltaEntryPolicy;
+    LatestKvPolicy;
+    LatestEntryPolicy;
+  }
+
+  ForwardKvScanner[style_func;label="{{
+    ForwardKvScanner|
+    ForwardScanner\<S, LatestKvPolicy\>\l
+  }}"]
+
+  ForwardKvScanner -> {
+    ForwardScanner;
+    LatestKvPolicy;
+  }
+  BackwardKvScanner[style_func;label="{{
+    BackwardKvScanner|
+    cfg: ScannerConfig\<S\>,\l|
+    lock_cursor: Cursor\<S::Iter\>,\l|
+    write_cursor: Cursor\<S::Iter\>,\l|
+    default_cursor: Option\<Cursor\<S::Iter\>\>,\l|
+    is_started: bool,\l|
+    statistics: Statistics,\l|
+    met_newer_ts_data: NewerTsCheckState,\l
+  }}"]
+
+  EntryScanner -> {
+    ForwardScanner;
+    LatestEntryPolicy;
+  }
+
+  BackwardKvScanner -> {
+     ScannerConfig;
+     Cursor;
+     NewerTsCheckState;
+   }
+
+   ForwardScanner[style_func;label="{{
+     ForwardScanner|
+     cfg: ScannerConfig\<S\>,\l|
+     cursors: Cursors\<S\>,\l|
+     is_started: bool,\l|
+     statistics: Statistics,\l|
+     scan_policy: P,\l|
+     met_newer_ts_data: NewerTsCheckState,\l
+   }}"]
+   ForwardScanner -> {
+     ScannerConfig;
+     ScanPolicy;
+     NewerTsCheckState;
+     Cursors;
+     ScannerConfig;
+     Statistics;
+   }
+   ForwardScanner -> Cursors;
+
+   Cursors[style_func;label="{{
+     Cursors|
+     lock: Cursor\<S::Iter\>,\l|
+     write: Cursor\<S::Iter\>,\l|
+     default: Option\<Cursor\<S::Iter\>\>,\l
+   }}"]
+   Cursors -> Cursor;
+
+   Cursor[style_func;label="{{
+     Cursor|
+      iter: I,\l|
+      scan_mode: ScanMode,\l|
+      prefix_seek: bool,\l|
+      min_key: Option\<Vec\<u8\>\>,\l|
+      max_key: Option\<Vec\<u8\>\>,\l|
+      cur_key_has_read: Cell\<bool\>,\l|
+      cur_value_has_read: Cell\<bool\>,\l
+   }}"]
+
+   Cursor -> ScanMode;
+   Iterator -> Snapshot_Iter
+   ScanMode[style_func;label="{{
+     ScanMode|
+      Forward,\l|
+      Backward,\l|
+      Mixed,\l
+   }}"]
+   Cursor -> Iterator;
+   Iterator[style_func;label="{{
+     Iterator|
+    fn next(&mut self) -\> Result\<bool\>;\l|
+    fn prev(&mut self) -\> Result\<bool\>;\l|
+    fn seek(&mut self, key: &Key) -\> Result\<bool\>;\l|
+    fn seek_for_prev(&mut self, key: &Key) -\> Result\<bool\>;\l|
+    fn seek_to_first(&mut self) -\> Result\<bool\>;\l|
+    fn seek_to_last(&mut self) -\> Result\<bool\>;\l|
+    fn valid(&self) -\> Result\<bool\>;\l|
+    fn validate_key(&self, _: &Key) -\> Result\<()\>\l|
+    fn key(&self) -\> &[u8];\l|
+    fn value(&self) -\> &[u8];\l
+   }}"]
+
+   Statistics[style_func;label="{{
+     Statistics|
+      pub lock: CfStatistics,\l|
+      pub write: CfStatistics,\l|
+      pub data: CfStatistics,\l
+   }}"]
+   Statistics -> CfStatistics -> FlowStatistics;
+   CfStatistics[style_func;label="{{
+     CfStatistics|
+    pub processed_keys: usize,\l|
+    pub get: usize,\l|
+    pub next: usize,\l|
+    pub prev: usize,\l|
+    pub seek: usize,\l|
+    pub seek_for_prev: usize,\l|
+    pub over_seek_bound: usize,\l|
+    pub flow_stats: FlowStatistics,\l|
+    pub next_tombstone: usize,\l|
+    pub prev_tombstone: usize,\l|
+    pub seek_tombstone: usize,\l|
+    pub seek_for_prev_tombstone: usize,\l|
+    pub ttl_tombstone: usize,\l
+   }}"]
+
+   FlowStatistics[style_func;label="{{
+     FlowStatistics|
+    pub read_keys: usize,\l|
+    pub read_bytes: usize,\l
+   }}"]
+  
+}

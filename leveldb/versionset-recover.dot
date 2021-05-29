@@ -1,0 +1,165 @@
+digraph versionset_recover {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Log {
+    graph[label="Log";fontsize=20;style=rounded];
+    ReadRecord;
+  };
+
+  subgraph cluster_VersionSet {
+    graph[label="VersionSet";fontsize=20;style=rounded];
+    ReadFileToString[
+      shape="record";
+      label="{{
+        ReadFileToString|
+        读取current文件\l
+        获得当前manifest文件名\l
+      }}";
+    ];
+    ReadRecord[
+      shape="record";
+      label="{{
+        ReadRecord|
+        循环读取VersionEditRecord\l
+        然后用builder Apply\l
+        更新version\l
+      }}";
+    ];
+
+    VersionEditRecord[
+      shape="record";
+      label="{{
+        VersionEditRecord|
+        kComparator varInt32\l|
+        comparator_\l|
+        varInt32 kLogNumber\l|
+        varInt64 log_number_\l|
+        varInt32 kPrevLogNumber\l|
+        varInt64 prev_log_number_\l|
+        varInt32 kNextFileNumber \l|
+        varInt64 next_file_number_\l|
+        varInt32 kLastSequence\l|
+        varInt64 last_sequence_\l|
+        compact_pointers_\l|
+        <deleted_files_> deleted_files_\l|
+        <new_files_> new_files_\l
+      }}";
+    ];
+    deleted_files_[
+      shape="record";
+      label="{{
+        deleted_files_|
+        varInt32 kDeletedFile\l
+        varInt32 level\l
+        varInt64 fileNumber\l|
+        ...
+      }}";
+    ];
+    r_new_files_[
+      shape="record";
+      label="{{
+        new_files_|
+        varInt32 kNewFile\l
+        varInt32 level\l
+        varInt64 fileNumber\l
+        varInt64 fileSize\l
+        Slice smallest\l
+        Slice largest\l|
+        ...
+      }}";
+    ];
+    NewSequentialFile[
+      shape="record";
+      label="{{
+        NewSequentialFile|
+        打开Manifest文件开始读取\l 
+        VersionEditRecord\l
+      }}";
+    ];
+    DecodeFrom[
+      shape="record";
+      label="{{
+        DecodeFrom|
+        从VersionEditRecord中解析出\l
+        VersionEdit\l
+      }}";
+    ];
+    Builder_Apply[
+      shape="record";
+      label="{{
+        Builder_Apply|
+        将version_edit apply到version上\l
+        得到新的version\l
+      }}";
+    ];
+    ReadFileToString ->  NewSequentialFile -> ReadRecord -> VersionEditRecord -> DecodeFrom -> Builder_Apply -> Finalize -> AppendVersion[style=dashed;color=gray];
+    VersionEditRecord:deleted_files_ -> deleted_files_;
+    VersionEditRecord:new_files_ -> r_new_files_;
+
+    Recover -> {
+      ReadFileToString;
+      NewSequentialFile;
+      ReadRecord;
+      DecodeFrom;
+      Builder_Apply
+      MarkFileNumberUsed;
+      Finalize;
+      AppendVersion;
+      ReuseManifest;
+    }
+  };
+
+  subgraph cluster_Version{
+    graph[label="Version";fontsize=20;style=rounded];
+    FileMetaData[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        FileMetaData|
+        int refs;\l|
+        int allowed_seeks;\l|
+        uint64_t number;\l|
+        uint64_t file_size;\l|
+        InternalKey smallest;\l|
+        InternalKey largest;\l
+      }}";
+    ];
+    files_[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        files_|
+        <FileMetaData> std::Vector\<FileMetaData*\>\l files_[config::kNumLevels];
+      }}";
+    ];
+    levels[
+      shape="record";
+      label="{{
+        levels|
+        level0: [FileMetaData .. FileMetaData]\l|
+        level1: [FileMetaData .. FileMetaData]\l|
+        ...
+        levelN\l
+      }}";
+    ];
+    files_ -> levels;
+    levels -> FileMetaData;
+  }
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;style=rounded];
+    DBImpl_Recover[
+      shape="record";
+      label="{{
+        DBImpl::Recover|
+        从current中获取当前Manifest文件名\l
+        读取Manifest中的VersionEditRecord\l
+        不断的apply versionEdit\l
+        最后获得当前最新version\l
+      }}";
+    ];
+    Open -> DBImpl_Recover -> Recover;
+  };
+}

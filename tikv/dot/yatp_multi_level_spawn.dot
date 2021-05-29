@@ -1,0 +1,238 @@
+#include "styles.h"
+digraph multilevel_spawn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_crossbeam {
+    graph[label="crossbeam";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Worker_push -> Worker;
+
+    Injector_push -> Injector_level;
+    Injector_push[style_func;label="{{
+      Injector::push|
+      push到task.current_level\l 
+      对应的Injector\l
+    }}"]
+    Injector_level[style_func;label="{{
+      Injector|
+      某个level的Injector\l
+    }}"]
+    Injector_level -> steal_batch_and_pop -> Worker[style_edge_data];
+    Worker_other[style_func;label="{{
+      Worker|
+      其他线程的\l 
+      本地task队列\l
+    }}"]
+    Worker_other -> stealer_steal_batch_and_pop -> Worker[style_edge_data];
+    stealer_steal_batch_and_pop[style_func;label="{{
+      stealer.steal_batch_and_pop|
+      从其他线程的本地队列\l
+      steal 一批task\l
+    }}"]
+    Worker_push[style_func;label="{{
+      Worker::push|
+      向自己本地队里push task\l
+    }}"]
+    Worker_pop -> Worker;
+    Worker_pop[style_func;label="{{
+      Worker::pop|
+      从自己本地队列中取task\l
+    }}"]
+  }
+
+  subgraph cluster_Extras {
+    graph[label="Extras";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Extras[style_func;label="{{
+      Extras|
+      pub(crate) schedule_time: Option\<Instant\>,\l|
+      pub(crate) task_id: u64,\l|
+      <running_time> pub(crate) running_time: Option\<Arc\<ElapsedTime\>\>,\l|
+      <current_level> pub(crate) current_level: u8,\l|
+      pub(crate) fixed_level: Option\<u8\>,\l
+    }}"]
+    default_extras -> Extras;
+    Extras:current_level -> Injector_level;
+  }
+
+  subgraph cluster_LevelManager {
+    graph[label="LevelManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    prepare_before_push -> {
+      extras_running_time_get_or_insert_with;
+      task_elapsed_map_get_elapsed;
+      level_time_threshold;
+      Extras:current_level;
+    }
+    task_elapsed_map_get_elapsed[style_func;label="{{
+      task_elapsed_map.get_elapsed(task_id)|
+      从task_elapsed_map中获取task\l
+      之前运行时间。\l
+    }}"]
+    prepare_before_push[style_func;label="{{
+      prepare_before_push|
+      根据task 以往的running_time\l
+      决定task的current_level\l
+    }}"]
+
+    maybe_adjust_chance -> {
+     adjusting;
+     level0_chance;
+    }
+  }
+
+
+  subgraph cluster_TaskInjector {
+    graph[label="multilevel::TaskInjector";fontsize=20;style="rounded,dashed";color="slategrey"]
+    TaskInjector_push[style_func;label="{{
+      push|
+      向task.current_level\l
+      对应的Injector push task\l
+    }}"]
+    TaskInjector_push -> {
+      Extras:current_level;
+      Injector_push;
+    }
+  }
+  subgraph cluster_QueueCore {
+    graph[label="QueueCore";fontsize=20;style="rounded,dashed";color="slategrey"]
+    QueueCore_push[style_func;label="{{
+      QueueCore::push
+    }}"]
+    QueueCore_push -> {
+      TaskInjector_push;
+      ensure_workers;
+    }
+    ensure_workers[style_func;label="{{
+      ensure_workers|
+      Ensures there are enough\l
+      workers to handle pending tasks\l
+    }}"]
+    ensure_workers -> {
+       active_workers;
+       unpark_one;
+    }
+    mark_sleep -> {
+      active_workers;
+    }
+    mark_woken -> {
+      active_workers;
+    }
+  }
+
+  subgraph cluster_LocalQueue {
+    graph[label="multilevel::LocalQueue";fontsize=20;style="rounded,dashed";color="slategrey"]
+    multiLevel_LocalQueue_push -> {
+      prepare_before_push;
+      Worker_push;
+    }
+    multiLevel_LocalQueue_push[style_func;label="{{
+      push
+    }}"]
+    multiLevel_LocalQueue_pop[style_func;label="{{
+      pop|
+      1.先从本地pop task\l
+      2.如果没有，根据chance\l 
+      计算要从哪个level获取task\l
+      3.从其他worke steal 一批task\l
+    }}"]
+    pop -> {
+      Worker_pop;
+      into_pop;
+      expected_level;
+      steal_batch_and_pop;
+      stealer_steal_batch_and_pop;
+    }
+    level0_chance -> expected_level[style_edge_data];
+    steal_batch_and_pop -> level_injectors:level_k;
+    steal_batch_and_pop[style_func;label="{{
+      steal_batch_and_pop|
+      从expected_level中\l 
+      steal batch task\l
+    }}"]
+    expected_level -> Injector_level[style_edge_data];
+    expected_level[style_func;label="{{
+      expected_level|
+      根据概率计算\l
+      要从哪个global injector\l
+      中获取task\l
+    }}"]
+
+    level_injectors[style_var;label="{{
+      level_injectors|
+      level injecto数组\l|
+      Arc\<[Injector\<T\>; LEVEL_NUM]\>,\l|
+      level 0 Injector\l|
+      ...\l|
+      <level_k>level k Injector\l|
+      ...\l
+    }}"]
+    level_injectors -> Injector_level;
+  }
+
+  subgraph cluster_Remote {
+    graph[label="Remote";fontsize=20;style="rounded,dashed";color="slategrey"]
+    remote_spawn -> {
+     QueueCore_push;
+    };
+    remote_spawn[style_func;label="{{
+      spawn
+    }}"]
+  }
+
+  subgraph cluster_future_Runner {
+    graph[label="future_Runner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    future_Runner_handle[style_func;label="{{
+      handle|
+      调用task.future.poll\l
+    }}"]
+    future_Runner_handle -> wake_task[style_edge_data];
+    wake_task[style_func;label="{{
+      wake_task|
+      task将自己重新\l 
+      放入队列中\l|
+      优先放到本地队列中\l
+    }}"]
+
+    wake_task -> {
+      spawn_remote;
+      spawn;
+      remote_spawn;
+    }
+  }
+
+  subgraph cluster_Local {
+    graph[label="Local";fontsize=20;style="rounded,dashed";color="slategrey"]
+    spawn -> multiLevel_LocalQueue_push;
+    spawn_remote -> QueueCore_push;
+    pop -> {
+      multiLevel_LocalQueue_pop;
+    }
+    pop_or_sleep -> {
+     park;
+     mark_sleep;
+     multiLevel_LocalQueue_pop;
+     mark_woken;
+    }
+  }
+  
+  subgraph cluster_MultiLevelRunner {
+    graph[label="MultiLevelRunner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle[style_func;label="{{
+      handle|
+      此处会更新task的running_time\l
+      running_time.inc_by(elapsed);
+    }}"]
+    handle -> {
+      future_Runner_handle;
+      maybe_adjust_chance;
+    };
+    handle -> TaskInjector_push[style_edge_data]
+
+    run -> {
+      pop;
+      handle;
+      pop_or_sleep;
+    }
+  }
+}

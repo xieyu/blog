@@ -1,0 +1,103 @@
+#include "styles.h"
+digraph read_index_handle_heartbeat_resp {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  MsgHeartBeatResp[style_var;label="{{
+    MsgHeartBeatResp|
+    from peer id\l|
+    <context> context: leader带上的ctx\l
+    由bcast_heartbeat_with_ctx带上\l
+    的rctx\l
+  }}"]
+  MsgHeartBeatResp:context -> {
+    recv_ack;
+    read_index_queue;
+    advance;
+  }[style_edge_data];
+  recv_ack[style_func;label="{{
+    recv_ack|
+    根据ctx找到对应的ReadIndexStatus\l
+    在里面的acks中插入peer id\l
+  }}"]
+
+  pending_read_index[style_var;label="{{
+    pending_read_index|
+      HashMap\<Vec\<u8\>, ReadIndexStatus\>|
+      其中key为rctx\l
+  }}"]
+  pending_read_index -> ReadIndexStatus;
+  recv_ack -> ReadIndexStatus:acks[style_edge_data];
+  ReadIndexStatus:acks -> has_quorum[style_edge_data];
+  has_quorum[style_func;label="{{
+    has_quorum|
+    检查是否收到了\l 
+    大部分voters的响应\l
+  }}"]
+  has_quorum -> vote_result;
+
+  ReadIndexStatus[style_struct;label="{{
+    ReadIndexStatus|
+    pub req: Message\l|
+    pub index: u64\l|
+    <acks> pub acks: HashSet\<u64\>\l
+  }}"]
+
+  recv_ack -> pending_read_index;
+
+  handle_heartbeat_response -> {
+    recv_ack;
+    has_quorum;
+    advance;
+    handle_ready_read_index;
+    send;
+  }
+  advance -> handle_ready_read_index[style_edge_data];
+
+  handle_ready_read_index -> {
+    MsgReadIndexResp;
+    read_states;
+  }
+  has_quorum -> {
+    advance;
+    handle_ready_read_index;
+    send;
+  }[style_edge_data];
+
+  read_states[style_var;label="{{
+    read_states|
+    self.read_states.push(rs)\l
+    如果是leader节点发送的ReadIndex\l
+    则push到Leader自己的read_states中
+  }}"]
+  MsgReadIndexResp[style_var;label="{{
+    MsgReadIndexResp|
+    否则发送消息给follower\l
+  }}"]
+
+  read_index_queue[style_var;label="{{
+    read_index_queue|
+    VecDeque\<Vec\<u8\>\>\l
+    里面元素为rctx\l|
+    将只读请求维护为一个只读队列\l
+    该队列中commit index是有序递增的\l
+    如果队列中某个元素i对应commit index\l
+    得到确认，那么之前的也会被确认\l
+  }}"]
+  {read_index_queue;pending_read_index} -> { advance; }[style_edge_data];
+  advance[style_func;label="{{
+    advance|
+    从read_index_queue中找\l 
+    到该rctx position\l
+    这个position之前的所有\l 
+    rctx都认为是已确认\l|
+    遍历取出0..position之间的ReadIndexStatus\l
+  }}"]
+  handle_ready_read_index[style_func;label="{{
+    handle_ready_read_index|
+    对于每个ReadIndexStatus\l
+    构建ReadState\l
+  }}"]
+}

@@ -1,0 +1,81 @@
+digraph dataflow {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ClientServer -> RestfulApi;
+
+  subgraph cluster_PushProtocal{
+    graph[label="protocols";fontsize=20;];
+    GoogleGCM;
+    GoogleFCM;
+    AppleAPNS;
+    WebPush;
+  }
+  subgraph cluster_Device {
+    graph[label="Device";fontsize=20;];
+    AppleDevice;
+    WebBrowser;
+    AndroidDevice;
+  }
+
+  subgraph cluster_OneSignal {
+    graph[label="OneSignalPlatform";fontsize=20;];
+    RestfulApi -> Notification;
+    DashBoard -> Notification;
+    Notification[
+      shape="record"
+      label="{{
+        Notification|
+        1.通知内容,title等\l
+        2.推送时间,ttl等\l
+        3.推送的平台\l
+        4.推送的segments\l
+      }}"
+    ];
+    Notification -> OneSignal;
+    Segments[
+      shape="record"
+      label="{{
+        Segments|
+        用户分组,根据segments\l
+        选择出device\l
+        将notification推送给用户\l
+      }}"
+    ];
+    App[
+      shape="record"
+      label="{{
+        App|
+        1.包含了各种推送\l 
+        渠道的identifier和key\l
+      }}"
+    ];
+    OneSignal -> {
+      App;
+      Segments;
+    }
+    subgraph cluster_App {
+      graph[label="App";fontsize=20;];
+      App -> {
+        apns
+        chrome;
+        safari;
+        gcm_key;
+      }
+    }
+    {GoogleFCM;GoogleGCM}-> AndroidDevice;
+    {AppleAPNS} -> AppleDevice;
+    WebPush -> WebBrowser;
+  }
+  {
+    edge[style=dashed];
+    chrome -> WebPush;
+    safari -> WebPush;
+    apns -> AppleAPNS;
+    gcm_key -> {
+      GoogleFCM;
+      GoogleGCM;
+    }
+  }
+}

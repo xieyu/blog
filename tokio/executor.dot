@@ -1,0 +1,71 @@
+//
+// executor.dot
+//
+// Created on 06-10-2019 by xieyu
+//
+digraph executor {
+  node[shape="record"];
+  subgraph cluster_trait {
+    label = "trait"
+    Executor[
+      label="{
+        trait Executor|
+          +spawn \l
+          +status\l| 
+          spawn_with_handle\l
+      }"
+    ]
+
+      TypedExecutor [
+      label="{
+        trait TypedExecutor|
+          +spawn \l
+          +status\l 
+      }"
+      ]
+  }
+
+  subgraph cluster_currentThread {
+    label="current_thread";
+    TaskExecutor [
+      label="{
+        TaskExecutor|
+        + spawn \l
+        + status \l|
+        current\l
+        id\l
+        spawn_local\l
+      }"
+    ]
+
+    TaskExecutor ->{TypedExecutor, Executor};
+    CurrentThread ->{TypedExecutor, Executor};
+  }
+
+  subgraph cluster_threadpool{
+    label="thread pool"
+    Sender [
+      label="{
+        Sender|
+        + spawn \l
+        + status \l|
+        pool \l|
+        prepare_for_spawn\l
+      }"
+    ]
+  }
+
+
+  DefaultExecutor [
+    label="{
+      DefaultExecutor|
+      + spawn \l
+      + status\l |
+      current \l
+      with_current\l
+    }"
+  ]
+
+  Sender -> {TypedExecutor, Executor};
+  DefaultExecutor ->{TypedExecutor, Executor};
+}

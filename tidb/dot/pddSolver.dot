@@ -1,0 +1,164 @@
+digraph pddSolver {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Conds2TableDual[
+    shape="record";
+    label="{{
+      Conds2TableDual|
+      build a LogicalTableDual\l
+      if cond is constant false or null\l
+    }}"];
+
+  canFuncBePushed[
+    shape="record";
+    label="{{
+      canFuncBePushed|
+      罗列支持下推的func
+    }}"];
+
+  LogicalJoin[
+    shape="record";
+    label="{{
+      LogicalJoin|
+      分别计算leftCond和rightCond\l
+      然后调用left/right child的\l
+      predicate_push_down \l
+    }}"];
+  LogicalLimit[
+    shape="record";
+    label="{{
+      LogicalLimit|
+      Limit forbids any condtions\l
+      to push down\l|
+      调用baseLogicalPlan.PredicatePushDown(nil)\l
+    }}"];
+
+  LogicalMaxOneRow[
+    shape="record";
+    label="{{
+      LogicalMaxOneRow|
+      MaxOneRow forbids any condtions\l
+      to push down\l|
+      调用baseLogicalPlan.PredicatePushDown(nil)\l
+    }}"];
+  addSelection[
+    shape="record";
+    label="{{
+      addSelection|
+      推不下去的cond\l
+      生成一个新的SelectPlan\l
+    }}"];
+
+  child_PredicatePushDown[
+    shape="record";
+    label="{{
+      child.PredicatePushDown|
+      将cond继续往子节点下推\l
+      最终会推到datasource节点\l 
+      (如果路径中没有limit和maxonerow的话)\l
+    }}"];
+  HasGetSetVarFunc[
+    shape="record";
+    label="{{
+      HasGetSetVarFunc|
+      包含GetSet var的不能下推
+    }}"];
+
+  HasAssignSetVarFunc[
+    shape="record";
+    label="{{
+      HasAssignSetVarFunc|
+      包含var的不能下推\l|
+      create table t(id int primary key, a int);\l
+        insert into t values(1, 1), (2,2);\l
+        set @a = 1;\l
+        select id, a, @a:=@a+1 from t where a = @a;\l|
+        户变量 @a 的值可能会某些场景\l 
+        下在查询过程中发生改变，\l 
+        且 TiKV 对于用户变量 @a \l 
+        的值不可知，因此 TiDB 不会将\l 
+        @a 替换为 1\l
+    }}"];
+
+  optimize -> PredicatePushDown;
+  PredicatePushDown -> {
+    baseLogicalPlan;
+    LogicalJoin;
+    LogicalMemTable;
+    LogicalProjection;
+    LogicalLimit;
+    LogicalUnionScan;
+    DataSource;
+    LogicalWindow;
+    LogicalMaxOneRow;
+    LogicalUnionAll;
+    LogicalTableDual;
+    LogicalSelection;
+  }[color="#3fc1c9"];
+  LogicalLimit -> baseLogicalPlan[label=nil];
+  LogicalMaxOneRow -> baseLogicalPlan[label=nil];
+
+  baseLogicalPlan -> {
+    child_PredicatePushDown;
+    addSelection;
+  }
+
+  LogicalSelection -> {
+    splitSetGetVarFunc;
+    child_PredicatePushDown;
+    PropagateConstant;
+    Conds2TableDual;
+  }
+
+  DataSource -> {
+    PushDownExprs;
+  }
+  PushDownExprs -> {
+    PbConverter;
+    canExprPushDown;
+  }
+  canExprPushDown -> {
+    conOrCorColToPBExpr;
+    columnToPBExpr;
+    canScalarFuncPushDown;
+  }
+  conOrCorColToPBExpr -> IsRequestTypeSupported[label="ReqTypeSelect"];
+  conOrCorColToPBExpr -> {
+    encodeDatum;
+  }
+  columnToPBExpr -> { IsRequestTypeSupported; }[label="ReqTypeDAG|ReqTypeSelect"];
+  canScalarFuncPushDown -> {
+    canFuncBePushed;
+    canExprPushDown;
+    scalarFunc_Function_metadata;
+  }
+  canFuncBePushed -> {
+    scalarExprSupportedByFlash;
+    scalarExprSupportedByTiKV;
+    scalarExprSupportedByTiDB;
+    IsPushDownEnabled;
+  }
+  IsPushDownEnabled -> DefaultExprPushDownBlacklist;
+
+
+  LogicalJoin -> {
+    outerJoinPropConst;
+    Conds2TableDual;
+    ExtractFiltersFromDNFs;
+    ScalarFuncs2Exprs;
+    extractOnCondition;
+    PropagateConstant;
+    RemoveDupExprs;
+    child_PredicatePushDown;
+  }
+  LogicalProjection -> {
+    HasAssignSetVarFunc;
+    HasGetSetVarFunc;
+  }
+
+  edge[style=dashed];
+  child_PredicatePushDown -> DataSource;
+  HasAssignSetVarFunc -> baseLogicalPlan[label=nil];
+}

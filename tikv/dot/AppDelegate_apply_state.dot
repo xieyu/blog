@@ -1,0 +1,121 @@
+#include "styles.h"
+digraph AppDelegate_apply_state {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ApplyDelegate {
+    graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    write_apply_state[style_func;label="{{
+      write_apply_state|
+      将apply_state写入\l 
+      apply context的\l
+      kv_wb中\l
+    }}"]
+    apply_raft_cmd -> {
+      exec_raft_cmd;
+      apply_state;
+      set_applied_index;
+      applied_index_term;
+    }
+    applied_index_term[style_var;label="{{
+      applied_index_term|
+        applied_index_term: u64,\l
+    }}"]
+    apply_raft_cmd[style_func;label="{{
+      apply_raft_cmd|
+      执行完req后，\l 
+      更新applied_index\l
+    }}"]
+    apply_state -> write_apply_state[style_edge_data];
+    process_raft_cmd -> apply_raft_cmd;
+    handle_raft_committed_entries -> {
+      handle_raft_entry_normal;
+      handle_raft_entry_conf_change;
+    } -> process_raft_cmd;
+    exec_raft_cmd[style_func;label="{{
+      exec_raft_cmd|
+      执行raft cmd\l
+      将结果写入kv_wb\l
+    }}"]
+    exec_raft_cmd -> set_applied_index -> apply_state[style_edge_data];
+    apply_state[style_var;label="{{
+      apply_state|
+      RaftApplyState
+    }}"]
+    handle_raft_committed_entries[style_func;label="{{
+      handle_raft_committed_entries|
+      遍历执行所有的\l 
+      committed entries\l
+    }}"]
+  }
+
+  subgraph cluster_ApplyContext {
+    graph[label="ApplyContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_raft_committed_entries -> finish_for;
+    apply_res[style_var;label="{{
+      apply_res|
+        apply_res: Vec\<ApplyRes\<EK::Snapshot\>\>,\l
+    }}"]
+    finish_for[style_func;label="{{
+      finish_for|
+      传入commit_opt参数为false\l
+      所以还不会将write batch\l 
+      写入rocksdb中\l
+    }}"]
+    apply_state -> ApplyRes -> apply_res -> notify[style_edge_data];
+    ApplyRes[style_func;label="{{
+      ApplyRes|
+      新建一个ApplyRes并加到\l 
+      apply_res数组中\l
+    }}"]
+    flush -> apply_res;
+    flush -> {
+      notify;
+      write_to_db;
+    }
+    notify[style_func;label="{{
+      notify|
+      self.notifier.notify(apply_res)\l|
+      将apply_res发给PeerFsm处理\l
+    }}"]
+
+    finish_for -> {
+      write_apply_state;
+      apply_res;
+      commit_opt;
+      ApplyRes;
+    }
+    write_apply_state -> kv_wb;
+    exec_raft_cmd -> kv_wb;
+
+    handle_raft_entry_normal -> {
+      commit;
+      should_write_to_engine;
+    }
+    should_write_to_engine -> commit[style_edge_data];
+    commit -> commit_opt -> {
+      write_to_db;
+      prepare_for;
+    }
+    kv_wb -> write_to_db;
+  }
+  subgraph cluster_ApplyFsm {
+    graph[label="ApplyFsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_tasks -> handle_raft_committed_entries[style_edge_data];
+      
+  }
+
+  subgraph cluster_ApplyPollder {
+    graph[label="ApplyPollder";fontsize=20;style="rounded,dashed";color="slategrey"]
+    end[style_func;label="{{
+      end|
+      1.将kv_wb写入磁盘\l
+      2.将ApplyRes发送给PeerFsm\l
+    }}"]
+    end -> flush;
+    handle_normal -> handle_tasks;
+  }
+  
+}

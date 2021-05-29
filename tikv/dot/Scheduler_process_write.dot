@@ -1,0 +1,129 @@
+#include "styles.h"
+digraph Scheduler_process_write {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_LockManager {
+    graph[label="LockManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    wait_for[style_func;label="{{
+      wait_for|
+      waits for lock released\l
+    }}"]
+  }
+  subgraph cluster_Scheduler {
+    graph[label="Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    cmd_process_write[style_func;label="{{
+      task.cmd.process_write|
+      执行cmd process_write\l
+      返回WriteResult结果\l
+    }}"]
+
+    process_write -> {
+      cmd_process_write;
+      on_wait_for_lock;
+      on_write_finished;
+      async_write_ext;
+      finish_with_err;
+    }
+    to_be_write[style_var;label="{{
+      to_be_write|
+      WriteData
+    }}"]
+    lock_info[style_var;label="{{
+      lock_info|
+        Option\<(lock_manager::Lock,\l 
+        bool, Option\<WaitTimeout\>)\>,\l
+    }}"]
+    Lock[style_struct;label="{{
+      Lock|
+        pub ts: TimeStamp,\l|
+        pub hash: u64,\l
+    }}"]
+    lock_info -> Lock;
+
+    cmd_process_write -> WriteResult[style_edge_data];
+    WriteResult -> {
+      lock_info;
+      to_be_write;
+    }[style_edge_data];
+    lock_info -> on_wait_for_lock[style_edge_data];
+    on_wait_for_lock[style_func;label="{{
+      on_wait_for_lock|
+      获取某些lock失败了\l
+      放入lock_manager等待lock释放（或者超时）\l
+      再通知client重试\l
+    }}"]
+    on_wait_for_lock -> {
+      wait_for;
+      release_lock;
+      dequeue_task_context;
+    }
+    dequeue_task_context[style_func;label="{{
+      dequeue_task_context|
+      从task_slot中删掉\l 
+      cid对应的tctx\l
+    }}"]
+    dequeue_task_context-> task_slots;
+    task_slots[style_var;label="{{
+      task_slots|
+        Vec\<CachePadded\<Mutex\< \l
+        HashMap\<u64, TaskContext\>\>\>\>,\l
+    }}"]
+
+    to_be_write -> async_write_ext[style_edge_data];
+    async_write_ext[style_func;label="{{
+      async_write_ext|
+      将数据异步写入Engine\l
+      并在相应时机调用回调函数\l
+    }}"]
+    async_write_ext -> {
+      engine_cb;
+      proposed_cb;
+      committed_cb;
+    }[style_edge_data];
+    engine_cb -> {
+      sched_pool_spawn;
+      on_write_finished
+    }
+    sched_pool_spawn -> on_write_finished[style_edge_data];
+    /*
+    release_lock -> {
+      latches_release;
+      try_to_wake_up;
+    }
+    latches_release -> wakeup_list -> try_to_wake_up[style_edge_data];
+    */
+
+    on_write_finished -> {
+      dequeue_task_context;
+      release_lock;
+      schedule_command;
+      tctx_cb_execute;
+    }
+    schedule_command[style_func;label="{{
+      style_fn
+    schedule_command|
+      ProcessResult为\l
+      NextCommand\l
+      接着调度
+    }}"]
+    on_write_finished[style_func;label="{{
+      on_write_finished|
+      如果ProcessResult是NextCommand\l
+      接着调度next_command\l
+      否则回调tctx中的cb
+    }}"]
+    finish_with_err -> {
+      dequeue_task_context;
+      tctx_cb_execute;
+      release_lock;
+    }
+    release_lock[style_func;label="{{
+      release_lock|
+      Release all the latches\l
+      held by a command\l
+    }}"]
+  }
+  
+}

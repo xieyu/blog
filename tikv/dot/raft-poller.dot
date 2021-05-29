@@ -1,0 +1,120 @@
+#include "styles.h"
+digraph raft_poller {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PeerFsmDelegate_handle_msgs[style_func;label="{{
+     handle_msgs\l|
+     处理Raft消息\l
+    }}"]
+    PeerFsmDelegate_collect_ready[style_func;label="{{
+      collect_ready
+    }}"]
+    PeerFsmDelegate_post_raft_ready_append[style_func;label="{{
+      post_raft_ready_append
+    }}"]
+    PeerFsmDelegate_collect_ready;
+    PeerFsmDelegate_collect_ready -> {
+      handle_raft_ready_append;
+    }
+    PeerFsmDelegate_post_raft_ready_append;
+    PeerFsmDelegate_handle_msgs -> PeerFsmDelegate_collect_ready[style_edge_data];
+  }
+  PeerFsmDelegate_collect_ready -> handle_raft_ready[style_edge_data];
+  subgraph cluster_StoreFsmDelegate {
+    graph[label="StoreFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    StoreFsmDelegate_handle_msgs;
+  }
+  subgraph cluster_Transport {
+    graph[label="Raft消息: Transport";fontsize=20;style="rounded,dashed";color="slategrey"]
+    poll_ctx_trans_need_flush[style_func;label="{{
+      poll_ctx.trans.need_flush|
+      trait Transport\l|
+      need_flush\l
+    }}"]
+    poll_ctx_trans_flush[style_func;label="{{
+      poll_ctx.trans.flush|
+      trait Transport\l|
+      Transport messages between\l 
+      different Raft peers\l
+    }}"]
+  }
+  subgraph cluster_RaftLog {
+    graph[label="Raft日志";fontsize=20;style="rounded,dashed";color="slategrey"]
+    poll_ctx_raft_wb;
+    poll_ctx_engines_raft_consume_and_shrink;
+  }
+  subgraph cluster_Kv {
+    graph[label="Kv";fontsize=20;style="rounded,dashed";color="slategrey"]
+    poll_ctx_kv_wb_write_opt;
+  }
+
+  handle_raft_ready[style_func;label="{{
+    handle_raft_ready|
+    处理raft.ready返回的数据\l
+    发送Raft消息\l 
+    保存Raft日志\l 
+    Apply commited log\l
+  }}"]
+  poll_ctx[style_struct;label="{{
+    poll_ctx|
+      pub struct PollContext\<EK, ER, T\>\l|
+      pub trans: T,\l|
+      pub kv_wb: EK::WriteBatch,\l|
+      pub raft_wb: ER::LogBatch,\l|
+      pub apply_router: ApplyRouter\<EK\>,\l|
+      pub router: RaftRouter\<EK, ER\>,\l|
+      pub tick_batch: Vec\<PeerTickBatch\>,\l
+  }}"]
+
+  {
+    rank=same;
+    begin;
+    end;
+    handle_control;
+    handle_normal;
+    pause;
+  }
+
+  begin -> {
+    poll_ctx;
+    update_ticks_timeout;
+  }
+  handle_control -> {
+    store_receiver_try_recieve;
+    StoreFsmDelegate_handle_msgs;
+  }
+  handle_normal ->{
+    peer_receiver_try_recv;
+    PeerFsmDelegate_handle_msgs;
+    PeerFsmDelegate_collect_ready;
+  }
+  peer_receiver_try_recv -> peer_msg_buf -> PeerFsmDelegate_handle_msgs[style_edge_data];
+  end -> {
+    flush_ticks;
+    handle_raft_ready;
+    poll_ctx;
+  }
+  pause -> {
+    poll_ctx_trans_need_flush;
+    poll_ctx_trans_flush;
+  }
+  handle_raft_ready -> {
+    poll_ctx_trans_need_flush;
+    poll_ctx_trans_flush;
+    poll_ctx_kv_wb_write_opt;
+    poll_ctx_raft_wb;
+    poll_ctx_engines_raft_consume_and_shrink;
+    PeerFsmDelegate_post_raft_ready_append;
+  }
+  flush_ticks -> {
+    poll_future_notify;
+    poll_ctx_delay_compact;
+    tick;
+    poll_ctx_tick_batch_idx_ticks;
+  }
+}

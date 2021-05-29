@@ -1,0 +1,42 @@
+digraph controller_failover {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  onControllerFailover -> {
+    registerZNodeChangeHandler;
+    registerZNodeChildChangeHandler;
+    deleteLogDirEventNotifications;
+    deleteIsrChangeNotifications;
+    initializeControllerContext;
+    fetchTopicDeletionsInProgress;
+    topicDeletionManager_init;
+    sendUpdateMetadataRequest;
+    replicaStateMachine_startup;
+    partitionStateMachine_startup;
+    initializePartitionReassignments;
+    tryTopicDeletion;
+    onReplicaElection;
+    kafkaScheduler_startup;
+    scheduleAutoLeaderRebalanceTask;
+  }
+  registerZNodeChildChangeHandler -> {
+    brokerChangeHandler;
+    topicChangeHandler;
+    topicDeletionHandler;
+    logDirEventNotificationHandler;
+    isrChangeNotificationHandler;
+  }
+  registerZNodeChangeHandler -> {
+    preferredReplicaElectionHandler;
+    partitionReassignmentHandler;
+  }
+  initializeControllerContext -> {
+    getAllBrokerAndEpochsInCluster;
+    getAllTopicsInCluster;
+    registerPartitionModificationsHandlers;
+    getFullReplicaAssignmentForTopics;
+    registerBrokerModificationsHandler;
+    updateLeaderAndIsrCache;
+    controllerChannelManager_startup;
+  }
+}

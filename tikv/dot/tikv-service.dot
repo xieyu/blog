@@ -1,0 +1,422 @@
+#include "styles.h"
+digraph kv_service {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  KvService[style_func;label="{{
+    KvService|
+    handles the RPC mesages\l 
+    for the `Tikv` service\l
+  }}"]
+
+  Storage[style_func;label="{{
+    Storage|
+    implements\l 
+    transactional KV APIs and raw KV\l 
+    APIs on a given [`Engine`].\l
+  }}"]
+
+  Endpoint[style_func;label="{{
+    Endpoint|
+    for handling coprocessor requests
+  }}"]
+
+  GcWorker[style_func;label="{{
+    GcWorker|
+    handle requets \l 
+    releated to GC\l
+  }}"]
+
+  ReadPoolHandle[style_func;label="{{
+    ReadPoolHandle|
+    the thread pool\l 
+    used to run most read \l
+    operations\l
+  }}"]
+
+  Engine[style_var;label="{{
+    trait Engine|
+    defines the common behaviour\l
+    for a storage engine type\l|
+    fn kv_engine\l|
+    fn snapshot_on_kv_engine\l|
+    fn modify_on_kv_engine\l|
+    fn async_snapshot\l|
+    fn async_write\l|
+    fn async_write_ext\l|
+    fn write\l|
+    fn release_snapshot\l|
+    fn snapshot\l|
+    fn put\l|
+    fn put_cf\l|
+    fn delete\l|
+    fn delete_cf\l|
+    fn get_properties\l|
+    fn get_properties_cf\l|
+    fn get_mvcc_properties_cf\l
+  }}"]
+  Snapshot[style_var;label="{{
+    Snapshot|
+    fn get\l|
+    fn get_cf\l|
+    fn get_cf_opt\l|
+    fn iter_cf\l|
+    fn lower_bound\l|
+    fn upper_bound\l|
+    fn get_data_version\l|
+    fn is_max_ts_synced\l
+  }}"]
+  RaftKv[style_func;label="{{
+    RaftKv|
+    a storage engine\l 
+    base on RaftStore\l
+  }}"]
+
+  RaftStoreRouter[style_var;label="{{
+    RaftStoreRouter|
+    Routes messages\l 
+    to the raftstore\l
+    fn send_raft_msg\l|
+    fn siginficant_send\l|
+    fn broadcast_normal\l|
+    fn send_casual_msg\l|
+    fn send_store_msg\l|
+    fn send_command\l|
+    fn report_unreachable\l|
+    fn report_snapshot_status\l
+    fn broadcast_unreachable\l|
+    fn broadcast_normal\l
+  }}"];
+  LocalReadRouter[style_var;label="{{
+    LocalReadRouter|
+    fn read\l|
+    fn release_snapshot_cache\l
+  }}"]
+  ServerRaftStoreRouter[style_func;label="{{
+    ServerRaftStoreRouter|
+    A router that routes\l 
+    messages to the raftstore\l
+  }}"]
+
+  RaftEngine[style_var;label="{{
+    trait RaftEngine
+  }}"]
+  KvEngine[style_var;label="{{
+    trait KvEngine
+  }}"]
+
+  Latch[style_func;label="{{
+    Latch|
+    Latch which is used\l 
+    to serialize accesses\l 
+    to resources hashed to\l 
+    the same slot.\l
+  }}"]
+  Fsm[style_var;label="{{
+    Fsm|
+      A Fsm is a finite\l 
+      state machine.\l|
+      fn is_stopped\l|
+      fn set_mailbox\l
+      设置mailbox\l,后面通过\l 
+      mailbox发消息给fsm |
+      fn take_mailbox\l
+  }}"]
+
+  NormalScheduler[style_func;label="{{
+    NormalScheduler|
+    通过channel sender\l 
+    发normal消息给Fsm\l
+  }}"]
+  ControlScheduler[style_func;label="{{
+    ControlScheduler|
+    通过channel sender\l
+    发送control消息给Fsm\l
+  }}"]
+
+  PendingCmdQueue[style_func;label="{{
+    PendingCmdQueue|
+    Commands waiting to be committed
+    and applied;
+  }}"]
+
+  Fsm -> {
+    ApplyFsm;
+    PeerFsm;
+    ControlFsm;
+    StoreFsm;
+  }
+
+  Engine -> {
+    Snapshot;
+    KvEngine;
+  }
+  Snapshot -> {
+    RocksSnapshot;
+    RegionSnapshot;
+    BTreeEngineSnapshot;
+  }[label="impl"];
+
+
+  KvService -> {
+    GcWorker;
+    Storage;
+    Endpoint;
+    Scheduler;
+    ThreadLoad;
+    RaftStoreRouter;
+    RocksEngine;
+  }[color="#b83b5e"];
+
+  GcWorker -> {
+    Engine;
+    RaftStoreRouter;
+    FutureWorker;
+    FutureScheduler;
+    GcManagerHandle;
+  }
+
+  Storage -> {
+    Engine;
+    TxnScheduler;
+    ReadPoolHandle;
+    ConcurrencyManager;
+  }
+  ReadPoolHandle -> {
+    FuturePool;
+    TaskCell;
+  }
+  TxnScheduler -> {
+    SchedulerInner;
+    LockManager;
+  }
+  SchedulerInner -> {
+    LockManager;
+    TaskContext;
+    Latches;
+    SchedPool;
+    ConcurrencyManager;
+  }
+  LockManager -> {
+    ProxyLockMgr;
+  }
+  FuturePool -> ThreadPool;
+  TaskContext -> {
+    Task;
+    Lock;
+  }
+  Latches -> {
+    Vec;
+    Latch;
+    Mutex;
+  }
+  Latch -> {
+    VecDeque;
+  }
+
+  Engine -> {
+    RaftKv;
+  }[label="impl"];
+
+  RaftKv -> {
+    RaftStoreRouter;
+    LocalReadRouter;
+    TxnExtraScheduler;
+  }
+
+  LocalReadRouter -> {
+    ServerRaftStoreRouter;
+  }[label="impl"];
+
+  RaftStoreRouter -> {
+    ServerRaftStoreRouter;
+    RaftRouter;
+  }[label="impl"];
+
+  ServerRaftStoreRouter -> {
+    RaftRouter;
+    LocalReader;
+  }
+  LocalReader -> {
+    RaftRouter;
+  }
+  LocalReader -> {
+    ProposalRouter;
+    KvEngine;
+    StoreMeta;
+    ReadDelegate;
+    ThreadReadId;
+  }
+
+  ReadDelegate[style_var;label="{{
+    ReadDelegate|
+    A read only delegate for Peer\l
+  }}"]
+
+  ReadDelegate -> {
+    Region;
+    RemoteLease;
+    TxnExtraOp;
+  }
+  RemoteLease[style_func;label="{{
+    RemoteLease|
+    a remote lease ti can only \l
+    be derived by Lease\l
+    it will sent to local read\l
+    thread, so name it remote \l
+    If lease expires\l
+    the remote must expire too\l
+  }}"]
+
+  RaftRouter[style_struct;label="{{
+    RaftRouter|
+    pub router: BatchRouter\<PeerFsm\ \l 
+    \<EK, ER\>, StoreFsm\<EK\>\>\l
+  }}"]
+
+  RaftRouter -> {
+    BatchRouter;
+    KvEngine;
+    RaftEngine;
+    PeerFsm;
+    StoreFsm;
+  }
+
+  RaftEngine -> RocksEngine[label="impl"];
+  KvEngine -> {
+    RocksEngine;
+    PanicEngine;
+  }[label="impl"];
+
+  BatchRouter -> {
+    PeerFsm;
+    StoreFsm;
+    Router;
+    NormalScheduler;
+    ControlScheduler;
+    Fsm;
+  }
+  Router -> {
+    BasicMailbox;
+    LruCache;
+  }
+  BasicMailbox[style_func;label="{{
+    BasicMailbox|
+    Every mailbox should have one\l
+    and only one owner\l
+    who will receive all\l
+    messages sent to this mailbox\l
+  }}"]
+
+  BasicMailbox -> {
+    LooseBoundedSender;
+    Fsm;
+    FsmState;
+    FsmScheduler;
+  }
+  FsmScheduler -> {
+    NormalScheduler;
+    ControlScheduler;
+  }
+
+  NormalScheduler -> {
+    channel_Sender_FsmTypes_Normal;
+  }
+  ControlScheduler -> {
+    channel_Sender_FsmTypes_Control;
+  }
+
+  StoreFsm -> {
+    Store;
+    Receiver;
+  }
+  Store -> {
+    TimeSpec;
+    Instant;
+  }
+  PeerFsm -> {
+    KvEngine;
+    RaftEngine;
+    Peer;
+    PeerTicks;
+    Receiver;
+    BatchRaftCmdRequestBuilder;
+  }
+
+
+  Peer -> {
+    RawNode;
+    ProposalQueue;
+    ReadIndexQueue;
+  }
+  ReadIndexQueue -> {
+    VecDeque;
+    ReadIndexRequest;
+  }
+  ProposalQueue -> {
+    VecDeque;
+    Proposal;
+  }
+  Proposal -> {
+    Callback;
+  }
+  Callback -> {
+    ReadCallback;
+    WriteCallback;
+    ExtCallback;
+  }
+
+  RocksEngine -> {
+    RocksEngineCore;
+    BaseRocksEngine;
+    Scheduler;
+    Task;
+  }
+
+  RocksEngineCore-> {
+    Worker;
+  }
+  Worker -> {
+    ThreadPool;
+  }
+  BaseRocksEngine -> DB;
+  ProposalRouter[style_var;label="{{
+    trait ProposalRouter
+  }}"]
+  ProposalRouter -> {
+    RaftRouter;
+    ServerRaftStoreRouter;
+    SyncSender;
+    RaftStoreBlackHole;
+  }[label="impl"];
+  TaskCell -> Task;
+  Task -> Future;
+
+  ApplyFsm -> {
+    KvEngine;
+    ApplyDelegate;
+    Receiver;
+    BasicMailbox;
+  }
+  Receiver -> {
+    channel_Receiver;
+  }
+  ApplyDelegate -> {
+    PendingCmdQueue;
+    WaitSourceMergeState;
+    ObserveCmd;
+    Region;
+  }
+  PendingCmdQueue -> {
+    VecDeque;
+    PendingCmd;
+    Snapshot;
+  }
+  PendingCmd -> {
+    Snapshot;
+    Callback;
+  }
+
+}

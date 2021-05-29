@@ -1,0 +1,115 @@
+#include "styles.h"
+digraph leader_heartbeat {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ProgressTracker[style_struct;label="{{
+    ProgressTracker|
+    progress: ProgressMap\l|
+    <conf> conf: Configuration\l|
+    votes: HashMap\<u64, bool\>\l|
+    max_inflight: usize\l|
+    group_commit: bool\l|
+    pub(crate) logger: Logger\l
+  }}"]
+  ProgressState[style_struct;label="{{
+    ProgressState|
+    Probe\l|
+    Replicate\l|
+    Snapshot\l
+  }}"]
+  Configuration[style_struct;label="{{
+    Configuration|
+    pub(crate) voters: JointConfig\l|
+    pub(crate) learners: HashSet\<u64\>\l|
+    pub(crate) learners_next: HashSet\<u64\>\l|
+    pub(crate) auto_leave: bool\l
+  }}"]
+  Configuration -> JointConfig;
+
+  JointConfig[style_struct;label="{{
+    JointConfig|
+    pub(crate) incoming: MajorityConfig\l|
+    pub(crate) outgoing: MajorityConfig\l
+  }}"]
+  ProgressTracker:conf -> Configuration;
+
+  ProgressTracker -> ProgressMap -> Progress -> ProgressState;
+  ProgressMap[style_struct;label="{{
+    ProgressMap|
+    pub type ProgressMap = HashMap\<u64, Progress\>
+  }}"]
+  Progress[style_struct;label="{{
+    Progress|
+    <matched> pub matched: u64\l|
+    <next_idx> pub next_idx: u64\l|
+    pub state: ProgressState\l|
+    <committed_index> pub committed_index: u64\l|
+    pub ins: Inflights\l|
+    ...\l
+  }}"]
+
+  step_leader -> {
+    bcast_heartbeat;
+  }
+  bcast_heartbeat[style_func;label="{{
+    bcast_heartbeat|
+    Sends RPC, wihout entries to all peers\l
+    发送空消息给所有的peers\l
+  }}"]
+  bcast_heartbeat -> {
+    last_pending_request_ctx;
+    bcast_heartbeat_with_ctx;
+  }
+  bcast_heartbeat_with_ctx -> {
+    iter_mut;
+    send_heartbeat;
+  }
+  iter_mut[style_func;label="{{
+    iter_mut|
+    遍历所有的progress\l
+    获取所有要发送的peer列表\l
+  }}"]
+  iter_mut -> {
+    ProgressMap
+  }
+  iter_mut -> send_heartbeat[style_edge_data];
+  send_heartbeat[style_func;label="{{
+    send_heartbeat|
+    sends an empty MsgAppend
+  }}"]
+  MsgHeartbeat[style_var;label="{{
+      MsgHeartbeat|
+      let commit = cmp::min(\l 
+      pr.matched, self.raft_log.committed);\l
+  }}"]
+  send_heartbeat -> {
+    raft_log_committed;
+    pr_machted;
+    MsgHeartbeat;
+    send;
+  }
+  send[style_func;label="{{
+    send|
+    将HeartBeat消息放入Raft的\l
+    msgs 数组中\l
+  }}"]
+  MsgHeartbeat -> send -> Raft:msgs[style_edge_data];
+  Raft[style_struct;label="{{
+    Raft|
+    prs: ProgressTracker|
+    <msgs> pub msgs: Vec\<Message\>|
+    pub r: RaftCore\<T\>\l
+  }}"]
+  Progress:matched -> MsgHeartbeat;
+  handle_append_response[style_func;label="{{
+    handle_append_response|
+    处理某follower的AE response\l
+    会更新该follower的matched index\l|
+    这样会保证heartbeat消息发送的commit index\l
+    不会超过follower本地的index\l
+  }}"]
+  step_leader -> handle_append_response -> maybe_update -> Progress:matched;
+}

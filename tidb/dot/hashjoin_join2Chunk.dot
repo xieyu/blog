@@ -1,0 +1,151 @@
+digraph join2Chunk {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_joiner {
+    graph[label="joiner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    onMissMatch;
+    tryToMatchInners;
+    tryToMatchOuters;
+  }
+  
+  subgraph cluster_hashRowContainer {
+    graph[label="hashRowContainer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    subgraph cluster_rowContainer {
+      graph[label="rowContainer";fontsize=20;style="rounded,dashed";color="slategrey"]
+      recordsInDisk_GetRow[
+        shape="record";
+        label="{{
+          recordsInDisk_GetRow|
+          从文件中加载Row
+        }}"];
+      records_GetRow[
+        shape="record";
+        label="{{
+          records_GetRow|
+          从内存中加载row
+        }}"];
+      GetRow -> {
+        recordsInDisk_GetRow;
+        records_GetRow;
+      };
+    }
+    buildSideRows[
+      shape="record";
+      label="{{
+        buildSideRows|
+        和probe matched行\l
+      }}"];
+
+    GetMatchedRowsAndPtrs -> {
+      GetRow;
+      matchJoinKey;
+    };
+  }
+
+  runJoinWorker -> {
+    join2Chunk;
+    join2ChunkForOuterHashJoin;
+  }
+  join2Chunk -> {
+    VectorizedFilter;
+    HashChunkSelected;
+    joinMatchedProbeSideRow2Chunk;
+    getNewJoinResult;
+    initHash;
+  }[color="#b83b5e"];
+
+  VectorizedFilter[
+    shape="record";
+    label="{{
+      VectorizedFilter|
+      对probeSideCh使用\l 
+      outerFilter过滤\l
+    }}"];
+  HashChunkSelected[
+    shape="record";
+    label="{{
+      HashChunkSelected|
+      writes the encoded value\l
+      of selected rows' column\l
+    }}"];
+  HashChunkColumns[
+    shape="record";
+    label="{{
+      HashChunkColumns|
+      writes the encoded value\l
+      of each row's column\l
+      which of index `colIdx`\l
+      to h\l
+    }}"];
+  HashChunkColumns -> HashChunkSelected;
+  joinMatchedProbeSideRow2Chunk[
+    shape="record";
+    label="{{
+      joinMatchedProbeSideRow2Chunk|
+      根据probeKey从rowContainer中获取\l
+      buildSideRows\l
+      然后和probeRow做match\l
+    }}"];
+
+  selected[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      selected []bool\l|
+      被filter选中的rows
+    }}"
+  ];
+  hashVals[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      hashVals|
+	    hashVals  []hash.Hash64\l|
+      被选中rows对应的hash\l
+    }}"
+  ];
+  initHash[
+    shape="record";
+    label="{{
+      initHash|
+        hCtx.initHash(probeSideChk.NumRows())\l
+        根据probeSide的rows\l 
+        数初始化hash表\l
+    }}"];
+  joinMatchedProbeSideRow2Chunk -> {
+    GetMatchedRowsAndPtrs;
+    onMissMatch;
+    tryToMatchInners;
+  }
+  join2ChunkForOuterHashJoin[
+    shape="record";
+    label="{{
+      join2ChunkForOuterHashJoin|
+      join chunks when using \l 
+      the outer to build a hash table\l
+    }}"];
+
+  join2ChunkForOuterHashJoin -> {
+    initHash;
+    HashChunkColumns;
+    joinMatchedProbeSideRow2ChunkForOuterHashJoin;
+    getNewJoinResult;
+  }[color="#17b978"];
+
+  joinMatchedProbeSideRow2ChunkForOuterHashJoin -> {
+    GetMatchedRowsAndPtrs;
+    tryToMatchOuters;
+  }[color="#3fc1c9"];
+
+  edge[style=dashed;color=blue];
+  GetMatchedRowsAndPtrs -> buildSideRows -> tryToMatchInners;
+  VectorizedFilter -> selected;
+  selected -> HashChunkSelected;
+  HashChunkSelected -> hashVals -> probeKey -> joinMatchedProbeSideRow2Chunk;
+  initHash -> HashChunkSelected;
+  probeKey -> joinMatchedProbeSideRow2ChunkForOuterHashJoin;
+}

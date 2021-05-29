@@ -1,0 +1,34 @@
+#include "styles.h"
+
+digraph buildTableReader {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  buildTableReader -> {
+    buildTableReaderFromHandles;
+  }
+
+  buildTableReaderFromHandles -> {
+    SetPartitionsAndHandles;
+    SetTableHandles;
+    buildTableReaderBase;
+  }
+  SetPartitionsAndHandles -> PartitionHandlesToKVRanges;
+  SetTableHandles -> TableHandlesToKVRanges;
+
+  TableHandlesToKVRanges -> {
+    tid;
+    EncodeRowKey;
+  }
+  PartitionHandlesToKVRanges[style_func;label="{{
+      PartitionHandlesToKVRanges|
+      Global index 需要使用\l 
+      partionID来获取row key\l
+  }}"]
+  PartitionHandlesToKVRanges -> {
+    PartitionID;
+    EncodeRowKey;
+  }
+}

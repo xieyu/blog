@@ -1,0 +1,98 @@
+#include "styles.h"
+digraph create_raft_batch_system {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  create_raft_system[style_func;label="{{
+    创建raft system
+  }}"]
+
+  apply_router[style_var;label="{{
+    apply_router|
+    用于向apply_system发消息
+  }}"]
+
+  raft_router[style_var;label="{{
+    raft_router|
+    用于向raft_system发消息
+  }}"]
+  StoreFsm_new -> {
+    loose_bounded
+  }
+  loose_bounded[style_func;label="{{
+    loose_bounded|
+    let (tx, rx) = \l 
+    mpsc::loose_bounded(\l 
+    cfg.notify_capacity);\l
+  }}"]
+  store_tx[style_var;label="{{
+    store_tx|
+    用于向storeFsm.reciever发消息
+  }}"]
+  loose_bounded -> {
+    store_tx;
+    store_fsm:rx;
+  }
+  store_fsm[style_struct;label="{{
+    StoreFsm
+    store: Store\l|
+    <rx> receiver: \lReceiver\<StoreMsg\<EK\>\>,\l
+  }}"]
+
+  create_raft_system -> {
+    StoreFsm_new;
+    create_system;
+  }[color="#b83b5e"]
+  create_apply_batch_system[style_func;label="{{
+    create_apply_batch_system|
+    apply batch system的control\l
+    只用于占位
+  }}"]
+  create_system[style_func;label="{{
+    create_system|
+    创建router和system\l|
+    可以通过router的tx\l
+    发消息给system的receiver\l
+  }}"]
+
+  create_raft_batch_system ->{
+    StoreFsm_new;
+    create_apply_batch_system;
+    create_system
+    create_raft_system;
+  }
+  subgraph cluster_controlbox {
+    graph[label="raft_router controlbox";fontsize=20;style="rounded,dashed";color="slategrey"]
+    StoreFsm_new -> {
+      store_tx
+      store_fsm
+    }
+    loose_bounded;
+  }
+
+  create_apply_batch_system -> {
+    apply_router
+    apply_system
+  }[style_edge_data]
+
+  create_system -> {
+    apply_router;
+    apply_system;
+    raft_router;
+    raft_system;
+  }
+
+  {
+    raft_router;
+    apply_router;
+    apply_system;
+    raft_system;
+  } -> RaftBatchSystem[style_edge_data];
+
+  {store_tx;store_fsm} -> create_system;
+
+  create_apply_batch_system -> {
+    create_system;
+  }
+}

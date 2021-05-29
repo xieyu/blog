@@ -1,0 +1,177 @@
+digraph pipeline_executor {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  PipelineExecutor;
+  execute[
+    shape="record";
+    label="{{
+      execute|
+      构建DAG图，并行执行pipeline\l
+    }}";
+  ];
+  execute -> {
+    executeImpl;
+    finalizeExecution;
+  }
+  executeImpl -> {
+    executeSingleThread;
+    ThreadFromGlobalPool;
+  }
+  ThreadFromGlobalPool[
+    shape="record";
+    label="{{
+      ThreadFromGlobalPool|
+      从global线程池中获取线程
+    }}";
+  ];
+  executeSingleThread[
+    shape="record";
+    label="{{
+      executeSingleThread|
+      在每个线程中执行
+    }}";
+  ];
+  executeSingleThread -> {
+    executeStepImpl;
+  }
+  depgraph[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      graph|
+      DAG依赖图
+    }}";
+  ];
+  task_queue[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      task_queue|
+      任务队列
+    }}";
+  ];
+  processors[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      processors|
+      pipeline中的processors\l
+    }}";
+  ];
+  state_job[
+    shape="record";
+    label="{{
+      state_job|
+      执行队列中的job
+    }}";
+  ];
+  executeStepImpl[
+    shape="record";
+    label="{{
+      executeStepImpl|
+      从task_queue中取出job并执行\l
+    }}";
+  ];
+  executeStep -> executeStepImpl;
+  executeStepImpl -> {
+    task_queue;
+    wakeUpExecutor;
+    finish;
+    addJob;
+    state_job;
+    doExpandPipeline;
+    prepareProcessor;
+    getAnyThreadWithTasks;
+    initializeExecution;
+  }[color="#b83b5e"];
+
+  addJob -> state_job[style=dashed];
+  state_job -> executeJob;
+  executeJob -> {
+    processor_work;
+    checkCanAddAdditionalInfoToException;
+  }
+
+  subgraph cluster_Processor {
+    graph[label="Processor";fontsize=20;];
+    processor_work[
+      shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        work|
+        虚函数,执行具体的work\l
+      }}";
+    ];
+    processor_prepare[
+      shape="record";
+      label="{{
+        prepare|
+        prepare返回Ready状态后\l 
+        才能调用work\l
+      }}";
+    ];
+  }
+
+  initializeExecution[
+    shape="record";
+    label="{{
+      initializeExecution|
+      将graph中processor\l
+      放入task_queue中\l
+    }}";
+  ];
+
+  initializeExecution -> {
+    task_queue;
+    addChildlessProcessorsToStack;
+    prepareProcessor;
+  }
+  prepareProcessor -> {
+    doExpandPipeline
+    prepareProcessor;
+    processor_prepare;
+  };
+  //addChildlessProcessorsToStack -> processors;
+  PipelineExecutor[
+    shape="record";
+    label="{{
+      PipelineExecutor|
+      构造函数, 参数为processors_\l
+    }}";
+  ];
+  doExpandPipeline -> {
+    expandPipeline;
+    condvar_wait;
+    condvar_notify_all;
+  }
+  expandPipeline -> {
+    depgraph;
+    addEdges;
+  }
+
+  PipelineExecutor -> {
+    processors;
+    buildGraph;
+  }
+  buildGraph -> {
+    processors_map;
+    depgraph;
+    addEdges;
+  }
+  addEdges -> setUpdateInfo;
+  depgraph -> addChildlessProcessorsToStack;
+  processors -> depgraph[style=dashed];
+  depgraph -> task_queue[style=dashed];
+  {
+    rank=same;
+    execute;
+    PipelineExecutor;
+    executeStep;
+  };
+}

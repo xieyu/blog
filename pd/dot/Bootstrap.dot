@@ -1,0 +1,63 @@
+#include "styles.h"
+digraph Bootstrap{
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Bootstrap -> {
+    validateRequest;
+    GetRaftCluster;
+    bootstrapCluster;
+  }
+  bootstrapCluster -> {
+    checkBootstrapRequest;
+    metapb_Cluster;
+    GetClusterRootPath;
+    bootstrapKey;
+    makeBootstrapTimeKey;
+    makeRegionKey;
+    SaveRegion;
+    Start;
+    Flush;
+  }
+
+  Start -> {
+    InitCluster;
+    NewRuleManager;
+    NewManager;
+    NewReplicationModeManager;
+    newCoordinator;
+    NewRegionStatistics;
+    NewStoreLimiter;
+    runCoordinator;
+    runBackgroundJobs;
+    syncRegions;
+    runReplicationMode;
+  }
+  InitCluster -> {
+    NewLabelStatistics;
+    newPrepareChecker;
+    NewIDTTL;
+    NewStringTTL;
+    GetPDServerConfig;
+  }
+
+  runBackgroundJobs -> {
+    checkStore;
+    collectMetrics;
+    PruneHistory;
+  }
+
+  runCoordinator -> {
+    coordinator_run;
+  }
+
+  syncRegions -> {
+    changedRegionNotifier;
+    RunServer;
+  }
+  RunServer -> {
+    history_Record;
+    s_broadcast;
+  }
+}

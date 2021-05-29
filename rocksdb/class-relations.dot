@@ -1,0 +1,137 @@
+digraph class_relations {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_ColumnFamily {
+    graph[label="ColumnFamily";fontsize=20;style=rounded];
+    ColumnFamilyDescriptor;
+    ColumnFamilyHandle;
+    ColumnFamilyHandleImpl;
+    ColumnFamilyData;
+    ColumnFamilyOptions;
+  };
+  WriteThread;
+  WriteBatch;
+  WriteBufferManager;
+  FlushScheduler;
+  FlushThreadArg;
+  WriteController;
+  log_Writer;
+  WalManager;
+  EventLogger;
+
+  subgraph cluster_Snapshot {
+    graph[label="Snapshot";fontsize=20;style=rounded];
+    SnapshotList;
+    SnapshotChecker;
+    Snapshot;
+  };
+
+  subgraph cluster_Monitoring {
+    graph[label="Monitoring";fontsize=20;style=rounded];
+    InstrumentedMutex;
+    InstrumentedCondVar;
+  };
+
+  DB -> {
+    Options;
+    ColumnFamilyDescriptor;
+    ColumnFamilyHandle;
+    Iterator;
+    Snapshot;
+    Property;
+    CompactRangeOptions;
+    CompactionOptions;
+    Env;
+    ExternalSstFileInfo;
+    DBImpl;
+  }
+  DBImpl -> {
+    FileLock;
+    Cache;
+    InstrumentedMutex;
+    InstrumentedCondVar;
+    ColumnFamilyHandleImpl;
+    LogWriterNumber;
+    LogFileNumberSize;
+    log_Writer;
+    Directories;
+    WriteBufferManager;
+    WriteThread;
+    WriteBatch;
+    WriteController;
+    FlushScheduler;
+    TrimHistoryScheduler;
+    SnapshotList;
+    FlushRequest;
+    ColumnFamilyData;
+    PurgeFileInfo;
+    SuperVersion;
+    ManualCompactionState;
+    EventLogger;
+    WalManager;
+    SequenceNumber;
+    SnapshotChecker;
+    PreReleaseCallback;
+    ColumnFamilyOptions;
+    ArenaWrappedDBIter;
+    WriteContext;
+    MemTable;
+    SuperVersionContext;
+    FlushThreadArg;
+    FlushScheduler;
+  };
+
+  WriteThread -> {
+    State;
+    WriteGroup;
+    WriteThread_Writer;
+    ImmutableDBOptions;
+    SequenceNumber;
+  }
+  WriteGroup -> WriteThread_Writer;
+  WriteThread_Writer -> {
+    WriteGroup;
+    State;
+  }
+
+  subgraph cluster_cache {
+    graph[label="cache";fontsize=20;style=rounded];
+    Cache -> {
+      MemoryAllocator;
+      ShardedCache;
+    }
+    ShardedCache -> {
+      LRUCache;
+      LRUCacheShard;
+    }
+    CacheShard -> LRUCacheShard;
+    LRUCacheShard -> {
+      CacheMetadataChargePolicy;
+      LRUHandle;
+      LRUHandleTable;
+    }
+  };
+  subgraph cluster_Table {
+    graph[label="Table";fontsize=20;style=rounded];
+    TableBuilder -> {
+      TableProperties;
+      TableBuilderOptions;
+    };
+    TableBuilderOptions -> {
+      ImmutableCFOptions;
+      MutableCFOptions;
+      InternalKeyComparator;
+    };
+    TableReaderOptions -> {
+      ImmutableCFOptions;
+      SliceTransform;
+      EnvOptions;
+      InternalKeyComparator;
+      BlockCacheTracer;
+      SequenceNumber;
+    };
+  };
+  SstFileWriter -> TableBuilder;
+
+}

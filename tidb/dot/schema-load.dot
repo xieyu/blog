@@ -1,0 +1,182 @@
+digraph schema_load {
+  node[shape=box;];
+  graph [
+    overlap=False;
+    outputorder=edgesfirst;
+  ];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_meta_meta_go {
+    graph[label="meta/meta.go";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ListDatabases;
+    ListTables;
+    GetSchemaDiff[
+      shape="record";
+      label="{{
+        GetSchemaDiff|
+        get the modification\l 
+        information on a given \l
+        schema version\l
+      }}";
+    ];
+    GetSchemaDiff -> {
+      schemaDiffKey;
+      txn_Get;
+    }
+    subgraph cluster_TxnStructure {
+      graph[label="TxnStructure";fontsize=20;];
+      txn_Get;
+    }
+  }
+  ApplyDiff -> {
+    applyDropTable;
+    applyCreateTable;
+    copySchemaTables;
+    copySortedTables;
+    applyCreateSchema;
+  }
+/*
+  subgraph cluster_domain_map {
+    graph[label="session/tidb.go";fontsize=20;style=rounded]
+    subgraph cluster_domainMap {
+      graph[label="domainMap";fontsize=20;style=rounded];
+      domainmap_Get[label="Get"];
+    }
+  }
+  subgraph cluster_session_session {
+    graph[label="session/session.go";fontsize=20;style=rounded]
+    GetDomain -> domainmap_Get[label="store"];
+    createSession -> domainmap_Get;
+    BootstrapSession -> createSession;
+    BootstrapSession -> runInBootstrapSession;
+    createSessionFunc -> createSession;
+    runInBootstrapSession -> createSession;
+  }
+
+  domainmap_Get -> {
+    NewDomain;
+    Domain_Init;
+  };
+
+    Domain_Init[label="Init"];
+    NewDomain -> NewHandle;
+  */
+
+    loadSchemaInLoop[
+      shape="record";
+      label="{{
+        loadSchemaInLoop|
+        每隔lease/2去\l 
+        tikv中加载一次 schema\l
+      }}";
+    ];
+    Reload[
+      shape="record";
+      label="{{
+        Reload|
+        去tikv中重新加载schema\l
+        指定版本的schema\l
+      }}";
+    ];
+    Domain_Init -> {
+      loadSchemaInLoop;
+      topNSlowQueryLoop;
+      infoSyncerKeeper;
+    }[label="goroutine"];
+
+    loadSchemaInLoop -> Reload[label="tiker=(lease/2)"];
+    loadSchemaInLoop -> {
+      WatchGlobalSchemaVer;
+      mustRestartSyncer;
+    }
+
+    Reload -> loadInfoSchema[label="do.infoHandle"];
+    loadInfoSchema[
+      shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        loadInfoSchema|
+        loads inforscham at startTS into handle\l|
+        1. load之前会检查usedVersion和needVersion\l
+        如果一样的话就不用重新reload了。\l|
+        2. 首先尝试只load schema diff\l
+        如果失败的话，就去fetch allschema\l
+      }}";
+    ];
+    Reload -> {
+      SchemaMetaVersion;
+      CurrentVersion;
+    }
+    CurrentVersion[
+      shape="record";
+      label="{{
+        CurrentVersion|
+        获取当前TiKV中schema版本\l
+      }}";
+    ];
+    SchemaMetaVersion[
+      shape="record";
+      label="{{
+        SchemaMetaVersion|
+        获取TiDB当前schema版本\l
+      }}";
+    ];
+    loadInfoSchema -> {
+      tryLoadSchemaDiffs;
+      fetchAllSchemasWithTables;
+      InitWithDBInfos;
+    }[color="#b83b5e"]
+
+    tryLoadSchemaDiffs[
+      shape="record";
+      label="{{
+        tryLoadSchemaDiffs|
+        tries to only load lastest schema chages\l
+      }}";
+    ];
+
+    fetchAllSchemasWithTables -> {
+      ListDatabases;
+      fetchSchemasWithTables;
+    };
+    
+    fetchAllSchemasWithTables[
+      shape="record";
+      label="{{
+        fetchAllSchemasWithTables|
+        首先获取所有的db\l
+        然后对每个db加所有的table\l
+      }}";
+    ];
+    fetchSchemasWithTables -> ListTables;
+
+  tryLoadSchemaDiffs -> {
+    ApplyDiff;
+    GetSchemaDiff;
+    InitWithOldInfoSchema;
+  }[color="#3f72af"]
+
+  ApplyDiff[
+    shape="record";
+    label="{{
+      ApplyDiff|
+      将schemadiff应用到infoShema上\l
+    }}";
+  ];
+  InitWithDBInfos[
+    shape="record";
+    label="{{
+      InitWithDBInfos|
+      initializes an empty new InfoSchema with\l
+      1. a slice of DBInfo\l
+      2. all placement rules\l
+      3. schema version\l
+    }}";
+  ];
+  InitWithOldInfoSchema;
+  edge[style=dashed;color="#3f72af"]
+  {GetSchemaDiff;InitWithOldInfoSchema} -> ApplyDiff;
+  fetchSchemasWithTables -> InitWithDBInfos;
+}

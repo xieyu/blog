@@ -1,0 +1,154 @@
+digraph gfs_write {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Client {
+    graph[label="Client";fontsize=20;];
+    Client -> Cache;
+    Cache[
+      shape="record";
+      fillcolor="#46cdcf"
+      style=filled;
+      label="{{
+        Cache|
+        client将元信息缓存起来\l
+        直到超时，或者primary返回lease已经过期\l
+        才会去master重新刷新cache\l
+      }}"
+    ];
+  }
+  Client -> req1 ->  MasterServer;
+  req1[
+    shape="record";
+    fillcolor="#fefdca"
+    style=filled;
+    label="{{
+      step 1: Get and cache metadata|
+      client向master发送请求\l 
+      获取primary chunk sever\l 
+      和所有的副本chunk server\l|
+      master返回primary chunk 和\l 
+      secondary replicas server location\l
+    }}"
+  ];
+  MasterServer -> lease -> ChunkServerPrimary;
+  lease[
+    shape="record"
+    fillcolor="#fefdca"
+    style=filled;
+    label="{{
+      lease|
+      通过租约机制从chunk\l 
+      副本中指定primary\l
+    }}"
+  ];
+
+  subgraph cluster_ChunkServer1 {
+    graph[label="ChunkServer: Primary";fontsize=20;];
+    ChunkServerBuffer1[
+      shape="record";
+      fillcolor="#46cdcf"
+      style=filled;
+      label="{{
+        LRU Buffer|
+        写请求先缓存\l 
+        到buffer中\l
+      }}"
+    ];
+    ChunkServerPrimary[
+      shape="record"
+      label="{{
+        ChunkServerPrimary|
+        处理写请求，将客户端对数据\l 
+        的修改进行串行化\l
+        然后串行化的修改数据。\l
+      }}"
+    ];
+    ChunkServerBuffer1 -> ChunkServerPrimary -> ChunkFile1;
+    ChunkFile1[
+      shape="record"
+      label="{{
+        ChunkFile|
+        将buffer中record串行\l 
+        的写入chunk文件\l
+      }}"
+    ];
+  }
+
+  subgraph cluster_ChunkServer2 {
+    graph[label="ChunkServer: Secondary";fontsize=20;];
+    ChunkServerBuffer2[
+      shape="record";
+      fillcolor="#46cdcf"
+      style=filled;
+      label="{{
+        LRU Buffer|
+        写请求先缓存\l 
+        到buffer中\l
+      }}"
+    ];
+    ChunkServerSecondary[
+      shape="record"
+      label="{{
+        ChunkServerSecondary|
+        使用primary相同顺序\l 
+        apply mutation\l
+      }}"
+    ];
+    ChunkServerBuffer2 -> ChunkServerSecondary -> ChunkFile2;
+    ChunkFile2[
+      shape="record"
+      label="{{
+        ChunkFile|
+        按照primary顺序\l
+        写入将buffer中内容\l 
+        写入chunk文件\l
+      }}"
+    ];
+  }
+
+  Client -> req2 -> {
+    ChunkServerBuffer1;
+    ChunkServerBuffer2;
+  }
+  req2[
+    shape="record";
+    fillcolor="#fefdca"
+    style=filled;
+    label="{{
+      step 2: Push data|
+      client向所有的chunk\l 
+      server push数据\l|
+      chunk server写入\l 
+      buffer成功后返回ack\l
+    }}"
+  ];
+  Client -> req3 -> ChunkServerPrimary;
+  req3[
+    shape="record";
+    fillcolor="#fefdca"
+    style=filled;
+    label="{{
+      step 3: Write|
+      client 向primeray发送write请求\l|
+      primary写完并且收到所有\l 
+      secondary的ack之后\l
+      返回信息给client\l
+      如果后续步骤出错，\l 
+      就直接返回错误给client\l
+    }}"
+  ];
+
+  ChunkServerPrimary -> req4 -> ChunkServerSecondary;
+  req4[
+    shape="record";
+    fillcolor="#fefdca"
+    style=filled;
+    label="{{
+      step 4: forward write|
+      primary将写请求转发给所有的副本\l|
+      副本处理完后返回ack给primary\l
+    }}"
+  ];
+}

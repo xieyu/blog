@@ -1,0 +1,134 @@
+digraph vimclap {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_self {
+    graph[label="self";fontsize=20;];
+    self_on_enter;
+    self_on_typed;
+    self_source
+    self_source_async;
+  }
+  self_on_typed -> clap_impl_on_typed;
+
+  subgraph cluster_providerInfo {
+    graph[label="providerInfo";fontsize=20;];
+    on_typed;
+    filter;
+    jobstop;
+  }
+
+  subgraph cluster_provider {
+    graph[label="provider";fontsize=20;];
+    g_clap_provider_support_multi_select;
+    g_clap_provider_id;
+    g_clap_provider_try_set_syntax;
+    g_clap_provider_on_enter;
+    g_clap_provider_on_typed;
+    g_clap_provider_apply_query;
+    g_clap_provider_get_source;
+    source_async -> self_source_async;
+    get_source -> apply_source;
+    apply_source -> self_source;
+  }
+  //g_clap_provider_on_typed -> clap_impl_on_typed;
+  subgraph cluster_impl {
+    graph[label="impl";fontsize=20;];
+    get_cache_or_raw_source -> get_source;
+    s_get_source -> get_cache_or_raw_source;
+    on_typed_sync_impl -> s_get_source;
+    clap_impl_on_typed -> on_typed_sync_impl;
+  }
+  inject_default_impl_is_ok -> clap_impl_on_typed;
+  clap_register -> inject_default_impl_is_ok;
+  try_register_is_ok -> {
+    inject_default_impl_is_ok;
+    validate_provider;
+  }
+  clap_for -> try_register_is_ok;
+
+  Clap -> {
+    clap_main
+  }
+
+  clap_main[
+    shape="record"
+    label="{{
+      clap_main|
+        call clap#(\<bang\>0, \<f-args\>)
+    }}"
+  ];
+  clap_main -> {
+    clap_installer_install;
+    clap_debugging_info;
+    clap_debugging_info_to_clipboard;
+    clap_for
+  }
+
+  clap_for -> {
+    clap_selection_init;
+    g_clap_open_win;
+    clap_state_clear_pre;
+  }
+  clap_selection_init -> {
+    s_support_multi_select;
+    g_clap_provider_support_multi_select;
+    s_provider_alias;
+    g_clap_display_cache;
+    g_clap_provider_id;
+  }
+  s_support_multi_select[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      s_support_multi_select|
+    }}"
+  ];
+
+  g_clap_open_win -> {
+    clap_floating_win_open;
+    clap_popup_open;
+  }
+  clap_floating_win_open[
+    shape="record"
+    label="{{
+      clap_floating_win_open|
+      打开浮动窗口
+    }}"
+  ];
+  clap_floating_win_open ->{
+    g_clap_floating_win_display_open;
+    g_clap_floating_win_input_open;
+    g_clap_floating_win_spinner_open;
+    s_open_indicator_win;
+    s_open_win_border_right;
+    clap_init;
+    doautocmd;
+    ClapOnEnter;
+    startinsert;
+    g_clap_provider_try_set_syntax;
+    g_clap_provider_on_enter;
+    g_clap_provider_apply_query;
+  }
+
+  g_clap_provider_apply_query -> {
+    feedkeys
+    g_clap_input_set;
+    g_clap_context_query;
+    g_clap_provider_on_typed;
+    clap_indicator_set_none;
+  }
+
+  g_clap_provider_on_typed -> {
+    self_on_typed;
+    g_clap_display_set_lines;
+    g_clap_display_win_shrink;
+    clap_spinner_set_idle;
+  }
+
+  g_clap_provider_on_enter -> {
+    self_on_enter;
+  }
+}

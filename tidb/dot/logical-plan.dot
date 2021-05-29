@@ -1,0 +1,132 @@
+digraph logical_plan {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  basePlan[
+    shape="record";
+    label="{{
+      basePlan|
+      tp string\l|
+	    id          int\l|
+	    ctx         sessionctx.Context\l|
+	    stats       *property.StatsInfo\l|
+	    blockOffset int\l
+    }}"];
+  baseLogicalPlan[
+    shape="record";
+    label="{{
+      baseLogicalPlan|
+        basePlan\l|
+        taskMap map[string]task\l|
+        taskMapBak []string\l|
+	      taskMapBakTS []uint64\l|
+	      self         LogicalPlan\l|
+	      maxOneRow    bool\l|
+	      children     []LogicalPlan\l
+    }}"];
+  logicalSchemaProducer[
+    shape="record";
+    label="{{
+      logicalSchemaProducer|
+	      schema *expression.Schema\l|
+	      names  types.NameSlice\l|
+	      baseLogicalPlan\l
+    }}"];
+
+  LogicalAggregation[
+    shape="record";
+    label="{{
+      LogicalAggregation|
+        logicalSchemaProducer\l|
+        AggFuncs     []*aggregation.AggFuncDesc\l|
+        GroupByItems []expression.Expression\l|
+        aggHints aggHintInfo\l|
+        possibleProperties [][]*expression.Column\l|
+        inputCount         float64\l
+    }}"];
+  LogicalJoin[
+    shape="record";
+    label="{{
+      LogicalJoin|
+	    logicalSchemaProducer\l|
+	    JoinType      JoinType\l|
+	    reordered     bool\l|
+	    cartesianJoin bool\l|
+	    StraightJoin  bool\l|
+	    hintInfo       *tableHintInfo\l|
+	    preferJoinType uint\l|
+	    EqualConditions []*expression.ScalarFunction\l|
+	    LeftConditions  expression.CNFExprs\l|
+	    RightConditions expression.CNFExprs\l|
+	    OtherConditions expression.CNFExprs\l|
+	    leftProperties  [][]*expression.Column\l|
+	    rightProperties [][]*expression.Column\l|
+	    DefaultValues []types.Datum\l|
+	    redundantSchema *expression.Schema\l|
+	    redundantNames  types.NameSlice\l|
+	    equalCondOutCnt float64\l
+    }}"];
+  LogicalApply[
+    shape="record";
+    label="{{
+      LogicalApply|
+        LogicalJoin\l|
+        CorCols []*expression.CorrelatedColumn\l
+    }}"];
+  LogicalProjection[
+    shape="record";
+    label="{{
+      LogicalProjection|
+	      logicalSchemaProducer\l|
+	      Exprs []expression.Expression\l|
+	      calculateGenCols bool\l|
+	      CalculateNoDelay bool\l|
+	      AvoidColumnEvaluator bool
+    }}"];
+  LogicalSort[
+    shape="record";
+    label="{{
+      LogicalSort|
+        baseLogicalPlan\l|
+        ByItems []*util.ByItems\l
+    }}"];
+  LogicalSelection[
+    shape="record";
+    label="{{
+      LogicalSelection|
+        baseLogicalPlan\l|
+        Conditions []expression.Expression\l
+    }}"];
+
+  basePlan -> baseLogicalPlan;
+  baseLogicalPlan -> {
+    logicalSchemaProducer;
+    LogicalSelection;
+    LogicalMaxOneRow;
+    LogicalUnionScan;
+    LogicalSort;
+    LogicalTopN;
+    LogicalLimit;
+    LogicalLock;
+  }
+  logicalSchemaProducer -> {
+     logicalDowDDLJobs;
+     LogicalJoin;
+     LogicalProjection;
+     LogicalAggregation;
+     LogicalTableDual;
+     LogicalMemTable;
+     DataSource;
+     TiKVSingleGather;
+     LogicalTableScan;
+     LogicalIndexScan;
+     LogicalUnionAll;
+     LogicalWindow;
+     LogicalShow;
+  }
+  LogicalJoin -> {
+    LogicalApply;
+  }
+
+}

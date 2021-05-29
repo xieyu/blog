@@ -1,0 +1,53 @@
+#include "styles.h"
+digraph load_data {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Snapshot {
+    graph[label="Snapshot";fontsize=20;style="rounded,dashed";color="slategrey"]
+    get;
+    get[style_func;label="{{
+      get|
+      从Snapshot CF_DEFAULT\l
+      中获取value\l
+    }}"]
+  }
+
+  Write[style_struct;label="{{
+    Write|
+    pub write_type: WriteType,\l|
+    <start_ts> pub start_ts: TimeStamp,\l|
+    <short_value> pub short_value: Option\<Value\>,\l
+    ...
+  }}"]
+  load_data[style_func;label="{{
+    load_data|
+    如果write中包含了short_value\l
+    则直接返回short value\l
+    此处是对short value的优化\l
+  }}"]
+  load_data -> {
+    Write;
+    get;
+  }
+  Write:start_ts -> key -> get[style_edge_data];
+  key[style_func;label="{{
+    key|
+    key.append_ts(start_ts)\l|
+    将write的start_ts\l
+    append到key上\l
+  }}"]
+  scan_mode -> {
+    create_data_cursor;
+    get
+  }[style_edge_data];
+  scan_mode[style_var;label="{{
+    scan_mode|
+    if scam_mode.is_some\l 
+    就创建curosr\l|
+    否则直接用Snapshot.get\l
+  }}"]
+  {get;cursor_get;Write:short_value} -> val[style_edge_data];
+  create_data_cursor -> cursor_get;
+}

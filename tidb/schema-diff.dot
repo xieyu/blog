@@ -1,0 +1,29 @@
+digraph schema_diff {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_infoschema {
+    graph[label="infoschema";fontsize=20;style=rounded]
+    SchemaByID;
+  }
+
+  subgraph cluster_infoschema_builder {
+    graph[label="infoschema/builder.go";fontsize=20;style=rounded]
+    ApplyDiff -> {
+      applyDropTable;
+      applyCreateTable;
+      copySchemaTables;
+      copySortedTables;
+      applyCreateSchema;
+    }
+  }
+
+  subgraph cluster_domain {
+    graph[label="domain/domain.go";fontsize=20;style=rounded]
+    tryLoadSchemaDiffs -> {
+      ApplyDiff;
+    };
+  }
+
+}

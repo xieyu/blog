@@ -1,0 +1,130 @@
+#include "styles.h"
+digraph batchSystemSpawn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  spawn[style_func;label="{{
+    spawn|
+    生成个poll_size的线程池\l
+    每个线程执行poller.poll\l
+  }}"];
+
+  HandlerBuilder_build -> {
+    RaftPollerHandler_build;
+    ApplyPollerHandler_build;
+  }[style_edge_data];
+  HandlerBuilder_build[style_var;label="{{
+    HandlerBuilder_build|
+    trait HandlerBuilder\l|
+    impl有RaftHandlerBuilder\l
+    和apply.Builder\l
+  }}"]
+  RaftPollerHandler_build -> RaftPoller;
+  RaftPollerHandler_build[style_func;label="{{
+    RaftPollerHandler.build|
+    创建RaftPoller，处理Raft\l
+    相关消息\l
+  }}"]
+  ApplyPollerHandler_build[style_func;label="{{
+    apply.Builder|
+    创建ApplyPoller\l
+    处理Apply消息\l
+  }}"]
+  ApplyPollerHandler_build -> ApplyPoller;
+  thread_Build_new_spawn[style_func;label="{{
+    thread::Builder::new().spawn()|
+    spawn线程，在新的\l 
+    线程中执行 poller.poll\l
+  }}"]
+
+  spawn -> {
+    HandlerBuilder_build;
+    Poller;
+    thread_Build_new_spawn;
+    workers_push;
+  }
+  thread_Build_new_spawn -> workers_push[style_edge_data];
+  workers_push[style_func;label="{{
+    workers_push|
+    将新线程handler\l 
+    push到workers中\l
+  }}"]
+  thread_Build_new_spawn -> poll[style_edge_data];
+  subgraph cluster_PollHandler {
+    graph[label="PollHandler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ApplyPoller -> {
+      begin;
+      handle_control;
+      handle_normal;
+      end;
+    }[style_edge_data];
+    RaftPoller -> {
+      begin;
+      handle_control;
+      handle_normal;
+      end;
+    }[style_edge_data];
+
+    handle_normal[style_func;label="{{
+      handle_normal|
+      从fsm自己的reciver中\l
+      try_reciver 最多\l 
+      messages_per_tick个消息\l
+      处理这些normal类型的消息\l
+    }}"]
+    begin[style_func;label="{{
+      begin|
+      开始处理一批fsm\l
+    }}"]
+    end[style_func;label="{{
+      end|
+      一批fsm处理完毕\l
+      做一些清理，落盘之类操作\l
+    }}"]
+    handle_control[style_func;label="{{
+      handle_control|
+      处理control类型消息\l
+      StoreFsm\l
+    }}"]
+  }
+  subgraph cluster_poller {
+    graph[label="poller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Poller[style_struct;label="{{
+      Poller|
+    router: Router\<N,\l  C,\l 
+    NormalScheduler\<N, C\>,\l 
+    ControlScheduler\<N, C\>\>,\l|
+    fsm_receiver: channel::Receiver\l 
+    \<FsmTypes\<N, C\>\>,\l|
+    handler: Handler,\l|
+    max_batch_size: usize,\l|
+    reschedule_duration: Duration,\l
+    }}"]
+    fetch_fsm[style_func;label="{{
+      fetch_fsm|
+      从fsm_reciver\l 
+      也就是BatchSystem.reciever\l
+      中获取fsm\l|
+      
+    }}"]
+    Poller:handler -> {
+      RaftPoller;
+      ApplyPoller;
+    }
+    poll[style_func;label="{{
+      poll|
+      从fsm_reciver获取fsm\l
+      然后调用handler\l
+      批量处理\l
+    }}"]
+    poll-> {
+      fetch_fsm;
+      begin;
+      handle_control;
+      handle_normal;
+      end;
+    }
+    
+  }
+}

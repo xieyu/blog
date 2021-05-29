@@ -1,0 +1,93 @@
+#include "styles.h"
+digraph check_split {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_SplitChecker {
+    graph[label="SplitChecker";fontsize=20;style="rounded,dashed";color="slategrey"]
+    checker_split_keys;
+    checker_on_kv;
+    checker_approximate_split_keys;
+  }
+  subgraph cluster_Host {
+    graph[label="Host";fontsize=20;style="rounded,dashed";color="slategrey"]
+    split_keys;
+    on_kv -> checker_on_kv;
+    split_keys -> checker_split_keys;
+    approximate_split_keys -> checker_approximate_split_keys;
+  }
+
+  subgraph cluster_CasualRouter {
+    graph[label="CasualRouter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    CasualRouter[style_func;label="{{
+      trait CasualRouter|
+      Messages are not guaranteed\l 
+      to be delivered by this trait.\l
+    }}"]
+    CasualRouter -> {
+       RaftRouter;
+       ServerRaftStoreRouter;
+    }
+    RaftRouter[style_func;label="{{
+      RaftRouter.send|
+      发送消息给Raft\l
+    }}"]
+    CasualRouter -> send;
+    send -> RaftRouter[style_edge_data];
+  }
+  subgraph cluster_Runner {
+    graph[label="Runner";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    check_split[style_func;label="{{
+      check_split|
+      checks a Region with split\l
+      checkers to product split \l
+      keys and generate split admin\l
+      command
+    }}"]
+
+    check_split -> {
+      enc_start_key;
+      enc_end_key;
+      new_split_checker_host;
+      scan_split_keys;
+      approximate_split_keys;
+      new_split_region;
+      send;
+    }
+    new_split_region -> SplitRegion;
+    SplitRegion[style_struct;label="{{
+      SplitRegion|
+        region_epoch: RegionEpoch,\l|
+        split_keys: Vec\<Vec\<u8\>\>,\l|
+        callback: Callback\<EK::Snapshot\>,\l|
+        source: Cow\<'static, str\>,\l
+    }}"]
+    SplitRegion -> send[style_edge_data];
+    approximate_split_keys -> new_split_region;
+    SplitCheckerHost;
+    {enc_start_key; enc_end_key} -> scan_split_keys[style_edge_data];
+    scan_split_keys[style_func;label="{{
+      scan_split_keys|
+      Get the split keys by\l 
+      scanning the range\l
+      统计精确的keys, size\l
+      并发给raft\l
+    }}"]
+    scan_split_keys -> {
+      MergedIterator;
+      RegionApproximateKeys;
+      split_keys;
+      RegionApproximateSize;
+      on_kv;
+    }
+    split_keys -> new_split_region[style_edge_data];
+    {
+      RegionApproximateKeys;
+      RegionApproximateSize
+    } -> send[style_edge_data];
+      
+  }
+  
+}

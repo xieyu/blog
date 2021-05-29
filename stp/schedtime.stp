@@ -1,0 +1,21 @@
+global timestap, stat
+
+probe scheduler.cpu_on {
+  if (!idle ) {
+    timestap[cpu()] = gettimeofday_ns()
+  }
+}
+
+probe scheduler.cpu_off {
+  if (!idle && timestap[cpu()]) {
+    stat[cpu()] <<< gettimeofday_ns() - timestap[cpu()];
+  }
+}
+
+probe timer.s(2) {
+  foreach(cpu in stat+) {
+    printf("count: %d, min %d max %d avg %d\n", @count(stat[cpu]), @min(stat[cpu]), @max(stat[cpu]), @avg(stat[cpu]))
+    print(@hist_log(stat[cpu]))
+  }
+  delete stat
+}

@@ -1,0 +1,70 @@
+digraph idatatype {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  IDataType -> {
+    IDataTypeEnum;
+    DataTypeSet;
+    DataTypeString;
+    DataTypeNullable;
+    DataTypeNothing;
+    DataTypeLowCardinality;
+    DataTypeFunction;
+    DataTypeFixedString;
+    DataTypeCustomFixedName;
+    DataTypeAggregateFunction;
+    DataTypeWithSimpleSerialization;
+  }
+  IDataTypeEnum -> DataTypeEnum;
+  DataTypeWithSimpleSerialization -> {
+    DataTypeNumberBase;
+    DataTypeTuple;
+    DataTypeArray;
+    DataTypeDecimalBase;
+    IDataTypeDummy;
+  }
+  DataTypeNumberBase -> {
+    DataTypeDate;
+    DataTypeDateTime;
+    DataTypeUUID;
+    DataTypeInterval;
+  }
+
+  IDataType[
+    shape=none,
+    border=none,
+    label=<<table title="IDataType" border="0" cellborder="1" cellspacing="0" cellpadding="1">
+      <tr><td bgcolor="silver"><b>IDataType</b></td></tr>
+      <tr><td><font color="gray">
+        Properties of data type.  <br align="left"/>
+        Contains methods for serialization/deserialization. <br align="left"/>
+        Implementations of this interface represent a data type (example: UInt8) <br align="left"/>
+        or parametric family of data types (example: Array(...)). <br align="left"/>
+        DataType is totally immutable object. You can always share them. <br align="left"/>
+      </font></td></tr>
+
+      <tr><td bgcolor="lightblue" align="left">
+        virtual void serializeBinaryBulkStateSuffix <br align="left"/>
+        virtual void deserializeBinaryBulkStatePrefix
+      </td></tr>
+    </table>>];
+
+    DataTypeWithSimpleSerialization[
+      shape=none,
+      border=none,
+      label=<<table title="DataTypeWithSimpleSerialization" border="0" cellborder="1" cellspacing="0" cellpadding="1">
+        <tr><td bgcolor="silver"><b>DataTypeWithSimpleSerialization</b></td></tr>
+        <tr><td><font color="gray">
+          Helper class to define same IDataType   <br align="left"/>
+          text (de)serialization for all the   <br align="left"/>
+          variants (escaped, quoted, JSON, CSV). <br align="left"/>
+          You need to define serializeText()  <br align="left"/>
+          and deserializeText() in derived class. <br align="left"/>
+        </font></td></tr>
+
+        <tr><td bgcolor="lightblue">
+          serializeText <br align="left"/>
+        </td></tr>
+      </table>>];
+}

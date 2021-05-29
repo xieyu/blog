@@ -1,0 +1,76 @@
+#include "styles.h"
+digraph collect_ready {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RaftRs {
+    graph[label="RaftRs";fontsize=20;style="rounded,dashed";color="slategrey"]
+    subgraph cluster_Ready {
+      graph[label="Ready";fontsize=20;style="rounded,dashed";color="slategrey"]
+      committed_entries;
+    }
+    skip_bcast_commit;
+  }
+  subgraph cluster_Callback {
+    graph[label="Callback";fontsize=20;style="rounded,dashed";color="slategrey"]
+    invoke_committed;
+  }
+  
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    collect_ready -> {
+      handle_raft_ready_append;
+      //on_role_changed;
+      //register_raft_gc_log_tick;
+      //register_split_region_check_tick;
+      //ctx_ready_res_push
+    }
+
+    handle_raft_ready_append -> {
+      committed_entries;
+      handle_raft_committed_entries;
+      handle_raft_ready;
+    }
+    handle_raft_committed_entries -> {
+      skip_bcast_commit;
+      find_proposal;
+      invoke_committed;
+      Apply
+      apply_router_schedule_task;
+    }
+
+    find_proposal -> proposals
+    find_proposal -> Apply[style_edge_data];
+    find_proposal -> {
+      proposals_pop;
+      notify_stale_req;
+    }
+    Apply[style_struct;label="{{
+      Apply|
+    pub peer_id: u64,\l|
+    pub region_id: u64,\l|
+    pub term: u64,\l|
+    pub entries: Vec\<Entry\>,\l
+    }}"]
+    find_proposal -> invoke_committed[style_edge_data];
+    proposals[style_var;label="{{
+      proposals|
+        ProposalQueue\<EK::Snapshot\>,\l
+    }}"]
+    Apply -> apply_router_schedule_task 
+    apply_router_schedule_task[style_func;label="{{
+    向apply poller发送Apply task\l|
+    Apply中包含了cbs, 等msg applied\l 
+    到store上时候，会回调cb\l|
+        ctx.apply_router\l
+        .schedule_task(self.region_id,\l 
+        ApplyTask::apply(apply));\l
+    }}"]
+    handle_raft_ready[style_func;label="{{
+      handle_raft_ready|
+      Save memory states to disk\l
+    }}"]
+    committed_entries -> find_proposal[style_edge_data];
+  }
+}

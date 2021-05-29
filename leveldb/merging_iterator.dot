@@ -1,0 +1,86 @@
+digraph merging_iterator {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  children_[shape=egg; fillcolor="#95e1d3"; style=filled;];
+  current_[shape=egg; fillcolor="#95e1d3"; style=filled;];
+  children_i_Seek[
+    shape="record";
+    label="{{
+      children_i_Seek|
+      调用每个children的iter\l
+      seek到target\l
+    }}";
+  ];
+  FindSmallest[
+    shape="record";
+    label="{{
+      FindSmallest|
+      比较每个child当前的key,\l 
+      找到key最小的那个child\l 
+      设置为current_\l
+    }}";
+  ];
+  children_i_key[
+    shape="record";
+    label="{{
+      children_i_key|
+      第i个children\l 
+      迭代器当前值\l
+    }}";
+  ];
+  Next[
+    shape="record";
+    label="{{
+      Next|
+      1.每个非current_的children_迭代器\l 
+      先seek到当前key\l
+      2.current_移动一个位置\l
+      3.找到拥有最下key的迭代器\l设置为current_\l
+    }}";
+  ];
+  Seek[
+    shape="record";
+    label="{{
+      Seek|
+      1.每个child迭代器Seek到target\l
+      2.找到拥有最下key的迭代器\l设置为current_\l
+    }}";
+  ];
+
+  Seek -> {
+    children_i_Seek;
+    children_;
+    FindSmallest;
+    direction_;
+  }[color="#fe346e"];
+
+  FindSmallest -> {
+    children_i_key
+    current_;
+  }
+  Next -> {
+    key;
+    children_;
+    children_i_Seek;
+    children_i_Next;
+    FindSmallest;
+    current__Next;
+  }[color="#18b0b0"]
+
+  key -> current__key;
+
+  {
+    edge[style=dashed;color=gray];
+    current_ -> {
+      current__key;
+      current__value;
+      current__Next;
+    }
+    children_ -> {
+      children_i_Seek;
+      children_i_Next;
+      children_i_key;
+    }
+  }
+}

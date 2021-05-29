@@ -1,0 +1,72 @@
+#include "styles.h"
+digraph read_next {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ScanPolicy {
+    graph[label="ScanPolicy";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_lock;
+    handle_write;
+    HandleRes[style_func;label="{{
+      HandleRes|
+      Return(T),\l|
+      Skip(Key),\l
+    }}"]
+  }
+
+  subgraph cluster_ForwardScanner {
+    graph[label="ForwardScanner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ForwardScanner_read_next -> {
+      is_started;
+      cfg_lower_bound;
+      cursors_write_seek;
+      cursors_lock_seek;
+      cursors_lock_seek_to_first;
+      cursors_write_seek_to_first;
+      loop;
+    }
+    subgraph cluster_first_time {
+      graph[label="!is_started";fontsize=20;style="rounded,dashed";color="slategrey"]
+      is_started;
+      cfg_lower_bound -> {
+        cursors_write_seek;
+        cursors_lock_seek;
+      }[style_edge_data];
+      cursors_lock_seek_to_first;
+      cursors_write_seek_to_first;
+    }
+
+    loop[style_func;label="{{
+      loop|
+      死循环
+    }}"]
+    loop -> {
+      cursors_write_key;
+      cursors_lock_key;
+      case1;
+    }
+    case1[style_func;label="{{
+      case1|
+      w_key is None\l
+      l_key ins None\l
+    }}"]
+    case2[style_func;label="{{
+      case2|
+      w_key is None\l
+    }}"]
+
+    {w_key;l_key} -> case1;
+
+    cursors_write_key-> w_key[style_edge_data];
+    cursors_lock_key-> l_key[style_edge_data];
+    has_lock -> handle_lock;
+    has_write -> {
+     move_write_cursor_to_ts;
+     handle_write;
+    }
+  }
+
+  Scanner_next -> ForwardScanner_read_next;
+}

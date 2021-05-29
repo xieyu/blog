@@ -1,0 +1,214 @@
+digraph buildExecutorForIndexJoin {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  buildExecutorForIndexJoin -> buildExecutorForIndexJoinInternal;
+  buildExecutorForIndexJoinInternal -> {
+    buildTableReaderForIndexJoin;
+    buildIndexReaderForIndexJoin;
+    buildIndexLookUpReaderForIndexJoin;
+    buildUnionScanForIndexJoin;
+    buildProjectionForIndexJoin;
+    buildExecutorForIndexJoinInternal;
+  }
+
+  buildTableReaderForIndexJoin -> {
+    buildNoRangeTableReader;
+    buildKvRangesForIndexJoin;
+    buildTableReaderFromKvRanges;
+  }
+  buildKvRangesForIndexJoin -> {
+    CommonHandleRangesToKVRanges;
+    IndexRangesToKVRanges;
+    BuildRangesByRow;
+    UnionRanges;
+  }[color="#b83b5e"];
+
+  buildIndexReaderForIndexJoin -> {
+    buildNoRangeIndexReader;
+    buildKvRangesForIndexJoin;
+    nextPartitionForIndexReader;
+    prunePartitionForInnerExecutor;
+    buildIndexRangeForEachPartition;
+    buildRangesForIndexJoin;
+    PartitionTableExecutor;
+  }[color="#17b978"];
+
+  buildIndexLookUpReaderForIndexJoin -> {
+    buildKvRangesForIndexJoin;
+    nextPartitionForIndexLookUp;
+    prunePartitionForInnerExecutor;
+    buildIndexRangeForEachPartition;
+    buildRangesForIndexJoin;
+  }[color="#3f72af"];
+
+  buildUnionScanForIndexJoin -> {
+    buildExecutorForIndexJoin;
+    buildUnionScanFromReader;
+  }
+
+  buildProjectionForIndexJoin -> {
+    buildIndexLookUpReaderForIndexJoin;
+  }
+
+  buildTableReaderFromKvRanges -> {
+    buildTableReaderBase;
+    SetKeyRanges;
+  }
+
+  buildRangesForIndexJoin -> {
+    BuildRangesByRow;
+  }
+  BuildRangesByRow -> {
+    BuildColumnRange;
+  }
+  BuildColumnRange -> buildColumnRange;
+  buildNoRangeTableReader -> {
+    constructDAGReq;
+    getSnapshotTS;
+    buildVirtualColumnInfo;
+    TableReaderExecutor;
+  }
+  buildNoRangeIndexReader -> {
+    IndexReaderExecutor;
+  }
+
+  subgraph cluster_distsql {
+    graph[label="distsql";fontsize=20;];
+    buildTableReaderBase -> {
+      SelectResult;
+      reqBuilderWithRange;
+    };
+    SetKeyRanges;
+    CommonHandleRangesToKVRanges -> {
+      encodeIndexKey;
+      EncodeRowKey;
+    }
+    IndexRangesToKVRanges -> {
+      IndexRangesToKVRangesForTables;
+    }
+    IndexRangesToKVRangesForTables -> {
+      indexRangesToKVWithoutSplit;
+      encodeIndexKey;
+      EncodeIndexSeekKey;
+      StoreRanges;
+    }
+  }
+  buildUnionScanFromReader -> {
+    nextPartitionForUnionScan;
+    buildUnionScanFromReader;
+    UnionScanExec;
+    buildVirtualColumnIndex;
+  }
+  nextPartitionForIndexReader[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      nextPartitionForIndexReader
+    }}";
+  ];
+  nextPartitionForUnionScan[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      nextPartitionForUnionScan
+    }}";
+  ];
+  GetPartitionByRow -> {
+    locatePartition;
+    partitions;
+  }
+  GetPartition -> partitions;
+  partitions[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      partitions
+    }}";
+  ];
+  PartitionExpr[
+    shape="record";
+    label="{{
+      PartitionExpr|
+      partitionedTable.partitionExpr
+    }}";
+  ];
+  PartitionTableExecutor[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PartitionTableExecutor
+    }}";
+  ];
+  locatePartition -> {
+    locateRangePartition;
+    locateRangeColumnPartition;
+    locateListPartition;
+  }
+
+  PartitionPruning -> {
+    pruneHashPartition;
+    pruneRangePartition;
+    pruneListPartition;
+  };
+
+  buildIndexRangeForEachPartition -> {
+    buildRangesForIndexJoin;
+  }
+  IndexReaderExecutor[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      IndexReaderExecutor
+    }}";
+  ];
+  TableReaderExecutor[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      TableReaderExecutor
+    }}";
+  ];
+
+  prunePartitionForInnerExecutor -> {
+    partitionPruning;
+    GetPartitionByRow;
+    PartitionExpr;
+  }
+  partitionPruning -> {
+    PartitionPruning;
+    GetPartition;
+  }
+  nextPartitionForIndexLookUp[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      nextPartitionForIndexLookUp
+    }}";
+  ];
+
+  edge[style=dashed;color=blue];
+  lookUpContents -> buildKvRangesForIndexJoin;
+  IndexReaderExecutor -> {
+    nextPartitionForIndexReader;
+  }
+  buildIndexRangeForEachPartition -> nextPartitionForIndexReader;
+  nextPartitionForIndexReader -> {
+    PartitionTableExecutor;
+  }
+  buildTableReaderFromKvRanges -> TableReaderExecutor;
+
+  buildKvRangesForIndexJoin -> {
+    buildTableReaderFromKvRanges;
+    IndexReaderExecutor;
+  }
+  SelectResult -> TableReaderExecutor;
+}

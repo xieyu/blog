@@ -1,0 +1,52 @@
+#include "styles.h"
+digraph execute {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_twoPhaseCommitter {
+    graph[label="twoPhaseCommitter";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    execute -> {
+      prewriteMutations;
+      commitTxn;
+      getTimestampWithRetry;
+    }
+    getTimestampWithRetry[style_func;label="{{
+      getTimestampWithRetry|
+      在提交事务之前\l
+      先获取commit_ts\l
+      从time Oracle服务\l
+      获取commitTs\l
+    }}"]
+    getTimestampWithRetry -> commitTxn[style_edge_data];
+    commitTxn -> {
+      commitMutations;
+    }
+    commitMutations -> doActionOnMutations;
+    prewriteMutations -> doActionOnMutations;
+    prewriteMutations -> actionPrewrite_handleSingleBatch[style_edge_data];
+    commitMutations -> actionCommit_handleSingleBatch[style_edge_data];
+    doActionOnMutations -> {
+      actionPrewrite_handleSingleBatch;
+      actionCommit_handleSingleBatch;
+    }
+    doActionOnMutations[style_func;label="{{
+      doActionOnMutations|
+      对Mutation根据region 做分组\l
+      然后每个组做batch\l
+    }}"]
+    actionPrewrite_handleSingleBatch[style_func;label="{{
+      actionPrewrite::handleSingleBatch
+    }}"]
+    actionCommit_handleSingleBatch[style_func;label="{{
+      actionCommit::handleSingleBatch
+    }}"]
+  }
+
+  subgraph cluster_KVTxn {
+    graph[label="KVTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Commit -> execute;
+  }
+}

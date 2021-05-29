@@ -1,0 +1,59 @@
+#include "styles.h"
+digraph exec_change_peer {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Region {
+    graph[label="Region";fontsize=20;style="rounded,dashed";color="slategrey"]
+      
+  }
+
+  subgraph cluster_ApplyDelegate {
+    graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    exec_admin_cmd -> {
+      exec_change_peer;
+      exec_change_peer_v2;
+    }
+    exec_change_peer -> {
+      write_peer_state;
+    }
+
+    ExecResult_ChangePeer[style_var;label="{{
+      ExecResult::ChangePeer|
+      要发给peerFsmDelegate的消息\l|
+    pub index: u64,\l|
+    pub conf_change: ConfChangeV2,\l|
+    pub changes: Vec\<ChangePeerRequest\>,\l|
+    pub region: Region,\l
+    }}"]
+    ExecResult_ChangePeer -> Region;
+
+    Region[style_var;label="{{
+      Region|
+    pub start_key: ::std::vec::Vec\<u8\>,\l|
+    pub end_key: ::std::vec::Vec\<u8\>,\l|
+    pub region_epoch: ::protobuf::SingularPtrField\<RegionEpoch\>,\l|
+    <peers> pub peers: ::protobuf::RepeatedField\<Peer\>,\l|
+    pub encryption_meta: ::protobuf::SingularPtrField\<super::encryptionpb::EncryptionMeta\>,\l
+    }}"]
+
+    exec_change_peer_v2 -> {
+      write_peer_state;
+    }
+    {exec_change_peer; exec_change_peer_v2} -> Region;
+    handle_raft_entry_conf_change -> ExecResult_ChangePeer;
+    handle_raft_entry_conf_change -> {
+      process_raft_cmd;
+    }
+    process_raft_cmd ->apply_raft_cmd ->exec_raft_cmd ->exec_admin_cmd;
+    handle_raft_entry_conf_change[style_func;label="{{
+      handle_raft_entry_conf_change|
+      将log entry的conf_change\l
+      最后再加在ExecResult上\l
+    }}"]
+      
+  }
+  
+}

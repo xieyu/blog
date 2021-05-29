@@ -1,0 +1,101 @@
+#include "styles.h"
+digraph future_wake_task {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  LOCAL[style_var;label="{{
+  LOCAL\l|
+    线程局部变量, 指向本地queue\l
+  thread_local!\l
+    static LOCAL: Cell\<*mut Local\<TaskCell\>\>\l 
+    = Cell::new(std::ptr::null_mut());\l
+  }}"]
+  Local[style_func;label="{{
+    Local|
+    id: usize,\l|
+    local_queue: LocalQueue\<T\>,\l|
+    core: Arc\<QueueCore\<T\>\>,\l
+  }}"]
+  LOCAL -> Local;
+  wake_task[style_func;label="{{
+    wake_task|
+    将task重新放入队列\l
+  }}"]
+
+  wake_task -> {
+    LOCAL_with;
+    out_of_polling;
+    remote_spawn;
+    local_spawn_remote;
+    local_spawn;
+  }
+  out_of_polling[style_func;label="{{
+    out_of_polling|
+    如果LOCAL指针为空就\l
+    使用remote 全队列spawn\l
+  }}"]
+  out_of_polling -> {
+    remote_spawn;
+  }[style_edge_data];
+  LOCAL_with[style_func;label="{{
+    LOCAL.with|
+    获取local queue ptr\l
+  }}"]
+
+  LOCAL_with-> LOCAL;
+
+  Local -> {
+    local_spawn_remote;
+    local_spawn;
+  }
+  Scope_new[style_func;label="{{
+    Scope::new|
+    设置Local指针\l|
+    LOCAL.with(\|c\| c.set(l));
+    Scope(l)\l
+  }}"]
+  Scope_drop[style_func;label="{{
+    Scope::drop|
+    将LOCAL设置为null
+    LOCAL.with(\|c\|\l 
+    c.set(std::ptr::null_mut()));\l
+  }}"]
+  future_runner_handle[style_func;label="{{
+    future::Runner::handle
+  }}"]
+  future_runner_handle -> {
+    Scope_new;
+    Scope_drop;
+    task_future_poll;
+  }
+  task_future_poll[style_func;label="{{
+    task.future.poll|
+    调用ctx.wake_xxx\l
+    将自己加入队列中\l
+    等下次重新poll\l
+  }}"]
+  task_future_poll -> wake_task[style_edge_data];
+
+  Scope_new -> LOCAL;
+  Scope_drop -> LOCAL;
+  Scope_drop -> out_of_polling[style_edge_data];
+  local_spawn[style_func;label="{{
+    Local::spawn|
+    将task加入到local_queue中\l
+    self.local_queue.push(t)\l
+  }}"]
+  local_spawn_remote[style_func;label="{{
+    Local::spawn_remote|
+    将task加入到remote queue\l
+    self.core.push(self.id, t)\l
+  }}"]
+
+  remote_spawn[style_func;label="{{
+    remote.spawn|
+    将task放到remote队列中\l
+    self.core.push(0, t)\l
+  }}"]
+
+  
+}

@@ -1,0 +1,106 @@
+digraph blob_index {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_WriteBatch {
+    graph[label="WriteBatch";fontsize=20;];
+    WriteBatchRep[
+      shape="record"
+      label="{{
+        WriteBatch::Rep|
+        kTypeBlobIndex\l|
+        <index> blob index_entry\l
+      }}"
+    ];
+  }
+  subgraph cluster_BlobFile {
+    graph[label="BlobFile";fontsize=20;];
+    BlobLogFormat[
+      shape="record"
+      label="{{
+        BlobLogFormat|
+        BlobHeader\l|
+        BlobRecord\l|
+        ...
+        BlobRecord\l|
+        BlobFooter\l
+      }}"
+    ];
+    
+  }
+  subgraph cluster_BlobIndex {
+    graph[label="BlobIndex";fontsize=20;];
+    WriteBatchRep:index -> BlobIndex;
+    BlobIndex[
+      shape="record"
+      label="{{
+        BlobIndex|
+          <Type> Type type_ = Type::kUnknown;\l|
+          uint64_t expiration_ = 0;\l|
+          Slice value_;\l|
+          uint64_t file_number_ = 0;\l|
+          uint64_t offset_ = 0;\l|
+          uint64_t size_ = 0;\l|
+          <CompressionType> CompressionType compression_ = kNoCompression;\l
+      }}"
+    ];
+    BlobIndex:CompressionType -> CompressionType;
+  
+    BlobIndex:Type -> {
+      kInlinedTTL;
+      kBlob;
+      kBlobTTL
+      kUnknown;
+    }
+    kInlinedTTL[
+      shape="record"
+      label="{{
+        kInlinedTTL format|
+        type: char\l|
+        expiration: varint64\l|
+        value: variable size\l
+      }}"
+    ];
+    kBlob[
+      shape="record"
+      label="{{
+        kBlob format|
+        type: char\l|
+        file number: varint64\l|
+        offset: varint64\l|
+        size: varint64\l|
+        compression: char\l
+      }}"
+    ];
+    kBlobTTL[
+      shape="record"
+      label="{{
+        kBlobTTL|
+        type: char\l|
+        expiration: varint64\l|
+        file number: varint64\l|
+        offset: varint64\l|
+        size: varint64\l|
+        compression: char\l
+      }}"
+    ];
+    {kBlob;kBlobTTL} -> BlobLogFormat;
+    CompressionType[
+      shape="record"
+      label="{{
+        CompressionType|
+          kNoCompression = 0x0,\l|
+          kSnappyCompression = 0x1,\l|
+          kZlibCompression = 0x2,\l|
+          kBZip2Compression = 0x3,\l|
+          kLZ4Compression = 0x4,\l|
+          kLZ4HCCompression = 0x5,\l|
+          kXpressCompression = 0x6,\l|
+          kZSTD = 0x7,\l|
+          kZSTDNotFinalCompression = 0x40,\l|
+          kDisableCompressionOption = 0xff,\l
+      }}"
+    ];
+  }
+}

@@ -1,0 +1,65 @@
+digraph tableStatsFromStorage {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  tableStatsFromStorage -> {
+    getStatsReader;
+    releaseStatsReader;
+    indexStatsFromStorage;
+    columnStatsFromStorage;
+    extendedStatsFromStorage;
+  }
+  indexStatsFromStorage -> {
+    histogramFromStorage;
+    cmSketchFromStorage;
+  }
+  columnStatsFromStorage -> {
+    columnCountFromStorage;
+    histogramFromStorage;
+    cmSketchFromStorage;
+  }[color="#17b978"];
+  extendedStatsFromStorage -> {
+    mysql_stats_extends;
+  }
+  histogramFromStorage -> {
+    mysql_stats_buckets;
+    NewHistogram;
+    AppendBucket;
+    PreCalculateScalar;
+  }
+  cmSketchFromStorage -> {
+    mysql_stats_top_n;
+    DecodeCMSketch;
+  }
+  columnCountFromStorage -> {
+    mysql_stats_buckets;
+  }
+
+  table_rows[
+    shape="record";
+    label="{{
+      table_rows|
+      table_id\l|
+      is_index\l|
+      hist_id\l|
+      ...
+    }}"];
+
+  {
+    rank=same;
+    indexStatsFromStorage;
+    columnStatsFromStorage;
+  }
+  edge[style=dashed;color=darkblue]
+  tableStatsFromStorage -> statsCache_Update;
+  mysql_stats_histograms -> cmSketchFromStorage;
+
+  tableStatsFromStorage -> mysql_stats_histograms;
+  mysql_stats_histograms -> table_rows;
+  table_rows -> {
+    indexStatsFromStorage;
+    columnStatsFromStorage;
+  }
+}

@@ -1,0 +1,95 @@
+#include "styles.h"
+digraph set_applied_state {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ApplyDelegate{
+    graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+   process_raft_cmd -> apply_raft_cmd;
+   apply_raft_cmd -> {
+     set_applied_index;
+     applied_index_term;
+   }
+   handle_tasks -> handle_apply;
+   handle_apply -> {
+     handle_raft_committed_entries;
+     set_commit_index;
+     set_commit_term;
+   }
+   {
+     set_commit_index;
+     set_commit_term;
+   } -> apply_state;
+
+   handle_raft_committed_entries -> {
+     handle_raft_entry_normal;
+     handle_raft_entry_conf_change;
+   }
+
+    handle_raft_entry_normal -> {
+      set_applied_index;
+      applied_index_term;
+      process_raft_cmd;
+    }
+    handle_raft_entry_conf_change -> {
+      process_raft_cmd;
+    }
+    set_applied_index -> apply_state;
+    apply_raft_cmd -> {
+      ExecContext_apply_state;
+      new_ctx;
+    }
+    new_ctx -> ExecContext -> ExecContext_apply_state;
+
+    finish_for -> {
+     write_apply_state
+     apply_res;
+     ApplyRes;
+     apply_state;
+    }
+    apply_state -> ApplyRes;
+    applied_index_term;
+    ApplyRes -> apply_res;
+      
+  }
+  subgraph cluster_ApplyContext {
+    graph[label="ApplyContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    flush -> self_notify;
+    apply_res -> self_notify;
+      
+  }
+
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //pub fn set_applied_state(&mut self, apply_state: RaftApplyState) {@components/raftstore/src/store/peer_storage.rs#L834"
+    set_applied_state;
+    set_applied_term;
+      
+  }
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    post_apply;
+    apply_state -> post_apply;
+    post_apply -> set_applied_state;
+    applied_index_term -> post_apply;
+    applied_index_term  -> set_applied_term;
+    apply_state -> set_applied_state;
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_apply_res -> {
+      on_ready_result;
+      post_apply;
+    }
+  }
+  subgraph cluster_PeerFmsDelegate {
+    graph[label="PeerFmsDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_msgs -> on_apply_res;
+      
+  }
+  
+}

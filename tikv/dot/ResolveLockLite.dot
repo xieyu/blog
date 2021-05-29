@@ -1,0 +1,30 @@
+#include "styles.h"
+digraph ResolveLockLite {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_ReleasedLocks {
+    graph[label="ReleasedLocks";fontsize=20;style="rounded,dashed";color="slategrey"]
+    released_locks;
+    wake_up;
+    released_locks -> wake_up
+  }
+
+  subgraph cluster_ResolveLockLite {
+    graph[label="ResolveLockLite";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ResolveLockLite[style_struct;label="{{
+      ResolveLockLite|
+        start_ts: TimeStamp,\l|
+        commit_ts: TimeStamp,\l|
+        resolve_keys: Vec\<Key\>,\l
+    }}"]
+    process_write -> {
+       commit;
+       cleanup;
+    }
+    released_locks -> wake_up;
+    {commit;cleanup} -> released_locks;
+  }
+  
+}

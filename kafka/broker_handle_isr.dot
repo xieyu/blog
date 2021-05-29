@@ -1,0 +1,104 @@
+digraph partionLogCreate {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_BrokerServer {
+    graph[label="BrokerServer";fontsize=20;style=rounded];
+    subgraph cluster_logManager {
+      graph[label="logManager";fontsize=20;];
+      logCreationOrDeletionLock[
+        fillcolor="#95e1d3"
+        style=filled;
+        shape=box3d;
+        label="logCreationOrDeletionLock"
+      ];
+  
+      getOrCreateLog -> {
+        logCreationOrDeletionLock;
+        preferredLogDirs;
+        logDirs;
+      };
+      finishedInitializingLog;
+    }
+  
+    subgraph cluster_Partition {
+      graph[label="Partition";fontsize=20;];
+      log[
+        fillcolor="#95e1d3"
+        style=filled;
+        shape=box3d;
+        label="log"
+      ];
+      {
+        maybeCreateFutureReplica;
+        makeLeader;
+        makeFollower;
+      } -> createLogIfNotExists;
+  
+      createLogIfNotExists[
+        fillcolor="#f38181";
+        style=filled;
+        shape=box;
+        label="createLogIfNotExists"
+      ];
+  
+      //创建日志
+      createLogIfNotExists -> {
+        createLog;
+        log;
+      };
+      createLog -> {
+        getOrCreateLog;
+        finishedInitializingLog;
+      }
+    }
+  
+    subgraph cluster_ReplicaManager {
+      graph[label="ReplicaManager";fontsize=20;];
+      allPartitions[
+        fillcolor="#95e1d3"
+        style=filled;
+        shape=box3d;
+        label="allPartitions"
+      ];
+  
+      becomeLeaderOrFollower -> {
+        makeFollowers;
+        createLogIfNotExists;
+        allPartitions;
+      }
+      makeFollowers -> {
+        createLogIfNotExists;
+        makeFollower;
+      }
+      becomeLeaderOrFollower -> makeLeaders -> makeLeader;
+      alterReplicaLogDirs -> maybeCreateFutureReplica;
+  
+    }
+  
+    subgraph cluster_KafkaApi {
+      graph[label="KafkaApi: kafkaServer对外接口";fontsize=20;];
+      handle[shape="record";
+        label="{{
+          handle|
+            KafkaServer api处理入口\l
+        }}";
+      ];
+      handle -> {
+        handleLeaderAndIsrRequest;
+        handleAlterReplicaLogDirsRequest;
+      }
+      handleLeaderAndIsrRequest -> becomeLeaderOrFollower;
+      handleAlterReplicaLogDirsRequest -> alterReplicaLogDirs;
+    }
+  };
+
+  subgraph cluster_Controller {
+    graph[label="Controller";fontsize=20;style=rounded];
+    {
+      PartionStateMachine 
+      ReplicaStateMachine
+    } -> ChannelManager->handle;
+  };
+}

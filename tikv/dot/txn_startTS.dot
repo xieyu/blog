@@ -1,0 +1,99 @@
+#include "styles.h"
+digraph startTS{
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  TransactionContext[style_func;label="{{
+    TransactionContext|
+      <forUpdateTS> forUpdateTS uint64\l|
+      <StartTS> StartTS     uint64\l|
+      ...
+  }}"]
+  LockCtx[style_func;label="{{
+    LockCtx|
+      ForUpdateTS           uint64\l|
+      LockWaitTime          int64\l|
+      WaitStartTime         time.Time\l
+  }}"]
+
+  TransactionContext -> newLockCtx -> LockCtx[style_edge_data];
+  newLockCtx
+  newLockCtx[style_func;label="{{
+    newLockCtx|
+    将TransactionContext的\l 
+    forUpdateTS 传给LockCtx
+  }}"]
+
+  subgraph cluster_Oracle {
+    graph[label="Oracle";fontsize=20;style="rounded,dashed";color="slategrey"]
+    GetTimestamp;
+    GetStaleTimestamp
+  }
+
+  subgraph cluster_txn {
+    graph[label="store/tikv";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BeginWithOption -> newTiKVTxnWithOptions;
+    newTiKVTxnWithOptions -> {
+      extractStartTs;
+    };
+    extractStartTs -> {
+      getStalenessTimestamp;
+      getMinSafeTSByStores;
+      getTimestampWithRetry;
+    }
+    getTimestampWithRetry -> {
+      GetTimestamp;
+    }
+    getStalenessTimestamp -> {
+      GetStaleTimestamp;
+    }
+    getMinSafeTSByStores -> {
+      getSafeTS;
+    }
+  }
+
+  subgraph cluster_session {
+    graph[label="session";fontsize=20;style="rounded,dashed";color="slategrey"]
+    NewTxnWithStalenessOption -> {
+      BeginWithOption;
+      TransactionContext:Start_ts;
+      NewTxn;
+    }
+    NewTxn -> { 
+      BeginWithOption;
+      TransactionContext:Start_ts;
+    }
+  }
+
+
+  subgraph cluster_SimpleExec {
+    graph[label="SimpleExec";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Next -> {
+      executeBegin;
+      executeRollback;
+      executeCommit;
+    }
+    executeBegin[style_func;label="{{
+      executeBegin|
+      执行BeginStmt\l
+    }}"]
+    executeBegin -> executeStartTransactionReadOnlyWithTimestampBound;
+      
+    executeStartTransactionReadOnlyWithTimestampBound -> {
+      NewTxnWithStalenessOption;
+    };
+  }
+  session -> SessionVars -> TransactionContext;
+  SessionVars[style_func;label="{{
+    SessionVars|
+      TxnCtx *TransactionContext\l|
+      ...\l
+  }}"]
+  session[style_func;label="{{
+    session|
+      sessionVars    *variable.SessionVars\l|
+      ...\l
+  }}"]
+}

@@ -1,0 +1,168 @@
+digraph txn_prepare {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ReplicaManager {
+    graph[label="ReplicaManager";fontsize=20;style=rounded];
+    appendRecords;
+  };
+
+  subgraph cluster_TransactionMetadata {
+    graph[label="TransactionMetadata";fontsize=20;style=rounded];
+    TransactionMetadata[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        TransactionMetadata|
+        transactionalId: String \l|
+        producerId: long \l|
+        lastProducerId: Long \l|
+        producerEpoch: short \l|
+        txnTimeoutMs: Int \l|
+        state: TransactionState \l|
+        <tp> topicPartitions: mutable.Set[TopicPartition]\l
+      }}";
+    ];
+    prepareTransitionTo[
+      shape="record";
+      label="{{
+        prepareTransitionTo
+      }}";
+    ];
+    completeTransitionTo[
+      shape="record";
+      label="{{
+        completeTransitionTo|
+        在PrepareCommit|PrepareAbort状态下，\l 
+        如果状态不对，抛出异常\l
+      }}";
+    ];
+    pendingState[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="pendingState"
+    ];
+    prepareAbortOrCommit[
+      shape="record";
+      label="{{
+        prepareAbortOrCommit|
+        将状态切换为PrepareCommit\l 
+        或者PrepareAbort\l
+      }}";
+    ];
+    prepareAbortOrCommit ->  prepareTransitionTo -> pendingState;
+    completeTransitionTo -> throwStateTransitionFailure;
+  };
+
+  subgraph cluster_TransactionStateManager {
+    graph[label="TransactionStateManager";fontsize=20;style=rounded];
+    appendTransactionToLog[
+      shape="record";
+      label="{{
+        appendTransactionToLog|
+        将事务日志对应的\l 
+        写入topic_partition\l
+      }}";
+    ];
+    getTransactionState[
+      shape="record";
+      label="{{
+        getTransactionState|
+        根据tid获取事务对应状态
+      }}";
+    ];
+    transactionMetadataCache[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="transactionMetadataCache"
+    ];
+    transactionMetadataCache[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        transactionMetadataCache|
+        <entry>mutable.Map[Int, TxnMetadataCacheEntry]\l
+        parition 到cacheEntry的映射
+      }}";
+    ];
+    TxnMetadataCacheEntry[
+      shape="record";
+      fillcolor="#95e1d3";
+      style=filled;
+      label="{{
+        TxnMetadataCacheEntry|
+        coordinatorEpoch Int \l|
+        <meta> metadataPerTransactionalId \l 
+        Pool[String, TransactionMetadata]\l
+        事务ID到事务metadata映射
+      }}";
+    ];
+    partitionFor[
+      shape="record";
+      label="{{
+        partitionFor|
+        Utils.abs(transactionalId.hashCode)\%\l transactionTopicPartitionCount 
+        \l 根据事务id获取对应的partition\l
+      }}";
+    ];
+
+    updateCacheCallback[
+      shape="record";
+      label="{{
+        updateCacheCallback|
+        日志写入\l 
+        成功回调\l
+      }}";
+    ];
+    transactionMetadataCache:entry -> TxnMetadataCacheEntry;
+    TxnMetadataCacheEntry:meta -> TransactionMetadata;
+
+    getTransactionState -> getAndMaybeAddTransactionState;
+    getAndMaybeAddTransactionState -> {
+      transactionMetadataCache;
+      partitionFor;
+    }
+
+    appendTransactionToLog -> {
+      TRANSACTION_STATE_TOPIC_NAME;
+      appendRecords;
+    };
+    appendRecords -> updateCacheCallback -> completeTransitionTo;
+    updateCacheCallback -> sendTxnMarkersCallback;
+    sendTxnMarkersCallback[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        sendTxnMarkersCallback|
+        coordinator开始向各个broker\l 
+        发送txnMark请求\l
+        不断尝试直到成功\l
+        并将状态设置为Complete\l
+        }}"
+    ];
+  };
+
+
+  subgraph cluster_TransactionCoordinator {
+    graph[label="TransactionCoordinator";fontsize=20;style=rounded];
+    handleEndTransaction -> {
+      getTransactionState;
+      appendTransactionToLog;
+      prepareAbortOrCommit;
+      addTxnMarkersToSend;
+    }
+  };
+  subgraph cluster_KafkaApi {
+    graph[label="KafkaApi";fontsize=20;style=rounded];
+    handleEndTxnRequest -> {
+      handleEndTransaction;
+    }
+  };
+
+}

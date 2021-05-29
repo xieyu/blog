@@ -1,0 +1,67 @@
+digraph raft_server_state {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Follower -> ElectionTimeout -> Candidate;
+  Candidate -> MajorityVote -> Leader;
+  Leader -> DiscoverHigherTerm -> Follower;
+  Candidate -> DiscoverLeaderorNewTerm -> Follower;
+
+  Follower[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      Follower|
+      1.处理leader的AppendEntries请求\l
+      2.处理Candidate的RequestForVote请求\l
+    }}"
+  ];
+  Candidate[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      Candidate|
+      1.将自己的term +=1
+    }}"
+  ];
+  Leader[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      Leader|
+      1.接受client读写请求\l
+      2.通过发送空的AppendEntries心跳信息\l
+      抑制follower的electiontimeout\l|
+      3.通过AppendEntries将log entry push给follower\l
+      让follower的logentry保持和leader一致\l
+    }}"
+  ];
+  DiscoverHigherTerm[
+    shape="record"
+    label="{{
+      DiscoverHigherTerm|
+      1.如果follower的AE Rpc请求\l 
+      返回的term比自己大\l
+    }}"
+  ];
+  DiscoverLeaderorNewTerm[
+    shape="record"
+    label="{{
+      DiscoverLeaderorNewTerm|
+      1.如果收到了term比自己大的AE请求\l
+      2.如果RequestVote返回的term比自己大\l
+    }}"
+  ];
+  MajorityVote[
+    shape="record"
+    label="{{
+      MajorityVote|
+      候选者收到了\l 
+      大多数follower的投票\l
+    }}"
+  ];
+}

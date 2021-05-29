@@ -1,0 +1,139 @@
+digraph pick_compaction {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Version {
+    graph[label="Version";fontsize=20;style=rounded];
+    compaction_level_;
+    files_;
+    GetOverlappingInputs[
+      shape="record";
+      label="{{
+        GetOverlappingInputs|
+        获取在level中和[begin,end]\l 
+        keyRange overlap的FileMetadata列表\l|
+        对于level0的做了特殊处理\l
+        TODO:level0这个没怎看明白\l
+      }}";
+    ];
+    GetOverlappingInputs -> {
+      files_;
+      user_key;
+      Compare;
+    };
+  };
+
+  subgraph cluster_VersionSet {
+    graph[label="VersionSet";fontsize=20;style=rounded];
+
+    subgraph cluster_Compaction {
+      graph[label="Compaction";fontsize=20;style=rounded];
+      inputs_0[
+        shape="record";
+        label="{{
+          inputs_0|
+          std::vector\<FileMetaData*\>
+        }}";
+      ];
+      inputs_1[
+        shape="record";
+        label="{{
+          inputs_1|
+          std::vector\<FileMetaData*\>
+        }}";
+      ];
+      grandparents_[
+        shape="record";
+        label="{{
+          grandparents_|
+          std::vector\<FileMetaData*\>
+        }}";
+      ];
+    };
+    GetRange[
+      shape="record";
+      label="{{
+        GetRange|
+        获取一组FileMetaData中的key的\l 
+        最大值和最小值\l
+      }}";
+    ];
+    compact_pointer_[
+      shape="record";
+      label="{{
+        compact_pointer_|
+        这个pointer用来选择input_[0]?
+      }}";
+    ];
+
+    PickCompaction[
+      shape="record";
+      color="#f08a5d";
+      label="{{
+        PickCompaction|
+        1.选择要压缩的SStable文件\l 
+        放到inputs_[0]中\l|
+        2.将level 0中和inputs_[0]中key \l 
+        range重合的，也放入inputs_[0]中\l
+      }}";
+    ];
+
+    PickCompaction -> {
+      compaction_level_;
+      compact_pointer_;
+      GetOverlappingInputs;
+      GetRange;
+      SetupOtherInputs;
+      files_;
+      inputs_0;
+    }[color="#f08a5d"];
+
+    SetupOtherInputs[
+      shape="record";
+      color="#6a2c70"
+      label="{{
+        SetupOtherInputs|
+        1.获取level +1层和inputs_[0]中\l 
+        重叠的FileMeta列表到inputs_[1]中\l|
+        2.获取inputs_[0]和inputs_[1]的KeyRange\l|
+        3.获取level+2层和inputs_[0],inputs_[1]重叠的到grandParents_中\l|
+        4.设置level的下次compaction_pointer为largestKey\l
+      }}";
+    ];
+    SetupOtherInputs -> {
+      GetOverlappingInputs;
+      GetRange2;
+      AddBoundaryInputs;
+      ExpandedCompactionByteSizeLimit;
+      GetRange;
+      SetCompactPointer;
+      grandparents_;
+      compact_pointer_;
+      inputs_0;
+      inputs_1;
+    }[color="#6a2c70"];
+
+    GetRange2[
+      shape="record";
+      label="{{
+        GetRange2|
+        获取inputs_[0],inputs_[1]\l 
+        中所有的FileMeta的keyRange\l
+      }}";
+    ];
+    GetRange2 -> GetRange;
+    subgraph cluster_VersionEdit{
+      graph[label="VersionEdit";fontsize=20;style=rounded];
+      SetCompactPointer -> compact_pointers_;
+      compact_pointers_[
+        shape="record";
+        label="{{
+          compact_pointers_|
+          std::vector\<std::pair\<int, InternalKey\>\l compact_pointers_\l
+        }}";
+      ];
+    };
+
+
+  };
+}

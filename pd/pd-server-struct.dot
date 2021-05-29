@@ -1,0 +1,56 @@
+#include "styles.h"
+
+digraph pd_server_struct {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  abcd;
+  abc[style_var;label="{{
+    abc
+  }}"]
+/*
+  Server[style_struct;label="{{
+    Server|
+      diagnosticspb.DiagnosticsServer\l|
+      isServing int64\l|
+	    isServing int64\l|
+      idAllocator id.Allocator\l|
+  }}"]
+  */
+/*
+  Server:cluster -> RaftCluster;
+
+  RaftCluster[style_struct;label="{{
+    RaftCluster|
+	sync.RWMutex\l|
+	ctx context.Context\l|
+	running bool\l|
+	clusterID   uint64\l|
+	clusterRoot string\l|
+	core    *core.BasicCluster\l|
+	meta    *metapb.Cluster\l|
+	opt     *config.PersistOptions\l|
+	storage *core.Storage\l|
+	id      id.Allocator\l|
+	limiter *StoreLimiter\l|
+	prepareChecker *prepareChecker\l|
+	changedRegions chan *core.RegionInfo\l|
+	labelLevelStats *statistics.LabelStatistics\l|
+	regionStats     *statistics.RegionStatistics\l|
+	hotStat         *statistics.HotStat\l|
+	coordinator      *coordinator\l|
+	suspectRegions   *cache.TTLUint64\l|
+	suspectKeyRanges *cache.TTLString\l|
+	wg           sync.WaitGroup\l|
+	quit         chan struct\{\}\l|
+	regionSyncer *syncer.RegionSyncer\l|
+	ruleManager *placement.RuleManager\l|
+	etcdClient  *clientv3.Client\l|
+	httpClient  *http.Client\l|
+	replicationMode *replication.ModeManager\l|
+	traceRegionFlow bool\l|
+	componentManager *component.Manager\l|
+  }}"]
+  */
+}

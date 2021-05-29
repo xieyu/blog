@@ -1,0 +1,33 @@
+digraph possibleAccessPaths {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  resolveAccessPaths -> {
+    getPossibleAccessPaths;
+    filterPathByIsolationRead;
+    possibleAccessPaths;
+    getPathByIndexName;
+    removeIgnoredPaths;
+    HintIgnore;
+    hint_IndexNames;
+  }
+  removeIgnoredPaths[
+    shape="record";
+    label="{{
+      removeIgnoredPaths|
+      删除Ignored的IndexPaths
+    }}"];
+  removeIgnoredPaths -> {
+    IsTablePath;
+    getPathByIndexName;
+  }
+
+  getPossibleAccessPaths -> {
+    IsClusterTable;
+    genTiFlashPath;
+    tblInfo_Indices;
+  }
+  TableInfo -> getPossibleAccessPaths;
+}

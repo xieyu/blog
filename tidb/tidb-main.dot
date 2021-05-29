@@ -1,0 +1,96 @@
+digraph tidb_main {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_main_go {
+    graph[label="tidb-server/main.go";fontsize=20;style=rounded]
+      main -> {
+        registerStores;
+        registerMetrics;
+        loadConfig;
+        overrideConfig;
+        setGlobalVars;
+        setupMetrics;
+        createStoreAndDomain;
+        createServer;
+        runServer;
+        cleanup;
+        syncLog;
+      }
+  }
+  runServer -> Server_Run;
+
+  subgraph cluster_server_go {
+    graph[label="server/server.go";fontsize=20;style=rounded]
+    Server_Run[label="Run"];
+    plugin_ForeachPlugin[label="plugin.ForeachPlugin"];
+
+    subgraph cluster_for_loop {
+      graph[label="for_loop";fontsize=20;style=rounded]
+        listener_Accept[label="listener.Accept"];
+        newConn;
+        plugin_ForeachPlugin;
+        server_onConn[label="onConn"];
+    }
+    Server_Run ->listener_Accept;
+    Server_Run -> newConn;
+    Server_Run -> plugin_ForeachPlugin;
+    Server_Run -> server_onConn[label="go routine"];
+  }
+
+  subgraph cluster_conn {
+    graph[label="server/conn.go";fontsize=20;style=rounded]
+    handleshake;
+    Conn_Run[label="Run"];
+
+    subgraph cluster_conn_for_loop {
+      graph[label="conn_for_loop";fontsize=20;style=rounded]
+      readPacket[label="readPacket\l读取网络包"];
+      dispatch[label="dispatch\l根据data[0] cmd做分发"];
+      writeError;
+    }
+
+    subgraph cluster_Stmt {
+      graph[label="Stmt";fontsize=20;style=rounded]
+      handleStmtPrepare;
+      handleStmtExecute;
+      handleStmtFetch;
+      handleStmtClose;
+      handleStmtSendLongData;
+      handleStmtReset;
+      handleQuery;
+    }
+
+    dispatch -> {
+      handleFieldList;
+      handleQuery;
+      handleStmtPrepare;
+      handleStmtExecute;
+      handleStmtFetch;
+      handleStmtClose;
+      handleStmtSendLongData;
+      handleStmtReset;
+      handleSetOption;
+      handleChangeUser;
+    }
+    Conn_Run -> {readPacket, dispatch, writeError};
+  }
+
+  subgraph cluster_driver_tidb {
+    graph[label="server/driver_tidb.go";fontsize=20;style=rounded]
+    driver_tidb_Execute[label="Execute"];
+  }
+
+  subgraph cluster_session {
+    graph[label="session/session.go";fontsize=20;style=rounded]
+    ExecutePreparedStmt;
+    Execute;
+  }
+
+  driver_tidb_Execute -> {ExecutePreparedStmt, Execute};
+
+  handleStmtExecute -> driver_tidb_Execute;
+  handleQuery -> driver_tidb_Execute;
+  server_onConn -> {handleshake, Conn_Run};
+}

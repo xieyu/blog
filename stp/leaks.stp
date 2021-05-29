@@ -1,0 +1,54 @@
+global ptr2bt
+global ptr2size
+global bt_stats
+global quit
+
+probe begin {
+    warn("Start tracing. Wait for 10 sec to complete.\n")
+}
+
+probe process("/lib*/libc.so*").function("malloc").return {
+    if (pid() == target()) {
+        if (quit) {
+            foreach (bt in bt_stats) {
+                print_ustack(bt)
+                printf("\t%d\n", @sum(bt_stats[bt]))
+            }
+
+            exit()
+
+        } else {
+
+            //printf("malloc: %p (bytes %d)\n", $return, $bytes)
+            ptr = $return
+            bt = ubacktrace()
+            ptr2bt[ptr] = bt
+            ptr2size[ptr] = $bytes
+            bt_stats[bt] <<< $bytes
+        }
+    }
+}
+
+probe process("/lib*/libc.so*").function("free") {
+    if (pid() == target()) {
+        //printf("free: %p\n", $mem)
+        ptr = $mem
+
+        bt = ptr2bt[ptr]
+        delete ptr2bt[ptr]
+
+        bytes = ptr2size[ptr]
+        delete ptr2size[ptr]
+
+        bt_stats[bt] <<< -bytes
+        if (@sum(bt_stats[bt]) == 0) {
+            delete bt_stats[bt]
+        }
+    }
+}
+
+probe timer.s(10) {
+    quit = 1
+    delete ptr2bt
+    delete ptr2size
+}

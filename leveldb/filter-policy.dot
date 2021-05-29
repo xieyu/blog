@@ -1,0 +1,218 @@
+digraph filter_policy {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  SSTable[
+    shape="record";
+    label="{{
+      SSTable|
+      DataBlock\l|
+      ...
+      DataBlock\l|
+      <MetaDataBlock> MetaDataBlock\l|
+      ...\l|
+      MetaDataBlock\l|
+      <MetaDataIndexBlock> MetaDataIndexBlock\l|
+      DataIndexBlock\l|
+      Footer\l
+    }}";
+  ];
+  FilterPolicy[
+    shape="record";
+    label="{{
+      FilterPolicy|
+        <Name> virtual const char* Name() const = 0;\l|
+        <CreateFilter> virtual void CreateFilter(const Slice* keys, int n,\l
+                            std::string* dst) const = 0;\l|
+        <KeyMayMatch> virtual bool KeyMayMatch(const Slice& key, const Slice& filter) const = 0;\l
+    }}";
+  ];
+  BloomFilterPolicy[
+    shape="record";
+    label="{{
+      BloomFilterPolicy|
+      size_t bits_per_key_\l|
+      size_t k_\l
+    }}";
+  ];
+  FilterPolicy -> BloomFilterPolicy;
+  subgraph cluster_BloomPolicy {
+    graph[label="BloomPolicy";fontsize=20;style=rounded];
+    BloomFilterPolicy;
+    FilterPolicy:CreateFilter -> CreateFilter;
+    FilterPolicy:KeyMayMatch -> KeyMayMatch;
+    CreateFilter -> {
+      BloomHash;
+    }
+    KeyMayMatch -> {
+      BloomHash;
+    }
+  };
+  subgraph cluster_FilterBlockBuilder {
+    graph[label="FilterBlockBuilder";fontsize=20;style=rounded];
+    keys_[shape=egg; fillcolor="#95e1d3"; style=filled;];
+    start_[shape=egg; fillcolor="#95e1d3"; style=filled;];
+    result_[shape=egg; fillcolor="#95e1d3"; style=filled;];
+    filter_offsets_[shape=egg; fillcolor="#95e1d3"; style=filled;];
+
+    start_[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        start_|
+        keys_中每个key开始的index\l|
+        std::vector\<size_t\> start_;\l
+      }}";
+    ];
+    keys_[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        keys_|
+        所有key拼接在一起\l|
+        std::string keys_;\l
+      }}";
+    ];
+    result_[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        result_|
+        目前计算的FilterData\l|
+        std::string result_\l
+      }}";
+    ];
+
+    FilterBlockBuilder_Finish[
+      shape="record";
+      label="{{
+       Finish\l| 
+       返回生成的filter数据\l
+       1.先调用GeneraterFilter生成数据\l
+       2.写入filter_offsets_\l
+      }}";
+    ];
+    FilterBlockBuilder_AddKey[
+      shape="record";
+      label="{{
+        AddKey
+      }}";
+    ];
+
+    FilterBlockBuilder_Finish -> GenerateFilter -> {
+      FilterPolicy:CreateFilter;
+      result_;
+      filter_offsets_;
+    }
+    StartBlock -> {
+      GenerateFilter;
+      filter_offsets_;
+      kFilterBase;
+    }
+
+    FilterBlockBuilder_AddKey -> {
+      start_;
+      keys_;
+    };
+    {keys_;start_} -> GenerateFilter[style=dashed;color=gray];
+    {result_;filter_offsets_} -> FilterBlockBuilder_Finish[style=dashed;color=gray];
+    start_ -> filter_offsets_[style=dashed;color=gray];
+  };
+  result_ -> WriteRawBlock[style=dashed;color=gray];
+  WriteRawBlock -> SSTable:MetaDataBlock;
+  WriteBlock -> SSTable:MetaDataIndexBlock;
+
+  subgraph cluster_FilterBlockReader {
+    graph[label="FilterBlockReader";fontsize=20;style=rounded];
+    FilterBlockReader_KeyMayMatch[
+      shape="record";
+      label="{{
+        KeyMayMatch|
+        根据blockOffset计算出\l 
+        在data_该block对应的filter的offset和size\l
+        然后使用这个filter数据\l 
+        调用filter_policy KeyMayMatch\l
+      }}";
+    ];
+    FilterBlockReader_KeyMayMatch -> FilterPolicy:KeyMayMatch;
+    FilterBlockReader -> {
+      data_;
+      offset_;
+      num_;
+    };
+    {data_;num_} -> FilterBlockReader_KeyMayMatch;
+  };
+
+  subgraph cluster_TableBuilder {
+    graph[label="TableBuilder";fontsize=20;style=rounded];
+    TableBuilder_Finish -> {
+      FilterBlockBuilder_Finish;
+      WriteRawBlock;
+      FilterPolicy:Name;
+      WriteBlock;
+    }
+    TableBuilder_Flush[
+      shape="record";
+      label="{{
+        Flush|
+        开启一个块新的block\l
+      }}";
+    ];
+    TableBuilder_Add[
+      shape="record";
+      label="{{
+        Add|
+        Add(Key, value)|
+        将key加入filterblock\l
+      }}";
+    ];
+    TableBuilder_Finish[
+      shape="record";
+      label="{{
+        Finish|
+        TableBuilder 结束\l 
+        写入filter Block 数据\l| 
+        写入metadata index, \l索引内容如下\l
+        key: filter.ploicy_name\l
+        value: filter_data_block (offset, size)\l
+      }}";
+    ];
+    WriteRawBlock[
+      shape="record";
+      label="{{
+        WriteRawBlock|
+        写入filterblock数据\l
+      }}";
+    ];
+    WriteBlock[
+      shape="record";
+      label="{{
+        WriteBlock|
+        写入metaindex block\l
+      }}";
+    ];
+    TableBuilder_Flush -> StartBlock;
+    TableBuilder_Add -> FilterBlockBuilder_AddKey;
+    WriteRawBlock -> WriteBlock [style=dashed;color=gray];
+  };
+  subgraph cluster_Table {
+    graph[label="Table";fontsize=20;style=rounded];
+    InternalGet -> FilterBlockReader_KeyMayMatch;
+    ReadFilter -> FilterBlockReader;
+    ReadFilter[
+      shape="record";
+      label="{{
+        ReadFilter|
+        读取filterblock的数据\l
+      }}";
+    ];
+  };
+  ReadFilter -> {SSTable:MetaDataIndexBlock; SSTable:MetaDataBlock}[style=dashed;color=gray];
+  subgraph cluster_TableCache {
+    graph[label="TableCache";fontsize=20;style=rounded];
+    TableCache_Get -> InternalGet;
+  };
+}

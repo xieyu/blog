@@ -1,0 +1,36 @@
+digraph Version {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Version {
+    graph[label="Version";fontsize=20;style=rounded];
+    subgraph cluster_Member {
+      graph[label="Member";fontsize=20;style=rounded];
+      files_[
+        shape="record";
+      label="{{
+        files_|
+          std::vector\<FileMetaData*\>\l 
+          files_[config::kNumLevels]\l
+      }}";
+      ];
+      files_ -> FileMetaData;
+      FileMetaData[
+        shape="record";
+      label="{{
+        FileMetaData|
+          int refs\l|
+          int allowed_seeks\l|
+          uint64_t number\l|
+          uint64_t file_size\l|
+          InternalKey smallest\l|
+          InternalKey largest\l
+      }}";
+      ];
+      file_to_compact_ -> FileMetaData;
+      file_to_compact_level_;
+      compaction_score_;
+      compaction_level_;
+    };
+  };
+}

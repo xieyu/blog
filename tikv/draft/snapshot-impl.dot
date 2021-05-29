@@ -1,0 +1,65 @@
+digraph snapshot_impl {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Snapshot[
+    shape="record";
+    label="{{
+      Snapshot|
+    }}";
+  ];
+
+  Snapshot -> {
+    RegionSnapshot;
+    RocksSnapshot;
+    BTreeEngineSnapshot;
+  }
+  RegionSnapshot[
+    shape="record";
+    label="{{
+      RegionSnapshot|
+      snap: S::SyncSnapshot\l|
+      region: Arc<Region>\l|
+      apply_index: Arc<AtomicU64>\l
+    }}";
+  ];
+
+  Region[
+    shape="record";
+    label="{{
+      Region|
+      pub id: u64,\l|
+      pub start_key: ::std::vec::Vec\<u8\>,\l|
+      pub end_key: ::std::vec::Vec\<u8\>,\l|
+      pub region_epoch: ::protobuf::SingularPtrField\<RegionEpoch\>,\l|
+      pub peers: ::protobuf::RepeatedField\<Peer\>,\l|
+      pub unknown_fields: ::protobuf::UnknownFields,\l|
+    }}";
+  ];
+
+  RocksSnapshot[
+    shape="record";
+    label="{{
+      RocksSnapshot|
+      db: Arc\<DB\>\l|
+      snap: UnsafeSnap
+    }}";
+  ];
+  RocksSnapshot:DB -> DB
+  subgraph cluster_RocksDB {
+    graph[label="RocksDB";fontsize=20;];
+    DB[
+      shape="record";
+      label="{{
+        DB|
+        inner: *mut DBInstance\l|
+        cfs: BTreeMap\<String, CFHandle\>\l|
+        path: String\l|
+        opts: DBOptions\l|
+        _cf_opts: Vec\<ColumnFamilyOptions\>\l|
+        readonly: bool\l
+      }}";
+    ];
+  }
+}

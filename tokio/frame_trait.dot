@@ -1,0 +1,24 @@
+digraph frame_trait {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  Encoder[shape="record";
+    label="{{
+      Encoder|
+        encode\l
+    }}";
+  ]
+
+  Decoder[shape="record";
+    label="{{
+      Decoder|
+        decode\l
+        decode_eof\l
+        framed\l
+    }}";
+  ]
+
+  LinesCodec -> Decoder[label="impl"];
+  LengthDelimitedCodec -> Decoder;
+}

@@ -1,0 +1,137 @@
+digraph master_operation {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  MasterOperation -> {
+    Namespace;
+    ChunkReplicas;
+  }
+  Namespace[
+    shape="record"
+    label="{{
+      Namespace|
+      文件数和读写锁管理
+    }}"
+  ];
+  Namespace -> {
+    LookupTable;
+  }
+  LookupTable[
+    shape="record"
+    label="{{
+      LookupTable|
+      从filename到metadata的映射\l
+      filename -\> Metadata\l
+      rwlock\l
+    }}"
+  ];
+  LookupTable -> {
+    PrefixCompression;
+    Rwlock;
+  }
+  Rwlock -> consistentTotalOrder;
+
+  ChunkReplicas -> {
+    ReplicaPlacement;
+    ChunkCreate;
+    PrimaryLease;
+    Gc;
+    StaleReplicaDetection;
+  };
+
+  ReplicaPlacement[
+    shape="record"
+    label="{{
+      ReplicaPlacement|
+      1.副本放置策略\l
+      多重因素的trade-off\l
+    }}"
+  ];
+
+  ReplicaPlacement -> {
+    MaxReliability
+    Availabilty;
+    Network;
+  }
+  MaxReliability[
+    shape="record"
+    label="{{
+      MaxReliability|
+      最大化可靠性
+    }}"
+  ];
+  Availabilty[
+    shape="record"
+    label="{{
+      Availabilty|
+      最大化可用性
+    }}"
+  ];
+  CrossRack[
+    shape="record"
+    label="{{
+      CrossRack|
+      跨机架存放\l
+      避免数据都放到一个机架上\l|
+      优点：\l 
+      1.读操作能利用多个机架\l
+      2.增加数据可靠性\l|
+      缺点：\l
+      写操作需要跨rack复制，增加了network\l
+    }}"
+  ];
+  CrossRack -> Network;
+  {Availabilty; MaxReliability} -> CrossRack;
+
+  ChunkCreate[
+    shape="record"
+    label="{{
+      ChunkCreate|
+      创建chunk\l
+    }}"
+  ];
+  ChunkCreate -> {
+    Creation
+    ReReplication;
+    Rebalancing;
+  }
+  Creation[
+    shape="record"
+    label="{{
+      Creation|
+      1.在chunk server上放置新的chunk\l
+      2.副本向跨机架存放\l
+    }}"
+  ];
+  ReReplication[
+    shape="record"
+    label="{{
+      ReReplication|
+      1.replica数量低于设定值\l 
+      比如某个chunk server挂了\l
+    }}"
+  ];
+  Rebalancing[
+    shape="record"
+    label="{{
+      Rebalancing|
+      master周期性的平衡replicas\l 
+      在chunk server之间的分布\l
+    }}"
+  ];
+  Gc[
+    shape="record"
+    label="{{
+      Gc|
+      文件删除会后，\l 
+      chunk不会被立即删除\l
+      采用GC方式lazy删除
+    }}"
+  ];
+
+  Gc -> {
+    LazyDelete;
+    orphanedChunks;
+  }
+}

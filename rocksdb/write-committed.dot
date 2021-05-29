@@ -1,0 +1,188 @@
+digraph write_committed {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    WriteImpl_Prepare[style=dashed]
+    WriteImpl_Rollback_Marker[style=dashed];
+    WriteImpl_Commit[style=dashed];
+    {
+      WriteImpl_Commit;
+      WriteImpl_Prepare;
+      WriteImpl_Rollback_Marker;
+    } -> WriteImpl;
+
+  }
+
+  subgraph cluster_WriteBatch {
+    graph[label="WriteBatch";fontsize=20;];
+    MarkWalTerminationPoint;
+    subgraph cluster_WriteBatchInternal {
+      graph[label="WriteBatchInternal";fontsize=20;];
+      MarkCommit;
+      WriteBatchInternal_Append;
+      WriteBatchInternal_Append[
+        shape="record"
+        label="{{
+          Append
+        }}"
+      ];
+      MarkEndPrepare;
+      MarkRollback;
+    }
+  }
+
+
+  subgraph cluster_PessimisticTransaction {
+    graph[label="PessimisticTransaction";fontsize=20;];
+
+    Commit ->{
+      CommitInternal;
+      txn_state_;
+      MarkLogAsHavingPrepSectionFlushed;
+      PessimisticTransaction_Clear;
+    }[color="#b83b5e"];
+
+    Prepare -> {
+      PrepareInternal;
+      txn_state_;
+    }[color="#3f72af"];
+
+    Rollback -> {
+      RollbackInternal;
+      txn_state_;
+      PessimisticTransaction_Clear;
+    }[color="#17b978"];
+
+    PessimisticTransaction_Clear[
+      shape="record"
+      label="{{
+        PessimisticTransaction::Clear|
+        清掉事务hold的key lock
+      }}"
+    ];
+    GetTrackedKeys[
+      shape="record"
+      label="{{
+        GetTrackedKeys|
+        获取事务track的所有key\l
+      }}"
+    ];
+
+
+    PessimisticTransaction_Clear -> {
+      GetTrackedKeys;
+      PessimisticTransactionDB_Unlock;
+      TransactionBaseImpl_Clear;
+    }
+    PessimisticTransactionDB_Unlock -> TransactionLockMgr_Unlock;
+    txn_state_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        txn_state_|
+        事务状态\l|
+        std::atomic\<TransactionState\> txn_state_;
+      }}"
+    ];
+
+
+    subgraph cluster_TransactionBaseImpl {
+      graph[label=" TransactionBaseImpl";fontsize=20;];
+      GetWriteBatch -> write_batch_;
+      write_batch_[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          write_batch_|
+          WriteBatchWithIndex
+        }}"
+      ];
+      write_batch_ -> WriteImpl[style=dashed;color=blue];
+      {
+        MarkCommit;
+        WriteBatchInternal_Append;
+        MarkEndPrepare;
+        MarkRollback;
+        MarkWalTerminationPoint;
+      } -> write_batch_[style=dashed;color=red];
+
+      TransactionBaseImpl_Clear
+      GetTrackedKeys -> tracked_keys_;
+      tracked_keys_[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          tracked_keys_|
+            TransactionKeyMap tracked_keys_;\l
+        }}"
+      ];
+      tracked_keys_ -> TransactionKeyMap
+
+      TransactionKeyMap[
+        shape="record"
+        label="{{
+          TransactionKeyMap|
+            std::unordered_map\<uint32_t,\l|
+                         std::unordered_map\<std::string, TransactionKeyMapInfo\>\>;
+        }}"
+      ];
+      TransactionKeyMap -> TransactionKeyMapInfo;
+      TransactionKeyMapInfo[
+        shape="record"
+        label="{{
+          TransactionKeyMapInfo|
+            SequenceNumber seq;\l|
+            uint32_t num_writes;\l|
+            uint32_t num_reads;\l|
+            bool exclusive;\l
+        }}"
+      ];
+    }
+
+    subgraph cluster_WriteCommittedTxn {
+      graph[label="WriteCommittedTxn";fontsize=20;];
+      CommitInternal -> {
+        GetCommitTimeWriteBatch;
+        MarkWalTerminationPoint;
+        MarkCommit;
+        WriteBatchInternal_Append;
+        GetWriteBatch;
+        WriteImpl_Commit;
+        SetId;
+      }[color="#b83b5e"]
+
+      PrepareInternal -> {
+        MarkEndPrepare;
+        GetWriteBatch;
+        MarkLogCallback;
+        two_write_queues;
+        WriteImpl_Prepare;
+      }[color="#3f72af"];
+
+      MarkLogCallback -> {
+        MarkLogAsContainingPrepSection;
+      }
+      RollbackInternal -> {
+        MarkRollback;
+        WriteImpl_Rollback_Marker;
+      }[color="#17b978"];
+      WriteCommittedTxn;
+    }
+    WriteCommittedTxn -> PessimisticTransaction;
+    PessimisticTransaction -> Initialize;
+  }
+
+  subgraph cluster_WriteCommittedTxnDB {
+    graph[label="WriteCommittedTxnDB";fontsize=20;];
+    BeginTransaction -> {
+      WriteCommittedTxn;
+    }
+  }
+}

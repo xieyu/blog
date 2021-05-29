@@ -1,0 +1,43 @@
+digraph phyical_property {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  PhysicalProperty[
+    shape="record";
+    label="{{
+      PhysicalProperty|
+        PhysicalProperty stands for\l 
+        the required physical \l 
+        property by parents.\l
+        It contains the orders\l 
+        and the task types.\l|
+	      Items []Item\l|
+	      TaskTp TaskType\l|
+        hashcode []byte\l|
+        Enforced bool\l
+    }}"];
+  Item[
+    shape="record";
+    label="{{
+      Item|
+        Item wraps the \l
+        column and its order.\l|
+	      Col  *expression.Column\l|
+	      Desc bool\l
+    }}"];
+
+  TaskType[
+    shape="record";
+    label="{{
+        type TaskType int|
+        RootTaskType TaskType = iota\l|
+        CopSingleReadTaskType\l|
+        CopDoubleReadTaskType\l|
+        CopTiFlashLocalReadTaskType\l|
+        CopTiFlashGlobalReadTaskType\l
+    }}"];
+
+  PhysicalProperty -> Item;
+  PhysicalProperty -> TaskType;
+}

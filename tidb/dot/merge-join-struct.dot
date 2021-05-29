@@ -1,0 +1,80 @@
+digraph mergeJoinStruct {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  baseExecutor[
+    shape="record";
+    label="{{
+      baseExecutor|
+	      ctx           sessionctx.Context\l|
+	      id            int\l|
+	      schema        *expression.Schema \l|
+	      initCap       int\l|
+	      maxChunkSize  int\l|
+	      children      []Executor\l|
+	      retFieldTypes []*types.FieldType\l|
+	      runtimeStats  *execdetails.BasicRuntimeStats\l
+    }}"];
+
+  MergeJoinExec[
+    shape="record";
+    label="{{
+      MergeJoinExec|
+	      baseExecutor\l|
+	      stmtCtx      *stmtctx.StatementContext\l|
+	      compareFuncs []expression.CompareFunc\l|
+	      joiner       joiner\l|
+	      isOuterJoin  bool\l|
+	      desc         bool\l|
+	      innerTable *mergeJoinTable\l|
+	      outerTable *mergeJoinTable\l|
+	      hasMatch bool\l|
+	      hasNull  bool\l|
+	      memTracker  *memory.Tracker\l|
+	      diskTracker *disk.Tracker\l|
+    }}"];
+  joiner[
+    shape="record";
+    label="{{
+      joiner接口|
+        tryToMatchInners\l|
+        tryToMatchOuters\l|
+	      onMissMatch\l|
+        Clone\l
+    }}"];
+  mergeJoinTable[
+    shape="record";
+    label="{{
+      mergeJoinTable|
+	      isInner    bool\l|
+	      childIndex int\l|
+	      joinKeys   []*expression.Column\l|
+	      filters    []expression.Expression\l|
+	      executed          bool\l|
+	      childChunk        *chunk.Chunk\l|
+	      childChunkIter    *chunk.Iterator4Chunk\l|
+	      <vecGroupChecker> groupChecker      *vecGroupChecker\l|
+	      groupRowsSelected []int\l|
+	      groupRowsIter     chunk.Iterator\l|
+	      rowContainer *chunk.RowContainer\l|
+	      filtersSelected []bool\l|
+	      memTracker *memory.Tracker\l
+    }}"];
+  vecGroupChecker[
+    shape="record";
+    label="{{
+      vecGroupChecker|
+        vecGroupChecker is used to split a\l
+        given chunk according to the\l
+        `group by` expression in a vectorized manner\l
+    }}"];
+  baseExecutor -> MergeJoinExec;
+  MergeJoinExec -> {
+    mergeJoinTable;
+    joiner;
+  }
+  mergeJoinTable:vecGroupChecker -> vecGroupChecker;
+}
+

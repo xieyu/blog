@@ -1,0 +1,122 @@
+#include "styles.h"
+digraph SnapshotStore {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  SnapshotStore[style_struct;label="{{
+    SnapshotStore|
+    snapshot: S,\l|
+    start_ts: TimeStamp,\l|
+    isolation_level: IsolationLevel,\l|
+    fill_cache: bool,\l|
+    bypass_locks: TsSet,\l|
+    check_has_newer_ts_data: bool,\l|
+    point_getter_cache: Option\<PointGetter\<S\>\>,\l
+  }}"]
+
+  Snapshot[style_var;label="{{
+    trait Snapshot|
+    fn get\l|
+    fn get_cf\l|
+    fn cf_cf_opt\l|
+    fn iter_cf\l|
+    fn lower_bound\l|
+    fn upper_bound\l|
+    fn get_data_version\l|
+    fn is_max_ts_synced\l
+  }}"]
+
+  SnapshotStore -> {
+    Snapshot;
+    IsolationLevel;
+    PointGetter;
+  }
+  PointGetter[style_func;label="{{
+  PointGetter|
+    snapshot: S,\l|
+    multi: bool,\l|
+    omit_value: bool,\l|
+    isolation_level: IsolationLevel,\l|
+    ts: TimeStamp,\l|
+    bypass_locks: TsSet,\l|
+    met_newer_ts_data: NewerTsCheckState,\l|
+    statistics: Statistics,\l|
+    write_cursor: Cursor\<S::Iter\>,\l|
+    drained: bool,\l
+  }}"]
+  PointGetter -> {
+    Snapshot;
+    IsolationLevel;
+    Cursor;
+    NewerTsCheckState;
+    TsSet;
+    TimeStamp;
+    Statistics
+  }
+  TsSet[style_struct;label="{{
+    enum TsSet|
+    Empty,\l|
+    Vec(Arc\<[TimeStamp]\>),\l|
+    Set(Arc\<HashSet\<TimeStamp\>\>),\l
+  }}"]
+  NewerTsCheckState[style_struct;label="{{
+     NeweerTsCheckState|
+    Unknown,\l|
+    Met,\l|
+    NotMetYet,\l
+  }}"]
+  TimeStamp[style_struct;label="{{
+    TimeStamp|
+    pub struct TimeStamp(u64)\l
+  }}"]
+
+  Snapshot -> {
+    RocksSnapshot;
+    BTreeEngineSnapshot;
+    MockRangeSnapshot;
+  }
+
+  RocksSnapshot[style_struct;label="{{
+     RocksSnapshot |
+       db: Arc\<DB\>,\l|
+       snap: UnsafeSnap,\l
+  }}"]
+  RocksSnapshot -> UnsafeSnap;
+  IsolationLevel[style_func;label="{{IsolationLevel|
+    Si = 0,\l|
+    Rc = 1,\l
+  }}"]
+
+  UnsafeSnap[style_func;label="{{UnsafeSnap|
+    inner: *const DBSnapshot,
+  }}"]
+  Statistics[style_func;label="{{
+    Statistics|
+    pub lock: CfStatistics,\l|
+    pub write: CfStatistics,\l|
+    pub data: CfStatistics,\l
+  }}"]
+  Statistics -> CfStatistics;
+  CfStatistics[style_func;label="{{
+    CfStatistics|
+    pub processed_keys: usize,\l|
+    pub get: usize,\l|
+    pub next: usize,\l|
+    pub prev: usize,\l|
+    pub seek: usize,\l|
+    pub seek_for_prev: usize,\l|
+    pub over_seek_bound: usize,\l|
+    pub flow_stats: FlowStatistics,\l|
+    pub next_tombstone: usize,\l|
+    pub prev_tombstone: usize,\l|
+    pub seek_tombstone: usize,\l|
+    pub seek_for_prev_tombstone: usize,\l
+  }}"]
+  CfStatistics -> FlowStatistics;
+  FlowStatistics[style_func;label="{{
+    FlowStatistics|
+    pub read_keys: usize,\l|
+    pub read_bytes: usize,\l
+  }}"]
+}

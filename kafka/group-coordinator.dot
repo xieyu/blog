@@ -1,0 +1,109 @@
+digraph group_coordinator {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_GroupMetadataManager {
+    graph[label="GroupMetadataManager";fontsize=20;style=rounded];
+    gm_startup -> scheduler_startup -> cleanupGroupMetadata;
+    cleanupGroupMetadata -> {
+    }
+    gm_addGroup;
+    gm_storeGroup;
+    gm_getGroup;
+  };
+  subgraph cluster_GroupCoordinator {
+    graph[label="GroupCoordinator";fontsize=20;style=rounded];
+    handleJoinGroup -> {
+      doUnknownJoinGroup;
+      gm_addGroup;
+      gm_getGroup;
+      responseCallback;
+      groupIsOverCapacity;
+      group_remove;
+      group_removeStaticMember;
+      doJoinGroup;
+      joinPurgatory_checkAndComplete;
+    }
+    doUnknownJoinGroup -> {
+      responseCallback;
+      generateMemberId;
+      hasStaticMember;
+      completeAndScheduleNextExpiration;
+      updateMember;
+      maybeInvokeJoinCallback;
+      addPendingMember;
+      addPendingMemberExpiration;
+      addMemberAndRebalance;
+    }
+    doJoinGroup -> {
+      responseCallback;
+      isPendingMember;
+      addMemberAndRebalance;
+      isStaticMemberFenced;
+      updateMemberAndRebalance;
+      isLeader;
+    }
+    handleSyncGroup -> {
+      responseCallback;
+      gm_getGroup;
+      doSyncGroup;
+    }
+    doSyncGroup -> {
+      responseCallback;
+      gm_storeGroup
+      groupCompletedRebalanceSensor;
+      completeAndScheduleNextHeartbeatExpiration;
+    }
+
+    handleLeaveGroup -> {
+      gm_getGroup;
+      isStaticMemberFenced;
+      removePendingMemberAndUpdateGroup;
+      checkAndComplete;
+      removeMemberAndUpdateGroup;
+    }
+    handleDeleteGroups -> {
+      gm_getGroup;
+      transitionTo_Dead;
+      cleanupGroupMetadata;
+    }
+    handleDeleteOffsets -> {
+      gm_getGroup;
+      isSubscribedToTopic;
+      cleanupGroupMetadata;
+      removeOffsets;
+    }
+
+    handleHeartbeat -> {
+      completeAndScheduleNextHeartbeatExpiration;
+    }
+    handleTxnCommitOffsets -> {
+      gm_getGroup;
+      doCommitOffsets
+    }
+
+    handleCommitOffsets -> {
+      gm_getGroup;
+      doCommitOffsets;
+    }
+    scheduleHandleTxnCompletion -> {
+      scheduleHandleTxnCompletion;
+    }
+    doCommitOffsets -> {
+      gm_storeOffsets;
+      completeAndScheduleNextHeartbeatExpiration;
+    }
+    handleFetchOffsets -> {
+      gm_getOffsets;
+    }
+    handleListGroups -> {
+      gm_currentGroups;
+    }
+    handleDescribeGroup -> {
+      gm_getGroup;
+    }
+  };
+  startup -> {
+    groupManager_startup;
+  }
+}

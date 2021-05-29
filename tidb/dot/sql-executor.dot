@@ -1,0 +1,35 @@
+digraph sql_executor {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  buildExecutor -> {
+    newExecutorBuilder;
+    build;
+    executorExec_Build;
+  };
+  executorExec_Build -> {
+    build;
+  }
+  build -> {
+    buildChange;
+    buildCheckTable;
+    buildDDL;
+    buildExecute;
+    buildExplain;
+    buildHashJoin;
+    buildHashAgg;
+    buildMemTable;
+    buildProjection;
+    buildSelection;
+    buildIndexReader;
+    buildApply;
+    buildInsert;
+    buildSort;
+  };
+  buildHashJoin -> HashJoinExec;
+  buildProjection -> ProjectionExec;
+  buildInsert -> InsertExec;
+  buildSelection -> SelectExec;
+  buildSort -> SortExec;
+  buildHashAgg -> HashAggExec;
+}

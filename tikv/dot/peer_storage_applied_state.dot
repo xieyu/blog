@@ -1,0 +1,97 @@
+#include "styles.h"
+digraph peer_storage_applied_state {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    set_applied_state -> apply_state;
+    set_applied_term  -> applied_index_term;
+    apply_state[style_var;label="{{
+      apply_state
+    }}"]
+    applied_index_term[style_var;label="{{
+      applied_index_term|
+      可以通过apply_state.applied_index\l 
+      和log entry间接的获取，不用保存\l
+    }}"]
+    apply_state ->save_apply_state_to[style_edge_data];
+    save_apply_state_to[style_func;label="{{
+      save_apply_state_to|
+      将apply_state写入write batch \l 
+      column faimly为：CF_RAFT\l
+      key为apply_state_key(self.region_id)\l
+    }}"]
+    handle_raft_ready -> save_apply_state_to;
+    init_applied_index_term -> {
+      apply_state;
+      get_entry;
+      applied_index_term;
+    }
+    init_applied_index_term[style_func;label="{{
+      init_applied_index_term|
+      初始化时，根据applied_index\l
+      找到对应的log entry\l
+      然后的得到对应的term\l
+    }}"]
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_apply_res -> post_apply;
+    post_apply -> {
+      set_applied_term;
+      set_applied_state;
+    }
+    handle_raft_ready_append -> handle_raft_ready;
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_msgs -> on_apply_res;
+    collect_ready -> handle_raft_ready_append;
+  }
+  ApplyRes[style_struct;label="{{
+    ApplyRes|
+    pub region_id: u64,\l|
+    <apply_state> pub apply_state: RaftApplyState,\l|
+    <applied_index_term> pub applied_index_term: u64,\l|
+    pub exec_res: VecDeque\<ExecResult\<S\>\>,\l|
+    pub metrics: ApplyMetrics,\l
+  }}"]
+
+  ApplyRes:apply_state -> set_applied_state[style_edge_data];
+  ApplyRes:applied_index_term -> set_applied_term[style_edge_data];
+  ApplyRes -> on_apply_res[style_edge_data];
+
+  subgraph cluster_RaftPoller {
+    graph[label="RaftPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_normal -> {
+      handle_msgs;
+      collect_ready;
+    }
+    end -> r_handle_raft_ready;
+    r_handle_raft_ready -> write_opt;
+    save_apply_state_to -> write_opt[style_edge_data];
+    r_handle_raft_ready[style_func;label="{{
+      handle_raft_ready
+    }}"]
+
+    write_opt[style_func;label="{{
+      consume_and_shrink|
+      将raft_wb写入rocksdb\l
+    }}"]
+      
+  }
+  subgraph cluster_Poller {
+    graph[label="Poller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    poll -> {
+      handle_normal;
+      end;
+    }
+      
+  }
+  
+}

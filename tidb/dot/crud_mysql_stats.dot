@@ -1,0 +1,189 @@
+digraph crud_mysql_stats {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  node[shape=record;style=filled;fillcolor="turquoise"];
+  mysql_stats_buckets;
+  mysql_stats_meta;
+  mysql_stats_histograms;
+  mysql_stats_extends;
+  mysql_stats_feedback;
+  mysql_stats_top_n;
+  node[shape=box;style=stroke;fontcolor=black];
+  /*
+  SaveStatsToStorage -> {
+    sql_replace_mysql_stats_meta;
+    sql_update_mysql_stats_meta;
+    sql_delete_top_n;
+    sql_insert_into_stats_top_n;
+    sql_delete_stats_buckets;
+    sql_insert_into_stats_buckets;
+    sql_update_stats_histograms;
+    sql_replace_stats_histograms;
+  }
+  */
+  /*
+  sql_replace_mysql_stats_meta[
+    shape="record";
+    label="{{
+      replace into mysql.stats_meta\l 
+      (version, table_id, count) \l
+      values (%d, %d, %d)\l
+    }}"];
+  sql_update_mysql_stats_meta[
+    shape="record";
+    label="{{
+      update mysql.stats_meta\l 
+      set version = %d\l
+      where table_id = %d\l
+    }}"];
+  sql_delete_top_n[
+    shape="record";
+    label="{{
+      delete from mysql.stats_top_n\l 
+      where table_id = %d\l 
+      and is_index = %d\l 
+      and hist_id = %d\l
+    }}"];
+
+  sql_insert_into_stats_top_n[
+    shape="record";
+    label="{{
+      insert into mysql.stats_top_n\l 
+      (table_id, is_index, hist_id, value, count)\l
+      values (%d, %d, %d, X'%X', %d)\l
+    }}"];
+  sql_delete_stats_buckets[
+    shape="record";
+    label="{{
+      delete from mysql.stats_buckets\l 
+      where table_id = %d\l 
+      and is_index = %d\l 
+      and hist_id = %d\l
+    }}"];
+  sql_replace_stats_histograms[
+    shape="record";
+    label="{{
+        replace into mysql.stats_histograms\l 
+        (table_id, is_index, hist_id, distinct_count, \l 
+        version, null_count, cm_sketch, tot_col_size, stats_ver, flag, correlation) \l
+        values (%d, %d, %d, %d, %d, %d, X'%X', %d, %d, %d, %f)\l
+    }}"];
+  sql_insert_into_stats_buckets[
+    shape="record";
+    label="{{
+      insert into mysql.stats_buckets\l 
+      (table_id, is_index, hist_id, bucket_id, count, repeats, lower_bound, upper_bound)\l 
+      values(%d, %d, %d, %d, %d, %d, X'%X', X'%X')
+    }}"];
+  sql_update_stats_histograms[
+    shape="record";
+    label="{{
+        update mysql.stats_histograms\l 
+        set last_analyze_pos = X'%X' \l
+        where table_id = %d \l
+        and is_index = %d \l
+        and hist_id = %d\l
+    }}"];
+  {
+    sql_insert_into_stats_buckets;
+    sql_delete_stats_buckets;
+  } -> mysql_stats_buckets;
+
+  {
+    sql_update_stats_histograms 
+    sql_replace_stats_histograms;
+  } -> mysql_stats_histograms;
+  {
+    sql_insert_into_stats_top_n;
+    sql_delete_top_n
+  } -> mysql_stats_topn;
+  {
+    sql_replace_mysql_stats_meta;
+    sql_update_mysql_stats_meta;
+  } -> mysql_stats_meta;
+  */
+
+  updateStatsWorker -> {
+    DumpFeedbackToKV;
+    HandleUpdateStats;
+    owner_IsOwner;
+  }
+  owner_IsOwner -> HandleUpdateStats[style=dashed];
+  HandleUpdateStats -> handleSingleHistogramUpdate;
+
+  AnalyzeExec_Next -> {
+    SaveStatsToStorage;
+    SaveExtendedStatsToStorage;
+  }
+  {
+    dumpStatsUpdateToKV;
+    loadStatsFromJSON;
+  }-> SaveStatsToStorage;
+
+  SaveExtendedStatsToStorage -> {
+    mysql_stats_extends;
+  }
+  SaveStatsToStorage -> {
+    mysql_stats_meta;
+    mysql_stats_histograms;
+    mysql_stats_top_n;
+    mysql_stats_buckets;
+  }[color="#3f72af"];
+
+  {
+    dumpTableStatColSizeToKV
+    insertTableStats2KV
+  } -> mysql_stats_histograms;
+
+  insertColStats2KV -> {
+    mysql_stats_histograms;
+    mysql_stats_meta;
+  }
+
+  updateStatsWorker ->
+  HandleDDLEvent -> {
+    insertTableStats2KV
+    insertColStats2KV
+  }
+
+  updateStatsWorker -> DumpStatsDeltaToKV -> dumpTableStatCountToKV -> mysql_stats_meta;
+  DumpStatsDeltaToKV -> dumpTableStatColSizeToKV;
+  DumpFeedbackToKV -> mysql_stats_feedback;
+  tableStatsFromStorage -> {
+    histogramFromStorage;
+    cmSketchFromStorage;
+  }
+  handleSingleHistogramUpdate -> dumpStatsUpdateToKV;
+
+  handleStmt -> handleQuerySpecial -> handleLoadStats -> LoadStatsFromJSON -> loadStatsFromJSON;
+  loadStatsWorker -> Handle_Update -> tableStatsFromStorage;
+  Handle_Update -> statsCache_Update;
+
+  UpdateTableStatsLoop -> {
+    loadStatsWorker;
+    updateStatsWorker;
+    autoAnalyzeWorker;
+  }[label=go;color=darkred];
+  autoAnalyzeWorker -> AnalyzeExec_Next[style=dashed;color=darkgreen];
+
+
+  edge[color=darkblue;style=dashed];
+  mysql_stats_feedback -> handleSingleHistogramUpdate;
+  mysql_stats_histograms -> tableStatsFromStorage;
+  tableStatsFromStorage -> statsCache_Update[style=dashed];
+  mysql_stats_buckets -> histogramFromStorage;
+  mysql_stats_histograms -> cmSketchFromStorage;
+  {
+    histogramFromStorage
+    cmSketchFromStorage
+  } -> statsCache_Update;
+  mysql_stats_top_n -> cmSketchFromStorage;
+  mysql_stats_extends -> extendedStatsFromStorage;
+  mysql_stats_meta -> {
+    GCStats;
+    Handle_Update;
+  }
+
+}

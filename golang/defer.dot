@@ -1,0 +1,134 @@
+digraph defer {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  g[
+    shape="record";
+    label="{{
+      g |
+      <defer> _defer *_defer\l|
+      _panic *_panic\l
+    }}";
+  ];
+  defer[
+    shape="record";
+    label="{{
+      _defer|
+      size int32 \l|
+      started bool \l|
+      heap bool \l|
+      sp uintptr \l|
+      pc uintptr\l|
+      fn      *funcval\l|
+      _panic  *_panic\l|
+      <link> link    *_defer\l
+    }}";
+  ];
+  defer2[
+    shape="record";
+    label="{{
+      _defer|
+      size int32 \l|
+      started bool \l|
+      heap bool \l|
+      sp uintptr \l|
+      pc uintptr\l|
+      fn      *funcval\l|
+      _panic  *_panic\l|
+      <_defer> link    *_defer\l
+    }}";
+  ];
+  panic[
+    shape="record";
+    label="{{
+      panic|
+      argp unsafe.Pointer\l|
+      arg interface\{\}\l|
+      link *_panic\l|
+      recovered bool\l|
+      abort\l
+    }}";
+  ];
+
+  panic2[
+    shape="record";
+    label="{{
+      panic|
+      argp unsafe.Pointer\l|
+      arg interface\{\}\l|
+      link *_panic\l|
+      recovered bool\l|
+      abort\l
+    }}";
+  ]
+  newdefer[
+    shape="record";
+    label="{{
+      newdefer|
+      新生成defer并\l 
+      插到g._defer的队首|
+      d.link = gp._defer\l
+      gp._defer = d\l
+    }}";
+  ];
+  defer_statement[
+    shape="record";
+    label="{{
+      defer_statement|
+      defer func() \{...\}()\l|
+      defer语句被编译为\l 
+      对deferproc的调用\l
+    }}";
+  ];
+
+  beforeReturnCallDefer[
+    shape="record";
+    label="{{
+      编译器在函数的return中\l 
+      添加deferreturn的调用\l
+    }}";
+  ];
+  jmpdefer[
+    shape="record";
+    label="{{
+      jmpdefer|
+      跳转执行defer 中的fn\l
+      执行完毕后再跳会deferreturn ?\l
+    }}";
+  ];
+
+  subgraph cluster_deferlink {
+    graph[label="defer link list";fontsize=20;style=rounded];
+    defer;
+    defer2;
+  };
+
+  subgraph cluster_paniclink {
+    graph[label="panic link list";fontsize=20;style=rounded];
+    panic;
+    panic2;
+  };
+
+  g:_panic -> panic;
+  panic -> panic2;
+  defer -> defer2;
+  defer -> panic;
+  g:_defer -> defer;
+
+  defer_statement -> deferproc;
+  deferproc -> newdefer;
+  newdefer -> g;
+
+  deferreturn -> {
+    g;
+    freedefer;
+    jmpdefer;
+  }
+  {
+    rank=same;
+    jmpdefer;
+    freedefer;
+  }
+  jmpdefer -> deferreturn[style=dashed];
+  beforeReturnCallDefer -> deferreturn;
+}

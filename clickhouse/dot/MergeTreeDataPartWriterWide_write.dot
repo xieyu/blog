@@ -1,0 +1,156 @@
+digraph MergeTreeDataPartWriterWide_write {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  subgraph cluster_WriteBufferFromFileBase {
+    graph[label="WriteBufferFromFileBase";fontsize=20;];
+    WriteBufferFromFileBase;
+    w_sync[
+      shape="record";
+      label="{{
+        sync
+      }}";
+    ];
+    w_next[
+      shape="record";
+      label="{{
+        next
+      }}";
+    ];
+  }
+
+  subgraph cluster_MergeTreeDataPartWriterOnDisk_Stream {
+    graph[label="MergeTreeDataPartWriterOnDisk::Stream";fontsize=20;];
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    plain_file[
+      shape="record";
+      label="{{
+        plain_file|
+        WriteBufferFromFileBase
+      }}";
+    ];
+    marks_file[
+      shape="record";
+      label="{{
+        marks_file|
+          WriteBufferFromFileBase
+      }}";
+    ];
+    compressed[
+      shape="record";
+      label="{{
+        compressed|
+        CompressedWriteBuffer
+      }}";
+    ];
+    node[shape=box;style=stroke;];
+    MergeTreeDataPartWriterOnDisk_Stream[
+      shape="record";
+      label="{{
+        MergeTreeDataPartWriterOnDisk::Stream|
+        将数据刷到磁盘中
+      }}";
+    ];
+    MergeTreeDataPartWriterOnDisk_Stream -> {
+      plain_file;
+      plain_hashing;
+      marks_file;
+      compressed;
+    }
+    sync -> w_sync;
+    finalize -> { w_next; }
+    marks_file-> WriteBufferFromFileBase
+    plain_file -> WriteBufferFromFileBase
+
+    finishSkipIndicesSerialization -> finalize;
+    
+  }
+
+  subgraph cluster_MergeTreeDataPartWriterWide {
+    graph[label="MergeTreeDataPartWriterWide";fontsize=20;];
+    
+      node[shape="record"; fillcolor="#95e1d3" style=filled;];
+      column_streams[
+        shape="record";
+        label="{{
+          column_streams|
+            std::map\<String, StreamPtr\>
+        }}";
+      ];
+      offset_columns;
+      columns_list
+      node[shape=box;style=stroke;];
+      column_streams -> MergeTreeDataPartWriterOnDisk_Stream;
+    
+      write -> {
+        computeIndexGranularity;
+        fillIndexGranularity;
+        columns_list;
+        writeColumn;
+      }
+      writeColumn -> {
+        serializeBinaryBulkStatePrefix;
+        createStreamGetter;
+        getCurrentMark;
+        getIndexOffset;
+        getMarkRows;
+        writeSingleGranule;
+        getFileNameForStream;
+        enumerateStreams;
+      }
+      enumerateStreams -> {
+        offset_columns;
+      }
+    
+      writeSingleGranule -> {
+        writeSingleMark;
+        serializeBinaryBulkWithMultipleStreams;
+        enumerateStreams;
+        getFileNameForStream;
+      }
+    
+      writeSingleMark -> {
+        getFileNameForStream;
+        writeIntBinary;
+        column_streams;
+      }
+    
+      writeSingleMark[
+        shape="record";
+        label="{{
+          writeSingleMark|
+          写到stream.marks buffer中
+        }}";
+      ];
+      MergeTreeDataPartWriterWide -> addStreams;
+    
+      addStreams -> {
+        column_streams;
+        getFileNameForStream;
+        enumerateStreams;
+        getDisk;
+        MergeTreeDataPartWriterOnDisk_Stream;
+      }
+    
+      createStreamGetter -> {
+        getFileNameForStream;
+        column_streams;
+      }
+      writeIntBinary -> stream_marks;
+    
+      finishDataSerialization -> {
+        createStreamGetter;
+        serializeBinaryBulkStateSuffix;
+        writeFinalMark;
+      }
+      writeFinalMark -> {
+        writeSingleMark;
+        enumerateStreams;
+        offset_columns;
+      }
+  }
+
+}

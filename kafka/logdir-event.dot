@@ -1,0 +1,61 @@
+digraph logdir_event {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_zkClient {
+    graph[label="zkClient";fontsize=20;style=rounded];
+    getBrokerIdsFromLogDirEvents[
+      shape="record";
+      label="{{
+        getBrokerIdsFromLogDirEvents|
+        获取broker列表\l
+      }}";
+    ];
+    deleteLogDirEventNotifications[
+      shape="record";
+      label="{{
+        deleteLogDirEventNotifications|
+        处理完毕，清理掉通知
+      }}";
+    ];
+  };
+  subgraph cluster_controllerContext {
+    graph[label="controllerContext";fontsize=20;style=rounded];
+    replicasOnBrokers[
+      shape="record";
+      label="{{
+      replicasOnBrokers|
+        获取brokers上的所有replicas列表
+      }}";
+    ];
+    replicasOnBrokers -> partitionAssignments;
+    partitionAssignments[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="partitionAssignments"
+    ];
+  };
+
+  subgraph cluster_ReplicaStateMachine {
+    graph[label="ReplicaStateMachine";fontsize=20;style=rounded];
+    rm_OnlineReplica[
+      shape="record";
+      label="{{
+        handleStateChanges(OnlineReplica)|
+        向这些replica发送LeaderAndIsrRequest
+      }}";
+    ];
+  };
+
+  processLogDirEventNotification -> {
+    getBrokerIdsFromLogDirEvents;
+    onBrokerLogDirFailure;
+    deleteLogDirEventNotifications;
+  }
+
+  onBrokerLogDirFailure -> {
+    replicasOnBrokers;
+    rm_OnlineReplica;
+  }
+}

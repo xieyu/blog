@@ -1,0 +1,957 @@
+#include "styles.h"
+
+digraph pd_server_struct {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Server -> {
+    RaftCluster;
+    etcd_clientv3_Client;
+    Allocator;
+    BasicCluster;
+    AllocatorManager;
+    HeartbeatStreams;
+  }[color="#b83b5e"];
+
+  RaftCluster -> {
+    BasicCluster;
+    metapb_Cluster;
+    config_PersistOptions;
+    Storage;
+    Allocator;
+    StoreLimiter;
+    prepareChecker;
+    RegionInfo;
+    LabelStatistics;
+    RegionStatistics;
+    HotStat;
+    coordinator;
+    RegionSyncer;
+    RuleManager;
+    ModeManager;
+    etcd_clientv3_Client;
+    component_Manager;
+  }[color="#3f72af"];
+
+  Storage -> {
+    RegionStorage;
+    encryptionkm_KeyManager;
+  }
+  RegionStorage -> {
+    LeveldbKV;
+    encryptionkm_KeyManager;
+    metapb_Region;
+  }
+  metapb_Region -> {
+    RegionEpoch;
+    Peer;
+  }
+  RegionEpoch[style_struct;label="{{
+    RegionEpoch|
+    ConfVer uint64|
+    Version uint64
+  }}"]
+  Peer[style_struct;label="{{
+    Peer|
+      Id uint64  \l|
+      StoreId uint64  \l|
+      <role> Role PeerRole\l
+  }}"]
+
+  AllocatorManager[style_struct;label="{{
+    AllocatorManager|
+    manage TSO Allocators\l
+    a PD server holds\l
+  }}"]
+
+  AllocatorManager -> {
+    Member;
+    grpc_ClientConn;
+  }
+  encryptionkm_KeyManager -> {
+    etcd_clientv3_Client;
+    MasterKey;
+    EncryptionMethod;
+    keyManagerHelper;
+  }
+  BasicCluster -> {
+    StoresInfo;
+    RegionsInfo;
+  }
+  StoresInfo[style_struct;label="{{
+    StoresInfo|
+	    Count  int         \l|
+      Stores []*StoreInfo\l
+  }}"]
+  StoresInfo -> StoreInfo;
+  StoreInfo[style_struct;label="{{
+    StoreInfo|
+      Store  *MetaStore  \l|
+      Status *StoreStatus\l
+  }}"]
+  StoreInfo -> {
+    MetaStore;
+    StoreStatus;
+  }
+  MetaStore[style_struct;label="{{
+    MetaStore|
+      *metapb.Store\l|
+      StateName string\l
+  }}"]
+
+  RegionsInfo -> {
+    regionTree;
+    regionMap;
+    regionSubTree;
+  }
+  regionTree -> BTree;
+  regionMap -> RegionInfo;
+  RegionInfo[style_struct;label="{{
+    RegionInfo|
+	ID          uint64             \l|
+	StartKey    string             \l|
+	EndKey      string             \l|
+	RegionEpoch *metapb.RegionEpoch\l|
+	Peers       []*metapb.Peer     \l|
+	Leader          *metapb.Peer     \l|
+	DownPeers       []*pdpb.PeerStats\l|
+	PendingPeers    []*metapb.Peer   \l|
+	WrittenBytes    uint64           \l|
+	ReadBytes       uint64           \l|
+	WrittenKeys     uint64           \l|
+	ReadKeys        uint64           \l|
+	ApproximateSize int64            \l|
+	ApproximateKeys int64            \l|
+	ReplicationStatus *ReplicationStatus\l
+  }}"]
+  RegionInfo -> {
+    RegionEpoch;
+    Peer;
+    PeerStats;
+    ReplicationStatus;
+  }
+  regionSubTree -> regionTree;
+  regionMap[style_struct;label="{{
+    regionMap|
+	    m         map[uint64]*RegionInfo\l|
+	    totalSize int64\l|
+	    totalKeys int64\l
+  }}"]
+  metapb_Cluster[style_struct;label="{{
+    metapb.Cluster|
+    id uint64\l|
+    MaxPeerCount uint32\l
+  }}"]
+  Allocator[style_struct;label="{{
+    interface Allocator|
+      Alloc() (uint64, error)\l|
+      Rebase() error\l
+  }}"]
+
+  Allocator -> allocatorImpl;
+  allocatorImpl[style_struct;label="{{
+    allocatorImpl|
+	    mu   sync.Mutex\l|
+	    base uint64\l|
+	    end  uint64\l|
+	    client   *clientv3.Client\l|
+	    rootPath string\l|
+	    member   string\l
+  }}"]
+  allocatorImpl -> etcd_clientv3_Client;
+
+  HeartbeatStreams -> {
+    RegionHeartbeatResponse;
+    HeartbeatStream;
+    streamUpdate;
+    StoreSetInformer;
+  }
+  RegionSyncer -> {
+    ServerStream;
+    historyBuffer;
+    Bucket;
+  }
+  coordinator -> {
+    CheckerController;
+    RegionScatterer;
+    RegionSplitter;
+    scheduleController;
+    OperatorController;
+    HeartbeatStreams;
+    PluginInterface;
+  }[color="#f08a5d"];
+
+  scheduleController -> {
+    OperatorController;
+    Scheduler;
+  }
+  Scheduler -> {
+    balanceRegionScheduler;
+    hotScheduler;
+    scatterRangeScheduler;
+    grantLeaderScheduler;
+    shuffleHotRegionScheduler;
+    randomMergeScheduler;
+    shuffleRegionScheduler;
+    evictLeaderScheduler;
+    labelScheduler;
+  } -> BaseScheduler[color="#17b978"];
+
+  BaseScheduler -> OperatorController;
+
+  OperatorController -> {
+    Operator;
+    HeartbeatStreams;
+    StoreLimit;
+    WaitingOperator;
+    WaitingOperatorStatus;
+  }
+  Operator[style_struct;label="{{
+    Operator|
+	  desc             string\l|
+	  brief            string\l|
+	  regionID         uint64\l|
+	  regionEpoch      *metapb.RegionEpoch\l|
+	  kind             OpKind\l|
+	  steps            []OpStep\l|
+	  stepsTime        []int64 // step finish time\l|
+	  currentStep      int32\l|
+	  status           OpStatusTracker\l|
+	  level            core.PriorityLevel\l|
+	  Counters         []prometheus.Counter\l|
+	  FinishedCounters []prometheus.Counter\l|
+	  AdditionalInfos  map[string]string\l
+  }}"]
+  SplitRegionsHandler[style_struct;label="{{
+    type SplitRegionsHandler interface|
+      SplitRegionByKeys\l|
+      ScanRegionsByKeyRange\l
+  }}"]
+  SplitRegionsHandler -> splitRegionsHandler;
+  splitRegionsHandler -> OperatorController;
+
+  RegionScatterer-> {
+    engineContext;
+  }
+  RegionSplitter -> {
+    SplitRegionsHandler;
+  }
+  engineContext -> {
+    Filter;
+    selectedStores;
+  }
+  Filter[style_struct;label="{{
+    Filter|
+	Scope() string\l|
+	Type() string\l|
+	Source(...) bool\l|
+	Target(...) bool\l
+  }}"]
+
+  RegionStatistics -> {
+    RegionInfo;
+    RegionStatisticType;
+    RuleManager;
+  }
+  RuleManager -> {
+    ruleConfig;
+    ruleList;
+  }
+  LabelStatistics[style_struct;label="{{
+    LabelStatistics|
+      regionLabelStats map[uint64]string\l
+      labelCounter     map[string]int\l
+  }}"]
+
+  Operator -> {
+    RegionEpoch;
+  }
+  ModeManager -> {
+    Storage;
+    FileReplicater;
+    drAutoSyncStatus;
+  }
+  FileReplicater[style_struct;label="{{
+    type FileReplicater interface|
+      ReplicateFileToAllMembers\l
+  }}"]
+  HotStat[style_struct;label="{{
+    HotStat|
+      *HotCache\l|
+      *StoresStats\l
+  }}"]
+  HotStat -> {
+    HotCache;
+    StoresStats;
+  }
+  hotPeerCache[style_struct;label="{{
+    hotPeerCache|
+	    kind           FlowKind\l|
+      peersOfStore   map[uint64]*TopN\l|
+      storesOfRegion map[uint64]map[uint64]struct\{\}\l
+  }}"]
+  HotCache -> {
+    hotPeerCache;
+  }
+  component_Manager[style_struct;label="{{
+    component.Manager|
+	    sync.RWMutex\l|
+	    storage *core.Storage\l|
+	    Addresses map[string][]string \l
+  }}"]
+  component_Manager -> {
+    Storage;
+  }
+  CheckerController -> {
+    OperatorController;
+    LearnerChecker;
+    ReplicaChecker;
+    RuleChecker;
+    MergeChecker;
+    JointStateChecker;
+    Cache;
+  }[color="#f08a5d"]
+
+  PluginInterface[style_struct;label="{{
+    PluginInterface|
+      pluginMap     map[string]*plugin.Plugin\l|
+      pluginMapLock sync.RWMutex\l|
+  }}"]
+  PluginInterface -> Plugin;
+  prepareChecker[style_struct;label="{{
+    prepareChecker|
+	    reactiveRegions map[uint64]int\l|
+	    start           time.Time\l|
+	    sum             int\l|
+	    isPrepared      bool\l
+  }}"]
+  StoreStatus[style_struct;label="{{
+    StoreStatus|
+	    Capacity           typeutil.ByteSize \l|
+	    Available          typeutil.ByteSize \l|
+	    UsedSize           typeutil.ByteSize \l|
+	    LeaderCount        int               \l|
+	    LeaderWeight       float64           \l|
+	    LeaderScore        float64           \l|
+	    LeaderSize         int64             \l|
+	    RegionCount        int               \l|
+	    RegionWeight       float64           \l|
+	    RegionScore        float64           \l|
+	    RegionSize         int64             \l|
+	    SendingSnapCount   uint32            \l|
+	    ReceivingSnapCount uint32            \l|
+	    ApplyingSnapCount  uint32            \l|
+	    IsBusy             bool              \l|
+	    StartTS            *time.Time        \l|
+	    LastHeartbeatTS    *time.Time        \l|
+	    Uptime             *typeutil.Duration\l
+  }}"]
+  ReplicationStatus[style_struct;label="{{
+    ReplicationStatus|
+	    State   string\l|
+      StateID uint64\l
+  }}"]
+  PeerStats[style_struct;label="{{
+    PeerStats|
+	    Name       string   \l|
+	    ID         string   \l|
+	    State      string   \l|
+	    StartTime  time.Time\l|
+	    LeaderInfo struct \{
+	    	Leader    string   \l|
+	    	Uptime    string   \l|
+	    	StartTime time.Time\l|
+	    \}\l|
+	    RecvAppendRequestCnt int\l|
+  }}"]
+
+  MetaStore[style_struct;label="{{
+    MetaStore|
+      *metapb.Store\l|
+      StateName string\l
+  }}"]
+  MetaStore -> metapb_Store
+  metapb_Store[style_struct;label="{{
+    metapb.Store|
+	Id uint64\l|
+	Address string       \l|
+	State   StoreState   \l|
+	Labels  []*StoreLabel\l|
+	Version string       \l|
+	PeerAddress string\l|
+	StatusAddress string\l|
+	GitHash       string\l|
+	StartTimestamp int64 \l|
+	DeployPath     string\l|
+	LastHeartbeat int64\l|
+	PhysicallyDestroyed  bool    \l
+  }}"]
+
+  RegionsInfo[style_struct;label="{{
+    RegionsInfo|
+      存储集群的region信息\l
+      tree 用来根据key查找RegionInfo\l
+      regions用于根据regionID找到RegionInfo\l|
+	    tree         *regionTree\l|
+	    regions      *regionMap   \l|            
+	    leaders      map[uint64]*regionSubTree\l|
+	    followers    map[uint64]*regionSubTree\l|
+	    learners     map[uint64]*regionSubTree\l|
+	    pendingPeers map[uint64]*regionSubTree\l
+  }}"]
+  engineContext[style_struct;label="{{
+    engineContext|
+	filters        []filter.Filter\l|
+	selectedPeer   *selectedStores\l|
+	selectedLeader *selectedStores\l
+  }}"]
+
+  ReplicaChecker -> Cache;
+  ReplicaChecker[style_struct;label="{{
+    ReplicaChecker|
+	    cluster           opt.Cluster\l|
+	    opts              *config.PersistOptions\l|
+	    regionWaitingList cache.Cache\l
+  }}"]
+  LearnerChecker[style_struct;label="{{
+    LearnerChecker|
+      cluster opt.Cluster\l
+  }}"];
+
+  MergeChecker[style_struct;label="{{
+    MergeChecker|
+	    cluster    opt.Cluster\l|
+	    opts       *config.PersistOptions\l|
+	    splitCache *cache.TTLUint64\l|
+	    startTime  time.Time \l
+  }}"]
+
+  Base[style_struct;label="{{
+    Base|
+	Load(key string) (string, error)\l|
+	LoadRange(key, endKey string, limit int)\l
+  (keys []string, values []string, err error)\l|
+	Save(key, value string) error\l|
+	Remove(key string) error\l
+  }}"]
+  Storage -> Base;
+  Storage[style_struct;label="{{
+    Storage|
+	    kv.Base\l|
+	    regionStorage        *RegionStorage\l|
+	    encryptionKeyManager *encryptionkm.KeyManager\l|
+	    useRegionStorage     int32\l|
+	    regionLoaded         int32\l|
+	    mu                   sync.Mutex\l
+  }}"]
+  metapb_Region[style_struct;label="{{
+    metapb.Region|
+	    Id uint64\l|
+	    StartKey    []byte      \l|
+	    EndKey      []byte      \l|
+	    RegionEpoch *RegionEpoch\l|
+	    Peers       []*Peer     \l
+  }}"]
+  LeveldbKV[style_struct;label="{{
+    LeveldbKV|
+      *leveldb.DB
+  }}"]
+
+  RegionStorage[style_struct;label="{{
+    RegionStorage|
+	    *kv.LeveldbKV\l|
+	    encryptionKeyManager *encryptionkm.KeyManager\l|
+	    mu                   sync.RWMutex\l|
+	    batchRegions         map[string]*metapb.Region\l|
+	    batchSize            int\l|
+	    cacheSize            int\l|
+	    flushRate            time.Duration\l|
+	    flushTime            time.Time\l|
+	    regionStorageCtx     context.Context\l|
+	    regionStorageCancel  context.CancelFunc\l
+  }}"]
+
+  coordinator[style_struct;label="{{
+    coordinator|
+	sync.RWMutex\l|
+	wg              sync.WaitGroup\l|
+	ctx             context.Context\l|
+	cancel          context.CancelFunc\l|
+	cluster         *RaftCluster\l|
+	checkers        *schedule.CheckerController\l|
+	regionScatterer *schedule.RegionScatterer\l|
+	regionSplitter  *schedule.RegionSplitter\l|
+	schedulers      map[string]*scheduleController\l|
+	opController    *schedule.OperatorController\l|
+	hbStreams       *hbstream.HeartbeatStreams\l|
+	pluginInterface *schedule.PluginInterface\l
+  }}"]
+
+  scheduleController[style_struct;label="{{
+    scheduleController|
+	    schedule.Scheduler\l|
+	    cluster      *RaftCluster\l|
+	    opController *schedule.OperatorController\l|
+	    nextInterval time.Duration\l|
+	    ctx          context.Context\l|
+	    cancel       context.CancelFunc\l|
+	    delayUntil   int64\l
+  }}"]
+
+  OperatorController[style_struct;label="{{
+    OperatorController|
+	sync.RWMutex\l|
+	ctx             context.Context\l|
+	cluster         opt.Cluster\l|
+	operators       map[uint64]*operator.Operator\l|
+	hbStreams       *hbstream.HeartbeatStreams\l|
+	histories       *list.List\l|
+	counts          map[operator.OpKind]uint64\l|
+	opRecords       *OperatorRecords\l|
+	storesLimit     map[uint64]map[storelimit.Type]*storelimit.StoreLimit\l|
+	wop             WaitingOperator\l|
+	wopStatus       *WaitingOperatorStatus\l|
+	opNotifierQueue operatorQueue\l
+    
+  }}"]
+
+  HotCache[style_struct;label="{{
+    HotCache|
+      writeFlow *hotPeerCache\l|
+      readFlow  *hotPeerCache\l
+  }}"]
+
+  RegionSyncer[style_struct;label="{{
+    RegionSyncer|
+	mu struct \{\l|
+		sync.RWMutex\l|
+		streams            map[string]ServerStream\l|
+		regionSyncerCtx    context.Context\l|
+		regionSyncerCancel context.CancelFunc\l|
+		closed             chan struct\{\}\l|
+	\}\l|
+	server    Server\l|
+	wg        sync.WaitGroup\l|
+	history   *historyBuffer\l|
+	limit     *ratelimit.Bucket\l|
+	tlsConfig *grpcutil.TLSConfig\l
+  }}"]
+
+  HeartbeatStreams[style_struct;label="{{
+    HeartbeatStreams|
+	    wg             sync.WaitGroup\l|
+	    hbStreamCtx    context.Context\l|
+	    hbStreamCancel context.CancelFunc\l|
+	    clusterID      uint64\l|
+	    streams        map[uint64]opt.HeartbeatStream\l|
+	    msgCh          chan *pdpb.RegionHeartbeatResponse\l|
+	    streamCh       chan streamUpdate\l|
+	    storeInformer  core.StoreSetInformer\l|
+	    needRun        bool \l
+  }}"]
+
+  RegionHeartbeatResponse[style_struct;label="{{
+    RegionHeartbeatResponse|
+	    Header *ResponseHeader\l|
+	    ChangePeer *ChangePeer\l|
+	    TransferLeader *TransferLeader\l|
+	    RegionId    uint64             \l|
+	    RegionEpoch *metapb.RegionEpoch\l|
+	    TargetPeer *metapb.Peer\l|
+	    Merge      *Merge      \l|
+	    SplitRegion *SplitRegion\l|
+	    ChangePeerV2         *ChangePeerV2\
+  }}"]
+
+  RegionHeartbeatResponse -> {
+    ChangePeer;
+    ChangePeerV2;
+    SplitRegion;
+    Peer;
+    TransferLeader;
+    ResponseHeader;
+    RegionEpoch;
+    Merge;
+  }
+
+  ResponseHeader[style_struct;label="{{
+    ResponseHeader|
+      ClusterId            uint64\l|
+      Error                *Error\l
+  }}"]
+
+  ChangePeer[style_struct;label="{{
+    ChangePeer|
+      Peer                 *metapb.Peer\l|
+      ChangeType           eraftpb.ConfChangeType\l
+  }}"]
+  ChangePeer -> {
+    Peer;
+    ConfChangeType;
+  }
+  TransferLeader[style_struct;label="{{
+    TransferLeader|
+      Peer                 *metapb.Peer\l
+  }}"]
+  TransferLeader -> Peer;
+  Merge[style_struct;label="{{
+    Merge|
+	Target               *metapb.Region\l
+  }}"]
+  Merge -> metapb_Region;
+  SplitRegion[style_struct;label="{{
+    SplitRegion|
+	Policy               CheckPolicy\l|
+	Keys                 [][]byte   \l
+  }}"]
+  SplitRegion -> CheckPolicy;
+  ChangePeerV2[style_struct;label="{{
+    ChangePeerV2|
+      Changes              []*ChangePeer\l
+  }}"]
+
+  HeartbeatStream [style_struct;label="{{
+    HeartbeatStream |
+      Send(*pdpb.RegionHeartbeatResponse) error\l
+  }}"]
+
+  regionSubTree[style_struct;label="{{
+    regionSubTree|
+	*regionTree\l|
+	totalSize int64\l|
+	totalKeys int64\l
+  }}"]
+
+  regionTree[style_struct;label="{{
+    regionTree|
+	tree *btree.BTree\l
+
+  }}"]
+
+  CheckerController[style_struct;label="{{
+    CheckerController|
+	cluster           opt.Cluster\l|
+	opts              *config.PersistOptions\l|
+	opController      *OperatorController\l|
+	learnerChecker    *checker.LearnerChecker\l|
+	replicaChecker    *checker.ReplicaChecker\l|
+	ruleChecker       *checker.RuleChecker\l|
+	mergeChecker      *checker.MergeChecker\l|
+	jointStateChecker *checker.JointStateChecker\l|
+	regionWaitingList cache.Cache\l
+  }}"]
+  JointStateChecker[style_struct;label="{{
+    JointStateChecker|
+      cluster opt.Cluster
+  }}"]
+  RuleChecker[style_struct;label="{{
+    RuleChecker|
+	    cluster           opt.Cluster\l|
+	    ruleManager       *placement.RuleManager\l|
+	    name              string\l|
+	    regionWaitingList cache.Cache\l
+  }}"]
+  RuleChecker -> RuleManager;
+  RuleManager[style_struct;label="{{
+    RuleManager|
+	storage *core.Storage
+	sync.RWMutex\l|
+	initialized bool\l|
+	ruleConfig  *ruleConfig\l|
+	ruleList    ruleList\l|
+	keyType          string\l|
+	storeSetInformer core.StoreSetInformer\l
+  }}"]
+  RuleManager -> Storage;
+
+  PeerRoleType[style_struct;label="{{
+    PeerRoleType|
+	Voter PeerRoleType = \"voter\"\l|
+	Leader PeerRoleType = \"leader\"\l|
+	Follower PeerRoleType = \"follower\"\l|
+	Learner PeerRoleType = \"learner\"\l|
+  }}"]
+  Peer -> PeerRoleType
+
+  Scheduler[style_struct;label="{{
+    type Scheduler interface|
+	http.Handler\l|
+	GetName() string\l|
+	GetType() string\l|
+	EncodeConfig() ([]byte, error)\l|
+	GetMinInterval() time.Duration\l|
+	GetNextInterval(interval time.Duration) time.Duration\l|
+	Prepare(cluster opt.Cluster) error\l|
+	Cleanup(cluster opt.Cluster)\l|
+	Schedule(cluster opt.Cluster) []*operator.Operator\l|
+	IsScheduleAllowed(cluster opt.Cluster) bool\l
+  }}"]
+
+  RegionSplitter[style_struct;label="{{
+    RegionSplitter|
+      cluster opt.Cluster\l|
+      handler SplitRegionsHandler\l
+  }}"]
+
+  BaseScheduler[style_struct;label="{{
+    BaseScheduler|
+      OpController *schedule.OperatorController\l
+  }}"]
+  BasicCluster[style_struct;label="{{
+    BasicCluster|
+	sync.RWMutex\l|
+	Stores  *StoresInfo\l|
+	Regions *RegionsInfo\l
+  }}"]
+  ruleConfig[style_struct;label="{{
+    ruleConfig|
+	rules  map[[2]string]*Rule\l|
+	groups map[string]*RuleGroup\l
+  }}"]
+  ruleConfig -> Rule;
+  Rule[style_struct;label="{{
+    Rule|
+	    GroupID          string           \l|
+	    ID               string           \l|
+	    Index            int              \l|
+	    Override         bool             \l|
+	    StartKey         []byte           \l|
+	    StartKeyHex      string           \l|
+	    EndKey           []byte           \l|
+	    EndKeyHex        string           \l|
+	    Role             PeerRoleType     \l|
+	    Count            int              \l|
+	    LabelConstraints []LabelConstraint\l|
+	    LocationLabels   []string         \l|
+	    IsolationLevel   string           \l|
+	    group *RuleGroup\l
+  }}"]
+  Rule -> RuleGroup;
+  ruleList-> rangeRules;
+  rangeRules -> Rule;
+
+  RuleGroup[style_struct;label="{{
+    RuleGroup|
+	  ID       string\l|
+	  Index    int   \l|
+	  Override bool  \l
+  }}"]
+  ruleList[style_struct;label="{{
+    ruleList|
+      ranges []rangeRules
+  }}"]
+
+  rangeRules[style_struct;label="{{
+    rangeRules|
+	    startKey []byte\l|
+	    rules []*Rule\l|
+	    applyRules []*Rule\l
+  }}"]
+
+  ModeManager[style_struct;label="{{
+    ModeManager|
+	initTime time.Time\l|
+	sync.RWMutex\l|
+	config         config.ReplicationModeConfig\l|
+	storage        *core.Storage\l|
+	cluster        opt.Cluster\l|
+	fileReplicater FileReplicater\l|
+	drAutoSync drAutoSyncStatus\l|
+	drRecoverKey   []byte\l|
+	drRecoverCount int\l|
+	drSampleRecoverCount int\l|
+	drSampleTotalRegion  int\l|
+	drTotalRegion        int\l|
+	drMemberWaitAsyncTime map[uint64]time.Time\l
+  }}"]
+  StoreLimiter[style_struct;label="{{
+    StoreLimiter|
+      m       sync.RWMutex\l|
+      opt     *config.PersistOptions\l|
+      scene   map[storelimit.Type]*storelimit.Scene\l|
+      state   *State\l|
+      current LoadState\l
+  }}"]
+
+  config_PersistOptions[style_struct;label="{{
+    config.PersistOptions|
+	    ttl             *cache.TTLString\l|
+	    schedule        atomic.Value\l|
+	    replication     atomic.Value\l|
+	    pdServerConfig  atomic.Value\l|
+	    replicationMode atomic.Value\l|
+	    labelProperty   atomic.Value\l|
+	    clusterVersion  unsafe.Pointer\l
+  }}"]
+  CheckerController -> config_PersistOptions;
+
+  RaftCluster[style_struct;label="{{
+    RaftCluster|
+	sync.RWMutex\l|
+	ctx context.Context\l|
+	running bool\l|
+	clusterID   uint64\l|
+	clusterRoot string\l|
+	core    *core.BasicCluster\l|
+	meta    *metapb.Cluster\l|
+	opt     *config.PersistOptions\l|
+	storage *core.Storage\l|
+	id      id.Allocator\l|
+	limiter *StoreLimiter\l|
+	prepareChecker *prepareChecker\l|
+	changedRegions chan *core.RegionInfo\l|
+	labelLevelStats *statistics.LabelStatistics\l|
+	regionStats     *statistics.RegionStatistics\l|
+	hotStat         *statistics.HotStat\l|
+	coordinator      *coordinator\l|
+	suspectRegions   *cache.TTLUint64\l|
+	suspectKeyRanges *cache.TTLString\l|
+	wg           sync.WaitGroup\l|
+	quit         chan struct\{\}\l|
+	regionSyncer *syncer.RegionSyncer\l|
+	ruleManager *placement.RuleManager\l|
+	etcdClient  *clientv3.Client\l|
+	httpClient  *http.Client\l|
+	replicationMode *replication.ModeManager\l|
+	traceRegionFlow bool\l|
+	componentManager *component.Manager
+  }}"]
+
+  Server[style_struct;label="{{
+    Server|
+	diagnosticspb.DiagnosticsServer\l|
+	isServing int64\l|
+	startTimestamp int64\l|
+	cfg            *config.Config\l|
+	etcdCfg        *embed.Config\l|
+	persistOptions *config.PersistOptions\l|
+	handler        *Handler\l|
+	ctx              context.Context\l|
+	serverLoopCtx    context.Context\l|
+	serverLoopCancel func()\l|
+	serverLoopWg     sync.WaitGroup\l|
+	member *member.Member\l|
+	client *clientv3.Client\l|
+	httpClient *http.Client\l|
+	clusterID  uint64 // pd cluster id.\l|
+	rootPath   string\l|
+	idAllocator id.Allocator\l|
+	encryptionKeyManager *encryptionkm.KeyManager\l|
+	storage *core.Storage\l|
+	basicCluster *core.BasicCluster\l|
+	tsoAllocatorManager *tso.AllocatorManager\l|
+	cluster *cluster.RaftCluster\l|
+	hbStreams *hbstream.HeartbeatStreams\l|
+	lg       *zap.Logger\l|
+	logProps *log.ZapProperties\l|
+	startCallbacks []func()\l|
+	closeCallbacks []func()\l|
+	serviceSafePointLock sync.Mutex\l
+  }}"]
+  RegionScatterer[style_struct;label="{{
+    RegionScatterer|
+      ctx            context.Context\l|
+      name           string\l|
+      cluster        opt.Cluster\l|
+      ordinaryEngine engineContext\l|
+      specialEngines map[string]engineContext\l
+  }}"]
+
+  splitRegionsHandler[style_struct;label="{{
+    splitRegionsHandler|
+      cluster opt.Cluster\l|
+      oc      *OperatorController\l
+  }}"]
+
+  RegionStatistics[style_struct;label="{{
+    RegionStatistics|
+	opt          *config.PersistOptions\l|
+	stats        map[RegionStatisticType]map[uint64]*core.RegionInfo\l|
+	offlineStats map[RegionStatisticType]map[uint64]*core.RegionInfo\l|
+	index        map[uint64]RegionStatisticType\l|
+	offlineIndex map[uint64]RegionStatisticType\l|
+	ruleManager  *placement.RuleManager\l
+  }}"]
+  RegionStatistics -> config_PersistOptions;
+
+  RegionStatisticType[style_struct;label="{{
+    RegionStatisticType|
+	    MissPeer RegionStatisticType = 1 \<\< iota\l|
+	    ExtraPeer\l|
+	    DownPeer\l|
+	    PendingPeer\l|
+	    OfflinePeer\l|
+	    LearnerPeer\l|
+	    EmptyRegion\l
+  }}"]
+  CheckPolicy[style_struct;label="{{
+    CheckPolicy|
+      type CheckPolicy int32\l|
+      CheckPolicy_SCAN        CheckPolicy = 0\l|
+      CheckPolicy_APPROXIMATE CheckPolicy = 1\l|
+      CheckPolicy_USEKEY      CheckPolicy = 2\l
+  }}"]
+
+  ConfChangeType[style_struct;label="{{
+    ConfChangeType|
+	    ConfChangeType_AddNode        ConfChangeType = 0\l|
+	    ConfChangeType_RemoveNode     ConfChangeType = 1\l|
+	    ConfChangeType_AddLearnerNode ConfChangeType = 2\l
+  }}"]
+
+  StoreLimit[style_struct;label="{{
+    StoreLimit|
+	    mu sync.RWMutex\l|
+	    AddPeer float64\l|
+	    RemovePeer float64\l
+  }}"]
+
+  WaitingOperator[style_struct;label="{{
+    type WaitingOperator interface|
+	    PutOperator(op *operator.Operator)\l|
+	    GetOperator() []*operator.Operator\l|
+	    ListOperator() []*operator.Operator\
+  }}"]
+  
+  Bucket[style_struct;label="{{
+    Bucket|
+      weight float64\l|
+      ops    []*operator.Operator\l
+  }}"]
+  Bucket -> Operator;
+  WaitingOperator -> RandBuckets;
+  RandBuckets[style_struct;label="{{
+    RandBuckets|
+      totalWeight float64\l|
+      buckets     []*Bucket\l
+  }}"]
+  RandBuckets -> Bucket;
+
+  selectedStores[style_struct;label="{{
+    selectedStores|
+      mu sync.Mutex\l|
+      checkExist bool\l|
+      stores            *cache.TTLString\l|
+      groupDistribution *cache.TTLString\l|
+  }}"]
+
+  labelScheduler[style_struct;label="{{
+    labelScheduler|
+      *BaseScheduler\l|
+      conf *labelSchedulerConfig\l
+  }}"]
+  labelScheduler -> LabelPropertyConfig;
+  LabelPropertyConfig[style_struct;label="{{
+    LabelPropertyConfig|
+	Name   string         \l|
+	Ranges []core.KeyRange\l
+  }}"]
+
+  WaitingOperatorStatus[style_struct;label="{{
+    WaitingOperatorStatus|
+      ops map[string]uint64
+  }}"]
+
+}
+

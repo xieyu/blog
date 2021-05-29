@@ -1,0 +1,91 @@
+digraph table_reader {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_distsql {
+    graph[label="distsql";fontsize=20;style=rounded]
+    subgraph cluster_request_builder {
+      graph[label="request_builder";fontsize=20;style=rounded]
+      SetDAGRequest;
+      SetTableRanges -> {
+        TableRangesToKVRanges;
+      }
+      TableRangesToKVRanges -> {
+        tableRangesToKVRangesWithoutSplit;
+      }
+    }
+  }
+
+  subgraph cluster_kv {
+    graph[label="kv";fontsize=20;style=rounded];
+    Client[
+      shape="record";
+      label="{{
+        Client|
+        <Send> Send\l|
+        IsRequestTypeSupported\l|
+      }}";
+    ];
+    Response[
+      shape="record";
+      label="{{
+        Response|
+        <Next> Next\l|
+        Close\l
+      }}";
+    ];
+  }
+
+  subgraph cluster_distsql {
+    graph[label="distsql";fontsize=20;style=rounded]
+    selectResult[
+      shape="record";
+      label="{{
+        selectResult|
+        <fetch> fetch\l|
+        <Fetch> Fetch\l|
+        <Next> Next\l|
+        <getSelectResp> getSelectResp\l等待fetch goroutine结果|
+      }}";
+    ];
+    selectResult:Next -> selectResult:getSelectResp;
+    selectResult:Fetch -> selectResult:fetch[label="go"];
+    Select -> selectResult[label="return"];
+  };
+
+
+  subgraph cluster_table_reader {
+    graph[label="table_reader";fontsize=20;style=rounded]
+    subgraph cluster_tableResultHandler {
+      graph[label="tableResultHandler";fontsize=20;style=rounded]
+      nextChunk;
+    }
+
+    subgraph cluster_tableExecutor {
+      graph[label="tableExecutor";fontsize=20;style=rounded]
+      Open -> {
+        constructDistExec;
+        splitRanges;
+        buildResp;
+        BuildTableRange;
+      }
+      Next -> {
+        nextChunk;
+        NewChunkWithCapacity;
+        NewIterator4Chunk;
+      };
+
+      buildResp -> {
+        SetTableRanges;
+        SetDAGRequest;
+        SelectResult;
+      }
+    }
+    SelectResult -> SelectWithRuntimeStats
+  }
+
+  nextChunk -> selectResult:Next;
+  selectResult:fetch -> Response:Next;
+  SelectWithRuntimeStats -> Select -> Client:Send;
+}

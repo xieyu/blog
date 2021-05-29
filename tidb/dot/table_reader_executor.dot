@@ -1,0 +1,102 @@
+digraph table_reader_executor {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Open -> {
+    BuildTableRange;
+    splitRanges;
+    buildResp;
+    tableResultHandler_open;
+    constructDistExec;
+    constructDistExecForTiFlash;
+    splitRanges;
+  }[color="#b83b5e"];
+
+  constructDistExec -> physicalPlan_ToPB;
+  BuildTableRange -> buildColumnRange
+
+  Next -> {
+    tableResultHandler_nextChunk;
+  }
+  tableResultHandler_nextChunk -> selectResult_Next;
+  buildResp[
+    shape="record";
+    label="{{
+      buildRes|
+      first builds request and sends it to tikv\l
+      using distsql.Select it uses selectResut\l
+      returned by the called to fetch all results\l|
+      发送请求到tikv,通过SelectResult来获取结果\l
+    }}";
+  ];
+  buildResp -> {
+    SelectResult;
+    buildKeyRange;
+    Fetch;
+  }
+
+  SelectResult -> SelectWithRuntimeStats;
+  Close -> selectResult_Close;
+  Select[
+    shape="record";
+    label="{{
+      Select|
+      通过copIterator发送请求到tikv\l
+      并返回streamResult或者selectResult\l
+      来获取结果\l
+    }}";
+  ];
+
+
+  subgraph cluster_distsql {
+    graph[label="distsql";fontsize=20;];
+    Fetch;
+    selectResult_Next[
+      shape="record";
+      label="{{
+        selectResult.Next|
+        迭代获取结果
+      }}";
+    ];
+    selectResult_Close[
+      shape="record";
+      label="{{
+        SelectResult.Close|
+        关闭迭代器
+      }}";
+    ];
+    selectResult_Next -> {
+      fetchResp;
+    }
+    fetchResp -> kv_Response_Next;
+    kv_Response_Next -> {
+      copIterator_Next;
+      batchCopIterator_Next;
+    }
+    SelectWithRuntimeStats -> Select;
+    Select -> copClient_Send;
+    SelectResult;
+    selectResult_Close -> {
+      copIterator_Close;
+    };
+    copClient_Send[
+      shape="record";
+      label="{{
+        copClient.Send|
+        开启copIteratorWorker\l
+        goroutine开始执行copTask\l
+        并将结果放到respCh中\l
+      }}";
+    ];
+    copIterator_Close[
+      shape="record";
+      label="{{
+        copIteator_Close|
+        关闭worker/taskSender等goroutine\l
+        cancel rpc请求\l
+      }}";
+    ];
+  }
+  {rank=same;Open;Next;Close}
+}

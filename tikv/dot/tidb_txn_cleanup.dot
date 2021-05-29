@@ -1,0 +1,32 @@
+#include "styles.h"
+digraph cleanup {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  newTwoPhaseCommitter_cleanup -> {
+   cleanupMutations;
+   pessimisticRollbackMutations;
+  }
+  cleanupMutations -> actionCleanup_handleSingleBatch;
+  pessimisticRollbackMutations -> actionPessimisticRollback_handleSingleBatch;
+  actionPessimisticRollback_handleSingleBatch -> CmdPessimisticRollback;
+  actionCleanup_handleSingleBatch -> {
+    CmdBatchRollback;
+  }
+
+  CmdBatchRollback -> Rollback_process_write[style_edge_data];
+  CmdPessimisticRollback -> PessimisticRollback_process_write[style_edge_data];
+  subgraph cluster_TiKV {
+    graph[label="TiKV";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Rollback_process_write[style_func;label="{{
+      Rollback|
+      process_write
+    }}"]
+    PessimisticRollback_process_write[style_func;label="{{
+      PessimisticRollback|
+        process_write
+    }}"]
+  }
+}

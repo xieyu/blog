@@ -1,0 +1,109 @@
+digraph heartbeat {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Consumer {
+    graph[label="Consumer";fontsize=20;style=rounded];
+    requestRejoin[
+      shape="record";
+      label="{{
+        requestRejoin|
+        客户端重新请求加入\l
+      }}";
+    ];
+    resetGenerationOnResponseError -> resetStateAndRejoin;
+    resetGenerationOnResponseError[
+      shape="record";
+      label="{{
+        resetGenerationOnResponseError|
+        重置状态，重新加入group
+      }}";
+    ];
+    heartbeatRequest[
+      shape="record";
+      label="{{
+        heartbeatRequest|
+        groupId: String|
+        memeberId: String|
+        groupInstanceId: Option[String]|
+        generationId: Int
+      }}";
+    ];
+  };
+  subgraph cluster_GroupMetaddataManager {
+    graph[label="GroupMetaddataManager";fontsize=20;style=rounded];
+    getGroup;
+  };
+
+  subgraph cluster_GroupMetaddata {
+    graph[label="GroupMetaddata";fontsize=20;style=rounded];
+    generationId[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="generationId"
+    ];
+    initNextGeneration -> generationId;
+    onCompleteJoin -> initNextGeneration;
+  };
+  subgraph cluster_GroupCoordinator {
+    graph[label="GroupCoordinator";fontsize=20;style=rounded];
+    handleHeartbeat[
+      shape="record";
+      label="{{
+        handleHeartbeat|
+        根据当前group状态\l 
+        做相应处理\l
+      }}";
+    ];
+    handleJoinGroup -> joinPurgatory -> DelayedJoin -> onCompleteJoin;
+    handleJoinGroup[
+      shape="record";
+      label="{{
+        handleJoinGroup|
+        有新的成员加入\l
+        generationId增加\l
+        会导致原有的consumer\l 
+        重新rejoin\l
+      }}";
+    ];
+    handleHeartbeat -> {
+      completeAndScheduleNextHeartbeatExpiration;
+      responseCallback
+      getGroup;
+      generationId;
+    }
+    responseCallback -> {
+      REBALANCE_IN_PROGRESS;
+      UNKNOWN_MEMBER_ID;
+      ILLEGAL_GENERATION;
+    }
+    ILLEGAL_GENERATION[
+      shape="record";
+      label="{{
+        ILLEGAL_GENERATION|
+        generateId和group的\l 
+        现在的对不上\l
+      }}";
+    ];
+    UNKNOWN_MEMBER_ID[
+      shape="record";
+      label="{{
+        ERR: UNKNOWN_MEMBER_ID|
+        group处于状态Empty
+      }}";
+    ];
+    REBALANCE_IN_PROGRESS[
+      shape="record";
+      label="{{
+        ERROR: REBALANCE_IN_PROGRESS|
+        如果group状态处于PreparingRebalance\l
+        或者ComplettingReblance\l
+        则返回REBALCNE_IN_PROGRESS错误
+      }}";
+    ];
+  };
+  REBALANCE_IN_PROGRESS -> requestRejoin;
+  {UNKNOWN_MEMBER_ID, ILLEGAL_GENERATION} -> resetGenerationOnResponseError;
+  heartbeatRequest -> handleHeartbeat;
+}

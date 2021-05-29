@@ -1,0 +1,12 @@
+digraph sql_flow {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  SqlString[label="Sql String"];
+  StmtNodes[label="[]ast.StmtNode"];
+  recordSet[label="sqlexec.RecordSet"];
+
+  SqlString -> StmtNodes [label="session.ParseSQL\l词法语法分析"];
+  StmtNodes -> ExecStmt[label="compiler.Compile\l指定查询计划以及优化"];
+  ExecStmt -> recordSet[label="session.executeStatment\l生成执行器并执行"];
+}

@@ -1,0 +1,187 @@
+#include "./styles.h"
+
+digraph buildDataSource {
+  graph[style=filled;fillcolor="#f5fff6"]
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  StatePublic[style_var];
+  VirtualExpr[style_var];
+  LogicalProjection[style_var];
+  subgraph cluster_table {
+    graph[label="table";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Cols;
+    WritableCols;
+    FullHiddenColsAndVisibleCols;
+  }
+
+
+  subgraph cluster_TableInfo {
+    graph[label="TableInfo";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Partition[style_var;label="Partition *PartitionInfo"]
+    Indices[style_var;label="{{
+      []*IndexInfo
+    }}"];
+    Indices -> IndexInfo;
+    IndexInfo[style_struct;label="{{
+        IndexInfo|
+	      ID        int64\l|
+	      Name      CIStr\l|
+	      Table     CIStr\l|
+	      Columns   []*IndexColumn\l|
+	      State     SchemaState\l|
+	      Comment   string\l|
+	      Tp        IndexType\l|
+	      Unique    bool\l|
+	      Primary   bool\l|
+	      Invisible bool\l|
+	      Global    bool\l
+    }}"]
+    Partition -> PartitionInfo;
+    PartitionInfo[style_struct;label="{{
+	      Type    PartitionType\l|
+	      Expr    string\l|
+	      Columns []CIStr\l|
+	      Enable bool\l|
+	      Definitions []PartitionDefinition\l|
+	      AddingDefinitions []PartitionDefinition\l|
+	      DroppingDefinitions []PartitionDefinition\l
+    }}"];
+  }
+  {
+    WritableCols;
+    FullHiddenColsAndVisibleCols
+    Cols;
+  } -> columns;
+  columns[style_var];
+
+  subgraph cluster_InfoSchema {
+    graph[label="InfoSchema";fontsize=20;style="rounded,dashed";color="slategrey"]
+    TableByName;
+    subgraph cluster_Table {
+      graph[label="Table";fontsize=20;style="rounded,dashed";color="slategrey"]
+      Meta;
+    }
+  }
+
+  buildDataSource -> {
+    TableByName;
+    appendVisitInfo;
+    IsVirtualTable;
+    buildMemTable;
+    IsView;
+    BuildDataSourceFromView;
+    GetPartitionInfo;
+    getPossibleAccessPaths;
+    filterPathByIsolationRead;
+    WritableCols;
+    FullHiddenColsAndVisibleCols;
+    getStatsTable;
+    StatePublic;
+    IsCommonHandle;
+    newExtraHandleSchemaCol;
+    setPreferredStoreType;
+    rewrite;
+    VirtualExpr;
+    FindPartitionByName;
+    TableHints;
+    WritableCols;
+    FullHiddenColsAndVisibleCols
+    Cols;
+    inUpdateStmt;
+    inDeleteStmt;
+    FindPrimaryIndex;
+    NewCommonHandleCols;
+    newExtraHandleSchemaCol;
+  }[color="#b83b5e"];
+
+  inUpdateStmt[style_case];
+  inDeleteStmt[style_case];
+
+  getPossibleAccessPaths -> {
+    Indices;
+    getLatestIndexInfo;
+    GetIsolationReadEngines;
+    getPathByIndexName;
+    removeIgnoredPaths;
+    IsClusterTable;
+    fillContentForTablePath;
+  }
+  filterPathByIsolationRead -> {
+    GetIsolationReadEngines;
+  }
+  BuildDataSourceFromView -> {
+    checkRecursiveView;
+    ParseOneStmt;
+    SetParserConfig;
+    GetPrivilegeManager;
+    RequestVerificationWithUser;
+    buildProjUponView;
+  }
+  buildProjUponView -> {
+    FindFieldNameIdxByColName;
+    LogicalProjection;
+  }
+  getLatestIndexInfo -> {
+    GetDomain;
+    InfoSchema;
+    TableByID;
+    Indices;
+  }
+  GetPartitionInfo-> {
+    Partition;
+  }
+  PlanBuilder[style_struct;label="{{
+    PlanBuilder|
+    <partitionedTable> partitionedTable table.PartitionedTable
+  }}"]
+
+  DataSource[style_struct;label="{{
+    DataSource|
+    field(logicalSchemaProducer,)
+    field(indexMergeHints, []indexMergeHints)
+    field(possibleAccessPaths, []*util.AccessPath)
+    field(handleCols, HandleCols)
+    field(preferStoreType, int)
+    tail_field(Columns, []*models.ColumnInfo)
+  }}"]
+  DataSource:logicalSchemaProducer -> logicalSchemaProducer;
+  logicalSchemaProducer[style_struct;label="{{
+    logicalSchemaProducer|
+    field(schema, *expression.Schema)
+    field(names, types.NameSlice)
+    tail_field(baseLogicalPlan,)
+  }}"]
+  indexMergeHints[style_var];
+  IsView[style_case];
+  IsVirtualTable[style_case];
+  IsClusterTable[style_case];
+  IsCommonHandle[style_case];
+  buildMemTable -> {
+    MetricSchemaName;
+    InformationSchemaName;
+  }
+  MetricSchemaName[style_case];
+  InformationSchemaName[style_case];
+
+  schema[style_var];
+  columns -> schema -> logicalSchemaProducer:schema;
+  newExtraHandleSchemaCol -> schema;
+  {
+    NewCommonHandleCols;
+    newExtraHandleSchemaCol;
+  }-> DataSource:handleCols;
+
+  edge[style=dashed;color=blue]
+  IsVirtualTable -> buildMemTable;
+  IsView -> BuildDataSourceFromView;
+  GetPartitionInfo -> FindPartitionByName -> PlanBuilder:partitionedTable;
+  getPossibleAccessPaths -> filterPathByIsolationRead -> DataSource:possibleAccessPaths;
+  TableHints -> indexMergeHints -> DataSource:indexMergeHints;
+  columns -> DataSource:Columns[label="ToInfo"];
+  inUpdateStmt -> WritableCols;
+  inDeleteStmt -> FullHiddenColsAndVisibleCols;
+  FindPrimaryIndex -> NewCommonHandleCols 
+  TableHints -> setPreferredStoreType -> DataSource:preferStoreType;
+}

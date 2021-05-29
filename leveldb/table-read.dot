@@ -1,0 +1,205 @@
+digraph table_read {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Table {
+    graph[label="Table";fontsize=20;];
+    subgraph cluster_Rep {
+      graph[label="Rep";fontsize=20;];
+      cache_id;
+      index_block;
+      metaindex_handle;
+      filter;
+      filter_data;
+      file;
+      options_block_cache;
+    }
+    subgraph cluster_Open {
+      graph[label="Open";fontsize=20;];
+
+      RandomAccessFile_Read[shape="record";
+      label="{{
+        RandomAccessFile_Read|
+          从文件末尾读取Footer
+      }}";
+      ];
+      Footer_DecodeFrom[shape="record";
+      label="{{
+        Footer::DecodeFrom|
+          从数据中解析出Footer,\l 
+          核对magicNumber\l
+          获取metaIndexHandle\l 
+          和IndexHandle\l
+      }}";
+      ];
+      ReadBlock_index[shape="record";
+      label="{{
+        ReadBlock|
+          读入indexBlock\l 
+          内容放到rep的index_block中\l
+      }}";
+      ];
+      BlockCache_NewId[shape="record";
+      label="{{
+        BlockCache_NewId|
+          生成一个新的cacheId,保存在\l
+          rep的cache_id变量中\l
+      }}";
+      ];
+      ReadBlock_metaindex[shape="record";
+      label="{{
+        ReadBlock|
+          读取MetaIndexBlock内容
+      }}";
+      ];
+      ReadMeta[shape="record";
+      label="{{
+        ReadMeta|
+          读取Bloomfilter\l
+          最中保存在rep的filter_data和filter中
+      }}";
+      ];
+      Block_Iterator_Seek[shape="record";
+      label="{{
+        Block::Iterator::Seek|
+          找到key为：filter.filter_policy_name的值
+      }}";
+      ];
+      ReadBlock_filter[shape="record";
+      label="{{
+        ReadBlock|
+          读取filter block内容\l
+      }}";
+      ];
+      ReadBlock_filter -> filter_data[style=dashed;color=gray;];
+      filter_data -> filter [style=dashed;color=gray;];
+      filter[shape="record";
+      label="{{
+        filter|
+          FilterBlockReader
+      }}";
+      ];
+
+      Open -> {
+        RandomAccessFile_Read;
+        Footer_DecodeFrom;
+        ReadBlock_index;
+        index_block;
+        cache_id;
+        metaindex_handle;
+        BlockCache_NewId;
+        ReadMeta;
+      }
+      ReadMeta -> {
+        ReadBlock_metaindex;
+        Block_NewIterator;
+        BytewiseComparator;
+        Block_Iterator_Seek;
+        ReadFilter;
+      }
+      ReadFilter -> {
+        BlockHandle_DecodeFrom;
+        filter_data;
+        filter;
+        new_FilterBlockReader;
+        ReadBlock_filter;
+      }
+
+      Footer_DecodeFrom -> metaindex_handle[style=dashed;color=gray];
+      ReadBlock_index -> index_block[style=dashed;color=gray;];
+      BlockCache_NewId -> cache_id[style=dashed;color=gray];
+      RandomAccessFile_Read -> Footer_DecodeFrom[style=dashed;color=gray];
+      new_FilterBlockReader -> filter [style=dashed;color=gray;];
+      Block_Iterator_Seek  -> ReadFilter[style=dashed;color=gray;];
+      metaindex_handle -> ReadBlock_metaindex [style=dashed;color=gray;];
+      ReadBlock_metaindex -> Block_Iterator_Seek [style=dashed;color=gray;];
+    }
+    subgraph cluster_Get{
+      graph[label="InternalGet";fontsize=20;];
+      KeyMayMatch[shape="record";
+      label="{{
+        KeyMayMatch|
+          使用bloomfilter快速排除\l 
+          key not found在的情况\l
+      }}";
+      ];
+      IndexBlockIterator[shape="record";
+      label="{{
+        IndexBlockIterator|
+          根据key值，在indexblock中\l 
+          查找相应的datablock\l
+      }}";
+      ];
+      InternalGet[shape="record";
+      label="{{
+        InternalGet|
+          在table中查找key
+      }}";
+      ];
+      BlockReader[shape="record";
+      label="{{
+        BlockReader|
+          在indexBlock中查找到的\l 
+          datalblock上创建Iterator\l
+          先从cache中读\l
+          如果没找到则从文件中加载\l
+      }}";
+      ];
+      BlockReader -> {
+        options_block_cache;
+        cache_id;
+        Cache_Lookup;
+        Cache_Insert;
+        ReadBlock_Datablock;
+        BlockData_NewIterator;
+      }
+      Cache_Lookup[shape="record";
+        label="{{
+          Cache_Lookup|
+          先从cache中查找
+        }}";
+      ];
+      Cache_Insert[shape="record";
+        label="{{
+          Cache_Insert|
+          将读的的block\l 
+          内容放入cache中\l
+        }}";
+      ];
+      ReadBlock_Datablock[shape="record";
+        label="{{
+          ReadBlock|
+          cache中没有读取datablock
+        }}";
+      ];
+      BlockData_NewIterator[shape="record";
+        label="{{
+          BlockData_NewIterator|
+          返回在BlockData\l 
+          上的iterator\l
+        }}";
+      ];
+      ReadBlock_Datablock -> Cache_Insert [style=dashed;color=gray;];
+      {ReadBlock_Datablock;Cache_Lookup} -> BlockData_NewIterator[style=dashed;color=gray;];
+
+      InternalGet -> {
+        IndexBlockIterator;
+        KeyMayMatch;
+        BlockReader;
+        IndexBlockIterator_Seek;
+        BlockData2_Iterator_Seek;
+      }[color=red];
+      BlockData2_Iterator_Seek[shape="record";
+        label="{{
+          BlockData::Iterator::Seek|
+          在blockData中二分查找key
+        }}";
+      ];
+      BlockData_NewIterator -> BlockData2_Iterator_Seek [style=dashed;color=gray;];
+      IndexBlockIterator  -> IndexBlockIterator_Seek [style=dashed;color=gray;];
+      IndexBlockIterator_Seek -> BlockReader [style=dashed;color=gray;];
+      IndexBlockIterator -> index_block[style=dashed;color=gray;];
+      KeyMayMatch -> filter[style=dashed;color=gray;];
+    }
+  }
+}

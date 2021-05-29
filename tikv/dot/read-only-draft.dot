@@ -1,0 +1,164 @@
+#include "styles.h"
+digraph read_only {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  post_conf_change -> {
+    read_only_last_pending_request_ctx;
+    r_read_only_recv_ack;
+    r_read_only_advance;
+  }
+  handle_heartbeat_response -> {
+    r_read_only_recv_ack;
+    prs_has_quorum;
+    r_read_only_advance;
+    handle_ready_read_index;
+  }
+  r_read_only_recv_ack[style_func;label="{{
+    ReadOnly.recv_ack\l|
+    Notifies the ReadOnly struct that the\l 
+    raft state machine received\l
+    an acknowledgment of the heartbeat\l 
+    that attached with the read only request\l
+    context.\l
+  }}"]
+  pending_read_index[style_var;label="{{
+    pending_read_index|
+      HashMap\<Vec\<u8\>, ReadIndexStatus\>\l|
+      是使用ctx &[u8] 作为key\l
+  }}"]
+
+  r_read_only_recv_ack -> {
+    pending_read_index
+    rs_acks_insert;
+  }
+  pending_read_index -> rs_acks_insert[style_edge_data];
+  rs_acks_insert[style_var;label="{{
+    struct ReadIndexStatus\l|
+    pub acks: HashSet\<u64\>,\l|
+    向acks插入id\l
+  }}"]
+
+  r_read_only_advance[style_func;label="{{
+    ReadOnly.advance\l|
+    Advances the read only request\l 
+    queue kept by the ReadOnly struct.\l
+    It dequeues the requests until it\l 
+    finds the read only request that has\l
+    the same context as the given `ctx`.\l
+  }}"]
+
+  read_index_queue[style_var;label="{{
+    read_index_queue|
+    pub read_index_queue: VecDeque\<Vec\<u8\>\>
+  }}"]
+
+  r_read_only_advance -> {
+    read_index_queue;
+    pending_read_index;
+  }
+
+
+  step_leader[style_func;label="{{
+    step_leader|
+    leader处理MsgReadIndex
+  }}"]
+  step_leader -> {
+    commit_to_current_term;
+    handle_ready_read_index;
+    prs_is_singleton;
+    bcast_heartbeat_with_ctx;
+  }
+  handle_ready_read_index -> {
+    MsgReadIndexResp;
+    self_read_states;
+  }
+  RawNode_read_index[style_func;label="{{
+      RawNode.read_index|
+      app通过该接口发起read_index请求\l|
+      follower向leader发送ReadIndex消息\l
+
+      ReadIndex requests a  read state\l
+      the read state will be set in ready\l
+      Read State has a read index. Once the\l 
+      application advances further than the read\l
+      index, any linearizable read requests\l 
+      issued before the read request can be\l
+      processed safely. The read state will\l 
+      have the same rctx attached.\l
+  }}"]
+  RawNode_read_index ->  {
+    MsgReadIndex;
+    step;
+  }
+  MsgReadIndex -> send[style_edge_data];
+  MsgReadIndex -> step_leader[style_edge_data];
+  step -> step_follower -> send;
+  MsgReadIndexResp -> step_follower[style_edge_data];
+  step_follower -> {
+    self_read_states_push;
+    raft_log_maybe_commit;
+  }
+  step_leader -> {
+    handle_heartbeat_response;
+    add_request;
+  }
+  ReadOnlyOption_Safe -> {
+    add_request;
+    bcast_heartbeat_with_ctx;
+  }
+  commit_to_current_term[style_func;label="{{
+    commit_to_current_term|
+    Checks if logs are \l 
+    committed to its term.\l
+  }}"]
+
+  commit_to_current_term -> raft_log_committed;
+
+  add_request[style_func;label="{{
+    add_request|
+    ReadOnly.add_request
+    Adds a read only request into\l 
+    readonly struct.\l|
+    将ctx插入pending_read_index\l 
+    和read_index_queue中\l
+  }}"]
+  add_request -> {
+    pending_read_index;
+    read_index_queue;
+  }
+  bcast_heartbeat_with_ctx[style_func;label="{{
+    bcast_heartbeat_with_ctx|
+    向prs所有peer发送heartbeat\l
+  }}"]
+  bcast_heartbeat_with_ctx -> {
+    send_heartbeat;
+    ctx_clone;
+  }
+  msgHeartBeat[style_var;label="{{
+    msgHeartBeat|
+    m.context = context|
+    follower处理该消息时候，\l 
+    会把context通过msgHeartBeatResp带回来\l
+  }}"]
+  ctx_clone -> msgHeartBeat;
+
+  msgHeartBeat -> step_follower[style_edge_data];
+  step_follower -> msgHeartBeatResponse;
+  msgHeartBeatResponse -> handle_heartbeat;
+  msgHeartBeatResponse-> r_read_only_recv_ack[style_edge_data];
+  r_read_only_recv_ack -> acks;
+  prs_has_quorum -> {
+    acks;
+    vote_result;
+  }
+  acks -> vote_result;
+  MsgReadIndex -> {
+    commit_to_current_term;
+    ReadOnlyOption_Safe;
+    prs_is_singleton;
+  }[style_edge_data];
+  MsgReadIndexResp -> read_states;
+  ready -> read_states -> Ready;
+}

@@ -1,0 +1,110 @@
+#include "styles.h"
+digraph kv_get {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_SnapshotStore {
+    graph[label="Storage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    snap_store_get[style_func;label="{{SnapshotStore::get}}"]
+    snap_store_get -> {
+      PointGetter_get;
+    }
+  }
+  subgraph cluster_Storage {
+    graph[label="Storage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Storage_get[style_func;label="{{Storage.get|
+    Get value of the given\l 
+    key from a snapshot\l
+    }}"]
+    Storage_get -> {
+      read_pool_spawn_handle;
+    }
+    read_pool_spawn_handle[style_func;label="{{
+      ReadPoolHandle::spawn_handle\l|
+      生成执行异步任务\l|
+      self.read_pool.spawn_handle(\l
+        async move \{\l
+        ...\l
+        \}\l
+    }}"]
+    read_pool_spawn_handle -> {
+      prepare_snap_ctx;
+      with_tls_engine;
+      snapshot;
+      snap_store_get;
+    }
+    prepare_snap_ctx -> with_tls_engine -> snapshot[style_edge_data];
+    snapshot -> kv_snapshot;
+    kv_snapshot[style_func;label="{{kv::snapshot\l|
+      Get a snapshot of engine\l|
+      异步的获取engine的snapshot\l
+    }}"]
+    snapshot -> snap_store_get[style_edge_data];
+
+    kv_snapshot -> {
+      engine_async_snapshot;
+      paired_must_called_future_callback;
+      //future_await;
+    }
+    engine_async_snapshot[style_func;label="{{
+      Engine::async_snapshot\l|
+      等read ready后会回调callback\l
+    }}"]
+    engine_async_snapshot -> callback[style_edge_data];
+    paired_must_called_future_callback[style_func;label="{{
+      paired_must_called_future_callback\l|
+      返回一个callback和future\l
+      调用callback会触发future\l
+    }}"]
+    callback[style_func;label="{{callback|
+      lease read或readIndex OK\l 
+      后callback\l
+    }}"]
+    paired_must_called_future_callback -> {
+      callback;
+      future;
+    }
+    callback -> future -> snapshot[style_edge_data];
+
+    //var_snapshot -> {
+    //  snap_store;
+    //}[style_edge_data];
+    //snap_store-> snap_store_get[style_edge_data];
+    //snapshot -> var_snapshot[style_edge_data];
+  }
+
+  subgraph cluster_service_kv {
+    graph[label="service::kv";fontsize=20;style="rounded,dashed";color="slategrey"]
+    kv_get[style_func;label="{{kv_get\l|处理GetRequest请求}}"]
+    async_task[style_func;label="{{
+      async_task|task = async move \{\l
+        等待future异步任务完成\l
+        然后发送resp\l|
+        let resp = resp.await?;\l
+        sink.success(resp).await?;\l
+        ...\l
+      \}\l
+    }}"]
+    ctx_spawn[style_func;label="{{RpcContext::spawn|grpc contex执行异步任务}}"]
+    future_get_async_task-> async_task[style_edge_data];
+
+    kv_get -> {
+      future_get;
+      async_task;
+      ctx_spawn;
+    }
+    async_task -> ctx_spawn[style_edge_data];
+    future_get -> {
+      Storage_get;
+      future_get_async_task;
+    }
+    Storage_get -> future_get_async_task[style_edge_data];
+
+    future_get_async_task[style_func;label="{{
+      future_get中异步任务\l|
+      等待storage.get的异步任务完成\l
+      let v = v.await\l
+    }}"]
+  }
+}

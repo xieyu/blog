@@ -1,0 +1,72 @@
+#include "styles.h"
+digraph Storage {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+    snapshot -> {
+      snap_state;
+      snap_tried_cnt;
+      try_recv;
+      validate_snap;
+      SnapState_Generating;
+      GenSnapTask;
+      gen_snap_task;
+      sync_channel;
+    }
+
+    SnapState_Generating -> snap_state;
+
+    sync_channel[style_func;label="{{
+      sync_channel|
+      使用一个同步的channel
+    }}"]
+    GenSnapTask[style_struct;label="{{
+      GenSnapTask|
+        pub(crate) region_id: u64,\l|
+        <tx> snap_notifier: SyncSender\<RaftSnapshot\>,\l|
+        for_balance: bool,\l
+    }}"]
+    sync_channel -> {tx, rx};
+    tx[style_func;label="{{
+      tx|
+      发送端，用来触发\l 
+      snapshot已准备好
+    }}"]
+    SnapState_Generating -> try_recv;
+    rx -> SnapState_Generating;
+
+    tx -> GenSnapTask -> gen_snap_task[style_edge_data];
+    SnapState_Generating -> try_recv[style_edge_data];
+    try_recv ->  validate_snap[style_edge_data]
+    gen_snap_task[style_var;label="{{
+      gen_snap_task|
+      成员变量
+      gen_snap_task:\l 
+      RefCell\<Option\<GenSnapTask\>\>,\l
+    }}"]
+    snap_state[style_var;label="{{
+      snap_state|
+      snap_state: RefCell\<SnapState\>,\l
+    }}"]
+
+    validate_snap[style_func;label="{{
+      validate_snap|
+      验证snapshot是否有效\l
+    }}"]
+    take_gen_snap_task -> gen_snap_task;
+
+    handle_raft_ready_append -> take_gen_snap_task;
+    subgraph cluster_Peer {
+      graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+      handle_raft_ready_append -> {
+        schedule_task_ApplyTask;
+      };
+      schedule_task_ApplyTask[style_func;label="{{
+        让apply线程生成snapshot\l
+        ApplyTask::Snapshot\l|
+        apply_router.schedule_task(self.region_id,\l
+      }}"]
+    }
+}

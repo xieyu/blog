@@ -1,0 +1,50 @@
+#include "styles.h"
+digraph on_casual_msg {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_pd_scheduler {
+    graph[label="pd_scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    pd_scheduler[style_var;label="{{
+      pd_scheduler|
+        FutureScheduler\<PdTask\<EK\>\>,\l
+    }}"]
+    pd_scheduler -> pd_scheduler_schedule;
+      
+  }
+  subgraph cluster_PeerFsm {
+    graph[label="PeerFsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+    approximate_keys;
+    approximate_size;
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_casual_msg -> {
+      on_prepare_split_region;
+      on_approximate_region_keys;
+      on_approximate_region_size;
+    }
+    on_prepare_split_region -> {
+      validate_split_region;
+      invoke_with_response;
+      PdTask_AskBatchSplit;
+      pd_scheduler_schedule;
+    }
+    PdTask_AskBatchSplit -> pd_scheduler_schedule[style_edge_data];
+    validate_split_region[style_func;label="{{
+      validate_split_region|
+      检查是否是leader\l
+      keys是否是空的\l
+      epoch是否发生了个改变\l
+    }}"]
+
+    on_approximate_region_size -> approximate_size;
+    on_approximate_region_keys -> approximate_keys;
+    {on_approximate_region_size;on_approximate_region_keys} -> {
+      register_split_region_check_tick;
+      register_pd_heartbeat_tick;
+    }
+  }
+}

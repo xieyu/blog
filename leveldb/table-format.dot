@@ -1,0 +1,110 @@
+digraph table_format {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  TableFormat2[
+    shape="record";
+    label="{{
+      Table文件格式|
+      <DataBlocks> DataBlocks|
+      <MetaBlocks> MetaBlocks|
+      <MetaIndexBlock> MetaIndexBlock|
+      <IndexBlock> IndexBlock|
+      <Footer> Footer
+    }}";
+  ];
+  TableFormat2:DataBlocks -> DataBlocks;
+  TableFormat2:MetaBlocks -> MetaBlocks;
+  TableFormat2:MetaIndexBlock -> MetaIndexBlock;
+  TableFormat2:IndexBlock -> IndexBlock;
+  TableFormat2:Footer -> Footer;
+  DataBlocks[
+    shape="record";
+    label="{{
+      DataBlocks|
+      <DataBlock1> DataBlock1|
+      <DataBlock2> DataBlock2|
+      ...|
+      <DataBlockN> DataBlockN
+    }}";
+  ];
+  MetaBlocks[
+    shape="record";
+    label="{{
+      MetaBlocks|
+      <1> MetaBlock1|
+    }}";
+  ];
+  MetaIndexBlock[
+    shape="record";
+    label="{{
+      MetaIndexBlock|
+      当前只有一个filterblock, bloomfilter\l|
+      <1> key: filter.filter_policy_name\l
+      value: filter policy的block handle\l|
+    }}";
+  ];
+  MetaIndexBlock -> DataBlock;
+  DataBlocks:DataBlock1 -> DataBlock;
+
+  DataBlock[
+    shape="record";
+    label="{{
+      DataBlock|
+      <Record1> Record1\l|
+      ...|
+      RecordN\l|
+      restarts_0\l|
+      ...|
+      restarts_k\l|
+      num_restarts\l|
+      comparessType\l|
+      CRC32 Value\l
+    }}";
+  ];
+  Footer[
+    shape="record";
+    label="{{
+      Footer|
+      <metaIndex> offset_, size_ \lmetaindex_handle char[p]\l|
+      <index> offset_, size\l index_handle char[q]\l|
+      pading: char[40-p-q]\l|
+      magic: fixed64\l
+    }}";
+  ];
+  IndexBlock[
+    shape="record";
+    label="{{
+      IndexBlock|
+      每个DataBlock在IndexBlock中都有一项\l|
+      <1> key: DataBlock的lastKey\l 
+      value: BlockHandle(offset, size) to DataBlock1\l|
+      ...
+    }}";
+  ];
+  IndexBlock:1 -> DataBlocks:DataBlock1;
+  IndexBlock -> DataBlock;
+  MetaIndexBlock:1 -> MetaBlocks:1;
+  Footer:metaIndex -> MetaIndexBlock;
+  Footer:index -> IndexBlock;
+  Record[
+    shape="record";
+    label="{{
+      Record|
+      key共享长度: Varint32\l|
+      key非共享长度: Varint32\l|
+      value长度: Varint32\l|
+      key非共享内容\l|
+      value内容\l
+    }}";
+  ];
+  FilterBlock[
+    shape="record";
+    label="{{
+      FilterBlock|
+      field \l
+    }}";
+  ];
+  DataBlock:Record1 -> Record;
+
+}

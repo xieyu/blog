@@ -1,0 +1,65 @@
+digraph async_read {
+  node[shape=box];
+  newrank=true;
+  rankdir=TD;
+
+  AsyncRead[shape="record";
+  label="{
+    AsyncRead|
+      prepare_uninitialized_buffer\l|
+      poll_read\l|
+      poll_read_buf\l
+  }";];
+
+  AsyncReadExt[shape="record";
+  label="{
+    AsyncReadExt|
+      chain\l|
+      copy\l|
+      read\l|
+      read_exact\l|
+      read_to_end\l|
+      read_to_string\l|
+      take\l
+  }";];
+  
+  net[shape="record";
+  label="{
+    net|
+      TcpStream\l|
+      UnixStream\l|
+      ReadHalf\l|
+      ChildStdout\l|
+      ChildStdin\l|
+      PollEvented\l
+  }";];
+
+  io[shape="record";
+  label="{
+    io|
+      Take\l|
+      Chain\l|
+      BufReader\l|
+      BufWriter\l|
+      BufStream\l
+  }";]
+
+  fs[shape="record";
+    label="{
+      fs|
+        Blocking\l|
+        File\l|
+        Stdin\l
+    }";]
+
+
+u8_array[label="&[u8]"]
+io_cursor[label="io::Curosr"];
+
+//{io, fs,net} -> AsyncRead[label="impl"];
+
+//{Stdin, File, Blocking} ->AsyncRead;
+//{PollEvented, ChildStdin, ChildStdout, TcpStream, UnixStream, ReadHalf} -> AsyncRead;
+//{Take, Chain, BufReader} -> AsyncRead;
+//{io_cursor, u8_array} -> AsyncRead;
+}

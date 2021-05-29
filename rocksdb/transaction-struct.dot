@@ -1,0 +1,175 @@
+digraph transaction_struct {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Transaction[
+    shape="record";
+    label="{{
+      Transaction|
+        对外接口|
+        virtual void SetSnapshot() = 0;\l|
+        virtual void SetSnapshotOnNextOperation(\l
+      std::shared_ptr\<TransactionNotifier\>\l notifier = nullptr) = 0;\l|
+        virtual void ClearSnapshot() = 0;\l|
+        virtual Status Prepare() = 0;\l|
+        virtual Status Commit() = 0;\l|
+        virtual Status Rollback() = 0;\l|
+        virtual void SetSavePoint() = 0;\l|
+        virtual Status RollbackToSavePoint() = 0;\l|
+        virtual Status PopSavePoint() = 0;\l|
+        virtual Status Get(const ReadOptions& options,\l
+                     ColumnFamilyHandle* column_family, const Slice& key,\l
+                     std::string* value) = 0;\l|
+        virtual Status GetForUpdate(const ReadOptions& options,...\l|
+        virtual Iterator* GetIterator(const ReadOptions& read_options) = 0..;\l|
+        数据成员|
+        uint64_t log_number_;\l|
+        TransactionName name_;\l|
+        std::atomic\<TransactionState\> txn_state_;\l|
+        uint64_t id_ = 0;\l
+    }}";
+  ];
+  Transaction -> TransactionBaseImpl;
+
+  TransactionBaseImpl[
+    shape="record";
+    label="{{
+      TransactionBaseImpl|
+      DB *db_\l|
+      DBImpl* dbimpl_;\l|
+      WriteOptions write_options_;\l|
+      uint64_t start_time_;\l|
+      <Snapshot> std::shared_ptr\<const Snapshot\> snapshot_;\l|
+      uint64_t num_puts_ = 0;\l|
+      uint64_t num_deletes_ = 0;\l|
+      uint64_t num_merges_ = 0;\l|
+      WriteBatchWithIndex write_batch_;\l|
+      <TransactionKeyMap> TransactionKeyMap tracked_keys_;\l|
+      <SavePoint> std::unique_ptr\<std::stack\<\lTransactionBaseImpl::SavePoint,
+                             autovector\<TransactionBaseImpl::SavePoint\>\>\>\l
+      save_points_;\l|
+      WriteBatch commit_time_batch_;\l|
+      bool indexing_enabled_;\l|
+      bool snapshot_needed_ = false;\l|
+      std::shared_ptr\<TransactionNotifier\> snapshot_notifier_ = nullptr;\l
+    }}";
+  ];
+  TransactionBaseImpl:SavePoint -> SavePoint;
+  TransactionBaseImpl:Snapshot -> Snapshot;
+  TransactionBaseImpl:TransactionKeyMap -> TransactionKeyMap;
+  TransactionBaseImpl -> OptimisticTransaction;
+  TransactionBaseImpl -> PessimisticTransaction;
+
+  SavePoint[
+    shape="record";
+    label="{{
+      SavePoint|
+      <Snapshot> std::shared_ptr\<const Snapshot\> snapshot_;\l|
+      bool snapshot_needed_ = false;\l|
+      std::shared_ptr\<TransactionNotifier\> snapshot_notifier_;\l|
+      uint64_t num_puts_ = 0;\l|
+      uint64_t num_deletes_ = 0;\l|
+      uint64_t num_merges_ = 0;\l
+    }}";
+  ];
+  SavePoint:Snapshot -> Snapshot;
+
+  PessimisticTransaction[
+    shape="record";
+    label="{{
+      PessimisticTransaction|
+        <PessimisticTransactionDB> PessimisticTransactionDB* txn_db_impl_;\l|
+        DBImpl* db_impl_;\l|
+        uint64_t expiration_time_;\l|
+        TransactionID txn_id_;\l|
+        autovector<TransactionID> waiting_txn_ids_;\l|
+        uint32_t waiting_cf_id_;\l|
+        const std::string* waiting_key_;\l|
+        mutable std::mutex wait_mutex_;\l|
+        int64_t lock_timeout_;\l|
+        bool deadlock_detect_;\l|
+        bool skip_concurrency_control_;\l
+    }}";
+  ];
+  PessimisticTransaction:PessimisticTransactionDB -> PessimisticTransactionDB;
+
+  PessimisticTransactionDB[
+    shape="record";
+    label="{{
+      PessimisticTransactionDB|
+        <TransactionLockMgr> TransactionLockMgr lock_mgr_;\l|
+        InstrumentedMutex column_family_mutex_;\l|
+        std::mutex map_mutex_;\l|
+        std::unordered_map\<TransactionID, PessimisticTransaction*\>\l|
+        expirable_transactions_map_;\l|
+        std::mutex name_map_mutex_;\l|
+        std::unordered_map\<TransactionName, Transaction*\> transactions_\l
+    }}";
+  ];
+  PessimisticTransactionDB:TransactionLockMgr -> TransactionLockMgr;
+
+  DB -> StackableDB -> TransactionDB -> PessimisticTransactionDB;
+  StackableDB -> OptimisticTransactionDB;
+
+  StackableDB[
+    shape="record";
+    label="{{
+      StackableDB|
+        DB* db_;\l|
+        std::shared_ptr<DB> shared_db_ptr_;\l
+    }}";
+  ];
+
+  Snapshot[
+    shape="record";
+    label="{{
+      Snapshot|
+        virtual SequenceNumber GetSequenceNumber() const = 0;\l
+    }}";
+  ];
+  Snapshot -> SequenceNumber;
+  SequenceNumber[
+    shape="record";
+    label="{{
+      SequenceNumber|
+        typedef uint64_t SequenceNumber;
+    }}";
+  ];
+
+
+  TransactionKeyMap[
+    shape="record";
+    label="{{
+      TransactionKeyMap|
+        std::unordered_map\<uint32_t\l,
+        std::unordered_map\<std::string\l, TransactionKeyMapInfo\>\>\l
+    }}";
+  ];
+
+  TransactionKeyMap -> TransactionKeyMapInfo;
+  TransactionKeyMapInfo[
+    shape="record";
+    label="{{
+      TransactionKeyMapInfo|
+        <SequenceNumber> SequenceNumber seq;\l|
+        uint32_t num_writes;\l|
+        uint32_t num_reads;\l|
+        bool exclusive;\l
+    }}";
+  ];
+  TransactionKeyMapInfo -> SequenceNumber;
+
+  TransactionLockMgr[
+    shape="record"
+    label="{{
+      TransactionLockMgr|
+        InstrumentedMutex lock_map_mutex_;\l|
+        LockMaps lock_maps_;\l|
+        std::unique_ptr<ThreadLocalPtr> lock_maps_cache_;\l|
+        std::unique_ptr<ThreadLocalPtr> lock_maps_cache_;\l|
+        ...
+    }}"
+  ];
+
+}

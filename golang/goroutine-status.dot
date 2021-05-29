@@ -1,0 +1,32 @@
+digraph goroutine_status {
+  node[shape=circle];
+  newrank=true;
+  rankdir=LR;
+  _Gidle -> _Grunnable[label="newproc"];
+  //waiting
+  _Gwaiting -> _Grunning[label="stopTheWorld"];
+  _Gwaiting -> _Grunnable[label="ready"];
+  _Gwaiting -> _Grunnable[label="findrunnable/netpoll"];
+  _Gwaiting -> _Grunnable[label="injectglist"];
+  _Gwaiting -> _Grunnable[label="trace"];
+
+  //running
+  _Grunning -> _Gwaiting[label="gcMarkTermination"];
+  _Grunning -> _Gwaiting[label="stopTheWorld"];
+  _Grunning -> _Gwaiting[label="park_m"];
+  _Grunning -> _Gdead[label="goexit0"];
+  _Grunning -> _Grunnable[label="goschedImpl"];
+  _Grunning -> _Gsyscall[label="reentersyscall"];
+  _Grunning -> _Gsyscall[label="entersyscallblock"];
+  _Grunning -> _Gcopystack[label="newstack"];
+  _Gcopystack -> _Grunning[label="newstack"];
+
+  //runnable
+  _Grunnable -> _Grunning[label="execute"];
+
+  _Gsyscall -> _Grunnable[label="exitsyscall0"];
+
+  _Gdead -> _Grunnable[label="newproc1/gfget从空闲链表回收"];
+  _Gidle -> _Gdead[label="oneNewExtraM"];
+
+}

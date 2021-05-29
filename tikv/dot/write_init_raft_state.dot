@@ -1,0 +1,105 @@
+#include "styles.h"
+digraph write_init_raft_state {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    write_init_raft_state -> {
+       RaftLocalState;
+       RAFT_INIT_LOG_INDEX;
+       RAFT_INIT_LOG_TERM;
+       put_raft_state;
+    };
+    write_initial_apply_state -> {
+       RaftApplyState;
+       RAFT_INIT_LOG_INDEX;
+       RAFT_INIT_LOG_TERM;
+       apply_state_key;
+    }
+    RAFT_INIT_LOG_INDEX[style_func;label="{{
+      RAFT_INIT_LOG_INDEX|
+      5
+    }}"]
+    RAFT_INIT_LOG_TERM[style_func;label="{{
+      RAFT_INIT_LOG_TERM|
+      5
+    }}"]
+  }
+
+
+  prepare_bootstrap_cluster -> {
+    write_init_raft_state;
+    write_initial_apply_state;
+  }
+
+  subgraph cluster_store {
+    graph[label="store";fontsize=20;style="rounded,dashed";color="slategrey"]
+    prepare_bootstrap_cluster[style_func;label="{{
+      prepare_bootstrap_cluster|
+      1.将第一个region信息写到\l 
+      PREPARE_BOOTSTRAP_KEY中;|
+      2.写入init_apply_state和init_raft_state\l
+    }}"]
+  }
+  prepare_bootstrap_cluster -> PREPARE_BOOTSTRAP_KEY;
+
+  subgraph cluster_pd_client {
+    graph[label="pd_client";fontsize=20;style="rounded,dashed";color="slategrey"]
+    pd_client_is_cluster_bootstrapped;
+    pd_client_is_cluster_bootstrapped[style_func;label="{{
+      is_cluster_bootstrapped
+    }}"]
+      
+  }
+
+  subgraph cluster_node {
+    graph[label="node";fontsize=20;style="rounded,dashed";color="slategrey"]
+    start -> check_or_prepare_bootstrap_cluster -> {
+      node_prepare_bootstrap_cluster;
+      check_cluster_bootstrapped;
+      PREPARE_BOOTSTRAP_KEY;
+      get_msg;
+    }
+    check_cluster_bootstrapped[style_func;label="{{
+      check_cluster_bootstrapped|
+      向pd server发起请求，询问cluster\l 
+      是否已经初始化\l
+    }}"]
+    get_msg[style_func;label="{{
+      get_msg|
+      engine.kv.get_msg(PREPARE_BOOTSTRAP_KEY)\l
+      获取第一个reigon信息\l
+      如果有，说明已经第一个region已经创建好了\l
+    }}"]
+    PREPARE_BOOTSTRAP_KEY[style_func;label="{{
+      PREPARE_BOOTSTRAP_KEY|
+      LOCAL_PREFIX: 0x01\l
+      0x02\l
+    }}"]
+    check_cluster_bootstrapped  -> pd_client_is_cluster_bootstrapped;
+    node_prepare_bootstrap_cluster[style_func;label="{{
+      prepare_bootstrap_cluster
+    }}"]
+    initial_region ->region -> prepare_bootstrap_cluster[style_edge_data];
+
+    node_prepare_bootstrap_cluster -> {
+       prepare_bootstrap_cluster;
+       initial_region;
+       alloc_id;
+    }
+    alloc_id[style_func;label="{{
+      alloc_id|
+      分配一个region id
+    }}"]
+    initial_region[style_func;label="{{
+      initial_region|
+      初始化第一个region\l
+      start key和end_key都为\l 
+      EMPTY_KEY\l
+    }}"]
+  }
+  
+}

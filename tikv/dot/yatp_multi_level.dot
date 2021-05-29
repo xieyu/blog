@@ -1,0 +1,74 @@
+#include "styles.h"
+digraph multi_lvel {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_crossbeam_dequeue {
+    graph[label="crossbeam_dequeue";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Injector;
+    Worker;
+    Stealer;
+  }
+
+  subgraph cluster_DashMap {
+    graph[label="DashMap";fontsize=20;style="rounded,dashed";color="slategrey"]
+    DashMap[style_func;label="{{
+      DashMap|
+        a concurrent associative\l 
+        array/hashmap in Rust.\l
+    }}"]
+  }
+
+  multi_level_TaskInjector[style_func;label="{{
+    multi_level::TaskInjector|
+    level_injectors: Arc\<[Injector\<T\>; LEVEL_NUM]\>,\l|
+    manager: Arc\<LevelManager\>,\l
+  }}"]
+  multi_level_LocalQueue[style_func;label="{{
+    multi_level::LocalQueue|
+    local_queue: Worker\<T\>,\l|
+    level_injectors: Arc\<[Injector\<T\>; LEVEL_NUM]\>,\l|
+    stealers: Vec\<Stealer\<T\>\>,\l|
+    manager: Arc\<LevelManager\>,\l
+  }}"]
+  multi_level_LocalQueue -> {
+    Worker;
+    Injector;
+    Stealer;
+    LevelManager;
+  }
+
+  multi_level_TaskInjector -> {
+    Injector;
+    LevelManager;
+  }
+  LevelManager[style_func;label="{{
+    LevelManager|
+    level0_elapsed_us: IntCounter,\l|
+    total_elapsed_us: IntCounter,\l|
+    task_elapsed_map: TaskElapsedMap,\l|
+    level_time_threshold: [Duration; LEVEL_NUM - 1],\l|
+    level0_chance: Gauge,\l|
+    level0_proportion_target: f64,\l|
+    adjusting: AtomicBool,\l|
+    last_level0_elapsed_us: Cell\<i64\>,\l|
+    last_total_elapsed_us: Cell\<i64\>,\l
+  }}"]
+
+  TaskElapsedMap[style_func;label="{{
+    TaskElapsedMap|
+    new_index: AtomicUsize,\l|
+    maps: [DashMap\<u64, Arc\<ElapsedTime\>\>; 2],\l|
+    cleanup_interval: Duration,\l|
+    last_cleanup_time: Mutex\<Instant\>,\l|
+    cleaning_up: AtomicBool,\l
+  }}"]
+  LevelManager -> TaskElapsedMap;
+  TaskElapsedMap -> {DashMap;ElapsedTime};
+  ElapsedTime[style_func;label="{{
+    ElapsedTime|
+    AtomicU64\l
+  }}"]
+}

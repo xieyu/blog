@@ -1,0 +1,58 @@
+#include "styles.h"
+
+digraph indexKey {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  DBInfo[style_struct;label="{{
+    DBInfo|
+	ID      int64        \l|
+	Name    CIStr        \l|
+	Charset string       \l|
+	Collate string       \l|
+	<Tables> Tables  []*TableInfo \l|
+	State   SchemaState  \l
+  }}"]
+
+  DBInfo:Tables -> TableInfo;
+  TableInfo[style_struct;label="{{
+    TableInfo|
+	  ID      int64  \l|
+	  Name    CIStr  \l|
+	  Charset string \l|
+	  Collate string \l|
+	  <Columns> Columns     []*ColumnInfo     \l|
+	  <Indices> Indices     []*IndexInfo      \l|
+	  Constraints []*ConstraintInfo \l|
+	  ForeignKeys []*FKInfo         \l|
+	  State       SchemaState       \l|
+	  PKIsHandle bool \l|
+    ...
+  }}"]
+  TableInfo:Indices -> IndexInfo;
+  IndexInfo[style_struct;label="{{
+    IndexInfo|
+	ID        int64\l|
+	Name      CIStr\l|
+	Table     CIStr\l|       
+	<Columns> Columns   []*IndexColumn\l|
+	State     SchemaState\l|
+	Comment   string\l|
+	Tp        IndexType\l|
+	Unique    bool\l| 
+	Primary   bool\|          
+	Invisible bool\l|
+	Global    bool\l        
+  }}"]
+
+  IndexInfo:Columns -> IndexColumn;
+  IndexColumn[style_struct;label="{{
+    IndexColumn|
+      Name   CIStr\l|
+      <Offset> Offset int\l
+      Offset为在columns中的下标|
+      Length int\l
+  }}"]
+  IndexColumn:Offset -> TableInfo:Columns[style_edge_data];
+}

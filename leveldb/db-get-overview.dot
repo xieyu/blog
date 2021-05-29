@@ -1,0 +1,140 @@
+digraph db_get_overview {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Memory {
+    graph[label="Memory";fontsize=20;style=rounded];
+    MemTable;
+    ImmTable;
+    LRUCache;
+    Cache;
+    subgraph cluster_Version {
+      graph[label="Version";fontsize=20;style=rounded];
+      files_[
+        fillcolor="#95e1d3";
+        style=filled;
+        shape="record";
+        label="{{
+          files_|
+          <FileMetaData> std::Vector\<FileMetaData*\>\l files_[config::kNumLevels];
+        }}";
+      ];
+      levels[
+        shape="record";
+        label="{{
+          levels|
+          level0: [FileMetaData .. FileMetaData]\l|
+          level1: [FileMetaData .. FileMetaData]\l|
+          ...
+          levelN\l
+        }}";
+      ];
+      files_ -> levels;
+      levels -> FileMetaData;
+    };
+  };
+  subgraph cluster_Disk {
+    graph[label="Disk";fontsize=20;style=rounded];
+    Level0SSTable;
+    Level1SSTable;
+    LevelNSSTable;
+  };
+  FindInFile -> LRUCache;
+  MemTable[
+    shape="record";
+    label="{{
+      MemTable|
+      先从memtable中找\l 
+      MemTable中数据为最新的\l
+    }}";
+  ];
+  ImmTable[
+    shape="record";
+    label="{{
+      ImmTable|
+      然后从Immtable中查找\l
+    }}";
+  ];
+  FindInFile[
+    shape="record";
+    label="{{
+      FindInFile|
+      查找过程中会使用LRU cache将\l 
+      sstable文件的index和filter加载到cache中\l|
+      每个文件先通过bloom filter\l 
+      判断key是否不存在\l
+      然后通过blockindex找到对应block\l|
+      一层层查找，level越高，数据越旧\l
+    }}";
+  ];
+  FindInFile -> {
+    Level0SSTable;
+    Level1SSTable;
+    LevelNSSTable;
+  }
+  Level0SSTable[
+    shape="record";
+    label="{{
+      Level0SSTable|
+      第0层的sstable文件之间\l 
+      key range有重叠部分\l
+      所以每个文件要查找一下\l
+    }}";
+  ];
+  Level1SSTable[
+    shape="record";
+    label="{{
+      Level1SSTable|
+      每个文件之间keyrange无重叠\l
+    }}";
+  ];
+  LevelNSSTable[
+    shape="record";
+    label="{{
+      LevelNSSTable|
+      ...
+    }}";
+  ];
+  KV[
+    shape="record";
+    label="{{
+      Get(key, snapshot)|
+      key, SequenceNumber\l
+    }}";
+  ];
+  keybytes[
+    shape="record";
+    label="{{
+      LookupKey|
+      key_data|
+      <sequence> sequence_number\l|
+        type\l|
+    }}";
+  ];
+  LRUCache[
+    shape="record";
+    label="{{
+      LRUCache|
+      <cache> cache1|
+      ...|
+      cacheN
+    }}";
+  ];
+  Cache[
+    shape="record";
+    label="{{
+      cache|
+      将sstable的BlockIndex\l和filter加载到内存中|
+      BlockIndex|
+      BloomFilterBlock
+    }}";
+  ];
+
+  LRUCache:cache -> Cache;
+  KV -> MemTable;
+  KV -> ImmTable; 
+  KV -> keybytes;
+  KV -> files_;
+  Level0SSTable -> Level1SSTable -> LevelNSSTable;
+  KV -> FindInFile;
+}

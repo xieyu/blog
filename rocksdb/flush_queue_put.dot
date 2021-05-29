@@ -1,0 +1,63 @@
+digraph flush_queue_put {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  WriteInteralBatch[shape="record";
+    label="{{
+      WriteInteralBatch|
+      将put/delete等写入\l 
+      Rep buffer\l
+    }}";
+  ];
+  MemTableInsertor[shape="record";
+    label="{{
+      MemTableInsertor|
+      遍历WriterInternalBatch\l
+      Buffer插入columnFamilyData的mem_table
+    }}";
+  ];
+
+  subgraph cluster_ColumnFamilyData {
+    graph[label="ColumnFamilyData";fontsize=20;];
+    ColumnFamilyData_mem -> ColumnFamilyData_imm_list;
+    ColumnFamilyData_mem[shape="record";
+      label="{{
+        ColumnFamilyData_mem|
+        先插入mem_，如果mem_满了\l
+        将mem_转为imm, 加入imm_list中\l
+        并创建新的mem\l
+      }}";
+    ];
+    ColumnFamilyData_imm_list[shape="record";
+      label="{{
+        imm_|
+        imm_table list\l
+        通过SchedulWorke,将\l 
+        columnFaimlyData放入\l 
+        flush_queue中\l
+      }}";
+    ];
+  }
+  WALLog[shape="record";
+    label="{{
+      WALLog|
+      写入WAL日志
+    }}";
+  ];
+  flush_queue_[shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      flush_queue_|
+      FlushRequest队列
+    }}";
+  ];
+  subgraph cluster_Disk {
+    graph[label="Disk";fontsize=20;];
+    WALLog;
+  }
+  WriteImpl -> WriteInteralBatch -> MemTableInsertor -> ColumnFamilyData_mem;
+  WriteImpl -> WALLog;
+  ColumnFamilyData_imm_list  -> flush_queue_
+}

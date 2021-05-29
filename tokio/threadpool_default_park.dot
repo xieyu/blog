@@ -1,0 +1,33 @@
+digraph threadpool_default_park {
+  node[shape=box;style="rounded"];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_park {
+    graph[label="park";fontsize=20;]
+    unpark;
+    park;
+    park_timeout;
+  }
+
+  subgraph cluster_DefaultPark {
+    graph[label="DefaultPark";fontsize=20;]
+    subgraph cluster_inner {
+      graph[label="inner";fontsize=20;]
+      inner_Parker[label="crossbeam_utils::sync::Parker"];
+    }
+  }
+
+  subgraph cluster_DefaultUnpark {
+    graph[label="DefaultUnpark";fontsize=20;]
+
+    subgraph cluster_inner {
+      graph[label="inner";fontsize=20;]
+      inner_UnParker[label="crossbeam_utils::sync::UnParker"];
+    }
+    
+  }
+  park -> inner_Parker[label="park"];
+  park_timeout -> inner_Parker[label="park_timeout"];
+  unpark -> inner_UnParker;
+}

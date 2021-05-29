@@ -1,0 +1,40 @@
+digraph park_thread_struct {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+    UnparkThread[
+      shape="record";
+      label="{{
+        UnparkThread|
+        <inner> inner \l
+      }}";
+    ];
+
+  ParkThread [
+    shape="record";
+    label="{{
+      ParkThread |
+        <with_current> + with_current \l|
+        <park> + park \l|
+        <park_timeout> + park \l|
+        <unpark> + unpark \l|
+        <unparker> unparker \l
+    }}";
+  ];
+  Inner[
+    shape="record";
+    label="{{
+      Inner|
+        <park> + park \l|
+        <unparker> + unparker\l|
+        <park_timeout> + park_timeout \l|
+        state: AtomicUsize\l|
+        mutex: Mutex\l|
+        condvar: Condvar\l
+    }}";
+  ];
+
+  ParkThread:unparker -> Inner[label="Arc"];
+UnparkThread:inner -> Inner[label="Arc"];
+}

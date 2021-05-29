@@ -1,0 +1,22 @@
+#include "styles.h"
+digraph schedule_ticks {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_FsmDelegate {
+    graph[label="FsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+      register_raft_base_tick -> schedule_tick -> PeerTicks_RAFT;
+      schedule_tick -> tick_registry;
+      start -> register_raft_base_tick;
+      on_significant_msg -> register_raft_base_tick;
+      on_raft_base_tick -> register_raft_base_tick;
+      schedule_tick -> force_send;
+      flush_ticks  -> {
+        timer_delay_compact;
+      };
+      timer_delay_compact -> tick;
+      Poller_poll -> PollHandler_end -> flush_ticks;
+    
+  }
+}

@@ -1,0 +1,30 @@
+digraph plan_tree {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Select {
+    graph[label="buildSelect";fontsize=20;style=rounded];
+    ResultSetNode[
+      shape="record";
+      label="{{
+        ResultSetNode|
+        LogicalJoin\l|
+        LogicalSelection\l|
+        LogicalUnionScan\l|
+        DataSource\l|
+        buildSelect:递归\l
+      }}";
+    ];
+
+    LogicalSelection -> ResultSetNode;
+    LogicalProjection -> LogicalSelection;
+    LogicalDistinct -> LogicalProjection;
+    LogicalSort -> LogicalDistinct;
+    LogicalLimit -> LogicalSort;
+    ResultSetNode -> LogicalJoin;
+    LogicalJoin -> {
+      LeftResultSetNode[label="递归: Left ResultSetNode"];
+      RightResultSetNode[label="递归：Right ResultSetNode"];
+    };
+  }
+}

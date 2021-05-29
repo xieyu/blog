@@ -1,0 +1,63 @@
+digraph table_remove_record{
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_kv {
+    graph[label="kv";fontsize=20;style=rounded];
+    txn_Delete[label="Delete"];
+
+  }
+  subgraph cluster_sessionCtx {
+    graph[label="sessionCtx";fontsize=20;style=rounded];
+    UpdateDeltaForTable;
+  }
+
+  subgraph cluster_tablecodec {
+    graph[label="tablecodec";fontsize=20;style=rounded];
+    EncodeRow;
+  }
+
+  subgraph cluster_Index {
+    graph[label="Index";fontsize=20;style=rounded]
+    Index_Delete[label="Delete"];
+  }
+
+  subgraph cluster_tableCommon {
+    graph[label="tableCommon";fontsize=20;style=rounded];
+    Table_RemoveRecord[label="RemoveRecord"];
+    RecordKey[label="RecordKey\l根据recordkey和handle\l生成对应的key\l"];
+
+    Table_RemoveRecord-> {
+      removeRowData;
+      removeRowIndices;
+      addDeleteBinlog;
+      UpdateDeltaForTable;
+    };
+
+    removeRowData -> {
+      RecordKey;
+      txn_Delete;
+    }
+    addDeleteBinlog -> {
+      EncodeRow;
+    }
+    removeRowIndices -> Index_Delete;
+  }
+
+  subgraph cluster_executor {
+    graph[label="executor/delete.go";fontsize=20;style=rounded]
+    removeRow -> Table_RemoveRecord;
+  }
+
+  subgraph cluster_DeleteExec{
+    graph[label="DeleteExec";fontsize=20;style=rounded]
+    deleteMultiTablesByChunk -> removeRowsInTblRowMap;
+    removeRowsInTblRowMap -> removeRow;
+    Next -> {
+      deleteMultiTablesByChunk;
+      deleteSingleTableByChunk;
+    }
+    deleteSingleTableByChunk -> deleteOneRow -> removeRow;
+  }
+}

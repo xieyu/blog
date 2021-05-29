@@ -1,0 +1,150 @@
+#include "styles.h"
+digraph ReadIndex {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  RawNode_read_index[style_func;label="{{
+      RawNode.read_index|
+      pub fn read_index(&mut self, rctx: Vec\<u8\>) \l
+      app通过该接口发起read_index请求\l|
+      请求包含一个rctx\l
+      raft-rs中会用它作为一个唯一的Id\l
+  }}"]
+
+  MsgReadIndex[style_var;label="{{
+    MsgReadIndex|
+    let mut e = Entry::default();\l|
+    e.data = rctx;\l|
+    m.set_entries(vec![e].into());\l
+  }}"]
+  rctx[style_var;label="{{
+    rctx|
+    rctx: Vec\<u8\>
+    app传过来的ctx\l
+    会被用作唯一id\l
+  }}"]
+
+  step_follower[style_func;label="{{
+    step_follower|
+    follower将该消息发送给leader\l
+  }}"]
+
+  RawNode_read_index ->  {
+    MsgReadIndex;
+    step;
+    rctx;
+  }
+  step -> {
+    step_leader;
+    step_follower;
+  }
+  MsgReadIndex -> {
+    step_leader;
+    step_follower;
+  }[style_edge_data];
+
+  prs_is_singleton[style_func;label="{{
+    prs_is_singleton|
+      当只有一个voting member时\l
+  }}"]
+  raft_log_committed[style_var;label="{{
+    raft_log_committed|
+    raft_log.committed
+    已committed index
+  }}"]
+  raft_log_committed -> handle_ready_read_index[style_edge_data];
+  handle_ready_read_index -> {
+    MsgReadIndexResp;
+    read_states;
+  }
+  read_states[style_var;label="{{
+    read_states|
+    self.read_states.push(rs)\l
+    如果是leader节点发送的ReadIndex\l
+    则push到Leader自己的read_states中
+  }}"]
+  MsgReadIndexResp[style_var;label="{{
+    MsgReadIndexResp|
+    否则发送消息给follower\l
+  }}"]
+
+  rctx -> MsgReadIndexResp[style_edge_data];
+  prs_is_singleton -> handle_ready_read_index[style_edge_data];
+  step_leader -> {
+    commit_to_current_term;
+    prs_is_singleton;
+    handle_ready_read_index;
+    read_only_option;
+  }
+
+  read_only_option[style_var;label="{{
+    read_only_option
+  }}"]
+  read_only_option -> {
+    ReadOnlyOption_Safe;
+    ReadOnlyOption_LeaseBased;
+  }[style_edge_data];
+
+  rctx -> {
+    bcast_heartbeat_with_ctx;
+    MsgReadIndex;
+  }[style_edge_data];
+
+  ReadOnlyOption_Safe -> {
+    add_request;
+    bcast_heartbeat_with_ctx;
+  }[style_edge_data];
+  ReadOnlyOption_LeaseBased -> {
+    handle_ready_read_index;
+    send;
+  }[style_edge_data];
+  MsgReadIndexResp -> send[style_edge_data];
+  //rctx -> pending_read_index_contains_key[style_edge_data];
+  add_request -> {
+    pending_read_index;
+    read_index_queue;
+  }
+  self_id -> acks;
+  {acks; raft_log_committed} -> ReadIndexStatus[style_edge_data];
+  {ReadIndexStatus;rctx} -> pending_read_index[style_edge_data];
+  rctx -> read_index_queue[style_edge_data];
+  pending_read_index[style_var;label="{{
+    pending_read_index|
+      HashMap\<Vec\<u8\>, ReadIndexStatus\>|
+      其中key为rctx\l
+  }}"]
+  bcast_heartbeat_with_ctx[style_func;label="{{
+    bcast_heartbeat_with_ctx|
+    发送心跳信息\l
+    会将rctx带上\l
+    follower heartbeat resp\l 
+    会将该信息带上\l
+  }}"]
+  acks[style_var;label="{{
+    acks|
+    HasSet\<u64\>
+    记录Followers心跳响应
+  }}"]
+  ReadIndexStatus[style_struct;label="{{
+    ReadIndexStatus|
+    pub req: Message\l|
+    pub index: u64\l|
+    pub acks: HashSet\<u64\>\l
+  }}"]
+  self_id[style_var;label="{{
+    self_id|
+    leader自己先加入acks中\l
+  }}"]
+  read_index_queue[style_var;label="{{
+    read_index_queue|
+    VecDeque\<Vec\<u8\>\>\l
+    里面元素为rctx\l|
+    将只读请求维护为一个只读队列\l
+    该队列中commit index是有序递增的\l
+    如果队列中某个元素i对应commit index\l
+    得到确认，那么之前的也会被确认\l
+  }}"]
+}

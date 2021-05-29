@@ -1,0 +1,40 @@
+digraph query_plan_step{
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  IQueryPlanStep[
+    shape="record";
+    label="{{
+      IQueryPlanStep|
+        virtual ~IQueryPlanStep() = default;\l|
+        virtual String getName() const = 0;\l|
+        virtual QueryPipelinePtr updatePipeline(QueryPipelines pipelines) = 0;\l
+          DataStreams input_streams;\l|
+          std::optional\<DataStream\> output_stream;\l|
+    }}";
+  ];
+  IQueryPlanStep -> {
+    UnionStep;
+    ISourceStep;
+    ITransformingStep;
+    ReadFromStorageStep;
+  }
+  ITransformingStep -> {
+    CubeStep;
+    RollupStep;
+    LimitStep;
+    FilterStep;
+    DistinctStep;
+    AggregatingStep;
+    MergeSortingStep;
+    CreatingSetsStep;
+    ExpressionStep;
+    TotalsHavingStep;
+    FinishSortingStep;
+    MergeSortedStep;
+    AddingDelayedSourceStep;
+    PartialSortingStep;
+    InflatingExpressionStep;
+  }
+}

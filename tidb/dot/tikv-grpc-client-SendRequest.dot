@@ -1,0 +1,62 @@
+#include "styles.h"
+digraph SendRequest {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  rpcClient [style_struct;label="{{
+    rpcClient |
+	    sync.RWMutex\l|
+	    <conns> conns    map[string]*connArray\l|
+	    security config.Security\l|
+	    idleNotify uint32\l|
+	    recycleMu sync.RWMutex\l|
+	    isClosed    bool\l|
+	    dialTimeout time.Duration\l
+  }}"]
+  rpcClient:conns -> connArray;
+
+  connArray[style_struct;label="{{
+    connArray|
+	    target string\l|
+	    index uint32\l|
+	    v     []*grpc.ClientConn\l|
+	    streamTimeout chan *tikvrpc.Lease\l|
+	    dialTimeout   time.Duration\l|
+	    *batchConn\l|
+	    done chan struct\{\}\l
+  }}"]
+  createConnArray -> connArray[style_edge_data];
+
+  SendRequest -> {
+    getConnArray;
+    connArray_Get;
+    NewTikvClient;
+    getBatchCopStreamResponse;
+    getCopStreamResponse;
+    getMPPStreamResponse;
+    CallRPC;
+  }
+  getBatchCopStreamResponse -> {
+    CallRPC;
+  }
+  getMPPStreamResponse -> {
+    CallRPC;
+  }
+  getCopStreamResponse -> {
+    CallRPC;
+  }
+  CallRPC -> {
+    KvGet;
+    KvScan;
+    KvPrewrite;
+    KVPessimisticRollback;
+    KvPessimisticLock;
+    KvGc;
+  }
+
+  getConnArray -> {
+    createConnArray;
+    rpcClient:conns;
+  }
+}

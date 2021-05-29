@@ -1,0 +1,36 @@
+digraph nodetype {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Node2D -> {
+    AnimatedSprite;
+    Sprite;
+    CollisionShape2D;
+    CollisionObject2D;
+    CollisionPolygon2D;
+    Area2D;
+    PhysicalBody2D;
+    Skeleton2D;
+    Particles2D;
+    Path2D;
+    PathFollower2D;
+    Polygon2D;
+    Line2D;
+    RayCast2D;
+    Position2D;
+    VisibilityNotifier2D;
+    ParallaxLayer;
+    Light2D;
+    LightOccluder2D;
+    MeshInstance2D;
+    MultiMeshInstance2D;
+    YSort;
+    Camera2D;
+  };
+  PhysicalBody2D -> {
+    KinematicBody2D;
+    RigidBody2D;
+    StaticBody2D;
+  }
+}

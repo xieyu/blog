@@ -1,0 +1,313 @@
+digraph pessimistic_transaction {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_LockMap {
+    graph[label="LockMap";fontsize=20;];
+    GetStripe -> num_stripes_;
+    LockMap[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        LockMap|
+          const size_t num_stripes_;\l|
+          std::atomic\<int64_t\> lock_cnt\{0\};\l|
+          std::vector\<LockMapStripe*\> lock_map_stripes_;\l
+      }}"
+    ];
+    LockMap -> LockMapStripe;
+    LockMapStripe[
+      shape="record"
+      label="{{
+        LockMapStripe|
+          std::shared_ptr\<TransactionDBMutex\> stripe_mutex\l|
+          std::shared_ptr\<TransactionDBCondVar\> stripe_cv;\l|
+          std::unordered_map\<std::string, LockInfo\> keys;\l
+      }}"
+    ];
+    subgraph cluster_LockMapStripe {
+      graph[label="LockMapStripe";fontsize=20;];
+      {
+        strip_cv_Wait;
+        strip_cv_WaitFor;
+      } -> TransactionDBCondVar;
+      {
+        stripe_mutex_Lock;
+        stripe_mutex_TryLockFor;
+      } -> TransactionDBMutex;
+
+      LockMapStripe -> {
+        TransactionDBMutex;
+        TransactionDBCondVar;
+        LockInfo;
+      }
+      lock_info_txn_ids -> LockMapStripe;
+    }
+    TransactionDBMutex[
+      shape="record"
+      label="{{
+        TransactionDBMutex|
+          virtual Status Lock() = 0;\l|
+          virtual Status TryLockFor(int64_t timeout_time) = 0;\l|
+          virtual void UnLock() = 0;\l
+      }}"
+    ];
+    TransactionDBCondVar[
+      shape="record"
+      label="{{
+        TransactionDBCondVar|
+          virtual Status Wait(std::shared_ptr\<TransactionDBMutex\> mutex) = 0;\l|
+          virtual Status WaitFor(std::shared_ptr\<TransactionDBMutex\> mutex,\l
+                         int64_t timeout_time) = 0;\l|
+          virtual void Notify() = 0;\l|
+          virtual void NotifyAll() = 0;\l
+      }}"
+    ];
+    TransactionDBMutex -> TransactionDBMutexImpl;
+    TransactionDBCondVar -> TransactionDBCondVarImpl;
+    TransactionDBCondVar -> TransactionDBMutex;
+    LockInfo[
+      shape="record"
+      label="{{
+        LockInfo|
+          bool exclusive;\l|
+          autovector<TransactionID> txn_ids;\l|
+          uint64_t expiration_time;\l
+      }}"
+    ];
+    GetStripe -> LockMapStripe[style=dashed];
+  }
+
+  subgraph cluster_TransactionLockMgr {
+    graph[label="TransactionLockMgr";fontsize=20;];
+    TransactionLockMgr_TryLock -> {
+      GetLockMap;
+      GetExpirationTime;
+      GetLockTimeout;
+      AcquireWithTimeout;
+      GetStripe;
+    }
+    GetLockMap -> GetStripe[style=dashed];
+    LockMapStripe -> AcquireWithTimeout[style=dashed];
+
+    AcquireWithTimeout -> {
+      AcquireLocked;
+      IsDeadlockDetect;
+      IncrementWaiters;
+      strip_cv_Wait;
+      strip_cv_WaitFor;
+      ClearWaitingTxn;
+      DecrementWaiters;
+      stripe_mutex_Lock;
+      stripe_mutex_TryLockFor;
+    }
+    AcquireLocked -> {
+      IsLockExpired;
+      lock_info_txn_ids;
+      lock_map;
+    }
+    IsLockExpired -> {
+      TryStealingExpiredTransactionLocks;
+      LockInfo;
+    }
+    lock_info_txn_ids[
+      shape="record"
+      label="{{
+        lock_info_txn_ids|
+        LockInfo\l|
+        bool exclusive;\l|
+        autovector\<TransactionID\> txn_ids;\l|
+        uint64_t expiration_time;\l
+      }}"
+    ];
+
+    GetLockMap -> {
+      lock_maps_cache_;
+    }
+    lock_maps_cache_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        lock_maps_cache_|
+          std::unique_ptr<ThreadLocalPtr>\l lock_maps_cache_;\l
+      }}"
+    ];
+    lock_maps_cache_ -> LockMaps;
+    LockMaps[
+      shape="record"
+      label="{{
+        LockMaps|
+          using LockMaps =\l 
+          // Map of ColumnFamilyId to locked key info\l|
+          std::unordered_map\<uint32_t, \l 
+          std::shared_ptr\<LockMap\>\>;\l
+      }}"
+    ];
+    LockMaps -> LockMap;
+
+  }
+
+  subgraph cluster_LogsWithPrepTracker {
+    graph[label="LogsWithPrepTracker";fontsize=20;];
+    MarkLogAsContainingPrepSection;
+    MarkLogAsHavingPrepSectionFlushed;
+  }
+
+  subgraph cluster_WriteBatch {
+    graph[label="WriteBatch";fontsize=20;];
+    MarkEndPrepare;
+    WriteBatchInternal_Append;
+    WriteBatchInternal_MarkRollback;
+    MarkWalTerminationPoint;
+    WriteBatchInternal_MarkRollback;
+    WriteBatchInternal_MarkCommit;
+  }
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    WriteImpl
+  }
+  subgraph cluster_PessimisticTransactionDB {
+    graph[label="PessimisticTransactionDB";fontsize=20;];
+    InsertExpirableTransaction -> expirable_transactions_map_;
+    expirable_transactions_map_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        expirable_transactions_map_|
+      }}"
+    ];
+  }
+
+  subgraph cluster_PessimisticTransaction {
+    graph[label="PessimisticTransaction";fontsize=20;];
+    PessimisticTransaction -> {
+      Initialize;
+    }
+    Initialize -> {
+      GenTxnID;
+      GetTxnDBOptions;
+      SetSnapshot;
+      InsertExpirableTransaction;
+    }
+    GenTxnID -> txn_id_counter_;
+    txn_id_counter_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        txn_id_counter_|
+          static std::atomic\<TransactionID\>\l txn_id_counter_;\l|
+        fetch_add(1)
+      }}"
+    ];
+
+
+    Prepare -> {
+      IsExpired;
+      txn_state_;
+      GetTxnDBOptions;
+      PrepareInternal;
+    }
+    IsExpired -> expiration_time_;
+
+    txn_state_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        txn_state_|
+          std::atomic\<TransactionState\> txn_state_;\l
+      }}"
+    ];
+    PrepareInternal -> {
+      WritePreparedTxn_PrepareInternal;
+      WriteUnPrepared_PrepareInternal;
+      WriteCommittedTxn_PrepareInternal;
+    }
+
+    WritePreparedTxn_PrepareInternal -> {
+      MarkEndPrepare;
+      GetWriteBatch;
+      AddPreparedCallback;
+      WriteImpl;
+    }
+    WritePreparedTxn_CommitInternal -> {
+      GetCommitTimeWriteBatch;
+      WriteBatchInternal_MarkCommit;
+      SetAsLastestPersistentState;
+      GetId;
+      AddPreparedCallback;
+      WriteImpl;
+      RemovePrepared;
+      WritePreparedCommitEntryPreReleaseCallback;
+    }
+    WritePreparedTxn_RollbackInternal -> {
+      WriteBatchInternal_MarkRollback;
+      AddPreparedCallback;
+      WriteImpl;
+      
+    }
+
+    WriteImpl -> MarkRollback;
+    MarkRollback -> {
+      MarkLogAsContainingPrepSection;
+    };
+
+    Commit -> {
+      txn_state_;
+      GetCommitTimeWriteBatch;
+      MarkLogAsHavingPrepSectionFlushed;
+      CommitWithoutPrepareInternal;
+      UnregisterTransaction;
+      CommitInternal;
+      MarkLogAsHavingPrepSectionFlushed;
+    }
+
+    CommitWithoutPrepareInternal -> {
+      WriteImpl;
+      SetId;
+    }
+    CommitInternal -> {
+      WritePreparedTxn_CommitInternal;
+      WriteUnPrepared_CommitInternal;
+      WriteCommittedTxn_CommitInternal;
+    }
+
+    Rollback -> {
+      RollbackInternal;
+      MarkLogAsHavingPrepSectionFlushed;
+      MarkLogAsHavingPrepSectionFlushed;
+      Clear;
+    }
+    RollbackInternal -> {
+      WriteCommittedTxn_RollbackInternal;
+      WriteUnPrepared_RollbackInternal;
+      WritePreparedTxn_RollbackInternal;
+    }
+
+    WriteCommittedTxn_RollbackInternal -> {
+      WriteBatchInternal_MarkRollback;
+      WriteImpl;
+    }
+    TryLock -> {
+      TransactionLockMgr_TryLock;
+    }
+  }
+
+  subgraph cluster_TransactionBaseImpl {
+    graph[label="TransactionBaseImpl";fontsize=20;];
+    {
+      MultiGetForUpdate;
+      GetForUpdate;
+      Delete;
+      Merge;
+      Put;
+    } -> TryLock;
+  }
+}

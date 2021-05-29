@@ -1,0 +1,500 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>TiDB txn - blog</title>
+        
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../about.html"><strong aria-hidden="true">1.</strong> About</a></li><li class="chapter-item expanded "><a href="../papers/index.html"><strong aria-hidden="true">2.</strong> Paper notes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../papers/raft.html"><strong aria-hidden="true">2.1.</strong> raft paper</a></li><li class="chapter-item expanded "><a href="../papers/gfs.html"><strong aria-hidden="true">2.2.</strong> gfs</a></li></ol></li><li class="chapter-item expanded "><a href="../leveldb/index.html"><strong aria-hidden="true">3.</strong> LevelDB</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../leveldb/draft.html"><strong aria-hidden="true">3.1.</strong> draft</a></li><li class="chapter-item expanded "><a href="../leveldb/code-struct.html"><strong aria-hidden="true">3.2.</strong> 代码模块间关系</a></li><li class="chapter-item expanded "><a href="../leveldb/write.html"><strong aria-hidden="true">3.3.</strong> Write 流程</a></li><li class="chapter-item expanded "><a href="../leveldb/read.html"><strong aria-hidden="true">3.4.</strong> Read 流程</a></li><li class="chapter-item expanded "><a href="../leveldb/table-format.html"><strong aria-hidden="true">3.5.</strong> SSTable 文件格式和读写</a></li><li class="chapter-item expanded "><a href="../leveldb/versionset.html"><strong aria-hidden="true">3.6.</strong> versionset和Manifest</a></li><li class="chapter-item expanded "><a href="../leveldb/table-compact.html"><strong aria-hidden="true">3.7.</strong> Do Compact</a></li><li class="chapter-item expanded "><a href="../leveldb/iterator.html"><strong aria-hidden="true">3.8.</strong> Iterator迭代器</a></li><li class="chapter-item expanded "><a href="../leveldb/bloom-filter.html"><strong aria-hidden="true">3.9.</strong> Bloom filter</a></li></ol></li><li class="chapter-item expanded "><a href="../rocksdb/index.html"><strong aria-hidden="true">4.</strong> RocksDB</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../rocksdb/draft.html"><strong aria-hidden="true">4.1.</strong> draft</a></li><li class="chapter-item expanded "><a href="../rocksdb/column-family.html"><strong aria-hidden="true">4.2.</strong> 主要struct引用关系</a></li><li class="chapter-item expanded "><a href="../rocksdb/wal.html"><strong aria-hidden="true">4.3.</strong> Write Ahead Log</a></li><li class="chapter-item expanded "><a href="../rocksdb/write.html"><strong aria-hidden="true">4.4.</strong> write 并发控制</a></li><li class="chapter-item expanded "><a href="../rocksdb/flush-and-compact.html"><strong aria-hidden="true">4.5.</strong> 后台flush和compact线程</a></li><li class="chapter-item expanded "><a href="../rocksdb/leveled-compaction-picker.html"><strong aria-hidden="true">4.6.</strong> Leveled Compaction Picker</a></li><li class="chapter-item expanded "><a href="../rocksdb/read.html"><strong aria-hidden="true">4.7.</strong> read 流程</a></li><li class="chapter-item expanded "><a href="../rocksdb/blob.html"><strong aria-hidden="true">4.8.</strong> Blob</a></li><li class="chapter-item expanded "><a href="../rocksdb/transaction.html"><strong aria-hidden="true">4.9.</strong> 事务</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../rocksdb/optimistic-transaction.html"><strong aria-hidden="true">4.9.1.</strong> Optimistic Transaction</a></li><li class="chapter-item expanded "><a href="../rocksdb/transaction-lock-mgr.html"><strong aria-hidden="true">4.9.2.</strong> Transaction lock mgr</a></li><li class="chapter-item expanded "><a href="../rocksdb/two-phase-commit.html"><strong aria-hidden="true">4.9.3.</strong> two phase commit</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../tidb/index.html"><strong aria-hidden="true">5.</strong> TiDB</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/note.html"><strong aria-hidden="true">5.1.</strong> tidb学习资料整理</a></li><li class="chapter-item expanded "><a href="../tidb/main.html"><strong aria-hidden="true">5.2.</strong> Server Main Loop</a></li><li class="chapter-item expanded "><a href="../tidb/insert.html"><strong aria-hidden="true">5.3.</strong> Insert 语句</a></li><li class="chapter-item expanded "><a href="../tidb/select.html"><strong aria-hidden="true">5.4.</strong> Select 语句</a></li><li class="chapter-item expanded "><a href="../tidb/types.html"><strong aria-hidden="true">5.5.</strong> 数据类型</a></li><li class="chapter-item expanded "><a href="../tidb/expression.html"><strong aria-hidden="true">5.6.</strong> expression</a></li><li class="chapter-item expanded "><a href="../tidb/ddl.html"><strong aria-hidden="true">5.7.</strong> Online DDL</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/ddl-schema-in-tikv.html"><strong aria-hidden="true">5.7.1.</strong> Schema 存储</a></li><li class="chapter-item expanded "><a href="../tidb/ddl-schema-load.html"><strong aria-hidden="true">5.7.2.</strong> Schema Cache和加载</a></li><li class="chapter-item expanded "><a href="../tidb/ddl-schema-modification.html"><strong aria-hidden="true">5.7.3.</strong> Schema Modification</a></li><li class="chapter-item expanded "><a href="../tidb/ddl-online-schema-change.html"><strong aria-hidden="true">5.7.4.</strong> Online Schema Change</a></li></ol></li><li class="chapter-item expanded "><a href="../tidb/stat.html"><strong aria-hidden="true">5.8.</strong> 统计信息</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/basic-concepts.html"><strong aria-hidden="true">5.8.1.</strong> 基本概念</a></li><li class="chapter-item expanded "><a href="../tidb/stat-tables.html"><strong aria-hidden="true">5.8.2.</strong> stats tables</a></li><li class="chapter-item expanded "><a href="../tidb/stat-analyze.html"><strong aria-hidden="true">5.8.3.</strong> Analyze</a></li><li class="chapter-item expanded "><a href="../tidb/stat-feedback.html"><strong aria-hidden="true">5.8.4.</strong> Query Feedback</a></li><li class="chapter-item expanded "><a href="../tidb/use-stat.html"><strong aria-hidden="true">5.8.5.</strong> 统计信息使用场景</a></li></ol></li><li class="chapter-item expanded "><a href="../tidb/logical-optimize.html"><strong aria-hidden="true">5.9.</strong> Logical Optimize</a></li><li class="chapter-item expanded "><a href="../tidb/physical-optimize.html"><strong aria-hidden="true">5.10.</strong> Physical Optimize</a></li><li class="chapter-item expanded "><a href="../tidb/datasource.html"><strong aria-hidden="true">5.11.</strong> DataSource</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/datasource-build.html"><strong aria-hidden="true">5.11.1.</strong> buildDataSource</a></li><li class="chapter-item expanded "><a href="../tidb/range.html"><strong aria-hidden="true">5.11.2.</strong> 索引范围计算</a></li><li class="chapter-item expanded "><a href="../tidb/tablecodec.html"><strong aria-hidden="true">5.11.3.</strong> table/index存储编码</a></li><li class="chapter-item expanded "><a href="../tidb/datasource-paritionProcessor.html"><strong aria-hidden="true">5.11.4.</strong> paritionProcessor</a></li><li class="chapter-item expanded "><a href="../tidb/datasource-predict-push-down.html"><strong aria-hidden="true">5.11.5.</strong> PredicatePushDown</a></li><li class="chapter-item expanded "><a href="../tidb/datasource-physical-optimize.html"><strong aria-hidden="true">5.11.6.</strong> Physical Optimize</a></li><li class="chapter-item expanded "><a href="../tidb/datasource-executors.html"><strong aria-hidden="true">5.11.7.</strong> Executors</a></li></ol></li><li class="chapter-item expanded "><a href="../tidb/distsql.html"><strong aria-hidden="true">5.12.</strong> DistSQL</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/cop-region-cache.html"><strong aria-hidden="true">5.12.1.</strong> ReginCache</a></li><li class="chapter-item expanded "><a href="../tidb/tikv-grpc-client.html"><strong aria-hidden="true">5.12.2.</strong> TiKV GRPC Client</a></li><li class="chapter-item expanded "><a href="../tidb/cop-task.html"><strong aria-hidden="true">5.12.3.</strong> CopTask</a></li><li class="chapter-item expanded "><a href="../tidb/cop-iterator-worker.html"><strong aria-hidden="true">5.12.4.</strong> CopIteratorWorker</a></li><li class="chapter-item expanded "><a href="../tidb/coprocessor.html"><strong aria-hidden="true">5.12.5.</strong> Coprocessor</a></li></ol></li><li class="chapter-item expanded "><a href="../tidb/join.html"><strong aria-hidden="true">5.13.</strong> Join</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/join-alg.html"><strong aria-hidden="true">5.13.1.</strong> Join算法</a></li><li class="chapter-item expanded "><a href="../tidb/join-logical-optimize.html"><strong aria-hidden="true">5.13.2.</strong> Logical Optimize</a></li><li class="chapter-item expanded "><a href="../tidb/join-physical-optimize.html"><strong aria-hidden="true">5.13.3.</strong> Physical Optimize</a></li><li class="chapter-item expanded "><a href="../tidb/hash-join.html"><strong aria-hidden="true">5.13.4.</strong> Executor: Hash Join</a></li><li class="chapter-item expanded "><a href="../tidb/merge-join.html"><strong aria-hidden="true">5.13.5.</strong> Executor: Merge Join</a></li><li class="chapter-item expanded "><a href="../tidb/index-lookup-join.html"><strong aria-hidden="true">5.13.6.</strong> Executor: Index Lookup Join</a></li></ol></li><li class="chapter-item expanded "><a href="../tidb/agg.html"><strong aria-hidden="true">5.14.</strong> Agg</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tidb/agg-func.html"><strong aria-hidden="true">5.14.1.</strong> AggFunc</a></li><li class="chapter-item expanded "><a href="../tidb/hash-agg.html"><strong aria-hidden="true">5.14.2.</strong> Executor: HashAgg</a></li><li class="chapter-item expanded "><a href="../tidb/stream-agg.html"><strong aria-hidden="true">5.14.3.</strong> Executor: StreamAgg</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../pd/index.html"><strong aria-hidden="true">6.</strong> PD</a></li><li class="chapter-item expanded "><a href="../tikv/index.html"><strong aria-hidden="true">7.</strong> TiKV</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tikv/draft/index.html"><strong aria-hidden="true">7.1.</strong> draft</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tikv/PeerFsm.html"><strong aria-hidden="true">7.1.1.</strong> PeerFsm</a></li><li class="chapter-item expanded "><a href="../tikv/mvcc_reader.html"><strong aria-hidden="true">7.1.2.</strong> MvccReader</a></li></ol></li><li class="chapter-item expanded "><a href="../tikv/raft.html"><strong aria-hidden="true">7.2.</strong> raft-rs</a></li><li class="chapter-item expanded "><a href="../tikv/batch-system.html"><strong aria-hidden="true">7.3.</strong> BatchSystem</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tikv/poller.html"><strong aria-hidden="true">7.3.1.</strong> Poller</a></li></ol></li><li class="chapter-item expanded "><a href="../tikv/region.html"><strong aria-hidden="true">7.4.</strong> Region</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tikv/peer_storage.html"><strong aria-hidden="true">7.4.1.</strong> Peer Storage</a></li><li class="chapter-item expanded "><a href="../tikv/raft_client.html"><strong aria-hidden="true">7.4.2.</strong> Raft Client</a></li><li class="chapter-item expanded "><a href="../tikv/conf-change.html"><strong aria-hidden="true">7.4.3.</strong> Conf Change</a></li><li class="chapter-item expanded "><a href="../tikv/split-region.html"><strong aria-hidden="true">7.4.4.</strong> Split Region</a></li><li class="chapter-item expanded "><a href="../tikv/merge-region.html"><strong aria-hidden="true">7.4.5.</strong> Merge Region</a></li></ol></li><li class="chapter-item expanded "><a href="../tikv/raft-kv.html"><strong aria-hidden="true">7.5.</strong> RaftKV</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tikv/async_snapshot.html"><strong aria-hidden="true">7.5.1.</strong> async snapshot</a></li><li class="chapter-item expanded "><a href="../tikv/async_write.html"><strong aria-hidden="true">7.5.2.</strong> async write</a></li></ol></li><li class="chapter-item expanded "><a href="../tikv/storage.html"><strong aria-hidden="true">7.6.</strong> Storage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tikv/percolator.html"><strong aria-hidden="true">7.6.1.</strong> Percolator</a></li><li class="chapter-item expanded "><a href="../tikv/txn_types.html"><strong aria-hidden="true">7.6.2.</strong> Txn Types</a></li><li class="chapter-item expanded "><a href="../tikv/tidb_txn.html" class="active"><strong aria-hidden="true">7.6.3.</strong> TiDB txn</a></li><li class="chapter-item expanded "><a href="../tikv/storage_scanner.html"><strong aria-hidden="true">7.6.4.</strong> Scanner</a></li><li class="chapter-item expanded "><a href="../tikv/MvccTxn.html"><strong aria-hidden="true">7.6.5.</strong> MvccTxn</a></li><li class="chapter-item expanded "><a href="../tikv/scheduler.html"><strong aria-hidden="true">7.6.6.</strong> Scheduler</a></li><li class="chapter-item expanded "><a href="../tikv/command.html"><strong aria-hidden="true">7.6.7.</strong> Command</a></li></ol></li><li class="chapter-item expanded "><a href="../tikv/coprocessor.html"><strong aria-hidden="true">7.7.</strong> Coprocessor</a></li><li class="chapter-item expanded "><a href="../tikv/yatp.html"><strong aria-hidden="true">7.8.</strong> yatp</a></li></ol></li><li class="chapter-item expanded "><a href="../rust/index.html"><strong aria-hidden="true">8.</strong> Rust</a></li><li class="chapter-item expanded "><a href="../golang/index.html"><strong aria-hidden="true">9.</strong> Go</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../golang/pgm.html"><strong aria-hidden="true">9.1.</strong> Runtime PGM调度模型</a></li><li class="chapter-item expanded "><a href="../golang/goroutine-stack.html"><strong aria-hidden="true">9.2.</strong> Goroutine Stack</a></li><li class="chapter-item expanded "><a href="../golang/memory.html"><strong aria-hidden="true">9.3.</strong> Memory分配</a></li><li class="chapter-item expanded "><a href="../golang/GC.html"><strong aria-hidden="true">9.4.</strong> GC</a></li><li class="chapter-item expanded "><a href="../golang/context.html"><strong aria-hidden="true">9.5.</strong> Context</a></li><li class="chapter-item expanded "><a href="../golang/defer-panic-recover.html"><strong aria-hidden="true">9.6.</strong> defer-panic-recover</a></li></ol></li><li class="chapter-item expanded "><a href="../clickhouse/index.html"><strong aria-hidden="true">10.</strong> ClickHouse</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../clickhouse/server-main.html"><strong aria-hidden="true">10.1.</strong> Server main</a></li><li class="chapter-item expanded "><a href="../clickhouse/block.html"><strong aria-hidden="true">10.2.</strong> block</a></li><li class="chapter-item expanded "><a href="../clickhouse/blockio.html"><strong aria-hidden="true">10.3.</strong> blockio</a></li><li class="chapter-item expanded "><a href="../clickhouse/storage.html"><strong aria-hidden="true">10.4.</strong> Storage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../clickhouse/merge-tree-data.html"><strong aria-hidden="true">10.4.1.</strong> MergeTreeData</a></li><li class="chapter-item expanded "><a href="../clickhouse/storage-merge-tree.html"><strong aria-hidden="true">10.4.2.</strong> StorageMergeTree</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../tokio/index.html"><strong aria-hidden="true">11.</strong> tokio</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tokio/executor.html"><strong aria-hidden="true">11.1.</strong> Executor</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tokio/park.html"><strong aria-hidden="true">11.1.1.</strong> Park</a></li><li class="chapter-item expanded "><a href="../tokio/thread-pool.html"><strong aria-hidden="true">11.1.2.</strong> thread pool</a></li></ol></li><li class="chapter-item expanded "><a href="../tokio/driver.html"><strong aria-hidden="true">11.2.</strong> driver</a></li><li class="chapter-item expanded "><a href="../tokio/io.html"><strong aria-hidden="true">11.3.</strong> io</a></li><li class="chapter-item expanded "><a href="../tokio/codec.html"><strong aria-hidden="true">11.4.</strong> codec</a></li><li class="chapter-item expanded "><a href="../tokio/channel.html"><strong aria-hidden="true">11.5.</strong> channel</a></li><li class="chapter-item expanded "><a href="../tokio/waker.html"><strong aria-hidden="true">11.6.</strong> waker</a></li></ol></li><li class="chapter-item expanded "><a href="../kafka/index.html"><strong aria-hidden="true">12.</strong> Kafka</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../kafka/client-producer.html"><strong aria-hidden="true">12.1.</strong> client: producer</a></li><li class="chapter-item expanded "><a href="../kafka/group-coordinator.html"><strong aria-hidden="true">12.2.</strong> group coordinator</a></li><li class="chapter-item expanded "><a href="../kafka/kafka-produce-fetch.html"><strong aria-hidden="true">12.3.</strong> produce and fetch</a></li><li class="chapter-item expanded "><a href="../kafka/log.html"><strong aria-hidden="true">12.4.</strong> log</a></li><li class="chapter-item expanded "><a href="../kafka/partition.html"><strong aria-hidden="true">12.5.</strong> Partition</a></li><li class="chapter-item expanded "><a href="../kafka/controller-main.html"><strong aria-hidden="true">12.6.</strong> Controller</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../kafka/controller-channel-manager.html"><strong aria-hidden="true">12.6.1.</strong> 通信管理 channelManager</a></li><li class="chapter-item expanded "><a href="../kafka/controller-elect.html"><strong aria-hidden="true">12.6.2.</strong> 选举</a></li><li class="chapter-item expanded "><a href="../kafka/controller-zk.html"><strong aria-hidden="true">12.6.3.</strong> zk监听处理</a></li></ol></li><li class="chapter-item expanded "><a href="../kafka/replica-assignment.html"><strong aria-hidden="true">12.7.</strong> 副本迁移</a></li><li class="chapter-item expanded "><a href="../kafka/paritition-replica-statemachine.html"><strong aria-hidden="true">12.8.</strong> Partition/Replica状态机</a></li><li class="chapter-item expanded "><a href="../kafka/txn_coordinator.html"><strong aria-hidden="true">12.9.</strong> 事务</a></li><li class="chapter-item expanded "><a href="../kafka/stream.html"><strong aria-hidden="true">12.10.</strong> Stream</a></li></ol></li><li class="chapter-item expanded "><a href="../python/index.html"><strong aria-hidden="true">13.</strong> python</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../python/records/records.html"><strong aria-hidden="true">13.1.</strong> records</a></li></ol></li><li class="chapter-item expanded "><a href="../godot/index.html"><strong aria-hidden="true">14.</strong> Godot</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../godot/learning-note.html"><strong aria-hidden="true">14.1.</strong> godot 学习笔记</a></li><li class="chapter-item expanded "><a href="../godot/gdquest.html"><strong aria-hidden="true">14.2.</strong> gdquest tutorial</a></li></ol></li><li class="chapter-item expanded "><a href="../bevy/index.html"><strong aria-hidden="true">15.</strong> Bevy</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../bevy/first-impression-draft.html"><strong aria-hidden="true">15.1.</strong> bevy draft</a></li></ol></li><li class="chapter-item expanded "><a href="../blender/index.html"><strong aria-hidden="true">16.</strong> Blender</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../blender/manual-notes.html"><strong aria-hidden="true">16.1.</strong> blender manual notes</a></li></ol></li><li class="chapter-item expanded "><a href="../tensorflow/index.html"><strong aria-hidden="true">17.</strong> tensorflow inside</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tensorflow/executor.html"><strong aria-hidden="true">17.1.</strong> Executor: 执行Computation Sub Graph</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tensorflow/executor-subgraph-preprocess.html"><strong aria-hidden="true">17.1.1.</strong> SubGraph预处理：Node/NodeItem/TaggedNode</a></li><li class="chapter-item expanded "><a href="../tensorflow/flow-control-op.html"><strong aria-hidden="true">17.1.2.</strong> Flow control op: switch/merge/enter/exit/nextIteration</a></li><li class="chapter-item expanded "><a href="../tensorflow/executor-frame.html"><strong aria-hidden="true">17.1.3.</strong> Frame: ControlFlowInfo/FrameInfo/FrameState/IterationState</a></li></ol></li><li class="chapter-item expanded "><a href="../tensorflow/direct-session.html"><strong aria-hidden="true">17.2.</strong> DirectSession: 单机执行computation graph</a></li><li class="chapter-item expanded "><a href="../tensorflow/rendezvous.html"><strong aria-hidden="true">17.3.</strong> RendezVous：跨设备，跨主机通信</a></li><li class="chapter-item expanded "><a href="../tensorflow/device.html"><strong aria-hidden="true">17.4.</strong> Device：计算单元抽象(CPU/GPU)</a></li></ol></li><li class="chapter-item expanded "><a href="../tensorflow/optimize.html"><strong aria-hidden="true">18.</strong> tensorflow模型对接工程优化</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tensorflow/export-keras-model-as-tf-frozen-graph.html"><strong aria-hidden="true">18.1.</strong> 将keras模型导出为tf frozen graph</a></li><li class="chapter-item expanded "><a href="../tensorflow/replace-placeholder-with-iterator.html"><strong aria-hidden="true">18.2.</strong> 使用dataset iterator 优化keras model预测的吞吐量</a></li><li class="chapter-item expanded "><a href="../tensorflow/stat-cpu-gpu-load.html"><strong aria-hidden="true">18.3.</strong> 统计cpu/gpu 负载率脚本</a></li></ol></li><li class="chapter-item expanded "><a href="../pthread/index.html"><strong aria-hidden="true">19.</strong> pthread</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../pthread/pthread-primer.html"><strong aria-hidden="true">19.1.</strong> Pthread Primer笔记</a></li><li class="chapter-item expanded "><a href="../pthread/glibc-pthread-implement-thread-life-cycle.html"><strong aria-hidden="true">19.2.</strong> Pthread线程生命周期</a></li><li class="chapter-item expanded "><a href="../pthread/glibc-pthread-implement-sync.html"><strong aria-hidden="true">19.3.</strong> Pthread线程同步</a></li></ol></li><li class="chapter-item expanded "><a href="../react/index.html"><strong aria-hidden="true">20.</strong> react</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../react/from-jsx-to-dom.html"><strong aria-hidden="true">20.1.</strong> 从jsx到html dom的流程分析</a></li></ol></li><li class="chapter-item expanded "><a href="../java/index.html"><strong aria-hidden="true">21.</strong> hotspot</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../java/hotspot-debug-under-osx.html"><strong aria-hidden="true">21.1.</strong> osx下编译调试hotspot</a></li><li class="chapter-item expanded "><a href="../java/hotspot-thread-created-when-init.html"><strong aria-hidden="true">21.2.</strong> jvm的初始化时创建的线程</a></li><li class="chapter-item expanded "><a href="../java/hotspot-class-file-load-and-run.html"><strong aria-hidden="true">21.3.</strong> class文件的加载和执行</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">blog</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#tidb-txn" id="tidb-txn">TiDB txn</a></h1>
+<blockquote>
+<ul>
+<li>TiDB的修改会先保存在MemDB中, 在两阶段提交中会batch的提交这些修改。</li>
+<li>commit/prewrite/resolvelock等都需要处理regionError</li>
+</ul>
+</blockquote>
+<ul>
+<li><a href="#timestamp">Timestamp</a>
+<ul>
+<li><a href="#startts">startTs</a></li>
+<li><a href="#forupdatets">forUpdateTS</a></li>
+<li><a href="#committs">commitTS</a></li>
+<li><a href="#mincommittsmaxcommitts">MinCommitTs/MaxCommitTs</a></li>
+<li><a href="#tikv-update_max_ts">TiKV update_max_ts</a>
+<ul>
+<li><a href="#update-max_ts-on-read">update max_ts on read</a></li>
+<li><a href="#replica-reader">replica reader</a></li>
+</ul>
+</li>
+<li><a href="#onepccommitts">onePCCommitTS</a></li>
+</ul>
+</li>
+<li><a href="#committermutations">CommitterMutations</a>
+<ul>
+<li><a href="#keyflags">KeyFlags</a></li>
+<li><a href="#memdb">MemDB</a></li>
+</ul>
+</li>
+<li><a href="#twophasecommitterexecute">twoPhaseCommitter::execute</a>
+<ul>
+<li><a href="#asynccommit-execute">AsyncCommit execute</a></li>
+</ul>
+</li>
+<li><a href="#doactiononmutations">doActionOnMutations</a></li>
+<li><a href="#actionprewritehandlesinglebatch">actionPrewrite::handleSingleBatch</a>
+<ul>
+<li><a href="#resolvelocksforwrite">resolveLocksForWrite</a>
+<ul>
+<li><a href="#resolvelockasync">resolveLockAsync</a></li>
+<li><a href="#resolveregionlocks">resolveRegionLocks</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#actioncommithandlesinglebatch">actionCommit::handleSingleBatch</a></li>
+<li><a href="#pessimestic-lock%E6%82%B2%E8%A7%82%E9%94%81">Pessimestic Lock(悲观锁)</a>
+<ul>
+<li><a href="#%E6%82%B2%E8%A7%82%E4%BA%8B%E5%8A%A1%E6%AD%A5%E9%AA%A4">悲观事务步骤:</a></li>
+<li><a href="#%E5%8A%A0%E9%94%81%E8%A7%84%E5%88%99">加锁规则</a></li>
+<li><a href="#lockkeys">LockKeys</a>
+<ul>
+<li><a href="#caller-of-lock-keys">caller of lock keys</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#cleanup">cleanup</a></li>
+<li><a href="#questions">Questions:</a></li>
+<li><a href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE">参考文献</a></li>
+</ul>
+<p><img src="./dot/tidb_txn.svg" alt="" /></p>
+<h2><a class="header" href="#timestamp" id="timestamp">Timestamp</a></h2>
+<h3><a class="header" href="#startts" id="startts">startTs</a></h3>
+<p>在执行start transaction时，会去Oracle服务获取时间戳，作为事务的startTS,
+startTs会保存在TransactionContext中</p>
+<p><img src="./dot/txn_startTS.svg" alt="" /></p>
+<h3><a class="header" href="#forupdatets" id="forupdatets">forUpdateTS</a></h3>
+<p>forUpdateTS 是每个write的sql stmt都会更一次吗？</p>
+<p>TODO: 解释ForUpdateTS的作用，是什么时候更新的.
+UpdateForUpdateTS</p>
+<pre><code class="language-go">// UpdateForUpdateTS updates the ForUpdateTS, if newForUpdateTS is 0, it obtain a new TS from PD.
+func UpdateForUpdateTS(seCtx sessionctx.Context, newForUpdateTS uint64) error {
+</code></pre>
+<p><img src="./dot/for_update_ts.svg" alt="" /></p>
+<h3><a class="header" href="#committs" id="committs">commitTS</a></h3>
+<p>事务提交的commitTs, 在commit之前去time oracle 服务获取timestamp.</p>
+<h3><a class="header" href="#mincommittsmaxcommitts" id="mincommittsmaxcommitts">MinCommitTs/MaxCommitTs</a></h3>
+<blockquote>
+<p>线性一致性实际上有两方面的要求：</p>
+</blockquote>
+<blockquote>
+<p>循序性（sequential）</p>
+</blockquote>
+<blockquote>
+<p>实时性（real-time）</p>
+</blockquote>
+<blockquote>
+<p>实时性要求在事务提交成功后，事务的修改立刻就能被新事务读取到。新事务的快照时间戳是向 PD 上的 TSO 获取的，这要求 Commit TS 不能太大，最大不能超过 TSO 分配的最大时间戳 + 1。</p>
+</blockquote>
+<p>async commit会用到minCommitTs, 省去了一次去Time服务获取tso的操作。</p>
+<p>每个TiKV server有个ConcurrencyManager 记录了max_ts</p>
+<blockquote>
+<p>对于 Async Commit 事务的每一个 key，prewrite 时会计算并在 TiKV 记录这个 key 的 Min Commit TS，事务所有 keys 的 Min Commit TS 的最大值即为这个事务的 Commit TS。
+TiDB 的每一次快照读都会更新 TiKV 上的 Max TS。Prewrite 时，Min Commit TS 会被要求至少比当前的 Max TS 大2，也就是比所有先前的快照读的时间戳大，所以可以取 Max TS + 1 作为 Min Commit TS。</p>
+</blockquote>
+<pre><pre class="playpen"><code class="language-rust">
+<span class="boring">#![allow(unused_variables)]
+</span><span class="boring">fn main() {
+</span>	// If we want to use async commit or 1PC and also want linearizability across
+	// all nodes, we have to make sure the commit TS of this transaction is greater
+	// than the snapshot TS of all existent readers. So we get a new timestamp
+	// from PD and plus one as our MinCommitTS.
+	if commitTSMayBeCalculated &amp;&amp; c.needLinearizability() {
+		failpoint.Inject(&quot;getMinCommitTSFromTSO&quot;, nil)
+		latestTS, err := c.store.oracle.GetTimestamp(ctx, &amp;oracle.Option{TxnScope: oracle.GlobalTxnScope})
+		// If we fail to get a timestamp from PD, we just propagate the failure
+		// instead of falling back to the normal 2PC because a normal 2PC will
+		// also be likely to fail due to the same timestamp issue.
+		if err != nil {
+			return errors.Trace(err)
+		}
+		// Plus 1 to avoid producing the same commit TS with previously committed transactions
+		c.minCommitTS = latestTS + 1
+	}
+
+	// Calculate maxCommitTS if necessary
+	if commitTSMayBeCalculated {
+		if err = c.calculateMaxCommitTS(ctx); err != nil {
+			return errors.Trace(err)
+		}
+	}
+<span class="boring">}
+</span></code></pre></pre>
+<p>maxCommitTs的作用是什么？</p>
+<p>Tikv 在async_commit_timestamps 中会检查min_commit_ts和max_commit_ts
+如果min_commit_ts &gt; max_commit_ts 会返回CommitTsTooLarge</p>
+<p><img src="./dot/tidb_min_commit_ts.svg" alt="" /></p>
+<h3><a class="header" href="#tikv-update_max_ts" id="tikv-update_max_ts">TiKV update_max_ts</a></h3>
+<p>每次对于TiKV的读操作，以及事务的write command
+都会更新max_ts.</p>
+<p>读操作分为coprocessor和直接使用Storage 接口去get/scan的，
+还有Replica read这块做了特殊处理。</p>
+<h4><a class="header" href="#update-max_ts-on-read" id="update-max_ts-on-read">update max_ts on read</a></h4>
+<p><img src="./dot/update_max_ts.svg" alt="" /></p>
+<h4><a class="header" href="#replica-reader" id="replica-reader">replica reader</a></h4>
+<blockquote>
+<p>There is a time gap between setting the “min commit TS” in the lock and the lock being applied to the raft store. These unapplied locks are saved in memory temporarily. So readers must see these in-memory locks which only exist on the leader.</p>
+</blockquote>
+<p>replica reader 是怎么更新这个max_ts的？</p>
+<p>replica reader 在read之前会发readIndex消息给leader吗？</p>
+<p>follower reader在发送ReadIndex 请求给leader 会附带上start_ts,
+然后leader在处理reader index消息时，会回调<code>ReplicaReadLockChecker::on_step</code></p>
+<p>在该函数中更新concurrency_manager的max_ts。</p>
+<p><img src="./dot/replica_reader_max_ts.svg" alt="" /></p>
+<p>check memory locks in replica read #8926</p>
+<p>addition_request
+locked
+ReadIndexContext
+ReplicaReadLockChecker</p>
+<h3><a class="header" href="#onepccommitts" id="onepccommitts">onePCCommitTS</a></h3>
+<h2><a class="header" href="#committermutations" id="committermutations">CommitterMutations</a></h2>
+<p>基本数据流程如下：</p>
+<p>KVTxn的write操作(Set, Delete)  会现将操作
+保存在MemDB中。然后在<code>KVTxn::Commit</code>时
+创建<code>twoPhaseCommitter</code>, 并调用<code>twoPhaseCommitter::initKeysAndMutations</code>
+遍历<code>MemDB</code>, 初始化<code>memBufferMutations</code>.</p>
+<p>在<code>twoPhaseCommitter::execute</code>中，首先对<code>memBufferMutations</code>先按照region做分组，
+, 分为groupMutations, 其次每个分组内，按照size limit，分成batchMutations。</p>
+<p>最后调用不同action的<code>handleSingleBatch</code>, 发送对应的cmd
+到TiKV。</p>
+<p><img src="./dot/batch_mutation.svg" alt="" /></p>
+<p>数据结构引用关系如下:</p>
+<p><img src="./dot/commiter_mutations.svg" alt="" /></p>
+<h3><a class="header" href="#keyflags" id="keyflags">KeyFlags</a></h3>
+<h3><a class="header" href="#memdb" id="memdb">MemDB</a></h3>
+<h2><a class="header" href="#twophasecommitterexecute" id="twophasecommitterexecute">twoPhaseCommitter::execute</a></h2>
+<p><img src="./dot/twoPhaseCommitter_execute.svg" alt="" /></p>
+<h3><a class="header" href="#asynccommit-execute" id="asynccommit-execute">AsyncCommit execute</a></h3>
+<p>async commit 省掉了一次commit之前去time oracle 服务器获取时间戳的调用。</p>
+<p><img src="./dot/twoPhaseCommitter_async_commit_exe.svg" alt="" /></p>
+<h2><a class="header" href="#doactiononmutations" id="doactiononmutations">doActionOnMutations</a></h2>
+<p><img src="./dot/doActionOnMuations.svg" alt="" /></p>
+<h2><a class="header" href="#actionprewritehandlesinglebatch" id="actionprewritehandlesinglebatch">actionPrewrite::handleSingleBatch</a></h2>
+<p>tries to send a signle request to as single region.</p>
+<p><img src="./dot/actionPrewrite_handleSingleBatch.svg" alt="" /></p>
+<h3><a class="header" href="#resolvelocksforwrite" id="resolvelocksforwrite">resolveLocksForWrite</a></h3>
+<p>先getTxnSta获取primary lock状态，然后和当前write事务冲突的secondary key做<code>commit</code>或者<code>rollback</code>.</p>
+<p><img src="./dot/resolveLocksForWrite.svg" alt="" /></p>
+<h4><a class="header" href="#resolvelockasync" id="resolvelockasync">resolveLockAsync</a></h4>
+<p>由于Async commit的 primay lock中保留了Secondaries locks列表，
+所以这块可一次性的把这个lock的所有secondary lock都resolve掉。</p>
+<p><img src="./dot/resolveLocksForWriteAsyncCommit.svg" alt="" /></p>
+<h4><a class="header" href="#resolveregionlocks" id="resolveregionlocks">resolveRegionLocks</a></h4>
+<p>resolveRegionLocks is essentially the same as resolveLock, but we resolve all keys in the same region at the same time.</p>
+<p><img src="./dot/resolve_region_locks.svg" alt="" /></p>
+<h2><a class="header" href="#actioncommithandlesinglebatch" id="actioncommithandlesinglebatch">actionCommit::handleSingleBatch</a></h2>
+<p>TiDB中提交primay key 然后就返回，其他的seconaries keys
+异步提交的，这个过程体现在哪里？</p>
+<p>在<code>doActionOnMutations</code>中，会做检查，NoNeedFork就会以同步的方式提交查询。</p>
+<pre><code class="language-go">  actionCommit::handleSingleBatch
+	// Group that contains primary key is always the first.
+	// We mark transaction's status committed when we receive the first success response.
+	c.mu.committed = true
+</code></pre>
+<p><img src="./dot/actionCommit_handleSingleBatch.svg" alt="" /></p>
+<h2><a class="header" href="#pessimestic-lock悲观锁" id="pessimestic-lock悲观锁">Pessimestic Lock(悲观锁)</a></h2>
+<h3><a class="header" href="#悲观事务步骤" id="悲观事务步骤">悲观事务步骤:</a></h3>
+<ol>
+<li>从 PD 获取当前 tso 作为当前锁的 for_update_ts</li>
+<li>TiDB 将写入信息写入 TiDB 的内存中（与乐观锁相同）</li>
+<li>使用 for_update_ts 并发地对所有涉及到的 Key 发起加悲观锁（acquire pessimistic lock）请求，</li>
+<li>如果加锁成功，TiDB 向客户端返回写成功的请求</li>
+<li>如果加锁失败</li>
+<li>如果遇到 Write Conflict， 重新回到步骤 1 直到加锁成功。</li>
+<li>如果超时或其他异常，返回客户端异常信息</li>
+</ol>
+<p>LockCtx</p>
+<p>for_update_ts是什么？表示tidb的写入ts? 用来做冲突检测的？</p>
+<p><img src="./dot/tidb_pessimisticlock.svg" alt="" /></p>
+<h3><a class="header" href="#加锁规则" id="加锁规则">加锁规则</a></h3>
+<ul>
+<li>插入（ Insert）
+如果存在唯一索引，对应唯一索引所在 Key 加锁
+如果表的主键不是自增 ID，跟索引一样处理，加锁。</li>
+<li>删除（Delete）
+RowID 加锁</li>
+<li>更新 (update)
+对旧数据的 RowID 加锁
+如果用户更新了 RowID, 加锁新的 RowID
+对更新后数据的唯一索引都加锁</li>
+</ul>
+<h3><a class="header" href="#lockkeys" id="lockkeys">LockKeys</a></h3>
+<p>KeyFlags</p>
+<pre><code class="language-go">	flagPresumeKNE KeyFlags = 1 &lt;&lt; iota
+	flagKeyLocked
+	flagNeedLocked
+	flagKeyLockedValExist
+	flagNeedCheckExists
+	flagPrewriteOnly
+	flagIgnoredIn2PC
+	persistentFlags = flagKeyLocked | flagKeyLockedValExist
+</code></pre>
+<p><img src="./dot/KvTxn_LockKeys.svg" alt="" /></p>
+<p>TiKV端获取Pessimistic处理方法:</p>
+<ul>
+<li>检查 TiKV 中锁情况，如果发现有锁
+<ul>
+<li>不是当前同一事务的锁，返回 KeyIsLocked Error</li>
+<li>锁的类型不是悲观锁，返回锁类型不匹配（意味该请求已经超时）</li>
+<li>如果发现 TiKV 里锁的 for_update_ts 小于当前请求的 for_update_ts(同一个事务重复更新)， 使用当前请求的 for_update_ts 更新该锁</li>
+<li>其他情况，为重复请求，直接返回成功</li>
+</ul>
+</li>
+<li>检查是否存在更新的写入版本，如果有写入记录
+<ul>
+<li>若已提交的 commit_ts 比当前的 for_update_ts 更新，说明存在冲突，返回 WriteConflict Error</li>
+<li>如果已提交的数据是当前事务的 Rollback 记录，返回 PessimisticLockRollbacked 错误</li>
+<li>若已提交的 commit_ts 比当前事务的 start_ts 更新，说明在当前事务 begin 后有其他事务提交过</li>
+<li>检查历史版本，如果发现当前请求的事务有没有被 Rollback 过，返回 PessimisticLockRollbacked 错误</li>
+</ul>
+</li>
+</ul>
+<p><img src="./dot/acquire_pessimistic_lock.svg" alt="" /></p>
+<h4><a class="header" href="#caller-of-lock-keys" id="caller-of-lock-keys">caller of lock keys</a></h4>
+<p>TODO: 没找到insert/delete/update这块的lock代码</p>
+<p><img src="./dot/tidb_tikv_lock_keys_caller.svg" alt="" /></p>
+<h2><a class="header" href="#cleanup" id="cleanup">cleanup</a></h2>
+<p><img src="./dot/tidb_txn_cleanup.svg" alt="" /></p>
+<h2><a class="header" href="#questions" id="questions">Questions:</a></h2>
+<ol>
+<li>如果某个prewrite batch失败了，其他正在执行，或者已经执行的Prewrite batch是怎么rollback的？</li>
+<li>async commit, one pc commit, minCommitTS, PessimisticLock 这几单独拿出来专题研究。</li>
+<li>同一个事物只能在同一个TiDB上跑吗？</li>
+<li>ForUpdateTS 这个是干什么用的？</li>
+</ol>
+<pre><pre class="playpen"><code class="language-rust">
+<span class="boring">#![allow(unused_variables)]
+</span><span class="boring">fn main() {
+</span>        // The isolation level of pessimistic transactions is RC. `for_update_ts` is
+        // the commit_ts of the data this transaction read. If exists a commit version
+        // whose commit timestamp is larger than current `for_update_ts`, the
+        // transaction should retry to get the latest data.
+<span class="boring">}
+</span></code></pre></pre>
+<h2><a class="header" href="#参考文献" id="参考文献">参考文献</a></h2>
+<ol>
+<li><a href="https://asktug.com/t/topic/33550">TiDB 悲观锁实现原理</a></li>
+<li><a href="https://github.com/tikv/sig-transaction/blob/master/design/async-commit/spec.md">async commit design spec</a></li>
+<li><a href="https://tikv.github.io/sig-transaction/design/async-commit/replica-read.html">async commit and replica read</a></li>
+<li><a href="https://github.com/pingcap/kvproto/pull/665">support checking memory locks at read index</a></li>
+</ol>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="../tikv/txn_types.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="../tikv/storage_scanner.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="../tikv/txn_types.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="../tikv/storage_scanner.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+        
+        
+        <script type="text/javascript">
+            window.playpen_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

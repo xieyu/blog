@@ -1,0 +1,57 @@
+digraph stmt_nodes {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  _node -> {
+    stmtNode;
+  }
+  stmtNode -> {
+    ddlNode;
+    dmlNode;
+  }
+  dmlNode -> {
+    SplitRegionStmt;
+    ShowStmt;
+    SelectStmt;
+    UpdateStmt;
+    DeleteStmt;
+    InsertStmt;
+    LoadDataStmt;
+    SetOprStmt;
+  }
+  ddlNode -> {
+    AlterTableStmt;
+    RepairTableStmt;
+    DropTableStmt;
+    CreateTableStmt;
+    CleanupTableLockStmt;
+    UnlockTablesStmt;
+    LockTablesStmt;
+    DropIndexStmt;
+    CreateIndexStmt;
+    CreateSequenceStmt;
+    CreateViewStmt;
+    RenameTableStmt;
+    DropSequenceStmt;
+    DropDatabaseStmt;
+    AlterDatabaseStmt;
+    CreateDatabaseStmt;
+  }
+  resultSetNode[
+    shape="record";
+    label="{{
+      resultSetNode|
+        resultFields []*ResultField
+    }}";
+  ];
+  resultSetNode -> {
+    SelectStmt;
+    ShowStmt;
+    TableName;
+    SetOprStmt;
+    Join;
+  }
+  _node -> Join;
+}

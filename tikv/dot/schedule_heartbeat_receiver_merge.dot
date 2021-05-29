@@ -1,0 +1,43 @@
+#include "styles.h"
+digraph schedule_heartbeat_receiver_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_router {
+    graph[label="router";fontsize=20;style="rounded,dashed";color="slategrey"]
+    send_raft_command;
+  }
+  subgraph cluster_worker_pd {
+    graph[label="worker/pd";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_region_heartbeat_response[style_func;label="{{
+      handle_region_heartbeat_response|
+      处理pd 对region \l 
+      heartbeat 的resp\l
+    }}"]
+    run -> schedule_heartbeat_receiver;
+    schedule_heartbeat_receiver -> handle_region_heartbeat_response;
+    handle_region_heartbeat_response -> {
+      has_merge;
+      take_merge;
+      new_merge_request;
+      send_admin_request;
+    }
+    has_merge -> take_merge -> new_merge_request -> send_admin_request[style_edge_data];
+    send_admin_request -> send_raft_command;
+    send_raft_command[style_func;label="{{
+      send_raft_command|
+      向region raft发送\l 
+      PrepareMerge cmd\l
+    }}"]
+    new_merge_request -> {
+      AdminCmdType_PrepareMerge;
+    }
+    AdminCmdType_PrepareMerge[style_func;label="{{
+      AdminCmdType::PrepareMerge|
+      向target还是source region\l 
+      发送的这个消息？\l
+    }}"]
+  }
+}

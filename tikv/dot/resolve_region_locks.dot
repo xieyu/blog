@@ -1,0 +1,45 @@
+#include "styles.h"
+digraph resolve_region_locks {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  resolveRegionLocks[style_func;label="{{
+    resolveRegionLocks|
+    resolve all keys int the same region\l
+    at same time\l
+  }}"]
+
+  resolveRegionLocks -> {
+    CmdResolveLock;
+    SendReq;
+    resolveRegionLocks_recurisve;
+    GroupKeysByRegion;
+  }
+  regionErr[style_func;label="{{
+    regionErr|
+    Tikv返回regionErr\l
+    再此期间region可能\l 
+    merge或者split了\l
+  }}"]
+  GroupKeysByRegion[style_func;label="{{
+    GroupKeysByRegion|
+    重新按照region分组\l
+  }}"]
+  CmdResolveLock -> regionErr -> GroupKeysByRegion[style_edge_data];
+  SendReq -> CmdResolveLock[style_edge_data];
+  GroupKeysByRegion -> resolveRegionLocks_recurisve[style_edge_data];
+  resolveRegionLocks_recurisve[style_func;label="{{
+    resolveRegionLocks|
+    递归的调用自己\l
+		Recursion will terminate because\l 
+    the resolve request succeeds \l 
+    or the Backoffer reaches its limit.\l
+  }}"]
+  {rank=same;resolveRegionLocks;resolveRegionLocks_recurisve};
+  CmdResolveLock[style_func;label="{{
+    CmdResolveLock|
+    Tikv 层根据TxStatus 清理lock\l
+    commit或者cleanup\l
+  }}"]
+}

@@ -1,0 +1,114 @@
+digraph wal_log_recover {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RecordFormat {
+    graph[label="RecordFormat";fontsize=20;];
+    rep_;
+    record;
+    varstring;
+  }
+
+  rep_[
+    shape="record";
+    label="{{
+      rep_|
+      日志中的Record\l|
+      <sequnce> sequence: fixed64\l|
+      <count> count: fixed32\l|
+      <data> data: record[count]\l
+    }}";
+  ];
+  record[
+    shape="record";
+    label="{{
+      record|
+        kTypeValue varstring varstring\l|
+        或者kTypeDeletion varstring\l
+    }}";
+  ];
+  varstring[
+    shape="record";
+    label="{{
+      varstring|
+      len: varint32\l|
+      data: uint8[len]\l
+    }}";
+  ];
+  rep_ -> record -> varstring;
+
+  DBImpl_Open -> DBImpl_Recover -> RecoverLogFile;
+  RecoverLogFile -> {
+    LogFileName;
+    NewSequentialFile;
+    ReadRecord;
+    SetContents;
+    InsertInto;
+    Sequence;
+    Count;
+    ApproximateMemoryUsage;
+    WriteLevel0Table;
+    MemTable;
+    mem_;
+  }[color=red];
+  LogFileName[shape="record";
+    label="{{
+      LogFileName|
+      获取日志文件名\l
+    }}";
+  ];
+  NewSequentialFile[shape="record";
+    label="{{
+      NewSequentialFile|
+      打开日志文件\l
+    }}";
+  ];
+  ReadRecord[shape="record";
+    label="{{
+      ReadRecord|
+      循环读取所有的Record日志\l
+    }}";
+  ];
+  ApproximateMemoryUsage[shape="record";
+    label="{{
+      ApproximateMemoryUsage|
+      如果内存过大\l 
+      dump到level0文件中\l
+    }}";
+  ];
+  subgraph cluster_WriteBatch {
+    graph[label="WriteBatch";fontsize=20;];
+    SetContents;
+    Count;
+    Sequence[shape="record";
+      label="{{
+        Sequence|
+        获取WriteBatch的Sequnce\l
+      }}";
+    ];
+    InsertInto[shape="record";
+      label="{{
+        InsertInto|
+        插入MemTable中\l
+      }}";
+    ];
+  };
+  mem_[shape="record";
+    label="{{
+      mem_|
+      将MemTable作为\l 
+      mem_接着使用\l
+    }}";
+  ];
+  {
+    edge[style=dashed;color=gray];
+    LogFileName -> NewSequentialFile -> ReadRecord -> rep_ -> SetContents;
+    rep_:sequence -> Sequence;
+    rep_:count -> Count;
+    {SetContents;Count;Sequence} -> InsertInto -> MemTable;
+    MemTable -> ApproximateMemoryUsage;
+    MemTable -> WriteLevel0Table;
+    MemTable -> mem_;
+    ApproximateMemoryUsage -> WriteLevel0Table;
+  }
+}

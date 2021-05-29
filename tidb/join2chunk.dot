@@ -1,0 +1,146 @@
+digraph join2chunk {
+  node[shape=box;];
+  newrank=true;
+  rankdir=TD;
+
+  //channels;
+  joinResultCh[
+    fillcolor="#95e1d3";
+    style=filled;
+    shape="box3d";
+    label="joinResultCh"
+  ];
+
+  joinChkResourceCh[
+    fillcolor="#95e1d3";
+    style=filled;
+    shape="box3d";
+    label="joinChkResourceCh[WorkerID]"
+  ];
+
+  joinMatchedProbeSideRow2Chunk[
+    label="joinMatchedProbeSideRow2Chunk\l将probeKey和hashTable\l中对应桶中的\l所有inner row做对比"
+  ];
+
+  joinMatchedProbeSideRow2Chunk[
+    shape="record";
+    label="{
+      joinMatchedProbeSideRow2Chunk|
+        将probeKey和hashTable\l 
+        中对应桶中的\l所有inner row做对比\l
+    }";
+  ];
+
+  //goroutines;
+  runJoinWorker[
+    fillcolor="#f38181";
+    style=filled;
+    shape="doublecircle";
+    label="runJoinWorker"
+  ];
+
+  tryToMatchInners[
+    shape="record";
+    label="{
+      tryToMatchInners|
+      比较probeRow和Iter\l 
+      是否匹配\l
+    }";
+  ];
+
+  getNewJoinResult[
+    shape="record";
+    label="{
+      getNewJoinResult|
+       当joinResult IsFull\l从joinChResourceCh获取\l一个新的jionResult\l
+    }";
+  ];
+
+  GetMatchedRowsAndPtrs[
+    shape="record";
+    label="{
+      GetMatchedRowsAndPtrs|
+        获取匹配probeKey的Rows slice\l
+    }";
+  ];
+  join2ChunkForOuterHashJoin[
+    shape="record";
+    label="{
+      join2ChunkForOuterHashJoin|
+      使用outer表build hash table\l
+    }";
+  ];
+  join2chunk[
+    shape="record";
+    label="{
+      join2chunk|
+      使用inner表build hash table\l
+    }";
+  ];
+  NewIterator4Slice[
+    shape="record";
+    label="{{
+      NewIterator4Slice|
+      获取buildSideRows的iter
+    }}";
+  ]
+
+  subgraph cluster_joiner {
+    graph[label="joiner[WokerID]";fontsize=20;style=rounded];
+    onMissMatch;
+    tryToMatchInners;
+    tryToMatchOuters;
+  };
+
+  subgraph cluster_chunk {
+    graph[label="chunk";fontsize=20;style=rounded];
+    NewIterator4Slice[label="NewIterator4Slice\l获取buildSideRows的iter"];
+  };
+
+  subgraph cluster_hashRowContainer {
+    graph[label="hashRowContainer";fontsize=20;style=rounded];
+    GetMatchedRowsAndPtrs;
+  };
+  runJoinWorker -> {
+    join2chunk;
+    join2ChunkForOuterHashJoin;
+  };
+
+  join2chunk -> {
+    getNewJoinResult;
+    onMissMatch;
+    joinMatchedProbeSideRow2Chunk;
+  };
+
+  joinChkResourceCh -> getNewJoinResult;
+  join2chunk -> joinResultCh[label="joinResultCh.IsFull"];
+
+  joinMatchedProbeSideRow2Chunk -> {
+    NewIterator4Slice;
+    onMissMatch;
+    GetMatchedRowsAndPtrs;
+    tryToMatchInners;
+    getNewJoinResult;
+    joinResultCh;
+  };
+
+  join2ChunkForOuterHashJoin -> {
+    joinMatchedProbeSideRow2ChunkForOuterHashJoin;
+    getNewJoinResult;
+    joinResultCh;
+  };
+
+  joinMatchedProbeSideRow2ChunkForOuterHashJoin -> {
+    GetMatchedRowsAndPtrs;
+    tryToMatchOuters;
+    joinResultCh;
+    getNewJoinResult;
+    onMissMatch;
+  }
+
+  {
+    rank=same;
+    join2chunk;
+    join2ChunkForOuterHashJoin;
+  }
+}

@@ -1,0 +1,124 @@
+digraph heapbits {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  heapBitsSetType[shape="record";
+    label="{{
+      heapBitsSetType|
+        根据_type信息\l 
+        设置bit位\l
+    }}";
+  ];
+  heapBitsForAddr[shape="record";
+    label="{{
+      heapBitsForAddr|
+        返回addr对应\l 
+        的bits位置\l
+    }}";
+  ];
+  _type[shape="record";
+    label="{{
+      _type|
+        _gcdata\l|
+        size
+    }}";
+  ];
+  gcmarknewobject[shape="record";
+    label="{{
+      gcmarknewobject|
+        Allocate black during GC\l
+    }}";
+  ];
+  subgraph cluster_GC {
+    graph[label="GC";fontsize=20;];
+    gcStart -> gcBgMarkStartWorkers -> gcBgMarkWorker;
+    gcBgMarkWorker -> gcDrain -> scanobject -> greyobject;
+  };
+  subgraph cluster_mbitmap {
+    graph[label="mbitmap";fontsize=20;];
+    heapBitsSetType;
+    heapBitsForAddr;
+    heapbits;
+    findObject;
+    setCheckmarked;
+    heapBitsSetType -> heapBitsForAddr -> heapbits;
+  };
+
+  subgraph cluster_mspan {
+    graph[label="mspan";fontsize=20;];
+    mspan[shape="record";
+    label="{{
+      mspan|
+        <allocBits> allocBits *gcBits\l|
+        <gcmarkBits> gcmarkBits *gcmarkBits\l
+    }}";
+    ];
+    coutAlloc[shape="record";
+    label="{{
+      coutAlloc|
+        返回mspan已\l 
+        分配对象个数如果为0\l 
+        表明该span可回收\l
+    }}";
+    ];
+    resetBits[shape="record";
+    label="{{
+      s.allocBits = s.gcmarkBits\l
+        s.gcmarkBits = newMarkBits(s.nelems)\l
+    }}";
+    ];
+    markBitsForIndex -> mspan:gcmarkBits;
+    coutAlloc -> mspan:gcmarkBits;
+    sweep -> {
+      markBitsForIndex;
+      resetBits;
+      coutAlloc;
+    }
+  };
+
+  subgraph cluster_heap_arena {
+    graph[label="heap_arena";fontsize=20;];
+    subgraph cluster_bitmap {
+      graph[label="bitmap";fontsize=20;];
+      bitmap[shape="record";
+      label="{
+        {<isPointer>  slot_k是指针？\l|
+          slot_k+1是指针？\l|
+            slot_k+2是指针？\l|
+            slot_k+3是指针？\l|
+            <isMark> slot_k  已扫描?\l|
+            slot_k+1 已扫描?\l|
+            1lot_k+2 已扫描?\l|
+            slot_k+3 已扫描?\l|
+        }
+      }";
+      ];
+    };
+
+    subgraph cluster_arena {
+      graph[label="arena";fontsize=20;];
+      arena[shape="record";
+      label="
+      {object_x|{
+                  slot_m\l|
+                    ...|
+                    <slot> slot_k\l|
+                    ...|
+                    slot_n|
+                }}";
+      ];
+      arena:slot -> bitmap:isPointer[style=dashed];
+      arena:slot -> bitmap:isMark[style=dashed];
+    };
+  }
+
+  scanobject -> findObject;
+  greyobject -> setCheckmarked;
+  greyobject -> markBitsForIndex;
+  mallocgc -> heapBitsSetType;
+  mallocgc -> gcmarknewobject -> markBitsForIndex;
+  mallocgc -> _type;
+  setCheckmarked -> bitmap:isMark;
+  scanobject -> arena;
+  heapBitsSetType -> bitmap:isPointer;
+}

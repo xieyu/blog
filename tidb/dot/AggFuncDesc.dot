@@ -1,0 +1,79 @@
+digraph AggFuncDesc {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  baseFuncDesc[
+    shape="record";
+    label="{{
+      baseFuncDesc|
+        Name string\l|
+        Args []expression.Expression\l|
+        RetTp *types.FieldType\l
+    }}"];
+  AggFuncDesc[
+    shape="record";
+    label="{{
+      AggFuncDesc|
+	      baseFuncDesc\l|
+	      Mode AggFunctionMode\l|
+	      HasDistinct bool\l|
+	      OrderByItems []*util.ByItems\l
+    }}"];
+  AggFuncDesc -> AggFunctionMode;
+  AggFunctionMode[
+    shape="record";
+    label="{{
+      AggFunctionMode|
+	      CompleteMode AggFunctionMode = iota\l|
+	      FinalMode\l|
+	      Partial1Mode\l|
+	      Partial2Mode\l|
+	      DedupMode\l
+    }}"];
+
+  baseFuncDesc -> AggFuncDesc -> aggFunction;
+  mockstore -> Aggregation;
+  Aggregation[
+    shape="record";
+    label="{{
+      Aggregation interface|
+      Update\l|
+      GetPartialResult\l|
+      GetResult\l|
+      CreateContext\l|
+      ResetContext\l
+    }}"];
+  AggEvaluateContext[
+    shape="record";
+    label="{{
+      AggEvaluateContext|
+	      DistinctChecker *distinctChecker\l|
+	      Count           int64\l|
+	      Value           types.Datum\l|
+	      Buffer          *bytes.Buffer\l|
+	      GotFirstRow     bool\l
+    }}"];
+  Aggregation -> {
+    aggFunction;
+    AggEvaluateContext;
+  }
+  aggFunction -> {
+    bitAndFunction;
+    bitOrFunction;
+    concatFunction;
+    countFunction;
+    sumFunction
+    maxMinFunction;
+    firstRowFunction;
+    avgFunction;
+  }
+  maxMinFunction[
+    shape="record";
+    label="{{
+      maxMinFunction|
+      aggFunction\l|
+      isMax bool\l
+    }}"];
+}

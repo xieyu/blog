@@ -1,0 +1,25 @@
+digraph convertToIndexMergeScan {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_convertToPartialTableScan {
+    graph[label="convertToPartialTableScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    partialTableScanCost;
+  }
+  subgraph cluster_convertToPartialIndexScan{
+    graph[label="convertToIndexScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    partialIndexScanCost;
+  }
+  subgraph cluster_buildIndexMergeTableScan {
+    graph[label=" buildIndexMergeTableScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    indexMergeTableScanCost;
+  }
+  CountAfterAccess -> totalRowCount;
+  {
+    partialIndexScanCost;
+    partialTableScanCost;
+    indexMergeTableScanCost;
+  } -> totalCost;
+}

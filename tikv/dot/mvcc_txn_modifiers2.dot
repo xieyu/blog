@@ -1,0 +1,53 @@
+#include "styles.h"
+digraph txn_modifiers {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  modifies[style_var;label="{{
+    modifies|
+    Vec\<Modifier\>\l
+  }}"]
+  WriteData[style_struct;label="{{
+    WriteData|
+    pub modifies: Vec\<Modify\>,\l|
+    pub extra: TxnExtra,\l
+  }}"]
+  WriteResult[style_struct;label="{{
+    WriteResult|
+    pub ctx: Context,\l|
+    <to_be_write> pub to_be_write: WriteData,\l|
+    pub rows: usize,\l|
+    pub pr: ProcessResult,\l|
+    pub lock_info: Option\<(lock_manager::Lock,\l 
+    bool, Option\<WaitTimeout\>)\>,\l|
+    <lock_guards> pub lock_guards: Vec\<KeyHandleGuard\>,\l|
+    pub response_policy: ResponsePolicy,\l
+  }}"]
+  async_write_ext[style_func;label="{{
+    async_write_ext|
+    engine.async_write_ext(\l|
+        &ctx,\l|
+        to_be_write,\l|
+        engine_cb,\l
+        proposed_cb,\l
+        committed_cb,\l
+    )\l
+  }}"]
+  subgraph cluster_scheduler_process_write {
+    graph[label="scheduler::process_write";fontsize=20;style="rounded,dashed";color="slategrey"]
+    async_write_ext -> engine_cb -> on_write_finished;
+  }
+  engine_cb[style_func;label="{{
+    engine_cb|
+    在engine写完之后的callback\l
+  }}"]
+  on_write_finished[style_func;label="{{
+    on_write_finished|
+    在修改都写到engine之后\l
+    释放掉lock guards\l
+  }}"]
+
+  modifies -> WriteData -> WriteResult:to_be_write -> async_write_ext
+  WriteResult:lock_guards-> on_write_finished;
+}

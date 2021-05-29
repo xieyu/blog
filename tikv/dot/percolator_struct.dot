@@ -1,0 +1,151 @@
+#include "styles.h"
+digraph percolator_struct {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Write[style_func;label="{{
+    Write|
+    pub write_type: WriteType,\l|
+    <start_ts> pub start_ts: TimeStamp,\l|
+    pub short_value: Option\<Value\>,\l|
+    pub has_overlapped_rollback: bool,\l|
+    pub gc_fence: Option\<TimeStamp\>,\l
+  }}"]
+  Write -> {
+    WriteType;
+  }
+  WriteType[style_func;label="{{
+    WriteType|
+    Put,\l|
+    Delete,\l|
+    Lock,\l|
+    Rollback,\l
+  }}"]
+
+  Lock[style_func;label="{{
+    Lock|
+    pub lock_type: LockType,\l|
+    pub primary: Vec\<u8\>,\l|
+    pub ts: TimeStamp,\l|
+    pub ttl: u64,\l|
+    pub short_value: Option\<Value\>,\l|
+    pub for_update_ts: TimeStamp,\l|
+    pub txn_size: u64,\l|
+    pub min_commit_ts: TimeStamp,\l|
+    pub use_async_commit: bool,\l|
+    pub secondaries: Vec\<Vec\<u8\>\>,\l|
+    pub rollback_ts: Vec\<TimeStamp\>,\l
+  }}"]
+
+  Lock -> LockType;
+  LockType[style_func;label="{{
+    LockType|
+    Put,\l|
+    Delete,\l|
+    Lock,\l|
+    Pessimistic,\l
+  }}"]
+  short_value[style_func;label="{{
+    short_value|
+    长度小于\l 
+    SHORT_VALUE_MAX_LEN 255\l|
+    Vec\<u8\>\l
+  }}"]
+  Lock -> short_value;
+  Write -> short_value;
+  Write -> as_ref -> WriteRef;
+  WriteRef[style_func;label="{{
+    WriteRef|
+    short_value字段为\l 
+    Write.short_value ref\l
+  }}"]
+
+  lock_key -> Lock;
+  write_key -> Write;
+  default_key -> Value;
+  Value[style_func;label="{{
+    Value|
+    Vec\<u8\>\l
+  }}"]
+  lock_key[style_func;label="{{
+    lock_key|
+    CF_LOCK: key
+  }}"]
+  write_key[style_func;label="{{
+    write_key|
+    CF_WRITE: key.append_ts(ts)\l
+  }}"]
+  default_key[style_func;label="{{
+    default_key|
+    CF_DEFAULT: key.append_ts(ts) 
+  }}"]
+
+  load_lock -> lock_key[style_edge_data];
+  load_lock -> Lock_parse -> Lock;
+  Write:start_ts -> load_data -> default_key[style_edge_data];
+  seek_write -> {commit_ts, Write}[style_edge_data];
+  seek_write -> {
+    WriteRef_parse;
+    write_cursor_near_seek;
+  }
+  WriteRef_parse -> WriteRef -> Write[style_edge_data];
+  write_cursor_near_seek -> write_key[style_edge_data];
+
+  subgraph cluster_data {
+    graph[label="data";fontsize=20;style="rounded,dashed";color="slategrey"]
+    short_value;
+    Value;
+    default_key;
+  }
+
+  subgraph cluster_write {
+    graph[label="write";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Write;
+    WriteRef;
+    as_ref;
+    WriteRef_parse;
+    WriteType;
+    write_cursor_near_seek;
+    write_key;
+  }
+  subgraph cluster_Lock {
+    graph[label="Lock";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Lock;
+    Lock_parse;
+    LockType;
+    lock_key;
+  }
+
+  subgraph cluster_MvccReader {
+    graph[label="MvccReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    load_lock;
+    load_data;
+    seek_write;
+    get_write -> seek_write;
+    get -> {
+      get_write;
+      load_data;
+    }
+    get[style_func;label="{{
+      get|
+      Gets the value of specified key's\l
+      lasest version before specified `ts`\l
+    }}"]
+  }
+
+    {put_write; delete_write;} -> write_key;
+    {put_lock;put_locks_for_1pc;unlock_key} -> lock_key;
+    {put_value;delete_value} -> default_key;
+  subgraph cluster_MvccTxn {
+    graph[label="MvccTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    put_lock;
+    put_locks_for_1pc;
+    unlock_key;
+    put_value;
+    delete_value;
+    put_write;
+    delete_write;
+  }
+
+}

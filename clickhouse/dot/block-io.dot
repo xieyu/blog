@@ -1,0 +1,144 @@
+digraph blockIO {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_QueryPipeline {
+    graph[label="QueryPipeline";fontsize=20;];
+    pipline_get_header[
+      shape="record";
+      label="{{
+        getHeader
+      }}";
+    ];
+    pipeline_getNumThreads;
+    pipeline_getNumThreads[
+      shape="record";
+      label="{{
+        getNumThreads|
+        如果线程数\>1,就使用PullingAysncExecutor
+      }}";
+    ];
+  }
+  subgraph cluster_PullingPipelineExecutor {
+    graph[label="PullingPipelineExecutor";fontsize=20;];
+    getTotalsBlock;
+    getExtremesBlock;
+    execute_pull[
+      shape="record";
+      label="{{
+        pull|
+        执行pipeline
+      }}";
+    ];
+    execute_get_header[
+      shape="record";
+      label="{{
+        getHeader
+      }}";
+    ];
+    PullingPipelineExecutor;
+  }
+  subgraph cluster_PullingAsyncPipelineExecutor {
+    graph[label="PullingAsyncPipelineExecutor";fontsize=20;];
+    async_executor_pull[
+      shape="record";
+      label="{{
+        pull
+      }}";
+    ];
+    async_execute_get_header[
+      shape="record";
+      label="{{
+        getHeader
+      }}";
+    ];
+    async_getTotalsBlock[
+      shape="record";
+      label="{{
+      getTotalsBlock
+      }}";
+    ];
+    async_getExtremesBlock[
+      shape="record";
+      label="{{
+      getExtremesBlock
+      }}";
+    ];
+    PullingAsyncPipelineExecutor;
+  }
+  subgraph cluster_PipelineExecutingBlockInputStream {
+    graph[label="PipelineExecutingBlockInputStream";fontsize=20;];
+    PipelineExecutingBlockInputStream;
+    PipelineExecutingBlockInputStream[
+      shape="record";
+      label="{{
+        PipelineExecutingBlockInputStream|
+        构造函数
+      }}";
+    ];
+    getHeader -> {
+      execute_get_header;
+      async_execute_get_header;
+      pipline_get_header;
+    }[color="#17b978"];
+
+    readPrefixImpl -> createExecutor;
+    createExecutor[
+      shape="record";
+      label="{{
+        createExecutor|
+        根据queryPipeline线程数\l
+        创建对应的executor\l
+      }}";
+    ];
+    readImpl -> {
+      execute_pull;
+      async_executor_pull;
+      async_execute_get_header;
+      createExecutor;
+      getTotalsBlock;
+      getExtremesBlock;
+
+      async_getTotalsBlock;
+      async_getExtremesBlock;
+    }[color="#b83b5e"];
+
+    createExecutor -> {
+      pipeline_getNumThreads;
+      PullingAsyncPipelineExecutor;
+      PullingPipelineExecutor;
+    }
+  }
+  subgraph cluster_BlockIO {
+    graph[label="BlockIO";fontsize=20;];
+    getInputStream -> {
+      PipelineExecutingBlockInputStream;
+    };
+  }
+  subgraph cluster_TcpHandler {
+    graph[label="TcpHandler";fontsize=20;];
+    runImpl -> executeQuery -> getInputStream;
+    runImpl[
+      shape="record";
+      label="{{
+        runImpl|
+        主循环
+      }}";
+    ];
+    runImpl -> processOrdinaryQuery -> {
+      getHeader;
+      readPrefix;
+      sendData;
+      read;
+    }
+    subgraph cluster_AsynchronousBlockInputStream {
+      graph[label="AsynchronousBlockInputStream";fontsize=20;];
+      readPrefix;
+      read;
+    }
+    readPrefix -> readPrefixImpl;
+    read -> readImpl;
+  }
+  
+}

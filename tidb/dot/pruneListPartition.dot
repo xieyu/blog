@@ -1,0 +1,30 @@
+#include "styles.h"
+digraph pruneListPartition {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  pruneListPartition -> findUsedListPartitions;
+  findUsedListPartitions -> {
+    listPruner_findUsedListPartitions;
+    listPruner_findUsedListColumnsPartitions;
+  }
+
+  listPruner_findUsedListPartitions -> {
+    detachCondAndBuildRange;
+    LocatePartition;
+  }
+  listPruner_findUsedListColumnsPartitions -> {
+    locatePartitionByCNFCondition;
+  }
+  locatePartitionByCNFCondition -> {
+    locatePartition;
+    GetLocation;
+  }
+
+  locatePartition -> {
+    locatePartitionByColumn;
+    locatePartitionByCNFCondition;
+    locatePartitionByDNFCondition;
+  }
+}

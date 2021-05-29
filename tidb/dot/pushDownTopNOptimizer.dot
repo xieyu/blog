@@ -1,0 +1,52 @@
+digraph pushDownTopNOptimizer {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  optimize -> pushDownTopN;
+  pushDownTopN -> pushDownTopN[label=child];
+  pushDownTopN -> {
+    LogicalJoin_pushDownTopN;
+    LogicalProjection_pushDownTopN;
+    LogicalUnionAll_pushDownTopN;
+    baseLogicalPlan_pushDownTopN;
+    LogicalLimit_pushDownTopN;
+    LogicalSort_pushDownTopN;
+  }[color="#b83b5e"];
+
+  LogicalJoin_pushDownTopN -> {
+    pushDownTopNToChild;
+  }
+  pushDownTopNToChild -> {
+    LogicalTopN;
+    pushDownTopN;
+    ExtractColumns;
+  }
+
+  LogicalProjection_pushDownTopN -> {
+    baseLogicalPlan_pushDownTopN;
+    pushDownTopN;
+    FoldConstant;
+  }
+  LogicalUnionAll_pushDownTopN -> {
+    LogicalTopN;
+  }
+  LogicalLimit_pushDownTopN -> {
+    convertToTopN;
+    pushDownTopN;
+  }
+  convertToTopN -> LogicalTopN;
+
+  LogicalSort_pushDownTopN -> {
+    baseLogicalPlan_pushDownTopN;
+    pushDownTopN;
+  }
+  baseLogicalPlan_pushDownTopN -> {
+    pushDownTopN;
+    setChild;
+  }
+  setChild -> {
+    isLimit;
+    LogicalLimit;
+  }
+}

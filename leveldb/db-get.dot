@@ -1,0 +1,331 @@
+digraph db_get {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_VersionSet {
+    graph[label="VersionSet";fontsize=20;style=rounded];
+    VersionSet_LastSequence[
+      shape="record";
+      label="{{
+        LastSequence
+        如果Options中没指定snapshot\l 
+        就以version的LastSequnce为准\l
+      }}";
+    ];
+    VersionSet_current[
+      shape="record";
+      label="{{
+        VersionSet_current|
+        使用当前的versionset
+      }}";
+    ];
+    VersionSet_LastSequence -> last_sequence_;
+    VersionSet_current -> current_;
+  };
+
+  subgraph cluster_Table {
+    graph[label="Table";fontsize=20;style=rounded];
+  };
+  subgraph cluster_SkipList {
+    graph[label="SkipList";fontsize=20;style=rounded];
+    SkipList_Iterator_Seek;
+    SkipList_Iterator_Seek[
+      shape="record";
+      label="{{
+        SkipList::Iterator::Seek
+      }}";
+    ];
+    SkipList_Iterator_Seek -> FindGreaterOrEqual;
+    FindGreaterOrEqual[
+      shape="record";
+      label="{{
+        FindGreaterOrEqual|
+        在skiplist中查找
+      }}";
+    ];
+    FindGreaterOrEqual -> {
+      GetMaxHeight;
+      KeyIsAfterNode;
+      Next;
+    }
+  };
+
+  subgraph cluster_MemTable {
+    graph[label="MemTable";fontsize=20;style=rounded];
+    MemTable_Get[
+      shape="record";
+      label="{{
+        Get|
+        在Memtalbe和immutable中查找\l
+      }}";
+    ];
+    memtable_key[
+      shape="record";
+      label="{{
+        memtable_key|
+        将key设为slice\l
+        Slice(start, end - start)\l
+      }}";
+    ];
+    MemTable_Get-> {
+      MemTableIterator_Seek
+      memtable_key;
+    };
+    MemTableIterator_Seek -> {
+      EncodeKey;
+      SkipList_Iterator_Seek;
+    };
+  };
+  subgraph cluster_Table {
+    graph[label="Table";fontsize=20;style=rounded];
+    subgraph cluster_Footer {
+      graph[label="Footer";fontsize=20;style=rounded];
+      footer_DecodeFrom[
+        shape="record";
+        label="{{
+          DecodeFrom|
+          解析Footer
+        }}";
+      ];
+      
+    };
+    Table_Open[
+      shape="record";
+      label="{{
+        Table_Open|
+        将Table的索引, Filter Metadata\l 
+        加载到内存中\l
+      }}";
+    ];
+    ReadBlock_index[
+      shape="record";
+      label="{{
+        ReadBlock|
+        读取Index block内容
+      }}";
+    ];
+    Table_Open -> {
+      file_Read;
+      footer_DecodeFrom;
+      ReadBlock_index;
+      ReadMeta;
+    };
+    ReadMeta -> {
+      ReadBlock;
+      ReadFilter;
+      Block_NewIterator;
+    };
+    ReadFilter -> ReadBlock;
+    IndexBlock_Iter_Seek[
+      shape="record";
+      label="{{
+        IndexBlock_Iter_Seek|
+        从block index中找到包含key的block
+      }}";
+    ];
+    filter_KeyMayMatch[
+      shape="record";
+      label="{{
+        FilterBlockReader::KeyMayMatch|
+        先用filter快速判断\l 
+        key是否不存在\l
+      }}";
+    ];
+    BlockReader_block[
+      shape="record";
+      label="{{
+        BlockReader|
+        读取该Block返回BlockIter
+      }}";
+    ];
+    BlockIter_Seek[
+      shape="record";
+      label="{{
+        BlockIter::Seek|
+        在Block中查找key\l
+      }}";
+    ];
+    handle_result[
+      shape="record";
+      label="{{
+        handle_result|
+        查找成功\l 
+        调用参数中的回调\l
+      }}";
+    ];
+    Table_InternalGet[
+      shape="record";
+      label="{{
+        InternalGet|
+        1.根据BlockIndex找到可能包含key的 block\l 
+        2.根据filter做快速不存在判断\l 
+        3. 读取block内容, 在block中查找key\l
+      }}";
+    ];
+    Table_InternalGet -> {
+      IndexBlock_NewIterator;
+      IndexBlock_Iter_Seek;
+      BlockReader_block;
+      BlockIter_Seek;
+      filter_KeyMayMatch;
+      handle_result;
+    }
+  };
+  handle_result -> SaveValue;
+  subgraph cluster_TableCache {
+    graph[label="TableCache";fontsize=20;style=rounded];
+    TableCache_Get[
+      shape="record";
+      label="{{
+        Get|
+        1.先从cache中查找,如果失败FindTable\l
+        2.FindTable: 找到table, 加载index和metadata\l
+        3.加入到Cache中\l
+      }}";
+    ];
+    TableFileName[
+      shape="record";
+      label="{{
+        TableFileName|
+        命名格式为: dbname/$file_number.ldb
+      }}";
+    ];
+    SSTTableFileName[
+      shape="record";
+      label="{{
+        SSTTableFileName|
+        命名格式为: dbname/$file_number.sst
+      }}";
+    ];
+    TableCache_Get -> {
+      FindTable;
+      Table_InternalGet;
+      cache_Release;
+    };
+    FindTable -> {
+      TableFileName;
+      NewRandomAccessFile;
+      SSTTableFileName;
+      Table_Open;
+      cache_Insert;
+      cache_Loopup;
+    };
+  };
+  subgraph cluster_Version{
+    graph[label="Version";fontsize=20;style=rounded];
+    FileMetaData[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        FileMetaData|
+        int refs;\l|
+        int allowed_seeks;\l|
+        uint64_t number;\l|
+        uint64_t file_size;\l|
+        InternalKey smallest;\l|
+        InternalKey largest;\l
+      }}";
+    ];
+    files_[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        files_|
+        <FileMetaData> std::Vector\<FileMetaData*\>\l files_[config::kNumLevels];
+      }}";
+    ];
+    levels[
+      shape="record";
+      label="{{
+        levels|
+        level0: [FileMetaData .. FileMetaData]\l|
+        level1: [FileMetaData .. FileMetaData]\l|
+        ...
+        levelN\l
+      }}";
+    ];
+    files_ -> levels;
+    levels -> FileMetaData;
+    FindFile[
+      shape="record";
+      label="{{
+        FindFile|
+        使用二分查找法\l 
+        查找files_中除了level_0\l 
+        其他level的可能包含key的File\l
+      }}";
+    ];
+    ForEachOverlapping[
+      shape="record";
+      label="{{
+        ForEachOverlapping|
+        查遍历查找每个level_0\l
+        中的是否包含key\l
+        因为level0中每个table之间的\l 
+        key范围是有覆盖的\l
+        然后搜索其他level的table\l
+      }}";
+    ];
+    Version_Get[
+      shape="record";
+      label="{{
+        Get\l|
+        从数据库文件中查找\l
+        使用了LRU cache，bloom filter blockIndex\l
+        等优化方法\l
+      }}";
+    ];
+    Version_UpdateStats[
+      shape="record";
+      label="{{
+        Version_UpdateStats|
+        UpdateStats
+      }}";
+    ];
+    State_Match[
+      shape="record";
+      label="{{
+        Get::Match|
+        找到包含key文件后回调
+      }}";
+    ];
+
+    Version_Get -> { ForEachOverlapping; };
+    ForEachOverlapping -> {
+      files_;
+      FindFile;
+    };
+    FindFile -> files_;
+    FindFile -> State_Match;
+    State_Match ->  TableCache_Get;
+    SaveValue -> {
+      ParseInternalKey;
+      Saver_assign;
+    }
+    Version_UpdateStats;
+  };
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;style=rounded];
+    Get[
+      shape="record";
+      label="{{
+        Get|
+        1.先从mem_中查找\l
+        2.然后从imm_中查找\l
+        3.从当前version中查找\l
+      }}";
+    ];
+    Get -> { 
+      VersionSet_LastSequence;
+      VersionSet_current;
+      sequence_number;
+      MemTable_Get;
+      Version_Get
+      MaybeScheduleCompaction;
+      Version_UpdateStats;
+    }
+  };
+}

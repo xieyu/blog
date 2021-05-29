@@ -1,0 +1,243 @@
+digraph streamStart {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+
+  subgraph cluster_PartitionGroup {
+    graph[label="PartitionGroup";fontsize=20;style=rounded];
+    partitionQueues[
+      shape="record";
+      label="{{
+        partitionQueues|
+        <rq> Map\<TopicPartition, RecordQueue\> partitionQueues\l
+      }}";
+    ];
+    RecordQueue[
+      shape="record";
+      label="{{
+        RecordQueue|
+        <sourceNode> SourceNode source\l|
+        TopicPartition partition\l|
+        ProcessorContext processorContext\l|
+        TimestampExtractor timestampExtractor\l|
+        RecordDeserializer recordDeserializer \l|
+        <cr> ArrayDeque\<ConsumerRecord\> fifoQueue\l
+      }}";
+    ];
+    ConsumerRecord[
+      shape="record";
+      label="{{
+        ConsumerRecord|
+        String topic\l|
+        int partition\l|
+        long offset;\l|
+        timestampType timestampType\l|
+        int serializedKeySize\l|
+        int serializedValueSize\l|
+        Headers header\l|
+        K key\l|
+        V value\l|
+        leaderEpoch \l|
+        Long checksum\l
+      }}";
+    ];
+    RecordQueue:cr -> ConsumerRecord;
+    partitionQueues:rq -> RecordQueue;
+    addRawRecords -> partitionQueues;
+  };
+  subgraph cluster_ProcessContext {
+    graph[label="ProcessContextImpl";fontsize=20;style=rounded];
+    context_forward[
+      shape="record";
+      label="{{
+        forward|
+        向所有的child节点发送key,value\l
+      }}";
+    ];
+    child_process[
+      shape="record";
+      label="{{
+        ProcessNode.process|
+        子节点执行process\l
+      }}";
+    ];
+    context_forward -> {
+      setCurrentNode
+      child_process;
+    };
+  };
+
+  subgraph cluster_SourceNode {
+    graph[label="SourceNode";fontsize=20;style=rounded];
+    curNode_process ;
+    curNode_process[
+      shape="record";
+      label="{{
+        process|
+        调用RecordQueue中的\l 
+        sourceNode中的process方法\l
+      }}";
+    ];
+    curNode_process -> {
+      context_forward;
+      processAtSourceSensor;
+    };
+  };
+  curNode_process -> RecordQueue:sourceNode;
+  subgraph cluster_StreamTask {
+    graph[label="StreamTask";fontsize=20;style=rounded];
+    consumedOffsets[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        consumedOffsets
+      }}";
+    ];
+    task_process[
+      shape="record";
+      label="{{
+        process|
+        从partitionGroup中\l 
+        获取下一个 record\l 
+        执行节点中的node\l
+      }}";
+    ];
+    task_addRecords;
+    task_isClosed;
+    task_addRecords -> {
+      addRawRecords;
+      consumer_pause;
+    }
+    task_process -> nextRecord;
+    nextRecord -> nonEmptyQueuesByTime -> RecordQueue;
+    task_process -> {
+      updateProcessorContext;
+      consumedOffsets;
+      curNode_process;
+      active;
+    }
+    updateProcessorContext -> {setRecordContext;}
+    StreamTask -> {
+      topology_source;
+      partitionQueues;
+    }
+  };
+
+  subgraph cluster_AssignStreamsTasks {
+    graph[label="AssignStreamsTasks";fontsize=20;style=rounded];
+    running[shape=egg; fillcolor="#95e1d3"; style=filled;];
+    created[shape=egg; fillcolor="#95e1d3"; style=filled;];
+    AssignedStreamsTasks_process[
+      shape="record";
+      label="{{
+        AssignedStreamsTasks_process|
+        调用所有的running\l 
+        Task的process\l
+      }}";
+    ];
+
+    AssignedStreamsTasks_process -> {
+      task_process;
+      running;
+    }
+    transitionToRunning -> running;
+    initializeNewTasks -> transitionToRunning;
+    initializeNewTasks -> created;
+    addNewTask -> created;
+  };
+
+  subgraph cluster_TaskManager{
+    graph[label="TaskManager";fontsize=20;style=rounded];
+    taskmanager_process[
+      shape="record";
+      label="{{
+        process|
+        处理消息
+      }}";
+    ];
+    taskmanager_process -> AssignedStreamsTasks_process
+    updateNewAndRestoringTasks -> {
+      initializeNewTasks;
+      clearRestoringPartitions;
+      updateRestored;
+      assignStandbyPartitions;
+    }
+    addNewActiveTasks -> AbstractTaskCreator_createTasks -> TaskCreator_createTask -> StreamTask;
+    addNewStandbyTasks -> StandbyTaskCreator -> StandbyTask;
+    createTasks -> {addNewActiveTasks;addNewStandbyTasks} -> addNewTask;
+    StreamsRebalanceListener_onPartitionsAssigned -> createTasks;
+  };
+
+  subgraph cluster_StreamThread {
+    graph[label="StreamThread";fontsize=20;style=rounded];
+    pollRequests[
+      shape="record";
+      label="{{
+        pollRequests|
+        读取消息
+      }}";
+    ];
+    addRecordsToTasks[
+      shape="record";
+      label="{{
+        addRecordsToTasks|
+        将record放入\l 
+        task的队列中\l
+      }}";
+    ];
+    StreamThread_start -> run -> {
+      runLoop;
+      completeShutdown;
+    };
+    runLoop -> {
+      runOnce;
+      consumer_subscribe;
+      enforceRebalance;
+    };
+    consumer_subscribe -> StreamsRebalanceListener_onPartitionsAssigned[style=dashed];
+
+    runOnce -> {
+      pollRequests;
+      advanceNowAndComputeLatency;
+      addRecordsToTasks;
+      setState;
+      hasActiveRunningTasks;
+      maybeCommitActiveTasksPerUserRequested;
+      processSenor_record;
+      commitSensor_record;
+      maybeUpdateStandbyTasks;
+      maybeCommit;
+      taskmanager_process;
+      updateNewAndRestoringTasks;
+    };
+    addRecordsToTasks -> {
+      task_addRecords;
+      task_isClosed;
+    }
+  };
+  pollRequests -> consumer_poll;
+  subgraph cluster_consumer {
+    graph[label="consumer";fontsize=20;style=rounded];
+    consumer_poll;
+    consumer_subscribe;
+    consumer_pause;
+  };
+
+  subgraph cluster_RocksDbMetrisRecodingService {
+    graph[label="RocksDbMetrisRecodingService";fontsize=20;style=rounded];
+    scheduleAtFixedRate;
+  };
+
+  subgraph cluster_KafkaStreams {
+    graph[label="KafkaStreams";fontsize=20;style=rounded];
+    start;
+  };
+
+  start -> {
+    StreamThread_start;
+    GlobalStreamThread_start;
+    scheduleAtFixedRate;
+  };
+}

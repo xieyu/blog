@@ -1,0 +1,43 @@
+ * frame #0: classFileParser.cpp:5229: ClassFileParser::create_instance_klass(bool, Thread*)
+    frame #1: klassFactory.cpp:203: KlassFactory::create_from_stream(ClassFileStream*, Symbol*, ClassLoaderData*, Handle, InstanceKlass const*, GrowableArray<Handle>*, Thread*)
+    frame #2: systemDictionary.cpp:1142: SystemDictionary::resolve_from_stream(Symbol*, Handle, Handle, ClassFileStream*, Thread*)
+    frame #3: jvm.cpp:936: jvm_define_class_common(JNIEnv_*, char const*, _jobject*, signed char const*, int, _jobject*, char const*, Thread*)
+    frame #4: jvm.cpp:960: ::JVM_DefineClassWithSource(JNIEnv *, const char *, jobject, const jbyte *, jsize, jobject, const char *)
+    frame #5: ClassLoader.c:150: Java_java_lang_ClassLoader_defineClass1
+  frame #6: 0x000000010602c838 0x000000010602c838
+  frame #7: 0x000000010600b220 0x000000010600b220
+  frame #8: 0x000000010600b220 0x000000010600b220
+  frame #9: 0x000000010600b220 0x000000010600b220
+  frame #10: 0x000000010600b220 0x000000010600b220
+  frame #11: 0x000000010600b220 0x000000010600b220
+  frame #12: 0x000000010600b220 0x000000010600b220
+  frame #13: 0x000000010600b220 0x000000010600b220
+  frame #14: 0x000000010600b220 0x000000010600b220
+  frame #15: 0x00000001060009f1 0x00000001060009f1
+    frame #16: javaCalls.cpp:410: JavaCalls::call_helper(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #17: os_bsd.cpp:3682: os::os_exception_wrapper(void (*)(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*), JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #18: javaCalls.cpp:306: JavaCalls::call(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #19: javaCalls.cpp:193: JavaCalls::call_virtual(JavaValue*, KlassHandle, Symbol*, Symbol*, JavaCallArguments*, Thread*)
+    frame #20: javaCalls.cpp:206: JavaCalls::call_virtual(JavaValue*, Handle, KlassHandle, Symbol*, Symbol*, Handle, Thread*)
+    frame #21: systemDictionary.cpp:1586: SystemDictionary::load_instance_class(Symbol*, Handle, Thread*)
+    frame #22: systemDictionary.cpp:840: SystemDictionary::resolve_instance_class_or_null(Symbol*, Handle, Handle, Thread*)
+    frame #23: systemDictionary.cpp:248: SystemDictionary::resolve_or_null(Symbol*, Handle, Handle, Thread*)
+    frame #24: systemDictionary.cpp:185: SystemDictionary::resolve_or_fail(Symbol*, Handle, Handle, bool, Thread*)
+    frame #25: jvm.cpp:3612: find_class_from_class_loader(JNIEnv_*, Symbol*, unsigned char, Handle, Handle, unsigned char, Thread*)
+    frame #26: jvm.cpp:831: ::JVM_FindClassFromCaller(JNIEnv *, const char *, jboolean, jobject, jclass)
+    frame #27: Class.c:135: Java_java_lang_Class_forName0
+  frame #28: 0x000000010602c838 0x000000010602c838
+  frame #29: 0x000000010600b220 0x000000010600b220
+  frame #30: 0x000000010600b220 0x000000010600b220
+  frame #31: 0x000000010600b220 0x000000010600b220
+  frame #32: 0x00000001060009f1 0x00000001060009f1
+    frame #33: javaCalls.cpp:410: JavaCalls::call_helper(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #34: os_bsd.cpp:3682: os::os_exception_wrapper(void (*)(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*), JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #35: javaCalls.cpp:306: JavaCalls::call(JavaValue*, methodHandle const&, JavaCallArguments*, Thread*)
+    frame #36: jni.cpp:1120: jni_invoke_static(JNIEnv_*, JavaValue*, _jobject*, JNICallType, _jmethodID*, JNI_ArgumentPusher*, Thread*)
+    frame #37: jni.cpp:1847: ::jni_CallStaticObjectMethod(JNIEnv *, jclass, jmethodID, ...)
+    frame #38: java.c:1543: LoadMainClass
+    frame #39: java.c:477: JavaMain
+  frame #40: 0x00007fffa5152aab libsystem_pthread.dylib`_pthread_body + 180
+  frame #41: 0x00007fffa51529f7 libsystem_pthread.dylib`_pthread_start + 286
+  frame #42: 0x00007fffa51521fd libsystem_pthread.dylib`thread_start + 13

@@ -1,0 +1,9 @@
+digraph txn_commit_bt {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  handleQuery -> handleStmt -> ExecuteStmt -> 
+  finishStmt -> autoCommitAfterStmt -> CommitTxn;
+}

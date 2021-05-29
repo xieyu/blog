@@ -1,0 +1,56 @@
+#include "styles.h"
+digraph single_level_local_queue {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  WorkerThread[style_func;label="{{
+    WorkerThread|
+    local: Local\<T\>,\l|
+    runner: R,
+  }}"]
+  WorkerThread -> {
+    Local;
+  }
+  Local[style_func;label="{{
+    Local|
+    id: usize,\l|
+    local_queue: LocalQueue\<T\>,\l|
+    core: Arc\<QueueCore\<T\>\>,\l
+  }}"]
+  Local -> {
+    LocalQueue;
+    QueueCore;
+  }
+  LocalQueue[style_func;label="{{
+    LocalQueue|
+    LocalQueueInner\<T\>\l
+  }}"]
+  
+  LocalQueue -> LocalQueueInner;
+  LocalQueueInner[style_func;label="{{
+    LocalQueueInner|
+    SingleLevel(single_level::LocalQueue\<T\>),\l|
+    Multilevel(multilevel::LocalQueue\<T\>),\l
+  }}"]
+
+  QueueCore[style_func;label="{{
+    QueueCore|
+    global_queue: TaskInjector\<T\>,\l|
+    active_workers: AtomicUsize,\l|
+    config: SchedConfig,\l
+  }}"]
+
+  TaskInjector[style_func;label="{{
+    TaskInjector|
+      InjectorInner\<T\>\l
+  }}"]
+
+  InjectorInner[style_func;label="{{
+    InjectorInner|
+    SingleLevel(single_level::TaskInjector\<T\>),\l|
+    Multilevel(multilevel::TaskInjector\<T\>),\l
+  }}"];
+  TaskInjector -> InjectorInner;
+  QueueCore -> TaskInjector;
+}

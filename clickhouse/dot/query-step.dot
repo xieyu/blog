@@ -1,0 +1,7 @@
+digraph query_step {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  a->b
+}

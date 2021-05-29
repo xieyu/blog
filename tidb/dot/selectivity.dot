@@ -1,0 +1,161 @@
+digraph selectivity {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Selectivity -> {
+    pseudoSelectivity;
+    isColEqCorCol;
+    ExtractColumnsFromExpressions;
+    GetRowCountByIntColumnRanges;
+    GetRowCountByColumnRanges;
+    FindPrefixOfIndex;
+    getMaskAndRanges;
+    GetRowCountByIndexRanges;
+    GetUsableSetsByGreedy;
+    FlattenDNFConditions;
+    MergeDNFItems4Col;
+    FlattenCNFConditions;
+    Selectivity;
+  }[color="#b83b5e"];
+  GetUsableSetsByGreedy[
+    shape="record";
+    label="{{
+      GetUsableSetsByGreedy|
+      select the indices and pk\l
+      used for calculate\l
+      selectivity by greedy algorithm\l
+    }}"];
+
+  GetRowCountByColumnRanges -> {
+    getPseudoRowCountBySignedIntRanges;
+    getPseudoRowCountByUnsignedIntRanges;
+    GetColumnRowCount;
+    GetIncreaseFactor;
+  }
+
+  GetRowCountByIndexRanges[
+    shape="record";
+    label="{{
+      GetRowCountByIndexRanges|
+      estimates the row count\l 
+      by a slice of range\l
+    }}"];
+  GetRowCountByIndexRanges -> {
+    getPseudoRowCountByIndexRanges;
+    getIndexRowCount;
+    Index_GetRowCount;
+    GetIncreaseFactor;
+  }[color="#3f72af"];
+
+  Index_GetRowCount -> {
+    Index_equalRowCount;
+    Index_TotalRowCount;
+  }
+  Index_equalRowCount -> {
+    Histogram_equalRowCount;
+    CMSketch_QueryBytes;
+    outOfRangeEQSelectivity;
+  }
+
+  getIndexRowCount -> {
+    GetOrdinalOfRangeCond;
+    enumRangeValues;
+    Index_GetRowCount;
+    getEqualCondSelectivity;
+    GetRowCountByIndexRanges;
+    GetRowCountByColumnRanges;
+  }[color="#3fc1c9"];
+
+  getEqualCondSelectivity -> {
+    outOfRangeEQSelectivity;
+    CMSketch_QueryBytes;
+  }
+
+  GetColumnRowCount -> {
+    column_equalRowCount;
+    BetweenRowCount;
+    outOfRangeEQSelectivity;
+    TotalRowCount;
+    enumRangeValues;
+  }[color="#f08a5d"];
+
+  column_equalRowCount -> {
+    Histogram_equalRowCount;
+    CMSketch_queryValue;
+    outOfRangeEQSelectivity;
+  }
+
+  subgraph cluster_Histogram {
+    graph[label="Histogram";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Histogram_equalRowCount[
+      shape="record";
+      label="{{
+        equalRowCount|
+        estimates the row count\l
+        where the column equals to value\l
+      }}"];
+    Histogram_equalRowCount -> {
+      notNullCount;
+      GetCompareFunc;
+      NDV;
+    };
+    BetweenRowCount;
+    TotalRowCount -> {
+      notNullCount;
+      NullCount;
+    }
+  }
+  getMaskAndRanges -> {
+    ExtractAccessConditionsForColumn;
+    BuildColumnRange;
+    DetachCondAndBuildRangeForIndex;
+    mask;
+    ranges;
+  }[color="#17b978"];
+  BuildColumnRange[
+    shape="record";
+    label="{{
+      BuildColumnRange|
+      build range from CNF conditions
+    }}"];
+
+  GetRowCountByIntColumnRanges -> {
+    GetColumnRowCount;
+    GetIncreaseFactor;
+    getPseudoRowCountBySignedIntRanges;
+    getPseudoRowCountByUnsignedIntRanges;
+  }
+  GetIncreaseFactor -> {
+    TotalRowCount;
+  }
+
+
+  subgraph cluster_expression {
+    graph[label="expression";fontsize=20;style="rounded,dashed";color="slategrey"]
+    FlattenCNFConditions;
+    FlattenDNFConditions;
+    ExtractColumnsFromExpressions;
+    FindPrefixOfIndex;
+  }
+  subgraph cluster_CMSketch {
+    graph[label="CMSketch";fontsize=20;style="rounded,dashed";color="slategrey"]
+    CMSketch_queryValue;
+    CMSketch_QueryBytes;
+  }
+
+  edge[style=dashed;color=darkblue];
+  BuildColumnRange -> ranges;
+  ExtractAccessConditionsForColumn -> BuildColumnRange;
+  DetachCondAndBuildRangeForIndex -> ranges;
+  ranges -> {
+    GetRowCountByColumnRanges;
+    GetRowCountByIntColumnRanges;
+    GetRowCountByIndexRanges;
+  }
+  mask -> GetUsableSetsByGreedy;
+  ExtractColumnsFromExpressions -> col -> getMaskAndRanges;
+
+  //expression
+  FlattenDNFConditions ->  FlattenCNFConditions -> Selectivity;
+}

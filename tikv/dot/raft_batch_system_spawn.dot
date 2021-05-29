@@ -1,0 +1,88 @@
+#include "styles.h"
+digraph spawn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PeerFsm {
+    graph[label="PeerFsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PeerFsm_create -> {
+      loose_bounded;
+    }
+    loose_bounded -> {
+      tx;
+      rx;
+    }
+    rx -> PeerFsm;
+    PeerFsm[style_struct;label="{{
+      PeerFsm|
+      pub receiver: Receiver\<PeerMsg\<EK\>\>,\l
+    }}"]
+    rx[style_var;label="{{
+      rx|
+      rx channel接收端\l
+      放到PeerFsm reciever
+    }}"]
+    tx[style_var;label="{{
+      tx|
+      channel发送端\l
+      返回给上层\l
+    }}"]
+  }
+  {
+    tx;
+    PeerFsm
+  } -> region_peers[style_edge_data];
+  subgraph cluster_RaftPollerBuilder {
+    graph[label="RaftPollerBuilder";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RaftPollerBuilder_init -> {
+      kv_engine_scan_cf;
+      PeerFsm_create;
+    }
+  }
+  subgraph cluster_RaftBatchSystem {
+    graph[label="RaftBatchSystem";fontsize=20;style="rounded,dashed";color="slategrey"]
+    spawn -> {
+      RaftPollerBuilder_init;
+      start_system;
+    }
+    region_peers[style_var;label="{{
+      region_peers|
+        Result\<Vec\<SenderFsmPair\l 
+        \<EK, ER\>\>\>\l
+    }}"]
+    RaftPollerBuilder_init -> region_peers;
+    region_peers -> start_system;
+    region_peers -> ApplyBatchSystem_schedule_all;
+    start_system -> {
+      router_register_all;
+      ApplyBatchSystem_schedule_all;
+      system_spawn;
+      apply_system_spawn;
+    }
+    ApplyBatchSystem_schedule_all -> {
+      ApplyFsm_from_peer;
+    }
+    ApplyFsm_from_peer -> applyFsm_tx;
+    applyFsm_tx -> router_register_all;
+    tx -> router_register_all;
+    ApplyBatchSystem_schedule_all -> router_register_all;
+    subgraph cluster_Router {
+      graph[label="Router";fontsize=20;style="rounded,dashed";color="slategrey"]
+      router_register_all[style_func;label="{{
+        router_register_all|
+        填充router.normals hashmap\l
+        key为region_id\l
+        value为包装了tx的BasicMailBox\l
+      }}"]
+      router_register_all -> normals
+      normals[style_var;label="{{
+        normals|
+          normals: Arc\<Mutex\<HashMap\<u64,\l 
+          BasicMailbox\<N\>\>\>\>,\l|
+          ...
+      }}"]
+    }
+    
+  }
+}

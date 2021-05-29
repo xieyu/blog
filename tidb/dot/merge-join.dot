@@ -1,0 +1,244 @@
+digraph merge_join {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  MergeJoinExec -> {
+    Next;
+    Open;
+    Close;
+  }
+  Next -> {
+    fetchNextInnerGroup;
+    fetchNextOuterGroup;
+    compare;
+    onMissMatch;
+    tryToMatchInners;
+  }[color="#3f72af"];
+
+  compare -> {
+    compareFuncs;
+    outerTable_joinKeys;
+    innerTable_joinKeys;
+  }
+  compare[
+    shape="record";
+    label="{{
+      compare|
+      比较joinkey
+    }}";
+  ];
+
+  Open -> {
+    baseExecutor_Open;
+    init;
+  }
+  Close -> {
+    finish;
+  }
+
+  subgraph cluster_mergeJoinTable {
+    graph[label="mergeJoinTable";fontsize=20;];
+    init -> {
+      newVecGroupChecker;
+      NewIterator4Chunk;
+      NewRowContainer;
+    };
+    finish -> {
+      rowContainer_close;
+    };
+    fetchNextChunk[
+      shape="record";
+      label="{{
+        fetchNextChunk|
+        从child Executor中\l
+        读取一批(chunk)数据\l
+      }}"];
+
+    fetchNextInnerGroup -> {
+      fetchNextChunk;
+      isExhausted;
+      NewIterator4Chunk;
+      splitIntoGroups;
+      selectNextGroup;
+      groupRowsIter_Begin;
+    }[color="#b83b5e"];
+
+    fetchNextOuterGroup -> {
+      isExhausted;
+      fetchNextChunk;
+      VectorizedFilter;
+      splitIntoGroups;
+      selectNextGroup;
+      groupRowsIter_Begin;
+    }[color="#17b978"];
+
+    subgraph cluster_vecGroupChecker {
+      graph[label="vecGroupChecker";fontsize=20;];
+      splitIntoGroups[
+        shape="record";
+        label="{{
+          splitIntoGroups|
+          split a chunk into muliple\l 
+          groups with the row \l
+          in the same group the same groupKey\l
+        }}";
+      ];
+      splitIntoGroups -> {
+        evalGroupItemsAndResolveGroups;
+      }
+      sameGroup[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          sameGroup []bool\l|
+            sameGroup is used to check \l 
+            whether the current row belongs\l 
+            to the same group as the previous row\l
+        }}";
+      ];
+      groupOffset[
+        shape="record";
+        fillcolor="#95e1d3"
+        style=filled;
+        label="{{
+          groupOffset []int|
+            groupOffset holds the \l 
+            offset of the last row \l 
+            in each group of the current chunk\l
+        }}";
+      ];
+      splitIntoGroups -> groupOffset;
+      evalGroupItemsAndResolveGroups -> sameGroup;
+      isExhausted;
+      groupByItems[
+        shape=record;
+        style=filled;
+        fillcolor="#95e1d3"
+        label="{{
+          groupByItems\l|
+	        GroupByItems []expression.Expression\l
+        }}"
+      ];
+
+
+      edge[style=dashed];
+      newVecGroupChecker -> groupByItems -> splitIntoGroups;
+      groupOffset -> getNextGroup;
+    }
+
+    fetchNextChunk -> {
+      Next_MergeJoinExec_child_childIndex;
+    }
+    childChunk[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        childChunk|
+          childChunk *chunk.Chunk\l|
+          存放child数据\l
+      }}"
+    ];
+    Next_MergeJoinExec_child_childIndex[
+      shape="record";
+      label="{{
+        Next(MergeJoinExec.child[childIndex]|
+        从left/right child的\l 
+        exec中读取数据\l|
+        可参照上面的TableReader和TableIndexReader\l
+      }}";
+    ];
+    innerTable_joinKeys[
+      shape="record";
+      label="{{
+      innerTable.joinKeys\l|
+	      joinKeys   []*expression.Column
+      }}"];
+    outerTable_joinKeys[
+      shape="record";
+      label="{{
+      outerTable.joinKeys\l|
+	      joinKeys   []*expression.Column
+      }}"];
+    VectorizedFilter[
+      shape="record";
+      label="{{
+        VectorizedFilter|
+          VectorizedFilter applies\l 
+          a list of filters to a Chunk and\l
+          returns a bool slice, which\l 
+          indicates whether a row is\l 
+          passed the filters.\l
+      }}"];
+    filtersSelected[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+	      filtersSelected []bool\l|
+        for outer table save\l 
+        result of filters\l
+      }}"
+    ];
+    rowContainer[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        rowContainer|
+	        rowContainer *chunk.RowContainer\l|
+	          for inner table,\l
+            an unbroken group\l 
+            may refer many chunks\l
+      }}"
+    ];
+    groupRowsIter[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        groupRowsIter
+      }}"
+    ];
+
+    edge[style=dashed;color=blue];
+    VectorizedFilter -> filtersSelected;
+    {
+      innerTable_joinKeys;
+      outerTable_joinKeys;
+    } -> newVecGroupChecker;
+    getNextGroup -> selectNextGroup;
+    fetchNextChunk -> childChunk -> splitIntoGroups;
+    childChunk -> VectorizedFilter;
+    childChunk -> rowContainer[label=Add];
+    rowContainer -> groupRowsIter[label=iter];
+    groupRowsIter -> groupRowsIter_Begin;
+    groupRowsIter -> Next;
+  }
+
+
+  subgraph cluster_joinner {
+    graph[label="joinner";fontsize=20;];
+    onMissMatch;
+    tryToMatchInners;
+    tryToMatchInners[
+      shape="record";
+      label="{{
+        tryToMatchInners|
+          tryToMatchInners(\l 
+            outer chunk.Row,\l
+            inners chunk.Iterator,\l 
+            chk *chunk.Chunk)\l 
+            (matched bool, isNull bool, err error)\l|
+          tries to joion an outer row with\l 
+          a batch of inner rows\l
+      }}"];
+  }
+
+  edge[style=dashed;color=blue]
+  filtersSelected -> Next;
+  groupRowsIter -> tryToMatchInners;
+}

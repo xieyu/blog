@@ -1,0 +1,60 @@
+digraph firebase {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  FireBaseProject -> GoogleCloudPlatform;
+  FireBaseProject -> {
+    ProjectName;
+    ProjectId;
+    App;
+    Config;
+  }
+
+  subgraph cluster_Resource {
+    graph[label="Resource";fontsize=20;];
+    ProjectId -> {
+      HostingSubDomain;
+      RealTimeDatabaseUrl;
+      ClouldStorageBucket;
+    }
+    HostingSubDomain[
+      shape="record"
+      label="{{
+        HostingSubDomain|
+          projectID.web.app\l
+          projectID.firebaseapp.com\l
+      }}"
+    ];
+    RealTimeDatabaseUrl[
+      shape="record"
+      label="{{
+        RealTimeDatabaseUrl|
+          projectID.firebaseio.com
+      }}"
+    ];
+    ClouldStorageBucket[
+      shape="record"
+      label="{{
+        ClouldStorageBucket|
+          projectID.appspot.com
+      }}"
+    ];
+  }
+
+  subgraph cluster_Config {
+    graph[label="Config";fontsize=20;];
+    Config -> {
+      IOSGoogleServiceInfo;
+      AndroidGoogleSerivceJson
+      webConfigObject;
+    }
+    IOSGoogleServiceInfo[
+      shape="record"
+      label="{{
+        IOSGoogleServiceInfo|
+          googleService-Info.plist
+      }}"
+    ];
+  }
+}

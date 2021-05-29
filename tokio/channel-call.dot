@@ -1,0 +1,83 @@
+digraph channel_call {
+  node[shape=box];
+  newrank=true;
+  rankdir=TD;
+
+  subgraph cluster_Tx {
+    graph[label="Tx";fontsize=20;]
+    tx_poll_ready[label="poll_ready"];
+    tx_try_send[label="try_send"];
+    tx_clone[label="clone"];
+  };
+  tx_poll_ready -> poll_acquire;
+  tx_try_send -> {rx_waker_wake, forget, tx_push};
+  tx_clone -> {chan_clone, tx_count_fetch_add};
+
+  subgraph cluster_Rx {
+    graph[label="Rx";fontsize=20;]
+    Rx_close[label="close"];
+    Rx_recv[label="recv"];
+    Rx_drop[label="drop"];
+  }
+  Rx_close -> sem_close;
+  Rx_recv -> {rx_fields_pop, register_by_ref};
+  Rx_drop -> {rx_fields_pop};
+
+  subgraph cluster_chan {
+    graph[label="chan";fontsize=20;]
+    chan_clone[label="chone"];
+    tx_count_fetch_add[label="tx_count.fetch_add"];
+
+    subgraph cluster_rx_fields {
+      graph[label="rx_fields: CausalCell<RxFields<T>>";fontsize=20;]
+      rx_fields_pop[label="pop"];
+      rx_reclaim_blocks[label="reclaim_blocks"];
+      rx_fields_pop -> rx_reclaim_blocks;
+    }
+    rx_reclaim_blocks -> tx_reclaim_blocks;
+
+    subgraph cluster_semaphore {
+      graph[label="semaphore";fontsize=20;]
+      poll_acquire;
+      forget;
+      sem_close[label="close"];
+    };
+
+    subgraph cluster_rx_waker {
+      graph[label="rx_waker: AtomicWaker";fontsize=20;]
+      rx_waker_wake[label="wake"];
+      register_by_ref[label="register_by_ref"];
+    };
+
+    subgraph cluster_tx {
+      graph[label="tx: list::Tx";fontsize=20;]
+      tx_push[label="push"];
+      tx_push -> find_block;
+      tx_reclaim_blocks[label="reclaim_blocks"];
+    };
+  };
+  tx_push -> block_write;
+  tx_reclaim_blocks -> block_reclaim;
+
+  subgraph cluster_permit {
+    graph[label="permit";fontsize=20;]
+    permit_poll_acquire[label="poll_acquire"];
+    permit_try_acquire[label="try_acquire"];
+
+    subgraph cluster_waiter {
+      graph[label="waite: Option<Arc<WaiterNode>";fontsize=20;]
+      acquire;
+    }
+    permit_poll_acquire -> acquire;
+  }
+  acquire -> register_by_ref;
+  poll_acquire -> permit_poll_acquire;
+
+
+  subgraph cluster_block {
+    graph[label="block";fontsize=20;]
+    block_write[label="write"];
+    block_reclaim[label="reclaim"];
+  }
+
+}

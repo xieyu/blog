@@ -1,0 +1,72 @@
+digraph possibleAccessPaths {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_DataSource {
+    graph[label="DataSource";fontsize=20;style="rounded,dashed";color="slategrey"]
+    possibleAccessPaths;
+    IndexHints;
+    indexMergeHints;
+    preferStoreType;
+    tableHintInfo;
+    TableInfo;
+  }
+  subgraph cluster_partitionProcessor{
+    graph[label="partitionProcessor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    makeUnionAllChildren-> resolveOptimizeHint -> resolveAccessPaths;
+    resolveOptimizeHint[
+      shape="record";
+      label="{{
+      resolveOptimizeHint\l|
+      index hint\l
+      index merge hint\l
+      storage hint\l
+      }}"];
+    resolveOptimizeHint -> {
+      IndexHints;
+      indexMergeHints;
+      preferStoreType;
+    }
+  }
+
+  resolveAccessPaths -> {
+    getPossibleAccessPaths;
+    filterPathByIsolationRead;
+    possibleAccessPaths;
+    getPathByIndexName;
+    removeIgnoredPaths;
+    HintIgnore;
+    hint_IndexNames;
+  }[color="#b83b5e"];
+
+  removeIgnoredPaths[
+    shape="record";
+    label="{{
+      removeIgnoredPaths|
+      删除Ignored的IndexPaths
+    }}"];
+  removeIgnoredPaths -> {
+    IsTablePath;
+    getPathByIndexName;
+  }
+
+  getPossibleAccessPaths -> {
+    IsClusterTable;
+    genTiFlashPath;
+    tblInfo_Indices;
+    removeIgnoredPaths;
+  }
+
+  edge[style=dashed;color=darkblue]
+  getPossibleAccessPaths -> filterPathByIsolationRead -> possibleAccessPaths[style=dashed];
+  TableInfo[
+    shape="record";
+    label="{{
+      TableInfo|
+      Indices
+    }}"];
+  TableInfo -> getPossibleAccessPaths;
+  tableHintInfo -> getPossibleAccessPaths;
+}

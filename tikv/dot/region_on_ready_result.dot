@@ -1,0 +1,66 @@
+#include "styles.h"
+digraph on_ready_result {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PeerStorage_set_region
+  }
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    peer_set_region -> {
+      PeerStorage_set_region;
+      get_region_epoch;
+      expire_remote_lease;
+    };
+    heartbeat_pd[style_func;label="{{
+      heartbeat_pd|
+      异步的向pd server\l 
+      发送region心跳信息\l
+    }}"]
+  }
+
+  subgraph cluster_StoreMeta {
+    graph[label="StoreMeta";fontsize=20;style="rounded,dashed";color="slategrey"]
+    set_region -> peer_set_region;
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_ready_result -> {
+      on_ready_split_region;
+      on_ready_change_peer;
+      on_ready_prepare_merge;
+      on_ready_commit_merge;
+      on_ready_rollback_merge;
+      on_ready_compute_hash;
+    }
+
+    on_ready_split_region -> {
+      set_region;
+      heartbeat_pd;
+    }
+    on_ready_prepare_merge -> {
+      set_region;
+    }
+    on_ready_rollback_merge -> {
+      set_region;
+      heartbeat_pd;
+    }
+    on_ready_commit_merge -> {
+      set_region;
+      heartbeat_pd;
+    }
+    on_ready_change_peer ->{
+      update_region;
+      remove_peer_from_cache;
+    }
+    update_region ->{
+      set_region;
+      insert_peer_cache;
+    }
+  }
+  
+}

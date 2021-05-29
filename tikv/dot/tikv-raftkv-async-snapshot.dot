@@ -1,0 +1,105 @@
+#include "styles.h"
+digraph async_snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RaftRouter {
+    graph[label="RaftRouter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    send;
+  }
+
+  subgraph cluster_LocalReader{
+    graph[label="LocalReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    subgraph cluster_leader_lease {
+      graph[label="leader lease";fontsize=20;style="rounded,dashed";color="slategrey"]
+      is_in_leader_lease;
+      is_in_leader_lease[style_func;label="{{is_in_leader_lease|
+      ReadDelegate::is_in_leader_lease\l|
+      Leader can read local \l
+      if an only if it is in lease\l
+      }}"]
+      execute;
+      cb_invoke_read;
+    }
+    pre_propose_raft_command -> {
+      check_peer_id;
+      check_region_epoch;
+      check_term;
+    }
+    pre_propose_raft_command -> is_in_leader_lease[style_edge_data];
+
+    LocalReadRouter_read[style_func;label="{{read}}"]
+    LocalReader_read -> {
+      propose_raft_cmd;
+    }
+    propose_raft_cmd -> {
+      pre_propose_raft_command;
+      is_in_leader_lease;
+      execute;
+      cb_invoke_read;
+      redirect;
+    }
+    redirect[style_func;label="{{redirect|
+      Forward to raftstore
+    }}"]
+    redirect -> {
+      send;
+      RaftCommand;
+    }
+    RaftCommand[style_struct;label="{{RaftCommand|
+        pub send_time: Instant,\l|
+        pub request: RaftCmdRequest,\l|
+        pub callback: Callback\<S\>,\l
+    }}"]
+  }
+  RaftCommand -> Store_Callback_read_cb[style_edge_data];
+  cb_invoke_read -> Store_Callback_read_cb[style_edge_data];
+
+  subgraph cluster_RaftKV{
+    graph[label="RaftKV";fontsize=20;style="rounded,dashed";color="slategrey"]
+    engine_async_snapshot[style_func;label="{{
+      async_snapshot
+    }}"]
+    engine_async_snapshot -> {
+      exec_snapshot;
+      box_new_cb;
+    }
+    exec_snapshot  -> {
+      LocalReadRouter_read;
+    }
+    LocalReadRouter_read[style_func;label="{{
+      trait LocalReadRouter::read|
+      ServerRaftStoreRouter::read\l
+      read ready之后调用回调\l|
+    }}"]
+    LocalReadRouter_read -> {
+      LocalReader_read; 
+    }
+
+    LocalReadRouter_read -> Store_Callback_read_cb[style_edge_data];
+    Store_Callback_read_cb[style_func;label="{{
+      Store:Callback::Read|
+      raft read ready callback
+    }}"]
+    box_new_cb[style_func;label="{{
+      box_new_cb|
+      exec_snapshot向下\l 
+      传的callback\l|
+      被回调时候\l
+      会调用上层传\l 
+      入的callback\l
+    }}"]
+    Store_Callback_read_cb -> {
+      on_read_result;
+      box_new_cb;
+    }
+    on_read_result -> {
+      check_raft_cmd_response;
+    }
+    box_new_cb -> {
+      callback;
+    }
+  }
+  
+}

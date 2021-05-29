@@ -1,0 +1,211 @@
+digraph datasource_findBestTask {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  findBestTask[
+    shape="record";
+    label="{{
+      DataSource.findBestTask|
+      enumerate all the availabel indices\l
+      and choose a plan with lest cost\l
+    }}";
+  ];
+  findBestTask -> {
+    convertToIndexMergeScan;
+    convertToPointGet;
+    convertToBatchPointGet;
+    convertToTableScan;
+    skylinePruning;
+  }[color="#b83b5e"];
+  skylinePruning[
+    shape="record";
+    label="{{
+      skylinePruning|
+      prunes acces paths \l 
+      according to different factors\l|
+      遍历ds的possibleAccessPaths\l
+    }}"];
+  possibleAccessPaths[style=dashed];
+  possibleAccessPaths -> skylinePruning[style=dashed];
+
+  skylinePruning -> {
+    getIndexMergeCandidate;
+    getTableCandidate;
+    getIndexCandidate;
+  }
+
+  //DeriveStats -> generateAndPruneIndexMergePath -> generateIndexMergeOrPaths;
+  //generateIndexMergeOrPaths -> buildIndexMergePartialPath -> PartialIndexPaths;
+
+  PartialIndexPaths  -> {
+    convertToPartialTableScan;
+    convertToPartialIndexScan;
+  }
+
+  convertToIndexMergeScan -> {
+    convertToPartialTableScan;
+    convertToPartialIndexScan;
+    buildIndexMergeTableScan;
+    finishCopTask;
+    copTask;
+  }[color="#3f72af"]
+
+  convertToPartialIndexScan -> {
+    PhysicalSelection;
+    getOriginalPhysicalIndexScan;
+  }
+  getOriginalPhysicalIndexScan -> PhysicalIndexScan;
+
+  convertToPartialTableScan -> {
+    PhysicalSelection;
+    getOriginalPhysicalTableScan;
+  }
+  getOriginalPhysicalTableScan ->  PhysicalTableScan;
+  buildIndexMergeTableScan -> {
+    PhysicalTableScan;
+  }
+  convertToTableScan -> {
+    copTask;
+    getOriginalPhysicalIndexScan;
+    addPushedDownSelection;
+  }
+  {
+    PhysicalTableScan;
+    PhysicalIndexScan;
+  } -> copTask[style=dashed];
+
+  getOriginalPhysicalIndexScan -> PhysicalTableScan;
+
+  convertToPointGet -> {
+    PointGetPlan;
+    rootTask;
+  };
+  PointGetPlan -> rootTask[style=dashed];
+  BatchPointGetPlan -> rootTask[style=dashed];
+
+  convertToBatchPointGet ->{
+    rootTask;
+    BatchPointGetPlan;
+    PhysicalSelection;
+  }[color="#17b978"];
+
+  rootTask[
+    shape="record";
+    label="{{
+    rootTask|
+    在TiDB端执行\l
+    }}";
+  ];
+  copTask[
+    shape="record";
+    label="{{
+    copTask|
+    在TikV端执行\l
+    }}";
+  ];
+  addPushedDownSelection -> {
+    PhysicalSelection;
+  }
+
+  PhysicalIndexScan[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalIndexScan
+    }}";
+  ];
+  PhysicalTableScan[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalTableScan
+    }}";
+  ];
+  PhysicalSelection[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalSelection
+    }}";
+  ];
+  PointGetPlan[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PointGetPlan
+    }}";
+  ];
+  BatchPointGetPlan[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      BatchPointGetPlan
+    }}";
+  ];
+  finishCopTask[
+    shape="record";
+    label="{{
+    finishCopTask|
+    means we close the copprocessor\l 
+    task and create a root task\l|
+    计算从TiKV传数据到TiDB的cost\l
+    }}";
+  ];
+  finishCopTask -> {
+    PhysicalIndexReader;
+    PhysicalTableReader;
+    PhysicalIndexMergeReader;
+    buildIndexLookUpTask;
+    rootTask;
+    finishIndexPlan;
+  }[color="#e84545"];
+  PhysicalIndexMergeReader[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalIndexMergeReader|
+      using multiple indexs in tidb
+    }}"];
+
+  PhysicalIndexLookUpReader[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalIndexLookUpReader|
+      index look up reader in tidb.\l 
+      It's used in case of double reading.\l|
+      通过索引数据解析到row ID\l
+      然后通过row ID获取数据\l
+    }}";
+  ];
+  PhysicalTableReader[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalTableReader|
+      通过rowID读取数据\l
+    }}";
+  ];
+  PhysicalIndexReader[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalIndexReader\l
+      通过索引读取数据\l
+    }}";
+  ];
+
+  buildIndexLookUpTask -> PhysicalIndexLookUpReader;
+  PhysicalIndexScan -> PhysicalIndexReader[style=dashed];
+  PhysicalTableScan -> PhysicalTableReader[style=dashed];
+}

@@ -1,0 +1,68 @@
+#include "styles.h"
+digraph title {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  set_overlapped_rollback -> has_overlapped_rollback
+  has_overlapped_rollback -> get_txn_commit_record[style_edge_data];
+  set_overlapped_rollback -> gc_fence;
+  make_rollback -> set_overlapped_rollback;
+  rollback_lock -> get_txn_commit_record;
+  rollback_lock -> make_rollback;
+  has_overlapped_rollback[style_var;label="{{
+    has_overlapped_rollback
+  }}"]
+  gc_fence[style_var;label="{{
+    gc_fence
+  }}"]
+  make_rollback -> put_write[style_edge_data];
+  rollback_lock -> put_write;
+  put_write[style_func;label="{{
+    put_write|
+    写入rollback record\l
+    对应write的commit_ts为\l
+    事务的start_ts\l
+  }}"]
+  make_rollback[style_func;label="{{
+    make_rollback|
+    Generate the write record\l
+    that should be written \l
+    that means to perform a \l
+    specified rollback\l|
+    如果protected\l
+  }}"]
+  protected[style_var;label="{{
+    protected|
+    悲观事务的primay key\l
+    需要protected\l
+  }}"]
+  protected -> set_overlapped_rollback[style_edge_data]
+  protected -> has_overlapped_rollback -> OverlappedRollback[label=true;style_edge_data];
+  get_txn_commit_record -> {
+    OverlappedRollback;
+    OverlappedWrite;
+  }
+  get_txn_commit_record[style_func;label="{{
+    get_txn_commit_record|
+    遍历key从max到start_ts \l
+    所有write version\l
+    如果事务的commit_ts == start_ts\l
+    再根据has_overlapped_rollback标记\l
+    确定是返回OverlappedRollback\l
+    还是OverlappedWrite\l
+  }}"]
+  CheckSecondaryLocks_process_write -> {
+    make_rollback;
+    put_write;
+    collapse_prev_rollback;
+  }
+  CheckSecondaryLocks_process_write -> has_overlapped_rollback[style_edge_data;label=true];
+
+  cleanup -> {
+    rollback_lock;
+    check_txn_status_missing_lock;
+  }
+  check_txn_status_missing_lock -> get_txn_commit_record;
+  
+}

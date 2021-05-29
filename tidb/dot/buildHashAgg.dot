@@ -1,0 +1,114 @@
+digraph agg_mode {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+    subgraph cluster_Mode {
+      graph[label="Mode";fontsize=20;style="rounded,dashed";color="slategrey"]
+      CompleteMode;
+      FinalMode;
+      Partial1Mode;
+      Partial2Mode;
+    }
+    subgraph cluster_HashAggExecutor {
+      graph[label="HashAggExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+      PartialAggFuncs[
+        shape=record;
+        style=filled;
+        fillcolor="#f6d887";
+        label="{{
+          PartialAggFuncs\l|
+            []aggfuncs.AggFunc\l|
+          存放partial phase的aggFunc\l
+          将在partial worker执行\l
+        }}"
+      ];
+      FinalAggFuncs[
+        shape=record;
+        style=filled;
+        fillcolor="#f6d887";
+        label="{{
+          FinalAggFuncs\l|
+            []aggfuncs.AggFunc\l
+          存放final phase的aggFunc\l
+          将在final worker执行\l
+        }}"
+      ];
+      
+    }
+    executorBuilder_build[
+      shape="record";
+      label="{{
+        executorBuilder.build
+      }}"];
+    executorBuilder_build -> buildHashAgg;
+    buildHashAgg -> {
+      Split;
+      aggfuncs_Build;
+    }
+    Split[
+      shape="record";
+      label="{{
+        Split|
+        AggFuncDesc.Split\l|
+        split into two aggregate descriptors\l
+        for partial phase and final phase\l
+      }}"];
+    aggfuncs_Build[
+      shape="record";
+      label="{{
+        aggfuncs.Build
+      }}"];
+    Split -> {
+      Partial1Mode;
+      Partial2Mode;
+    }[color="#b83b5e"];
+
+    aggfuncs_Build -> {
+      buildCount;
+      buildSum;
+      buildAvg;
+    }
+    buildCount -> {
+      countOriginalWithDistinct4Int;
+      countOriginal4Int;
+      countPartial;
+      HashDistinct;
+    }
+    {
+      CompleteMode;
+      Partial1Mode;
+      HashDistinct;
+    } -> countOriginalWithDistinct4Int;
+    {
+      CompleteMode;
+      Partial1Mode;
+    } -> countOriginal4Int;
+    {
+      Partial2Mode;
+      FinalMode;
+    } -> countPartial;
+
+    buildSum -> {
+      baseSumAggFunc;
+      sum4DistinctFloat64;
+      sum4Float64;
+    }
+    hasDistinct -> sum4DistinctFloat64;
+
+    buildAvg -> {
+      avgOriginal4Float64;
+      avgPartial4Float64;
+    }
+
+    {
+      CompleteMode;
+      Partial1Mode;
+    } -> avgOriginal4Float64;
+
+    {
+      Partial2Mode;
+      FinalMode;
+    } -> avgPartial4Float64;
+    edge[style=dashed;color=blue]
+}

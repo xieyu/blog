@@ -1,0 +1,157 @@
+#include "styles.h"
+digraph on_merge_result {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_CoprocessorHost {
+    graph[label="CoprocessorHost";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_region_changed[style_func;label="{{
+      on_region_changed|
+      触发region change的obserer\l
+      发送事件RegionChangeEvent::Destroy\l
+    }}"]
+  }
+
+  subgraph cluster_StoreMeta {
+    graph[label="StoreMeta";fontsize=20;style="rounded,dashed";color="slategrey"]
+    store_meta_lock;
+    pending_snapshot_regions;
+    readers[style_func;label="{{
+      readers|
+      meta.readers.remove(&region_id)\l
+    }}"]
+  }
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    clear_meta;
+      
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    destroy[style_func;label="{{
+      destroy|
+      1. set the region to tombstone\l|
+      2. clear data\l|
+      3. notify all pending requests\l
+    }}"]
+    destroy -> {
+      clear_meta;
+      write_peer_state;
+      consume;
+      pending_reads_clear_all;
+      notify_req_region_removed;
+      proposals;
+    }
+    consume[style_func;label="{{
+      consume|
+      将raftlog日志\l 
+      写入engine中？\l
+    }}"]
+    write_peer_state[style_func;label="{{
+      write_peer_state|
+      写入peer状态Tombstone\l
+      PeerState::Tombstone\l
+    }}"]
+    pending_reads[style_func;label="{{
+      pending_reads|
+      ReadIndexQueue\<EK::Snapshot\>
+    }}"]
+    pending_reads_clear_all -> pending_reads;
+    proposals -> notify_req_region_removed;
+    proposals[style_var;label="{{
+      proposals|
+      ProposalQueue\<EK::Snapshot\>,\l
+    }}"]
+    notify_req_region_removed[style_func;label="{{
+      notify_req_region_removed|
+      调用回调cb, 返回RegionNotFound错误\l
+    }}"]
+    notify_req_region_removed -> {
+      cb_invoke_with_response;
+    }
+  }
+  subgraph cluster_PeerFsm {
+    graph[label="PeerFsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+    pending_remove[style_var;label="{{
+      pending_remove|
+      设置pending_remove为true
+    }}"]
+    stop[style_func;label="{{
+      stop|
+      设置stopped为true\l
+    }}"]
+  }
+
+  subgraph cluster_PDTask {
+    graph[label="worker/pd";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PdTask_DestroyPeer[style_func;label="{{
+      PdTask::DestroyPeer|
+      由pd worker来处理\l 
+      DestoryPeer消息
+    }}"]
+    handle_destroy_peer[style_func;label="{{
+      handle_destroy_peer|
+      从region_peers 删除掉region_id\l
+    }}"]
+    PdTask_DestroyPeer -> handle_destroy_peer -> region_peers;
+    region_peers[style_func;label="{{
+      region_peers|
+      region_peers: HashMap\<u64, PeerStat\>,\l|
+      key为region_id\l
+      region_peers.remove(&region_id)\l
+    }}"]
+  }
+  subgraph cluster_Router {
+    graph[label="Router";fontsize=20;style="rounded,dashed";color="slategrey"]
+    router_close[style_func;label="{{
+      router.close|
+      关闭region的mailbox\l
+    }}"]
+    router_close -> {
+     normals;
+     mailboxes_remove;
+     mailboxe_close;
+    }
+
+    normals[style_var;label="{{
+      
+    normals|
+      从region_id到PeerFsm的\l 
+      mailbox的映射\l|
+        normals: Arc\<Mutex\<HashMap\l 
+        \<u64, BasicMailbox\<N\>\>\>\>,\l
+    }}"]
+      
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_merge_result -> {
+      pending_merge_state;
+      is_applying_snapshot;
+      is_initialized;
+      MergeResultKind_FromTargetLog;
+      destroy_peer;
+    }
+    MergeResultKind_FromTargetLog[style_func;label="{{
+      MergeResultKind::FromTargetLog
+    }}"]
+
+    MergeResultKind_FromTargetLog -> destroy_peer;
+    destroy_peer -> {
+      pending_remove;
+      store_meta_lock;
+      pending_snapshot_regions;
+      readers;
+      on_region_changed;
+      PdTask_DestroyPeer;
+      destroy;
+      router_close;
+      stop;
+    }
+  }
+  
+}

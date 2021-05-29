@@ -1,0 +1,28 @@
+#include "styles.h"
+digraph leader_heartbeat {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  step_leader -> {
+    bcast_heartbeat;
+  }
+  bcast_heartbeat -> {
+    last_pending_request_ctx;
+    bcast_heartbeat_with_ctx;
+  }
+  bcast_heartbeat_with_ctx -> {
+    iter_mut;
+    send_heartbeat;
+  }
+  send_heartbeat[style_func;label="{{
+    send_heartbeat|
+    sends an empty MsgAppend
+  }}"]
+
+  send_heartbeat -> {
+    raft_log_committed;
+    pr_machted;
+  }
+}

@@ -1,0 +1,87 @@
+#include "styles.h"
+digraph broadcast_unreachable {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_raft {
+    graph[label="raft";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    handle_unreachable[style_func;label="{{
+      handle_unreachable|
+      将peer由Replica\l 
+      改为Probe状态\l
+    }}"]
+    
+  }
+  raft_group_report_unreachable -> handle_unreachable[style_edge_data];
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_significant_msg -> {
+      raft_group_report_unreachable;
+      hibernate_state_reset_GroupState_Chaos;
+      register_raft_base_tick;
+      find_peer;
+    }
+    find_peer[style_func;label="{{
+      find_peer|
+      find_peer(self.region(), store_id)\l|
+      找到自己region \l 
+      在store_id上peer\l
+    }}"]
+    raft_group_report_unreachable[style_func;label="{{
+      raft_group.report_unreachable(peer_id)|
+      如果自己是leader,\l 
+      则调用report_unreachable\l
+    }}"]
+    hibernate_state_reset_GroupState_Chaos[style_func;label="{{
+      hibernate_state.reset(GroupState::Chaos)|
+      如果该peer_id是自己的leader_id\l
+      则设置状态为GroupState:choas\l
+    }}"]
+      
+  }SignificantMsg_StoreUnreachable -> on_significant_msg[style_edge_data]
+
+  subgraph cluster_RaftRouter {
+    graph[label="RaftRouter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    report_unreachable -> {
+      broadcast_normal;
+      SignificantMsg_StoreUnreachable;
+    }
+    broadcast_normal[style_func;label="{{
+      broadcast_normal|
+      遍历自己的normals map\l
+      向所有的region 发送消息\l
+    }}"]
+    broadcast_normal -> normals;
+    normals[style_func;label="{{
+      normals|
+    normals: Arc\<Mutex\<HashMap\<u64, BasicMailbox\<N\>\>\>\>,\l
+    region_id 到该region \l 
+    PeerFsm mailbox的映射\l
+    }}"]
+      
+  }
+  subgraph cluster_StoreFsmDelegate {
+    graph[label="StoreFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_msgs -> {
+      on_store_unreachable;
+    }
+    on_store_unreachable ->{
+      report_unreachable;
+    }
+  }
+
+  subgraph cluster_RaftStoreRouter{
+    graph[label="RaftStoreRouter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    broadcast_unreachable -> {
+      send_store_msg;
+      StoreMsg_StoreUnreachable;
+    }
+    StoreMsg_StoreUnreachable  -> on_store_unreachable[style_edge_data];
+    send_store_msg -> StoreRouter_send;
+  }
+  
+}

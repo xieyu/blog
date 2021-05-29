@@ -1,0 +1,58 @@
+#include "styles.h"
+digraph GenIndexValue {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+
+  Create[style_func;label="{{
+    Create|
+    index.Create\l
+    creates a new entry in the kvIndexData\l
+  }}"]
+  rankdir=LR;
+  Create -> {
+    GenIndexKey;
+    GenIndexValue;
+    GenIndexValueNew;
+  }
+
+  GenIndexKey[style_func;label="{{
+    GenIndexKey|
+    tablePrefix phyTblID indexPrefixSep\l
+    idxInfo.ID indexedValues
+  }}"]
+  GenIndexKey -> {
+    appendTableIndexPrefix;
+    TruncateIndexValues;
+  }
+
+  GenIndexValue -> GenIndexValueNew -> {
+    encodePartitionID;
+    encodeCommonHandle;
+    EncodeHandleInUniqueIndexValue;
+    UnCommitIndexKVFlag;
+    rowcodec_Encode;
+    NewCollationEnabled;
+  }
+  rowcodec_Encode[style_func;label="{{
+    rowcodec_Encode|
+    encode rowRestoredValue
+  }}"]
+
+  encodePartitionID -> PartitionIDFlag;
+  encodeCommonHandle -> CommonHandleFlag;
+  EncodeHandleInUniqueIndexValue -> encodeCommonHandle;
+  encodeCommonHandle[style_func;label="{{
+    encodeCommonHandle|
+    {idxVal|CommonHandleFlag|hlen|handle_Encode}
+  }}"]
+
+
+  encodePartitionID[style_func;label="{{
+    encodePartitionID|
+    如果是全局索引\l 
+    idxInfo.Global 为true layout 如下\l|
+    {indxVal| PartitionIDFlag|partitionID}
+  }}"]
+
+}

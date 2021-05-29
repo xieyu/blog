@@ -1,0 +1,76 @@
+#include "styles.h"
+digraph snap_build {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RaftSnapshotData {
+    graph[label="RaftSnapshotData";fontsize=20;style="rounded,dashed";color="slategrey"]
+    set_file_size;
+    set_version;
+    set_meta;
+  }
+
+  build -> {
+    do_build;
+    total_size;
+    set_file_size;
+    set_version;
+    set_meta;
+  }
+
+  do_build -> {
+   exists;
+   validate;
+   retry_delete_snapshot;
+   init_for_building;
+   enc_start_key;
+   enc_end_key;
+
+   SNAPSHOT_CFS_ENUM_PAIR;
+   switch_to_cf_file;
+   cf_files;
+   plain_file_used;
+   build_plain_cf_file;
+   build_sst_cf_file;
+   encryption_key_manager;
+   delete_file_if_exist;
+   rename_tmp_cf_file_for_send;
+  }
+  build_sst_cf_file[style_func;label="{{
+    build_sst_cf_file|
+    扫描从start_key到end_key\l 
+    的key,value, 写入sst文件\l
+  }}"]
+  build_sst_cf_file -> {
+    scan_cf;
+    create_sst_file_writer;
+  }
+  scan_cf[style_func;label="{{
+    scan_cf|
+    扫描start_key, 到end_key的\l 
+    key,value\l
+  }}"]
+  build_plain_cf_file -> {
+    scan_cf;
+  }
+
+  exists -> {
+    validate;
+    retry_delete_snapshot;
+    init_for_building;
+  }[style_edge_data];
+
+  region -> {
+    enc_start_key;
+    enc_end_key;
+  } -> {
+    build_sst_cf_file;
+    build_plain_cf_file;
+  }[style_edge_data];
+
+  SNAPSHOT_CFS_ENUM_PAIR -> {
+    CF_DEFAULT, CF_LOCK, CF_WRITE
+  }
+  
+}

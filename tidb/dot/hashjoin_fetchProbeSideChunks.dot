@@ -1,0 +1,130 @@
+digraph fetchProbeSideChunks {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  fetchProbeSideChunks[
+    fillcolor="#b83b5e"
+    shape="record";
+    label="{{
+      fetchProbeSideChunks|
+      一个goroutine从probeExec\l 
+      中读取数据\l
+      然后将结果放入dest中\l
+    }}"];
+  finished[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      finished
+    }}"
+  ];
+  closeCh[
+    fillcolor="#95e1d3"
+    style=filled;
+    shape=box3d;
+    label="closeCh"
+  ];
+  joinResultCh[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      joinResultCh\l|
+        chan *hashjoinWorkerResult
+    }}"
+  ];
+  probeChkResource[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    fillcolor="#95e1d3"
+    label="{{
+      probeChkResource|
+        <chk> chk  *chunk.Chunk\l|
+        <dest> dest chan\<- *chunk.Chunk\l
+    }}"
+  ];
+  probeResultChs[
+    shape="record";
+    label="{{
+      probeResultChs|
+        probeResultChs     []chan *chunk.Chunk\l|
+        每个joinWorker从\l 
+        probeResultChs[workerID]\l 
+        读取数据\l
+    }}"];
+  probeChkResource:dest -> probeResultChs;
+  probeChkResourceCh[
+    shape="record";
+    fillcolor="#95e1d3";
+    label="{{
+    probeChkResourceCh|
+      chan *probeChkResource\l|
+      用于probeChkResoure的复用\l
+    }}"];
+  buildFinished[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      buildFinished\l|
+        buildFinished chan error\l
+    }}"
+  ];
+  Next[
+    shape="record";
+    label="{{
+      Next|
+      从probeSideExec中读取数据\l
+    }}"];
+  probeChkResourceCh -> probeChkResource;
+
+  HashJoinExec_Next -> fetchAndProbeHashTable;
+  fetchAndProbeHashTable -> fetchProbeSideChunks[label="go routine"];
+  fetchAndProbeHashTable -> runJoinWorker[label="起多个并发的\lconcurrency goroutine"];
+
+  fetchProbeSideChunks -> closeCh[label="recv";color="blue"];
+  fetchProbeSideChunks -> probeChkResourceCh[label="recv";color="blue"];
+  fetchProbeSideChunks -> probeChkResource:dest[label="send";color="red"];
+
+
+  fetchProbeSideChunks -> {
+    finished;
+    Next;
+    wait4BuildSide;
+  }
+  fetchProbeSideChunks -> joinResultCh[label="send error if any";color=red]
+  wait4BuildSide[
+    shape="record";
+    label="{{
+      wait4BuildSide|
+      监听buildFinished chan\l
+      等待hash table构建结束\l
+    }}"];
+  wait4BuildSide ->  buildFinished[label="recv";color="blue"];
+  wait4BuildSide -> closeCh[label="recv";color="blue"];
+
+  {
+    fetchBuildSideRows;
+    fetchAndBuildHashTable;
+    handleFetchAndBuildHashTablePanic;
+  }-> buildFinished;
+  runJoinWorker[
+    shape="record";
+    label="{{
+      runJoinWorker|
+      多个joinWorker并发执行\l|
+      joinWorker把用完的\l
+      ProbeChkResource\l 
+      放回probeChkResourceCh中\l 
+      让fetchProbeSideChunks复用\l|
+      最开始放一个空的到chan中\l
+    }}"];
+
+  runJoinWorker -> probeChkResourceCh[label="send"; color="red"];
+  edge[style=dashed;color=blue];
+  probeSideExec -> Next -> probeChkResource:chk -> probeChkResource:dest;
+  probeResultChs -> runJoinWorker[label=workerID];
+}

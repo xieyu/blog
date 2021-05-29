@@ -1,0 +1,259 @@
+#include "styles.h"
+digraph PeerStorageDraft {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Raft {
+    graph[label="Raft";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RawNode ->  Raft -> RaftCore -> RaftLog
+    RaftLog[style_func;label="{{
+      RaftLog|
+      pub store: T\l|
+      其中T类型即为PeerStorage\l
+    }}"]
+    fetch_entries_to;
+  }
+  RaftLog -> PeerStorage;
+  PeerFsm -> Peer;
+  Peer -> {
+    RawNode;
+    PeerStorage;
+  }
+
+
+  PeerStorage -> {
+    Engines;
+    Region;
+    RaftLocalState;
+    RaftApplyState;
+    SnapState;
+    GenSnapTask;
+    RegionTask
+    EntryCache;
+  }
+  RegionTask -> Snapshot;
+  RaftApplyState[style_func;label="{{
+    RaftApplyState|
+    pub applied_index: u64,\l|
+    pub last_commit_index: u64,\l|
+    pub commit_index: u64,\l|
+    pub commit_term: u64,\l|
+    pub truncated_state: \l
+    SingularPtrField\<RaftTruncatedState\>,\l
+  }}"]
+  RaftApplyState -> RaftTruncatedState;
+  RaftTruncatedState[style_struct;label="{{
+    RaftTruncatedState|
+    pub index: u64,\l|
+    pub term: u64,\l
+  }}"]
+
+  applied_index -> {
+    RaftApplyState;
+  }
+  commit_index ->  RaftLocalState;
+
+    commit_index;
+
+    entries -> {
+      check_range;
+      fetch_entries_to;
+      cache_fetch_entries_to;
+    }
+    applied_index;
+    new -> {
+      init_raft_state;
+      init_apply_state;
+      validate_states;
+      init_last_term;
+      init_applied_index_term;
+      has_builtin_entry_cache;
+      EntryCache;
+    }
+    initial_state -> {
+      get_hard_state;
+      conf_state_from_region;
+    }
+    conf_state_from_region -> region;
+    snapshot -> {
+       snap_state;
+       snap_tried_cnt;
+       validate_snap;
+       GenSnapTask_new;
+    }
+    term -> {
+      truncated_index;
+      check_range;
+      truncated_term;
+      entries;
+    }
+    RaftLog -> Storage;
+    Storage[style_var;label="{{
+      trait Storage
+    }}"]
+    PeerStorage -> Storage;
+    Storage -> {
+       initial_state;
+       entries;
+       term;
+       first_index;
+       last_index;
+       snapshot;
+    }[color=red];
+    
+    first_index -> apply_state;
+    last_index -> raft_state;
+    apply_state[style_var;label="{{
+      apply_state|
+      RaftApplyState
+    }}"]
+    raft_state[style_var;label="{{
+      raft_state|
+      RaftLocalState
+    }}"]
+    apply_state -> RaftApplyState;
+    raft_state -> RaftLocalState;
+
+    applied_index -> apply_state;
+    set_applied_state -> apply_state;
+    set_applied_term -> applied_index_term;
+    commit_index -> raft_state_get_hart_state_get_commit;
+    set_commit_index -> raft_mut_hard_state_set_commit;
+    init_apply_state -> apply_state;
+
+    init_raft_state -> {
+      engines_raft_get_raft_state;
+      raft_state;
+      is_region_initialized;
+      put_raft_state;
+      RAFT_INIT_LOG_TERM;
+      RAFT_INIT_LOG_INDEX;
+    }
+    init_apply_state -> {
+      engines_kv_get_msg_cf_apply_state_key;
+      RaftApplyState_default;
+      RAFT_INIT_LOG_TERM;
+      RAFT_INIT_LOG_INDEX;
+    }
+    init_last_term-> {
+      raft_state;
+      get_last_index;
+      engiens_raft_get_entry;
+    }
+    append[style_func;label="{{
+      append|
+      append the given entries to\l
+      the raft logs using prevous last index\l
+    }}"]
+
+    append -> {
+      ready_ctx_raft_wb_mut_append;
+      raft_wb_mut_cut_logs;
+    }
+    apply_snapshot -> {
+      RaftSnapshotData_Default;
+      snap_data_merge_from_bytes;
+      is_initialized;
+      clear_meta;
+      write_peer_state;
+      ctx_raft_state_set_last_index;
+      ctx_apply_state_set_applied_index;
+      ctx_apply_state_mut_truncated_state_set_index;
+    }
+    clear_data -> {
+      region_sched_RegionTask_destory;
+    }
+    check_applying_snap -> snap_state;
+    cancel_applying_snap -> snap_state;
+    set_snap_state -> snap_state;
+    is_snap_state -> snap_state;
+    schedule_applying_snapshot -> {
+      set_snap_state;
+      region_sched_schedule_RegionTask_Apply;
+    }
+    handle_raft_ready[style_func;label="{{
+      handle_raft_ready|
+      Save memeroy states to disk\l
+      只是将数据写到WriteBatch上
+    }}"]
+    handle_raft_ready -> {
+      ready_entries;
+      apply_snapshot;
+      append;
+      ctx_raft_state_set_hard_state;
+      ctx_save_raft_state_to;
+      ctx_save_snapshot_raft_state_to;
+      ctx_save_apply_state_to;
+    }
+    post_ready[style_func;label="{{
+      post_ready|
+      在ready changes写磁盘后\l
+      更新memory中的状态\l
+    }}"]
+    post_ready -> {
+      raft_state;
+      apply_state;
+      last_term;
+      clear_extra_data;
+      schedule_applying_snapshot;
+      set_region;
+      ApplySnapResult;
+    }
+
+    Peer_handle_raft_ready_append -> handle_raft_ready;
+    Peer_post_raft_ready_append -> post_ready;
+    PeerFsmDelegate_post_raft_ready_append -> Peer_post_raft_ready_append;
+    RaftPoller_end -> RaftPoller_handle_raft_ready ->  PeerFsmDelegate_post_raft_ready_append;
+    RaftPoller_handle_raft_ready[style_func;label="{{
+      RaftPoller_handle_raft_ready|
+      将poll_ctx中的kv_wb和\l 
+      raft_wb写入磁盘？\l
+      同步的写\l
+    }}"]
+    RaftPoller_handle_raft_ready -> {
+     poll_ctx_kv_wb_write_opt;
+     engines_raft_consume_and_shrink;
+    }
+    engines_raft_consume_and_shrink -> poll_ctx_raft_wb;
+    RaftPoller_handle_normal-> PeerFsmDelegate_collect_ready -> Peer_handle_raft_ready_append;
+    poll -> {
+      RaftPoller_handle_normal;
+      RaftPoller_end;
+      RaftPoller_begin;
+    }
+
+    SnapState -> {
+      Relax;
+      Generateing;
+      Applying;
+      ApplyAborted;
+    }
+
+    Snapshot -> {
+      data;
+      SnapshotMetadata;
+    }
+    SnapshotMetadata[style_func;label="{{
+      SnapshotMetadata|
+      conf_state: ConfState\l
+      index: u64\l
+      term: u64;
+    }}"]
+
+  PeerFsmDelegate_on_apply_res -> Peer_post_apply;
+  RaftPoller_handle_normal -> PeerFsmDelegate_handle_msgs -> PeerFsmDelegate_on_apply_res;
+  Peer_post_raft_ready_append -> Peer_handle_raft_ready_advance -> {
+    set_commit_index;
+  }
+  ApplyDelegate -> RaftApplyState;
+  ApplyFsm_handle_appy -> apply_state;
+
+    Peer_post_apply -> {
+      set_applied_state;
+      set_applied_term;
+    }
+    Peer_destory -> clear_data;
+
+}

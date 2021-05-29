@@ -1,0 +1,24 @@
+digraph firebase_api {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  resource -> {
+    projects;
+    availableLocations;
+    androidApps;
+    isoApps;
+    webApps;
+  }
+  projects -> {
+    addFireBase;
+    addGoogleAnalytics;
+    removeAnalytics;
+    getAnalyticsDetails;
+    getAdminSdkConfig	;
+    get_project;
+    list_project;
+    patch_project;
+    searchApps;
+  }
+}

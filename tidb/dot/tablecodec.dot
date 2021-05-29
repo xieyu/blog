@@ -1,0 +1,131 @@
+#include "styles.h"
+
+digraph tablecodec {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  tablePrefix[style_var;label="{{
+    tablePrefix|
+      []byte\{'t'\}
+  }}"]
+  EncodeRowKey[style_func;label="{{
+    EncodeRowKey|
+    tablePrefix tableID recordPrefixSep handle|
+    t1_r1
+  }}"]
+  EncodeRowKeyWithHandle -> EncodeRowKey;
+  EncodeTablePrefix -> appendTableRecordPrefix;
+  EncodeRowKey -> {
+    appendTableRecordPrefix;
+  }
+  {tableID;tablePrefix} -> appendTableRecordPrefix[style_edge_data];
+  appendTableRecordPrefix -> EncodeInt;
+
+
+  idxID[style_var;label="{{
+    idxID|
+    int64
+  }}"]
+  tableID[style_var;label="{{
+    tableID|
+    int64
+  }}"]
+  indexPrefixSep[style_var;label="{{
+    indexPrefixSep|
+      []byte(\"_i\")
+  }}"]
+
+  EncodeTableIndexPrefix[style_func;label="{{
+    EncodeTableIndexPrefix|
+    tablePrefix tableID indexPrefixSep idxID|
+    example: t1_i1\l
+  }}"]
+  EncodeTablePrefix [style_func;label="{{
+    EncodeTablePrefix |
+    tablePrefix tableID|
+    example: t1\l
+  }}"]
+  GenTablePrefix -> appendTableRecordPrefix;
+  GenTableIndexPrefix -> appendTableIndexPrefix;
+
+  EncodeTableIndexPrefix -> {
+    appendTableIndexPrefix;
+  }
+  idxID -> EncodeTableIndexPrefix;
+  {tableID;tablePrefix;indexPrefixSep} -> appendTableIndexPrefix;
+
+
+  //GenIndexValue -> GenIndexValueNew -> EncodeHandleInUniqueIndexValue;
+/*
+  // CommonHandleFlag
+  checkSchemaValid -> tryAmendTxn -> AmendTxn -> genAllAmendMutations;
+  genAllAmendMutations -> genMutations;
+  genMutations -> {
+    genOldIdxKey;
+    genNewIdxKey;
+  }
+
+  genOldIdxKey -> genIndexKeyValue;
+  genNewIdxKey -> genIndexKeyValue;
+  genIndexKeyValue -> {
+    GenIndexKey;
+    GenIndexValue;
+  }
+
+  GenIndexValue -> GenIndexValueNew;
+  GenIndexValueNew -> EncodeHandleInUniqueIndexValue;
+  EncodeHandleInUniqueIndexValue -> encodeCommonHandle;
+
+  // PartitionIDFlag
+  GenIndexValueNew -> {
+    encodePartitionID;
+    encodeCommonHandle;
+  }
+  encodeCommonHandle -> CommonHandleFlag;
+  encodePartitionID -> PartitionIDFlag;
+
+  //use Flags
+  {
+    tryAmendTxn;
+    handleSingleBatch;
+  } -> prewriteMutations;
+  {
+    handleSingleBatch;
+    execute;
+    commitTxn;
+  } -> commitMutations;
+
+  {
+    cleanup;
+    handleSingleBatch;
+  }-> cleanupMutations;
+
+  {
+    handleSingleBatch;
+    prewriteMutations;
+    commitMutations;
+    cleanupMutations;
+  } -> doActionOnMutations;
+
+  doActionOnBatches -> handleSingleBatch;
+
+  doActionOnMutations -> doActionOnGroupMutations -> doActionOnBatches;
+
+  LockKeys -> extractKeyExistsErr;
+  doActionOnBatches -> handleSingleBatch;
+  startWorker -> handleSingleBatch;
+  handleSingleBatch -> extractKeyExistsErr;
+  extractKeyExistsErr -> extractKeyExistsErrFromIndex -> DecodeIndexKV;
+  decodeIndexKey -> DecodeIndexKV;
+  checkHandleExists -> DecodeIndexKV;
+  decodeIndexKeyValue -> DecodeIndexKV;
+  DecodeIndexKV -> decodeIndexKvGeneral;
+  decodeIndexKvGeneral -> SplitIndexValue;
+  SplitIndexValue -> {
+    CommonHandleFlag;
+    PartitionIDFlag;
+    RestoreDataFlag;
+  }
+  */
+}

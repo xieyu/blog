@@ -1,0 +1,96 @@
+digraph two_level_iterator {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  index_iter__Seek[
+    shape="record";
+    label="{{
+      index_iter_::Seek|
+      先从indexIter找到\l 
+      对应的datablock handle\l
+    }}";
+  ];
+  index_iter__value[
+    shape="record";
+    label="{{
+      index_iter__value|
+      将找到的value作为\l 
+      datablock handle\l
+    }}";
+  ];
+  Seek -> {
+    index_iter__Seek;
+    InitDataBlock;
+    data_iter__Seek
+    SkipEmptyDataBlocksForward;
+  }[color="#b83b5e"];
+
+  Next -> {
+    data_iter__Next;
+    SkipEmptyDataBlocksForward;
+  }
+
+  InitDataBlock -> {
+    SetDataIterator;
+    data_block_handle_
+    index_iter__value;
+    BlockFunction;
+  }[color="#18b0b0"];
+
+  SkipEmptyDataBlocksForward -> {
+    data_iter__Valid;
+    data_iter__SeekToLast;
+    index_iter__Next;
+    InitDataBlock;
+  }[color="#6a2c70"];
+
+  SetDataIterator -> {
+    data_iter_;
+  };
+  BlockFunction[
+    shape="record";
+    label="{{
+      BlockFunction|
+      block_function_\l|
+      调用BlockFunction\l
+      获取该block上的Iter\l
+    }}";
+  ];
+  data_iter__Seek[
+    shape="record";
+    label="{{
+      data_iter__Seek|
+      在BlockFunction返回\l 
+      的data_iter_中查找key\l
+    }}";
+  ];
+  index_iter_[shape=egg; fillcolor="#95e1d3"; style=filled;];
+  data_iter_[shape=egg; fillcolor="#95e1d3"; style=filled;];
+  data_block_handle_[shape=egg; fillcolor="#95e1d3"; style=filled;];
+  subgraph cluster_IndexIter {
+    graph[label="IndexIter";fontsize=20;style=rounded];
+    index_iter_;
+    index_iter__Next;
+    index_iter__Seek;
+    index_iter__value;
+  };
+
+  {
+    edge[style=dashed;color=gray];
+    index_iter__Seek -> index_iter__value -> data_block_handle_;
+    BlockFunction -> iter -> SetDataIterator;
+    data_iter_ -> {
+      data_iter__Seek;
+      data_iter__Valid;
+      data_iter__SeekToLast;
+      data_iter__Next;
+    }
+    index_iter_ -> {
+      index_iter__Next;
+      index_iter__Seek;
+      index_iter__value;
+    }
+    data_block_handle_ -> BlockFunction;
+  }
+
+}

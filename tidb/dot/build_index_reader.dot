@@ -1,0 +1,26 @@
+digraph build_index_reader {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  PhysicalIndexReader -> buildIndexReader;
+  buildIndexReader -> {
+    buildNoRangeIndexReader;
+    partitionPruning;
+    IsPessimisticReadConsistency;
+    refreshForUpdateTSForRC;
+  }
+  buildNoRangeIndexReader -> {
+    IndexReaderExecutor;
+    GetPartition;
+  }
+
+  IndexReaderExecutor[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+    IndexReaderExecutor
+    }}";
+  ];
+}

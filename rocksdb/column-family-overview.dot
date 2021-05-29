@@ -1,0 +1,44 @@
+digraph colmn_family {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  //splines = ortho;
+
+  rankdir=LR;
+  DBImpl -> ColumnFamilyMemTablesImpl -> ColumnFamilySet
+
+  subgraph cluster_Cache {
+    graph[label="Cache";fontsize=20;];
+    TableCache -> Cache -> ShardedCache -> LRUCache -> LRUCacheShard
+  }
+
+  subgraph cluster_on {
+    graph[label="Version";fontsize=20;];
+    Version -> VersionStorageInfo;
+    Version -> TableCache;
+    Version -> VersionSet;
+    VersionStorageInfo -> {
+      FileMetaData;
+      BlobFiles;
+    };
+    FileMetaData -> FileDescriptor -> TableReader
+    BlobFiles -> BlobFileMetaData -> SharedBlobFileMetaData;
+  }
+  subgraph cluster_MemTable {
+    graph[label="MemTable";fontsize=20;];
+    MemTable;
+    MemTableList;
+  }
+
+  subgraph cluster_ColumnFamily {
+    graph[label="ColumnFamily";fontsize=20;];
+    ColumnFamilyMemTablesImpl;
+    ColumnFamilySet -> ColumnFamilyData;
+    ColumnFamilySet -> Cache;
+    ColumnFamilyData -> {
+      Version;
+      MemTable;
+      MemTableList;
+    }
+  }
+}

@@ -1,0 +1,180 @@
+digraph optimistic_transaction_commit {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    DBImpl_Write[
+      shape="record"
+      label="{{
+        DBImpl_Write|
+        将WriteBatch写入DB\l
+      }}"
+    ];
+    WriteWithCallback -> WriteImpl;
+    DBImpl_Write -> WriteImpl;
+
+    WriteWithCallback;
+    GetAndRefSuperVersion;
+    GetEarliestMemTableSequenceNumber;
+    ReturnAndCleanupSuperVersion;
+    GetLatestSequenceForKey;
+    GetLatestSequenceNumber;
+  }
+  subgraph cluster_TransactionUtil {
+    graph[label="TransactionUtil";fontsize=20;];
+    CheckKeysForConflicts -> {
+      GetAndRefSuperVersion;
+      GetEarliestMemTableSequenceNumber;
+      CheckKey;
+      ReturnAndCleanupSuperVersion;
+    };
+    CheckKey -> {
+      GetLatestSequenceForKey
+    }
+  }
+
+  subgraph cluster_TransactionDbImpl {
+    graph[label="OptimisticTransactionImpl";fontsize=20;];
+    GetValidatePolicy;
+    validate_policy_[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape="record"
+      label="{{
+        validate_policy_|
+          const OccValidationPolicy validate_policy_;
+      }}"
+    ];
+    bucketed_locks_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        bucketed_locks_|
+          std::vector\<std::unique_ptr\<std::mutex\>\> bucketed_locks_;\l
+      }}"
+    ];
+
+    tracked_keys_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        tracked_keys_|
+        TransactionKeyMap tracked_keys_
+      }}"
+    ];
+    GetTrackedKeys -> tracked_keys_;
+    GetTrackedKeys -> CheckKeysForConflicts[style=dashed];
+
+    GetValidatePolicy -> validate_policy_;
+    GetLockBucketsSize;
+    GetTrackedKeys;
+    LockBucket;
+    CheckKeysForConflicts[
+      shape="record"
+      label="{{
+        CheckKeysForConflicts|
+        遍历key检查冲突\l
+      }}"
+    ];
+    GetLockBucketsSize -> bucketed_locks_;
+    LockBucket -> bucketed_locks_;
+
+    OptimisticTransactionCallback -> {
+      CheckTransactionForConflicts;
+    }
+    CheckTransactionForConflicts -> {
+      CheckKeysForConflicts;
+      GetTrackedKeys;
+    }
+
+    //TrackKey
+    TrackKey -> {
+      tracked_keys_;
+    };
+    {
+      GetTrackedKeysSinceSavePoint;
+    }-> TrackKey;
+
+    TryLock[
+      shape="record"
+      label="{{
+        TryLock|
+        将key加入tracked_keys_中\l
+      }}"
+    ];
+
+    TryLock -> {
+      TrackKey;
+      GetColumnFamilyID;
+      SetSnapshotIfNeeded;
+      GetSequenceNumber;
+      GetLatestSequenceNumber;
+    }
+    SetSnapshotIfNeeded -> SetSnapshot;
+    GetSequenceNumber -> snapshot_;
+
+
+    BeginTransaction -> {
+      ReinitializeTransaction;
+    }
+    SetSnapshot -> SetSnapshotInternal -> snapshot_;
+    snapshot_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        snapshot_
+      }}"
+    ];
+
+
+    Put -> TryLock
+    Merge -> TryLock;
+    Delete -> TryLock;
+    GetForUpdate -> TryLock;
+    subgraph cluster_Operations {
+      graph[label="Operations";fontsize=20;];
+      Put;Merge;Delete;GetForUpdate;
+    }
+
+  }
+
+  subgraph cluster_OptimisticTransaction {
+    graph[label="OptimisticTransaction";fontsize=20;];
+    Commit -> {
+      GetValidatePolicy;
+      CommitWithParallelValidate;
+      CommitWithSerialValidate;
+    }
+    OptimisticTransaction -> Initialize;
+    Initialize -> {
+      SetSnapshot;
+    }
+    Rollback -> Clear -> {
+      tracked_keys_;
+      InitWriteBatch;
+      WriteBatch_Clear;
+    }
+    CommitWithParallelValidate -> {
+      GetLockBucketsSize;
+      GetTrackedKeys;
+      LockBucket;
+      CheckKeysForConflicts;
+      DBImpl_Write;
+    }
+
+    CommitWithSerialValidate -> {
+      WriteWithCallback;
+    }
+    CommitWithSerialValidate -> OptimisticTransactionCallback[style=dashed];
+    WriteWithCallback -> OptimisticTransactionCallback;
+    Reinitialize;
+  } // end of OptimisticTran
+  BeginTransaction -> OptimisticTransaction;
+  ReinitializeTransaction -> Reinitialize;
+  {rank=same;BeginTransaction;Commit;Put;Merge;GetForUpdate;Rollback}
+}

@@ -1,0 +1,54 @@
+digraph brokerStopReplica {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_BorkerServer {
+    graph[label="BorkerServer";fontsize=20;style=rounded];
+    subgraph cluster_LogManager {
+      graph[label="LogManager";fontsize=20;style=rounded];
+      asyncDelete;
+      asyncDelete[
+        shape="record";
+        label="{{
+          asyncDelete|
+          异步删除日志
+        }}";
+      ];
+    };
+
+    subgraph cluster_ReplicaManager {
+      graph[label="ReplicaManager";fontsize=20;style=rounded];
+      stopReplicas ->{
+        fetcher_removeFetcherForPartitions[
+          shape="record";
+          label="{{
+            fetcher_removeFetcherForPartitions|
+            去掉partion follower的fetch线程\l
+          }}";
+        ];
+        alterlog_removeFetcherForPartitions[
+          shape="record";
+          label="{{
+            alterlog_removeFetcherForPartitions|
+            去掉更换日志的fetcher线程\l
+          }}";
+        ];
+        stopReplica;
+      };
+      stopReplica -> {
+        asyncDelete;
+      }
+    };
+
+    subgraph cluster_KafkaApi {
+      graph[label="KafkaApi";fontsize=20;style=rounded];
+      handleStopReplicaRequest -> stopReplicas;
+    };
+  };
+
+  subgraph cluster_Controller {
+    graph[label="Controller";fontsize=20;style=rounded];
+    sendStopReplicaRequests;
+  };
+  sendStopReplicaRequests -> handleStopReplicaRequest;
+}

@@ -1,0 +1,130 @@
+digraph HashJoinExec_struct {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  HashJoinExec[
+    shape="record";
+    label="{{
+      HashJoinExec|
+	    baseExecutor\l|
+	    probeSideExec     Executor\l|
+	    buildSideExec     Executor\l|
+	    buildSideEstCount float64\l|
+	    outerFilter       expression.CNFExprs\l|
+	    probeKeys         []*expression.Column\l|
+	    buildKeys         []*expression.Column\l|
+	    isNullEQ          []bool\l|
+	    probeTypes        []*types.FieldType\l|
+	    buildTypes        []*types.FieldType\l|
+	    concurrency   uint\l|
+	    <hashRowContainer> rowContainer  *hashRowContainer\l|
+	    buildFinished chan error\l|
+	    closeCh      chan struct\{\}\l|
+	    joinType     plannercore.JoinType\l|
+	    requiredRows int64\l|
+	    joiners []joiner\l|
+	    <probeChkResource> probeChkResourceCh chan *probeChkResource\l|
+	    probeResultChs     []chan *chunk.Chunk\l|
+	    joinChkResourceCh  []chan *chunk.Chunk\l|
+	    <hashjoinWorkerResult> joinResultCh       chan *hashjoinWorkerResult\l|
+	    memTracker  *memory.Tracker\l|
+	    diskTracker *disk.Tracker\l|
+	    outerMatchedStatus []*bitmap.ConcurrentBitmap\l|
+	    useOuterToBuild    bool\l|
+	    prepared    bool\l|
+	    isOuterJoin bool\l|
+	    joinWorkerWaitGroup sync.WaitGroup\l|
+	    finished            atomic.Value\l|
+	    stats *hashJoinRuntimeStats\l|
+    }}"];
+    HashJoinExec:probeChkResource -> probeChkResource;
+    HashJoinExec:hashjoinWorkerResult -> hashjoinWorkerResult;
+    HashJoinExec:hashRowContainer -> hashRowContainer;
+    hashjoinWorkerResult[
+      shape="record";
+      label="{{
+        hashjoinWorkerResult|
+	      chk *chunk.Chunk\l|
+	      err error\l|
+	      src chan\<- *chunk.Chunk\l|
+      }}"];
+    probeChkResource[
+      shape="record";
+      label="{{
+        probeChkResource|
+          chk  *chunk.Chunk\l|
+          dest chan\<- *chunk.Chunk\l
+      }}"];
+
+    hashRowContainer[
+      shape="record";
+      label="{{
+        hashRowContainer|
+	        sc   *stmtctx.StatementContext\l|
+	        hCtx *hashContext\l|
+	        <hashStatistic> stat hashStatistic\l|
+	        <baseHashTable> hashTable baseHashTable\l|
+	        <RowContainer> rowContainer *chunk.RowContainer\l
+      }}"];
+
+    hashRowContainer:baseHashTable -> baseHashTable;
+    hashRowContainer:RowContainer -> RowContainer;
+    hashRowContainer:hashStatistic -> hashStatistic;
+
+    RowContainer[
+      shape="record";
+      label="{{
+        RowContainer|
+          provides a place for many rows\l
+          so many that we might want\l 
+          to spill them into disk.\l|
+	          m struct \{\l|
+	          	sync.RWMutex\l|
+	          	records *List\l|
+	          	recordsInDisk *ListInDisk\l|
+	          	spillError error\l|
+	          \}\l|
+	          fieldType []*types.FieldType\l|
+	          chunkSize int\l|
+	          numRow    int\l|
+	          memTracker  *memory.Tracker\l|
+	          diskTracker *disk.Tracker\l|
+	          actionSpill *SpillDiskAction\l
+      }}"];
+    hashStatistic[
+      shape="record";
+      label="{{
+        hashStatistic|
+          probeCollision   int\l|
+          buildTableElapse time.Duration\l
+      }}"];
+  baseHashTable[
+    shape="record";
+    label="{{
+      baseHashTable|
+	      Put(hashKey uint64, rowPtr chunk.RowPtr)\l|
+	      Get(hashKey uint64) (rowPtrs []chunk.RowPtr)\l|
+	      Len() uint64\l
+    }}"];
+  baseHashTable -> {
+    concurrentMapHashTable;
+    unsafeHashTable;
+  }
+  baseHashTable -> concurrentMapHashTable;
+  concurrentMapHashTable[
+    shape="record";
+    label="{{
+      concurrentMapHashTable|
+	      hashMap    concurrentMap\l|
+	      entryStore *entryStore\l|
+	      length     uint64\l
+    }}"];
+  concurrentMapHashTable -> concurrentMap;
+  concurrentMap[
+    shape="record";
+    label="{{
+      concurrentMap|
+      concurrentMapShared
+    }}"];
+}

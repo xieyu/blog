@@ -1,0 +1,111 @@
+digraph mergeMutateTask {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  mergeMutateTask -> {
+    clearOldMutations;
+    clearOldWriteAheadLogs;
+    clearOldPartsFromFilesystem;
+    clearOldTemporaryDirectories;
+    merge;
+    tryMutatePart;
+  }
+  tryMutatePart -> {
+    lockForShare;
+    getDataPartsVector;
+    getMaxSourcePartsSizeForMerge;
+    writePartLog;
+    mutatePartToTemporaryPart;
+    renameTempPartAndReplace;
+    write_part_log;
+  }
+
+  subgraph cluster_MutationsInterpreter{
+    graph[label="MutationsInterpreter";fontsize=20;];
+
+    MutationsInterpreter_execute -> {
+      InterpreterSelectQuery_execute;
+      addStreamsForLaterStages;
+      getStorageSortDescriptionIfPossible;
+    }
+
+    MutationsInterpreter_getUpdatedHeader;
+    addStreamsForLaterStages -> {
+      FilterBlockInputStream;
+      ExpressionBlockInputStream;
+      CreatingSetsBlockInputStream;
+      MaterializingBlockInputStream;
+      getSubqueriesForSets;
+    }
+  }
+
+  subgraph cluster_MergeTreeDataMergerMutator {
+    graph[label="MergeTreeDataMergerMutator";fontsize=20;];
+    mutatePartToTemporaryPart -> {
+      checkOperationIsNotCanceled;
+      splitMutationCommands;
+      MutationsInterpreter_execute;
+      MutationsInterpreter_getUpdatedHeader;
+      SingleDiskVolume;
+      createPart;
+      mutateAllPartColumns;
+      getIndicesForNewDataPart;
+      isWidePart;
+      mutateSomePartColumns;
+      finalizeMutatedPart;
+      getIndicesToRecalculate;
+      iterateDirectory;
+      collectFilesForRenames;
+      collectFilesToSkip;
+    }[color="#b83b5e"]
+
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    new_data_part;
+    part_indices;
+    for_interpreter;
+    for_file_renames;
+    commands_for_part;
+    updated_header;
+    indices_to_recalc;
+    node[shape=box;style=stroke;];
+
+    edge[style=dashed]
+    MutationsInterpreter_getUpdatedHeader -> updated_header;
+    updated_header -> {
+      mutateSomePartColumns
+      collectFilesToSkip
+      new_data_part
+    }[color="#17b978"];
+    for_file_renames -> collectFilesForRenames;
+    for_interpreter -> MutationsInterpreter_execute;
+    createPart -> new_data_part -> {
+      mutateAllPartColumns
+      mutateSomePartColumns;
+      finalizeMutatedPart;
+    };
+    getIndicesForNewDataPart -> part_indices -> mutateAllPartColumns;
+    getIndicesToRecalculate -> indices_to_recalc -> mutateSomePartColumns;
+    indices_to_recalc -> collectFilesToSkip;
+    edge[style=stroke];
+  }
+
+
+  node[shape="record"; fillcolor="#95e1d3" style=filled;];
+  commands;
+  commands_for_part;
+  for_interpreter;
+  for_file_renames;
+  node[shape=box;style=stroke;];
+
+  edge[style=dashed];
+  tryMutatePart -> commands -> mutatePartToTemporaryPart;
+  mutatePartToTemporaryPart -> renameTempPartAndReplace;
+  mutatePartToTemporaryPart -> commands_for_part -> splitMutationCommands;
+  splitMutationCommands -> {
+    for_interpreter;
+    for_file_renames;
+  }
+  edge[style=stroke];
+}

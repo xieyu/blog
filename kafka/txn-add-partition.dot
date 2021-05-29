@@ -1,0 +1,184 @@
+digraph txnAddPartition {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ReplicaManager {
+    graph[label="ReplicaManager";fontsize=20;style=rounded];
+    appendRecords;
+  };
+
+  subgraph cluster_TransactionMetadata {
+    graph[label="TransactionMetadata";fontsize=20;style=rounded];
+    TransactionMetadata[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        TransactionMetadata|
+        transactionalId: String \l|
+        producerId: long \l|
+        lastProducerId: Long \l|
+        producerEpoch: short \l|
+        txnTimeoutMs: Int \l|
+        state: TransactionState \l|
+        <tp> topicPartitions: mutable.Set[TopicPartition]\l
+      }}";
+    ];
+    prepareAddPartitions[
+      shape="record";
+      label="{{
+        prepareAddPartitions|
+        将状态设置为OnGoing
+      }}";
+    ];
+    prepareTransitionTo[
+      shape="record";
+      label="{{
+        prepareTransitionTo|
+        将pendingState设置为OnGoing
+      }}";
+    ];
+    completeTransitionTo[
+      shape="record";
+      label="{{
+        completeTransitionTo|
+        在OnGoing状态下，\l 
+        将tp添加到Metadata中\l
+      }}";
+    ];
+    pendingState[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="pendingState"
+    ];
+    prepareAddPartitions -> prepareTransitionTo;
+    prepareTransitionTo -> pendingState;
+    completeTransitionTo -> addPartitions -> TransactionMetadata:tp;
+  };
+
+  subgraph cluster_TransactionStateManager {
+    graph[label="TransactionStateManager";fontsize=20;style=rounded];
+    appendTransactionToLog[
+      shape="record";
+      label="{{
+        appendTransactionToLog|
+        将事务日志对应的\l 
+        写入topic_partition\l
+      }}";
+    ];
+    getTransactionState[
+      shape="record";
+      label="{{
+        getTransactionState|
+        根据tid获取事务对应状态
+      }}";
+    ];
+    transactionMetadataCache[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="transactionMetadataCache"
+    ];
+    transactionMetadataCache[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        transactionMetadataCache|
+        <entry>mutable.Map[Int, TxnMetadataCacheEntry]\l
+        parition 到cacheEntry的映射
+      }}";
+    ];
+    TxnMetadataCacheEntry[
+      shape="record";
+      fillcolor="#95e1d3";
+      style=filled;
+      label="{{
+        TxnMetadataCacheEntry|
+        coordinatorEpoch Int \l|
+        <meta> metadataPerTransactionalId \l 
+        Pool[String, TransactionMetadata]\l
+        事务ID到事务metadata映射
+      }}";
+    ];
+    partitionFor[
+      shape="record";
+      label="{{
+        partitionFor|
+        Utils.abs(transactionalId.hashCode)\%\l transactionTopicPartitionCount 
+        \l 根据事务id获取对应的partition\l
+      }}";
+    ];
+
+    updateCacheCallback[
+      shape="record";
+      label="{{
+        updateCacheCallback|
+        日志写入\l 
+        成功回调\l
+      }}";
+    ];
+    transactionMetadataCache:entry -> TxnMetadataCacheEntry;
+    TxnMetadataCacheEntry:meta -> TransactionMetadata;
+
+    getTransactionState -> getAndMaybeAddTransactionState;
+    getAndMaybeAddTransactionState -> {
+      transactionMetadataCache;
+      partitionFor;
+    }
+
+    addLoadedTransactionsToCache -> transactionMetadataCache;
+    appendTransactionToLog -> {
+      TRANSACTION_STATE_TOPIC_NAME;
+      appendRecords;
+    };
+    appendRecords -> updateCacheCallback -> completeTransitionTo;
+  };
+
+
+  subgraph cluster_TransactionCoordinator {
+    graph[label="TransactionCoordinator";fontsize=20;style=rounded];
+    handleAddPartitionsToTransaction; 
+    
+  };
+  handleAddPartitionsToTransaction -> {
+      getTransactionState;
+      appendTransactionToLog;
+      prepareAddPartitions;
+  }
+  subgraph cluster_GroupCoordinator {
+    graph[label="GroupCoordinator";fontsize=20;style=rounded];
+    gp_partitionFor;
+    gp_partitionFor[
+      shape="record";
+      label="{{
+        partitionFor|
+        获取consumerGroupId对应的tp
+      }}";
+    ];
+  };
+
+  subgraph cluster_KafkaApi {
+    graph[label="KafkaApi";fontsize=20;style=rounded];
+    handleAddPartitionToTxnRequest[
+      shape="record";
+      label="{{
+        handleAddPartitionToTxnRequest|
+        transactionalId: String\l|
+        producerId: Long\l|
+        producerIdAndEpoch: Short\l|
+        partitions: collection.Set[TopicPartition]\l
+      }}";
+    ];
+    handleAddOffsetsToTxnRequest -> {
+      GROUP_METADATA_TOPIC_NAME;
+      gp_partitionFor
+      handleAddPartitionsToTransaction;
+    }
+    handleAddPartitionToTxnRequest -> {
+      handleAddPartitionsToTransaction;
+    }
+  };
+}

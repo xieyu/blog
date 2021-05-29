@@ -1,0 +1,64 @@
+digraph plan_struct {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_base {
+    graph[label="base";fontsize=20;];
+    basePhysicalPlan[shape="record";
+    label="{{
+      basePhysicalPlan|
+        <basePlan> basePlan\l|
+        childrenReqProps []*property.PhysicalProperty\l|
+        self             PhysicalPlan\l|
+        children         []PhysicalPlan\l
+    }}";
+    ];
+
+    basePlan [shape="record";
+    label="{{
+      basePlan |
+        tp          string\l|
+        id          int\l|
+        ctx         sessionctx.Context\l|
+        stats       *property.StatsInfo\l|
+        blockOffset int\l
+    }}";
+    ];
+    physicalSchemaProducer
+
+  }
+
+  subgraph cluster_Join {
+    graph[label="Join";fontsize=20;];
+    PhysicalIndexJoin -> basePhysicalPlan;
+    PhysicalHashJoin -> basePhysicalPlan;
+    PhysicalMergeJoin -> basePhysicalPlan;
+    PhysicalIndexHashJoin -> PhysicalIndexJoin;
+    PhysicalIndexMergeJoin -> PhysicalIndexJoin;
+  }
+
+  subgraph cluster_table {
+    graph[label="table";fontsize=20;];
+    PhysicalTableScan;
+    PhysicalTableReader;
+  }
+
+  subgraph cluster_Index {
+    graph[label="Index";fontsize=20;];
+    PhysicalIndexScan -> physicalSchemaProducer;
+    PhysicalIndexLookUpReader -> physicalSchemaProducer;
+    PhysicalIndexMergeReader -> physicalSchemaProducer;
+    PhysicalIndexReader -> physicalSchemaProducer;
+    
+  }
+
+  PhysicalSelection;
+  PhysicalSort -> basePhysicalPlan;
+
+  PhysicalTableReader -> physicalSchemaProducer;
+  PhysicalSelection -> basePhysicalPlan;
+  PhysicalTableScan -> physicalSchemaProducer;
+  physicalSchemaProducer -> basePhysicalPlan;
+  basePhysicalPlan:basePlan -> basePlan;
+}

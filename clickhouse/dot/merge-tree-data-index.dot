@@ -1,0 +1,139 @@
+digraph merge_tree_data_index {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+  subgraph cluster_MergeTreeData {
+    graph[label="MergeTreeData";fontsize=20;];
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    data_parts_indexes[
+      shape="record";
+      label="{{
+        data_parts_indexes|
+          DataPartsIndexes data_parts_indexes;\l
+      }}";
+    ];
+    node[shape=box;style=stroke;];
+    data_parts_indexes_insert[
+      shape="record";
+      label="{{
+        insert 
+      }}";
+    ];
+    data_parts_erase[
+      shape="record";
+      label="{{
+        erase
+      }}";
+    ];
+
+    {
+      renameTempPartAndReplace
+      swapActivePart
+    } -> data_parts_indexes_insert -> data_parts_indexes[color=green];
+
+    loadDataParts -> {
+      modifyPartState;
+      data_parts_indexes_insert;
+    }
+
+    {
+      forgetPartAndMoveToDetached
+      swapActivePart
+      removePartsFinally
+    }-> data_parts_erase -> data_parts_indexes[color=red];
+    moveParts;
+
+    getDataPartsVector -> getDataPartsStateRange;
+    getDataPartsStateRange[
+      shape="record";
+      label="{{
+        getDataPartsStateRange|
+        根据状态获取DataParts
+      }}";
+    ];
+    getDataParts -> getDataPartsStateRange -> {
+      data_parts_by_state_and_info;
+      data_parts_by_info;
+    } -> data_parts_indexes;
+
+    modifyPartState -> {
+      data_parts_by_info;
+      data_parts_by_state_and_info;
+    }
+    {
+      getActivePartsToReplace 
+      getPartsCount
+      getMaxPartsCountForPartition
+      getActiveContainingPart
+      swapActivePart;
+      getDataPartsVector;
+    }-> getDataPartsStateRange;
+
+    grabOldParts -> {
+      modifyPartState;
+      getDataPartsStateRange;
+    }
+
+    renameTempPartAndReplace -> getActivePartsToReplace;
+
+    Transaction_commit -> {
+      getActivePartsToReplace;
+      modifyPartState;
+      removePartContributionToColumnSizes;
+      addPartContributionToColumnSizes;
+    }
+    removePartsInRangeFromWorkingSet -> {
+      getDataPartsPartitionRange;
+      removePartsFromWorkingSet;
+    }
+    movePartitionToDisk -> {
+      getDataPartsVectorInPartition
+    };
+    movePartitionToVolume -> {
+      getDataPartsVectorInPartition;
+      movePartsToSpace;
+    };
+    getDataPartsVectorInPartition -> data_parts_by_state_and_info;
+  }
+
+  moveParts -> swapClonedPart;
+
+  subgraph cluster_MergeTreeDataMover {
+    graph[label="MergeTreeDataMover";fontsize=20;];
+    swapClonedPart -> swapActivePart;
+  }
+
+  subgraph cluster_StorageMergeTree {
+    graph[label="StorageMergeTree";fontsize=20;];
+    StorageMergeTree -> {
+      loadDataParts;
+      getDataParts;
+    }
+    alterPartition -> {
+      replacePartitionFrom;
+      dropPartition;
+      dropDetached;
+      attachPartition;
+      movePartitionToDisk;
+      movePartitionToVolume;
+      movePartitionToTable
+      freezePartition;
+    }
+    replacePartitionFrom -> {
+      Transaction_commit;
+      removePartsInRangeFromWorkingSet;
+    }
+  }
+  subgraph cluster_StorageReplicaMergeTree {
+    graph[label="StorageReplicaMergeTree";fontsize=20;];
+    StorageReplicamergeTree -> loadDataParts;
+  }
+
+  subgraph cluster_InterpreterAlterQuery {
+    graph[label="InterpreterAlterQuery";fontsize=20;];
+    execute -> alterPartition;
+  }
+
+}

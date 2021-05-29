@@ -1,0 +1,153 @@
+#include "styles.h"
+digraph RaftBatchSystem_spawn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  builder_init[style_func;label="{{
+    builder_init|
+    RaftPollerBuilder.init\l|
+    Initialize this store.\l 
+  }}"]
+  system_spawn[style_func;label="{{
+    spawn raft system\l|
+    使用RaftPollerBuilder\l 
+    创建poller\l
+  }}"]
+  apply_system_spawn[style_func;label="{{
+    spwan apply system\l|
+    使用ApplyPollerBuilder\l
+    创建poller\l
+  }}"]
+  BatchSystem_spawn[style_func;label="{{
+    BatchSystem::spawn|
+    生成poolsize个线程\l
+    每个线程执行poller.poll\l
+  }}"]
+  thread_Builder_new[style_func;label="{{
+    thread::Builder::new|
+    启动新线程\l
+    并在该线程中\l 
+    执行poller.poll\l
+  }}"]
+
+  raft_poller[style_var;label="{{
+    RaftPoller|
+    tag: String,\l|
+    store_msg_buf: Vec\<StoreMsg\<EK\>\>,\l|
+    peer_msg_buf: Vec\<PeerMsg\<EK\>\>,\l|
+    previous_metrics: RaftMetrics,\l|
+    timer: TiInstant,\l|
+    poll_ctx: PollContext\<EK, ER, T\>,\l|
+    messages_per_tick: usize,\l|
+    cfg_tracker: Tracker\<Config\>,\l
+  }}"]
+
+  apply_poller[style_var;label="{{
+    ApplyPoller|
+    msg_buf: Vec\<Msg\<EK\>\>,\l|
+    apply_ctx: ApplyContext\<EK, W\>,\l|
+    messages_per_tick: usize,\l|
+    cfg_tracker: Tracker\<Config\>,\l
+  }}"]
+
+  PollContext[style_struct;label="{{
+    PollContext|
+    pub apply_router: ApplyRouter\<EK\>,\l|
+    pub router: RaftRouter\<EK, ER\>,\l|
+    pub kv_wb: EK::WriteBatch,\l|
+    pub raft_wb: ER::LogBatch,\l
+  }}"]
+  ApplyContext[style_struct;label="{{
+    ApplyContext|
+    router: ApplyRouter\<EK\>,\l|
+    <notifier> notifier: Box\<dyn Notifier\<EK\>\>,\l
+    notifier指向RaftBatchSystem的router\l |
+    kv_wb: W,\l
+  }}"]
+  ApplyContext:notifier -> RaftBatchSystem:router;
+  RaftBatchSystem[style_struct;label="{{
+    RaftBatchSystem|
+    system: BatchSystem\<PeerFsm\<EK, ER\>, StoreFsm\<EK\>\>,\l|
+    apply_router: ApplyRouter\<EK\>,\l|
+    apply_system: ApplyBatchSystem\<EK\>,\l|
+    <router> router: RaftRouter\<EK, ER\>,\l|
+    workers: Option\<Workers\<EK\>\>,\l
+  }}"]
+  Router[style_struct;label="{{
+    Router|
+    <normals> normals: Arc\<Mutex\<HashMap\<u64, BasicMailbox\<N\>\>\>\>,\l
+  }}"]
+
+  thread_Builder_new -> workers_push_t[style_edge_data];
+  builder_build -> {
+    RaftPollerBuilder_build;
+    ApplyPollerBuilder_build;
+  }
+  RaftPollerBuilder_build -> {
+    raft_poller;
+    PollContext;
+  }
+  {
+    raft_poller;
+    apply_poller;
+  } -> poller_poll;
+
+  PollContext -> raft_poller;
+
+  ApplyPollerBuilder_build -> {
+    ApplyContext;
+  }
+  ApplyContext -> apply_poller;
+
+  spawn -> {
+    RaftPollerBuilder;
+    start_system;
+    builder_init;
+  }
+  region_peers[style_var;label="{{
+    region_peers|
+      Vec\<SenderFsmPair\<EK, ER\>\>\l
+  }}"]
+  builder_init -> region_peers[style_edge_data];
+
+  RaftPollerBuilder -> {
+    builder_init;
+    ApplyPollerBuilder;
+    builder_build;
+    system_spawn;
+  }[style_edge_data];
+
+  ApplyPollerBuilder -> {
+    builder_build;
+    apply_system_spawn;
+  }[style_edge_data];
+
+  {
+    system_spawn;
+    apply_system_spawn;
+  } -> BatchSystem_spawn[style_edge_data];
+
+  start_system -> {
+    system_spawn;
+    apply_system_spawn;
+    ApplyPollerBuilder;
+    apply_system_schedule_all;
+    router_froce_send_PeerMsg_Start;
+    router_send_control_StoreMsg_Start;
+    router_register_all;
+    pd_runner;
+  }
+  region_peers -> router_register_all -> Router:normals;
+  region_peers -> apply_system_schedule_all -> router_register_all;
+
+  BatchSystem_spawn -> {
+    builder_build;
+    thread_Builder_new;
+    poller_poll;
+    workers_push_t;
+  }
+  poller_poll -> thread_Builder_new[style_edge_data];
+  workers_push_t -> RaftBatchSystem:workers;
+
+}

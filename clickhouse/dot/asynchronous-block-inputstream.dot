@@ -1,0 +1,115 @@
+digraph asynchronous_block_inputstream {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_AsynchronousBlockInputStream {
+    graph[label="AsynchronousBlockInputStream";fontsize=20;];
+    subgraph cluster_children {
+      graph[label="children";fontsize=20;];
+      children_at_0[
+        shape="record";
+        label="{{
+          children.at(0).getHeader()
+        }}";
+      ];
+      children_push_back[
+        shape="record";
+        label="{{
+          children.push_back(in)
+        }}";
+      ];
+      children_back_read[
+        shape="record";
+        label="{{
+          children.back().read();
+        }}";
+      ];
+      children_back_readPrefix[
+        shape="record";
+        label="{{
+          children.back().readPrefix();
+        }}";
+      ];
+    }
+    subgraph cluster_ready {
+      graph[label="ready";fontsize=20;];
+      ready_tryWait[
+        shape="record";
+        label="{{
+        ready.tryWait|
+        等待ready被set
+        }}";
+      ];
+      ready_set[
+        shape="record";
+        label="{{
+        ready.set
+        }}";
+      ];
+      ready_reset[
+        shape="record";
+        label="{{
+          ready.reset()
+        }}";
+      ];
+      ready_reset;
+    }
+
+    subgraph cluster_pool {
+      graph[label="pool";fontsize=20;];
+      pool_wait;
+      pool_scheduleOrThrowOnError;
+      pool_scheduleOrThrowOnError[
+        shape="record";
+        label="{{
+          scheduleOrThrowOnError|
+          在线程池中执行\l 
+          calculate函数\l
+        }}";
+      ];
+      pool_wait[
+        shape="record";
+        label="{{
+          wait|
+          等待执行结束
+        }}";
+      ];
+    }
+
+    AsynchronousBlockInputStream -> children_push_back;
+    getHeader -> children_at_0;
+    readPrefix -> next;
+    poll[
+      shape="record";
+      label="{{
+        poll|
+        Wait for the data to be \l 
+        ready no more than the \l 
+        specified timeout. Start \l 
+        receiving data if necessary.\l
+      }}";
+    ];
+    poll -> {
+      next;
+      ready_tryWait;
+    }
+    readImpl -> {
+      calculate;
+      pool_wait;
+      next;
+    }[color="#b83b5e"];
+
+    next -> {
+      ready_reset;
+      pool_scheduleOrThrowOnError;
+    }
+    pool_scheduleOrThrowOnError -> calculate;
+    calculate -> {
+      children_back_readPrefix;
+      children_back_read;
+      ready_set;
+    }
+  }
+}

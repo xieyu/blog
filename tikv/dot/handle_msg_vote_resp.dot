@@ -1,0 +1,119 @@
+#include "styles.h"
+digraph handleMsgVoteResp {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Msg[style_var;label="{{
+    Msg|
+    MsgRequestPreVote|
+    MsgRequestVoteResponse|
+    rejectx :bool\l|
+    from\l|
+  }}"]
+
+  ProgressTracker[style_struct;label="{{
+    ProgressTracker|
+    progress: ProgressMap\l|
+    <conf> conf: Configuration\l|
+    <votes> votes: HashMap\<u64, bool\>\l|
+    max_inflight: usize\l|
+    group_commit: bool\l|
+    pub(crate) logger: Logger\l
+  }}"]
+  ProgressTracker -> Configuration;
+
+  Configuration[style_struct;label="{{
+    Configuration|
+    pub(crate) voters: JointConfig\l|
+    pub(crate) learners: HashSet\<u64\>\l|
+    pub(crate) learners_next: HashSet\<u64\>\l|
+    pub(crate) auto_leave: bool\l
+  }}"]
+
+  Configuration -> JointConfig;
+
+  JointConfig[style_struct;label="{{
+    JointConfig|
+    pub(crate) incoming: MajorityConfig\l|
+    pub(crate) outgoing: MajorityConfig\l
+  }}"]
+  JointConfig -> MajorityConfig;
+  MajorityConfig[style_struct;label="{{
+    MajorityConfig|
+    voters: HashSet\<u64\>\l
+  }}"]
+
+  step -> step_candidate -> {
+    get_msg_type;
+    poll;
+    maybe_commit_by_vote;
+  }
+  Msg -> step_candidate[style_edge_data];
+
+  poll -> {
+    record_vote;
+    tally_votes;
+  }
+  record_vote[style_func;label="{{
+    record_vote|
+    将vote结果保存到tracker中\l
+  }}"]
+  record_vote -> ProgressTracker:votes -> tally_votes[style_edge_data];
+  tally_votes -> {
+    vote_result;
+  }
+  vote_result[style_func;label="{{
+    vote_result|
+    如果在incoming和outgoing中\l 
+    都WON则认为是WON了\l
+    如果都LOST认为是LOST了\l
+    否则认为是Pending状态\l
+  }}"]
+  vote_result -> {
+    incoming_vote_result;
+    outgoing_vote_result;
+  }
+  MajorityConfig -> incoming_vote_result[style_edge_data];
+  incoming_vote_result[style_func;label="{{
+    incoming.vote_result|
+    Takes a mapping of voters to \l 
+    yes/no (true/false) votes and returns\l
+    a result indicating whether the vote \l 
+    is pending (i.e. neither a quorum of\l
+    yes/no has been reached), won (a quorum\l 
+    of yes has been reached), or lost (a\l
+    quorum of no has been reached).\l
+  }}"]
+
+  incoming_vote_result -> {
+    majority;
+    check;
+  }
+  record_vote-> check[style_edge_data];
+
+  majority[style_func;label="{{
+    majority|
+    (total / 2) + 1
+  }}"]
+  Configuration -> vote_result;
+
+  maybe_commit_by_vote[style_func;label="{{
+    maybe_commit_by_vote|
+    Commits the logs using commit\l 
+    info in vote message.\l|
+    如果msg中包含commit, commit_term\l 
+    而且自己不是leader 且commit比自己的大\l
+    则使用该信息更新raft_log.commit_to
+  }}"]
+
+  num_pending_conf -> become_follower[style_edge_data];
+
+  maybe_commit_by_vote -> {
+    raft_log_maybe_commit;
+    raft_log_slice;
+    num_pending_conf;
+    become_follower;
+  }
+
+}

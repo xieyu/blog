@@ -1,0 +1,206 @@
+#include "styles.h"
+digraph RocksEngine {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_rocksdb {
+    graph[label="rocksdb";fontsize=20;style="rounded,dashed";color="slategrey"]
+    db_get_cf_opt;
+    db_sync_wal;
+    db_put;
+    db_put_cf;
+    db_delete;
+    db_delete_cf;
+    db_delete_range;
+    db_delete_range_cf;
+    db_cf_handle;
+    DBVector;
+    DBVector -> DBPinnableSlice;
+    DBIterator;
+    DB;
+    RawWriteBatch -> DBWriteBatch;;
+  }
+
+  RocksEngine[style_struct;label="{{
+    RocksEngine|
+    db: Arc\<DB\>,\l|
+    shared_block_cache: bool,\l
+  }}"]
+
+  KvEngine -> RocksEngine;
+  Peekable -> RocksEngine;
+  Iterable -> RocksEngine;
+  RaftEngine -> RocksEngine;
+  //SyncMutable -> RocksEngine;
+
+  get_raft_state -> {
+    raft_state_key;
+    get_msg_cf;
+  }
+  get_entry -> {
+    raft_log_key;
+    get_msg_cf;
+  }
+  fetch_entries_to -> {
+    raft_log_key;
+    get_value;
+    entry_merge_from_bytes;
+    scan;
+  }
+  get_value -> {
+    get_value_cf;
+  }
+  get_msg_cf -> {
+    get_value_cf
+  }
+  get_value_cf -> {
+    get_value_cf_opt;
+  }
+  get_value_cf_opt -> {
+    get_cf_handle;
+    db_get_cf_opt;
+    RocksDBVector_from_raw;
+  }
+  get_value_cf_opt -> RocksDBVector;
+
+  scan -> {
+    from_slice;
+    iterator_opt;
+    scan_impl;
+    RocksEngineIterator;
+  }
+
+  scan_impl -> RocksEngineIterator_seek;
+  RocksEngineIterator_seek -> {
+    DBIterator_seek;
+  }
+
+  iterator_opt -> {
+    RocksEngineIterator_from_raw;
+    DBIterator_new;
+  }
+  iterator_cf_opt-> {
+    get_cf_handle;
+    RocksEngineIterator_from_raw;
+    DBIterator_new_cf;
+  }
+
+  consume -> {
+    LogBatch_write_opt
+    WriteOptions_set_sync;
+    LogBatch_clear;
+  }
+  consume_and_shrink -> {
+    consume;
+    write_batch_with_cap;
+  }
+  snapshot -> {
+    RocksSnapshot_new;
+  }
+  sync -> {
+    db_sync_wal;
+  }
+
+  put -> db_put;
+  put_cf -> db_put_cf;
+  delete -> db_delete;
+  delete_cf -> db_delete_cf;
+  delete_range -> db_delete_range;
+  delete_range_cf -> {
+    db_delete_range_cf;
+    get_cf_handle;
+  }
+
+  get_cf_handle -> {
+    db_cf_handle;
+  }
+  SyncMutable[style_var;label="{{
+    trait SyncMutable
+  }}"]
+  Iterable[style_var;label="{{
+    trait Iterable
+  }}"]
+  Peekable[style_var;label="{{
+    trait Peekable
+  }}"]
+  WriteBatch[style_var;label="{{
+    trait WriteBatch
+  }}"]
+  RaftEngine[style_var;label="{{
+    trait RaftEngine
+  }}"]
+
+  Peekable -> {
+    get_value_cf_opt;
+    get_value_opt;
+    get_value;
+    get_value_cf;
+    get_msg;
+    get_msg_cf;
+  }
+
+  SyncMutable -> {
+    put;
+    put_cf;
+    put_msg;
+    put_msg_cf;
+    delete;
+    delete_cf;
+    delete_range;
+    delete_range_cf;
+  }
+
+  Iterable -> {
+    iterator_opt;
+    iterator_cf_opt;
+  }
+
+  RaftEngine -> {
+    log_batch;
+    sync;
+    get_raft_state;
+    get_entry;
+    fetch_entries_to;
+    consume;
+    consume_and_shrink;
+    clean;
+  }
+
+  WriteBatch -> {
+    with_capacity;
+    write_opt;
+    write;
+  }
+  write_opt -> {
+    multi_batch_write;
+  }
+  WriteBatch -> RocksWriteBatchVec;
+  KvEngine[style_var;label="{{
+    trait KvEngine
+  }}"]
+
+  KvEngine -> {
+    snapshot;
+    sync;
+    bad_downcast;
+  }
+  raft_log_key -> {
+    make_region_key;
+  }
+  make_region_key -> {
+    REGION_RAFT_PREFIX;
+  }
+  raft_state_key -> {
+    make_region_prefix;
+    RAFT_STATE_SUFFIX;
+  }
+  make_region_prefix -> REGION_RAFT_PREFIX;
+  RocksDBVector -> RawDBVector;
+  RawDBVector -> DBVector;
+  RocksEngineIterator -> DBIterator;
+  RocksWriteBatchVec -> {
+    DB;
+    RawWriteBatch;
+  }
+}

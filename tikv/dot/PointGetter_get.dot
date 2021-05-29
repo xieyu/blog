@@ -1,0 +1,151 @@
+#include "styles.h"
+digraph PointerGetter_get {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_PointGetter {
+    graph[label="PointGetter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    get -> {
+      load_and_check_lock;
+      load_data;
+    }
+    load_data[style_func;label="{{
+      load_data|
+      先从write column中\l 
+      获取key的start_ts\l
+      然后从data column\l
+      中获取key start_ts\l 
+      对应的value\l
+    }}"]
+    subgraph cluster_loop {
+      graph[label="loop: 从write中找到可见的start_ts";fontsize=20;style="rounded,dashed";color="slategrey"]
+       is_user_key_eq;
+       write_cursor_next;
+       write_cursor_key -> is_user_key_eq[style_edge_data];
+       write_cursor_value;
+       WriteRef_parse;
+       WriteRef_parse[style_func;label="{{
+         WriteRef::parse|
+       }}"]
+
+       write_cursor_value -> WriteRef_parse;
+
+      WriteRef_parse -> {
+        check_gc_fence_as_latest_version
+        start_ts;
+        write_type;
+      }[style_edge_data];
+       check_gc_fence_as_latest_version;
+       write_type ->{
+         Put;
+         Delete;
+         Lock_Rollback;
+       }
+       Lock_Rollback[style_func;label="{{
+         Lock\|Rollback|
+         如果是Lock或者是Rollback\l
+         继续下一次loop\l
+       }}"]
+       Delete[style_func;label="{{
+         Delete|
+         如果找到的write type为\l
+         Delete 返回None\l
+       }}"]
+       Put -> {
+         short_value;
+         load_data_from_default_cf;
+        }
+        Put[style_func;label="{{
+          Put|
+          write type 为Put\l
+          先如果有short_value则\l 
+          直接返回short_value\l|
+          否则使用start_ts去\l 
+          data column读取数据\l
+        }}"]
+       start_ts;
+    }
+    write_cursor[style_var;label="{{
+      write_cursor|
+      CursorBuilder::new(&self.snapshot, CF_WRITE)\l 
+      ...\l
+    }}"]
+    write_cursor -> {
+       write_cursor_next;
+       write_cursor_seek;
+       write_cursor_key;
+       write_cursor_value;
+       write_cursor_near_seek;
+    }[style_edge_data];
+    {
+
+       write_cursor_next;
+       write_cursor_seek;
+       write_cursor_near_seek;
+      } -> {
+        write_cursor_key;
+        write_cursor_value;
+      }[style_edge_data];
+    load_data -> {
+       write_cursor_next;
+       write_cursor_seek;
+       write_cursor_key;
+       write_cursor_value;
+       write_cursor_near_seek;
+       WriteRef_parse;
+       check_gc_fence_as_latest_version;
+       load_data_from_default_cf;
+       write_type;
+       append_ts;
+       is_user_key_eq;
+    }
+    append_ts[style_func;label="{{
+      append_ts|
+      seek_key = user_key.clone().append_ts(self.ts)\l|
+      从[0,ts] seek key的Write\l
+    }}"]
+    append_ts -> {
+      write_cursor_seek;
+      write_cursor_near_seek;
+    }[style_edge_data];
+
+    write_cursor_near_seek;
+
+
+    start_ts -> load_data_from_default_cf[style_edge_data];
+
+    load_data_from_default_cf -> {
+     snapshot_get_cf;
+    }
+
+    load_and_check_lock[style_func;label="{{
+      load_and_check_lock|
+      IsolationLevel::Si的需要检查lock\l|
+      Get a lock of a user key in the lock CF\l
+      if lock exists, ti will be checked to\l
+      see whether it conflicts with the given ts\l
+    }}"]
+    load_and_check_lock -> {
+      snapshot_get_cf_CF_LOCK;
+      Lock_parse;
+      check_ts_conflict;
+    }
+    snapshot_get_cf_CF_LOCK[style_func;label="{{
+      snapshot.get_cf(CF_LOCK, user_key)\l|
+      从CF_LOCK 中加载user_key的lock\l
+    }}"]
+    Lock_parse[style_func;label="{{
+      Lock::parse|
+      从data中de serialize出Lock\l
+    }}"]
+    check_ts_conflict[style_func;label="{{
+      check_ts_conflict|
+      检查ts是否和lock的ts冲突\l
+    }}"]
+
+    snapshot_get_cf_CF_LOCK -> Lock_parse -> check_ts_conflict[style_edge_data];
+  }
+  
+}

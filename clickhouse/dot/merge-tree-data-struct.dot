@@ -1,0 +1,197 @@
+digraph merge_tree_data_struct {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  node[shape="record"; fillcolor="#95e1d3" style=filled;];
+  DataPartState;
+  MergeTreePartInfo;
+  MergeTreeMoveEntry;
+  node[shape=box;style=stroke;];
+  BrokenPartCallback[
+    shape="record";
+    label="{{
+      BrokenPartCallback|
+      当part数据包含corrupt data\l
+      时候的回调函数指针\l
+    }}";
+  ];
+  DataPart[
+    shape="record";
+    label="{{
+      DataPart|
+      using DataPart = IMergeTreeDataPart;\l
+    }}";
+  ];
+
+  DataPartStateAndInfo[
+    shape="record";
+    label="{{
+      DataPartStateAndInfo|
+      用于index comparsion\l|
+        DataPartState state;\l|
+        const MergeTreePartInfo & info;\l
+    }}";
+  ];
+
+  MergeTreeData[
+    shape="record";
+    label="{{
+      MergeTreeData|
+        bool require_part_metadata;\l|
+        String relative_data_path;\l|
+        ColumnSizeByName column_sizes;\l|
+        BrokenPartCallback broken_part_callback;\l|
+        String log_name;\l|
+        Poco::Logger * log;\l|
+        MultiVersion\<MergeTreeSettings\> storage_settings;\l|
+        mutable std::mutex data_parts_mutex;\l|
+        DataPartsIndexes data_parts_indexes;\l|
+        DataPartsIndexes::index\<TagByInfo\>::type & data_parts_by_info;\l|
+        DataPartsIndexes::index\<TagByStateAndInfo\>::type & data_parts_by_state_and_info;\l|
+        MergeTreePartsMover parts_mover;\l|
+        std::mutex grab_old_parts_mutex;\l|
+        std::mutex clear_old_temporary_directories_mutex;\l
+    }}";
+  ];
+
+  MergeTreeData -> {
+    ColumnSizeByName;
+    BrokenPartCallback;
+    MultiVersion_MergeTreeSettings;
+    DataPartsIndexes;
+    MergeTreePartsMover;
+  }
+  DataPartsIndexes[
+    shape="record";
+    label="{{
+      DataPartsIndexes|
+      boost::multi_index_container\l
+    }}";
+  ];
+
+  DataPartsIndexes -> {
+    DataPart 
+    DataPartStateAndInfo
+    MergeTreePartInfo
+  } 
+  DataPart -> IMergeTreeDataPart;
+  IMergeTreeDataPart[
+    shape="record";
+    label="{{
+      IMergeTreeDataPart|
+      description of the data part \l|
+      封装了datapart的读写接口\l|
+      virtual MergeTreeReaderPtr getReader\l|
+      virtual MergeTreeWriterPtr getWriter\l|
+      数据成员\l|
+      ColumnSize total_columns_size;\l|
+      ColumnSizeByName columns_sizes;\l|
+      UInt64 bytes_on_disk\{0\};\l|
+      NamesAndTypesList columns;\l
+      const Type part_type;\l|
+      NameToPosition column_name_to_position;\l|
+      TTLInfos ttl_infos;\l|
+      私有方法\l|
+      void loadColumns(bool require);\l|
+      void loadChecksums(bool require);\l|
+      virtual void loadIndexGranularity();\l|
+      void loadIndex();\l|
+      void loadRowsCount();\l|
+      void loadTTLInfos();\l|
+      void loadPartitionAndMinMaxIndex();\l
+    }}";
+  ];
+  IMergeTreeDataPart -> {
+    MergeTreeDataPartInMemory;
+    MergeTreeDataPartWide;
+    MergeTreeDataPartCompact
+    IMergeTreeReader;
+    IMergeTreeDataPartWriter;
+  }
+
+  IMergeTreeReader[
+    shape="record";
+    label="{{
+      IMergeTreeReader|
+        virtual size_t readRows\l|
+        virtual bool canReadIncompleteGranules() const = 0;\l|
+        virtual ~IMergeTreeReader();\l
+    }}";
+  ];
+  IMergeTreeDataPartWriter[
+    shape="record";
+    label="{{
+      IMergeTreeDataPartWriter|
+        virtual void write\l|
+        virtual void calculateAndSerializePrimaryIndex\l|
+        virtual void calculateAndSerializeSkipIndices\l|
+        virtual void initSkipIndices\l|
+        virtual void initPrimaryIndex\l|
+        virtual void finishDataSerialization\l|
+        virtual void finishPrimaryIndexSerialization\l
+    }}";
+  ];
+
+  IMergeTreeReader -> {
+      MergeTreeReaderWide;
+      MergeTreeReaderInMemory;
+      MergeTreeReaderCompact
+  }
+  IMergeTreeDataPartWriter -> {
+    MergeTreeDataPartWriterOnDisk;
+    MergeTreeDataPartWriterInMemory
+  }
+  MergeTreeDataPartWriterOnDisk -> {
+      MergeTreeDataPartWriterWide;
+      MergeTreeDataPartWriterCompact
+  }
+
+  DataPartStateAndInfo -> {
+    DataPartState;
+    MergeTreePartInfo;
+  }
+  DataPartState[
+    shape="record";
+    label="{{
+      DataPartState|
+      IMergeTreeDataPart::State\l|
+        Temporary,\l|
+        PreCommitted,\l|
+        Committed, \l|
+        Outdated,\l|
+        Deleting\l|
+        DeleteOnDestroy\l
+    }}";
+  ];
+  MergeTreePartInfo[
+    shape="record";
+    label="{{
+      MergeTreePartInfo|
+        String partition_id;\l|
+        Int64 min_block = 0;\l|
+        Int64 max_block = 0;\l|
+        UInt32 level = 0;\l|
+        Int64 mutation = 0;\l
+    }}";
+  ];
+  MergeTreePartsMover[
+    shape="record";
+    label="{{
+      MergeTreePartsMover|
+          ActionBlocker moves_blocker;\l|
+          MergeTreeData * data;\l|
+          Poco::Logger * log;\l
+    }}";
+  ];
+  MergeTreePartsMover ->  MergeTreeMovingParts -> MergeTreeMoveEntry;
+  MergeTreeMoveEntry[
+    shape="record";
+    label="{{
+      MergeTreeMoveEntry|
+        std::shared_ptr\<const IMergeTreeDataPart\> part;\l|
+        ReservationPtr reserved_space;\l
+    }}";
+  ];
+  MergeTreeMoveEntry -> IMergeTreeDataPart;
+}

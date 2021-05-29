@@ -1,0 +1,92 @@
+digraph records {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  records -> {
+    Database;
+    Connection;
+  }
+
+  subgraph cluster_Database {
+    graph[label="Database";fontsize=20;];
+    Database -> {
+      query; 
+      query_file;
+      bulk_query;
+      bulk_query_file;
+      transaction;
+    }
+    query -> {
+      get_connection;
+      conn_query;
+    };
+    get_connection -> Connection;
+    row_gen[
+      shape="record";
+      label="{{
+        row_gen|
+         通过yield方式iter cursor
+         row_gen = (Record(cursor.keys(), row) for row in cursor)\l
+      }}";
+    ];
+    conn_query[
+      shape="record";
+      label="{{
+        conn_query|
+        调用底层的conn执行query语句\l
+      }}";
+    ];
+    conn_query;
+  }
+  row_gen -> Record;
+  conn_query -> {
+    RecordCollection;
+    _conn_execute;
+  }
+
+
+  subgraph cluster_Record {
+    graph[label="Record";fontsize=20;];
+    Record[
+      shape="record";
+      label="{{
+        Record|
+        keys: row的name\l|
+        values: row对应的值\l
+      }}";
+    ];
+    Record -> {
+      __getitem__;
+      __getattr__;
+      __dir__;
+      get;
+      as_dict;
+      dataset;
+    };
+    dataset -> {
+      tablib;
+      _reduce_datetimes;
+    }
+  }
+
+  subgraph cluster_RecordCollection {
+    graph[label="RecordCollection";fontsize=20;];
+    RecordCollection[
+      shape="record";
+      label="{{
+        RecordCollection|
+          _rows\l|
+          _all_rows\l|
+          pending\l|
+          通过yield方式遍历底层cursor
+      }}";
+    ];
+
+    RecordCollection -> {
+      __next__;
+      __iter__;
+    }
+    __iter__ -> next -> __next__;
+  }
+}

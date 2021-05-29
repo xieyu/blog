@@ -1,0 +1,242 @@
+digraph version {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  FileMetaData[
+    shape="record";
+    label="{{
+      FileMetaData|
+      int refs\l|
+      int allowed_seeks\l|
+      uint64_t number\l|
+      uint64_t file_size\l|
+      InternalKey smallest\l|
+      InternalKey largest\l
+    }}";
+  ];
+
+  subgraph cluster_VersionEdit {
+    graph[label="VersionEdit";fontsize=20;style=rounded];
+    new_files_[
+      shape="record";
+      label="{{
+        new_files_|
+        std::vector\<std::pair\<int, FileMetaData\>\>\l|
+        level, FileMetaData\l|
+        ...\l
+        level, FileMetaData\l
+      }}";
+    ];
+    VersionEdit_EncodeTo[
+      shape="record";
+      label="{{
+        EncodeTo|
+        field \l
+      }}";
+    ];
+    AddFile -> new_files_;
+    new_files_ -> FileMetaData;
+  };
+  subgraph cluster_LogWriter {
+    graph[label="LogWriter";fontsize=20;style=rounded];
+    AddRecord[
+      shape="record";
+      label="{{
+        AddRecord|
+        将Editor Ecode后的\l 
+        字符串append到日志中\l
+      }}";
+    ];
+    Sync[
+      shape="record";
+      label="{{
+        Sync|
+        确保缓存都\l 
+        刷到磁盘上了\l
+      }}";
+    ];
+    AddRecord -> Sync [style=dashed;color=gray80];
+    VersionEditRecord[
+      shape="record";
+      label="{{
+        VersionEditRecord|
+        kComparator varInt32\l|
+        comparator_\l|
+        varInt32 kLogNumber\l|
+        varInt64 log_number_\l|
+        varInt32 kPrevLogNumber\l|
+        varInt64 prev_log_number_\l|
+        varInt32 kNextFileNumber \l|
+        varInt64 next_file_number_\l|
+        varInt32 kLastSequence\l|
+        varInt64 last_sequence_\l|
+        compact_pointers_\l|
+        <deleted_files_> deleted_files_\l|
+        <new_files_> new_files_\l
+      }}";
+    ];
+    deleted_files_[
+      shape="record";
+      label="{{
+        deleted_files_|
+        varInt32 kDeletedFile\l
+        varInt32 level\l
+        varInt64 fileNumber\l|
+        ...
+      }}";
+    ];
+    r_new_files_[
+      shape="record";
+      label="{{
+        new_files_|
+        varInt32 kNewFile\l
+        varInt32 level\l
+        varInt64 fileNumber\l
+        varInt64 fileSize\l
+        Slice smallest\l
+        Slice largest\l|
+        ...
+      }}";
+    ];
+    VersionEditRecord:deleted_files_ -> deleted_files_;
+    VersionEditRecord:new_files_ -> r_new_files_;
+
+    VersionEdit_EncodeTo -> VersionEditRecord;
+    VersionEditRecord -> AddRecord [style=dashed;color=gray];
+  };
+
+  subgraph cluster_VersionSet {
+    graph[label="VersionSet";fontsize=20;style=rounded];
+    DescriptorFileName[
+      shape="record";
+      label="{{
+        DescriptorFileName|
+        /MANIFEST-%06llu, number
+      }}";
+    ];
+    WriteSnapshot[
+      shape="record";
+      label="{{
+        WriteSnapshot|
+        如果descripto_log_为空则\l
+        新建Manifest文件\l 
+        并写入snapshot\l
+      }}";
+    ];
+    NewWritableFile[
+      shape="record";
+      label="{{
+        NewWritableFile|
+        打开新建的Manifest文件\l
+      }}";
+    ];
+    subgraph cluster_Builder {
+      graph[label="Builder";fontsize=20;style=rounded];
+      Builder_Apply;
+      Builder_SaveTo;
+      Builder_Apply[
+        shape="record";
+        label="{{
+          Builder_Apply|
+          将versionEdit apply\l 
+          到current version上\l
+          得到新的version\l
+        }}";
+      ];
+      Builder_Apply -> Builder_SaveTo [style=dashed;color=gray];
+    };
+    Builder_SaveTo -> Finalize [style=dashed;color=gray];
+    Finalize[
+      shape="record";
+      label="{{
+        Finalize|
+        对version计算一些score\l
+        用于下次压缩\l
+      }}";
+    ];
+    Finalize -> AppendVersion[style=dashed;color=gray];
+    LogAndApply[
+      shape="record";
+      label="{{
+        LogAndApply|
+        1.将version中的修改apply\l 
+        到当前version上得到新的version\l
+        2.如果是第一次写，则需要写入snapshot\l 创建新的manifest文件\l
+        3.将versionEdit写入Manifest日志中\l
+        4.如果是新的mainfest文件\l 
+          则需要修改current文件中内容\l
+          指向最新的manfifest文件\l
+        5.将新version加入versionset，\l 
+        并修改curent_指针，指向新的version.\l
+      }}";
+    ];
+
+    LogAndApply -> {
+      WriteSnapshot;
+      DescriptorFileName;
+      NewWritableFile;
+      SetCurrentFile;
+      AppendVersion;
+      AddRecord;
+      Builder_Apply;
+      Builder_SaveTo;
+      Finalize;
+      VersionEdit_EncodeTo;
+      Sync;
+    }[color=red];
+    AppendVersion -> current_;
+
+    WriteSnapshot -> {
+      VersionEdit_EncodeTo
+      AddRecord;
+      AddFile;
+    }[color=green];
+    AppendVersion[
+      shape="record";
+      label="{{
+        AppendVersion|
+        将新的version加入\l 
+        versionSet的链表中\l
+        并将current设置为\l 
+        新的version。\l
+      }}";
+    ];
+    SetCurrentFile[
+      shape="record";
+      label="{{
+        SetCurrentFile|
+        将内容先同步写入临时文件\l
+        然后通过rename方式修改current文件\l
+      }}";
+    ];
+    WriteStringToFileSync[
+      shape="record";
+      label="{{
+        WriteStringToFileSync|
+        同步的写入文件\l
+      }}";
+    ];
+
+    SetCurrentFile -> {
+      WriteStringToFileSync;
+      RenameFile;
+      DescriptorFileName;
+    }[color=blue];
+
+    subgraph cluster_NewManifestFile {
+      graph[label="NewManifestFile";fontsize=20;style=rounded];
+      DescriptorFileName;
+      NewWritableFile;
+      WriteSnapshot;
+    };
+    VersionEdit_EncodeTo -> AddRecord[style=dashed;color=gray];
+  };
+  subgraph cluster_DBImpl{
+    graph[label="DBImpl";fontsize=20;style=rounded];
+    CompactMemTable -> LogAndApply;
+    BackgroundCompaction -> LogAndApply;
+    InstallCompactionResults -> LogAndApply;
+    DBImpl_Open -> LogAndApply;
+  };
+
+}

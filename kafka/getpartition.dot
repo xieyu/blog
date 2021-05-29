@@ -1,0 +1,179 @@
+digraph getPartition {
+  node[shape=box];
+  newrank=true;
+  //nodesep=0.5;
+  rankdir=TD;
+
+  subgraph cluster_Broker {
+    graph[label="KafkaBroker";fontsize=20;];
+    subgraph cluster_ReplicaManager {
+      graph[label="ReplicaManager";fontsize=20;];
+      allPartitions[
+        fillcolor="#95e1d3"
+        style=filled;
+        shape=box3d;
+        label="allPartitions"
+      ];
+      replicaFetcherManager_electLeaders[label="electLeaders"];
+      getPartition -> allPartitions;
+      createPartition -> allPartitions[label="put"];
+      markPartitionOffline -> allPartitions[label="put"];
+      becomeLeaderOrFollower -> allPartitions[label="putIfNotExists"];
+      becomeLeaderOrFollower -> markPartitionOffline;
+    }
+
+    subgraph cluster_KafkaApi {
+      graph[label="KafkaApi";fontsize=20;];
+      style=filled;
+      color="#6DB8FF";
+      handle -> handleLeaderAndIsrRequest -> becomeLeaderOrFollower;
+      handle -> handleAlterPartitionReassignmentsRequest;
+    }
+  }
+
+  subgraph cluster_KafkaController {
+    graph[label="KafkaController";fontsize=20;];
+
+    subgraph cluster_ControllerChannelManager {
+      graph[label="ControllerChannelManager";fontsize=20;];
+      style=filled; color="#6DB8FF";
+
+      BlockingQueue[
+        fillcolor="#95e1d3"
+        style=filled;
+        shape=box3d;
+        label="BlockingQueue"
+      ];
+      RequestSendThread_doWork[shape="record";
+        fillcolor="#f38181";
+        style=filled;
+        label="{
+          RequestSendThread_doWork|
+            每个broker对应一个thread用于\l 
+            controller向broker发送消息\l
+        }";
+      ];
+      sendRequestsToBrokers -> sendLeaderAndIsrRequest;
+      sendLeaderAndIsrRequest -> sendRequest;
+      sendRequest -> BlockingQueue;
+      BlockingQueue -> RequestSendThread_doWork;
+      RequestSendThread_doWork -> handle[label="LEADER_AND_ISR" style=dashed];
+    }
+
+    subgraph cluster_ParitionStateMachine {
+      graph[label="ParitionStateMachine";fontsize=20;];
+      style=filled;
+      color="#FFB38B";
+      handleStateChanges -> {
+        doHandleStateChanges;
+        sendRequestsToBrokers;
+      }
+      doHandleStateChanges -> initializeLeaderAndIsrForPartitions[label="OnlinePartition"];
+      initializeLeaderAndIsrForPartitions -> addLeaderAndIsrRequestForBrokers;
+      addLeaderAndIsrRequestForBrokers -> sendRequest;
+    }
+    {rank=same; onNewPartitionCreation; onReplicasBecomeOffline; onReplicaElection}
+    onReplicasBecomeOffline -> handleStateChanges;
+    onNewPartitionCreation -> handleStateChanges;
+    onReplicaElection -> handleStateChanges;
+
+    //onReplicaElection
+    processAutoPreferredReplicaLeaderElection -> checkAndTriggerAutoLeaderRebalance -> onReplicaElection;
+    elect -> onControllerFailover -> onReplicaElection;
+    processReplicaLeaderElection -> onReplicaElection;
+    processReplicaLeaderElection;
+    processStartup -> elect;
+    processRegisterBrokerAndReelect -> processReelect -> elect;
+
+    //onNewPartitionCreation
+    processTopicChange -> onNewPartitionCreation;
+    processPartitionModifications -> onNewPartitionCreation;
+
+    //onReplicasBecomeOffline
+
+    processLeaderAndIsrResponseReceived -> onReplicasBecomeOffline;
+
+    sendLeaderAndIsrRequest -> processLeaderAndIsrResponseReceived[style=dashed];
+
+
+    onControllerFailover -> initializePartitionReassignments;
+
+
+    subgraph cluster_PartitionReassignment {
+      graph[label="PartitionReassignment";fontsize=20;];
+      handleAlterPartitionReassignmentsRequest
+      ->alterPartitionReassignmentsRequest 
+      -> processApiPartitionReassignment
+      -> maybeTriggerPartitionReassignment;
+
+      initializePartitionReassignments -> {
+        processZkPartitionReassignment;
+        maybeResumeReassignments 
+      }
+      maybeResumeReassignments -> onPartitionReassignment;
+
+      {
+        removePartitionFromReassigningPartitions,
+        processZkPartitionReassignment,
+        processApiPartitionReassignment
+      }
+      -> maybeRemoveFromZkReassignment 
+      -> processZkPartitionReassignment
+      -> maybeTriggerPartitionReassignment
+      -> onPartitionReassignment
+      -> removePartitionFromReassigningPartitions;
+
+      processPartitionReassignmentIsrChange -> onPartitionReassignment;
+    }
+
+    removePartitionFromReassigningPartitions -> processReplicaLeaderElection;
+
+
+    electLeaders -> processReplicaLeaderElection[style=dashed];
+
+
+    onControllerFailover -> scheduleAutoLeaderRebalanceTask -> processAutoPreferredReplicaLeaderElection[style=dashed];
+    processAutoPreferredReplicaLeaderElection -> scheduleAutoLeaderRebalanceTask;
+
+    startup -> processStartup[style=dashed];
+    startup -> startup_afterInitializeingSession;
+
+    subgraph cluster_topic {
+      graph[label="zk topic";fontsize=20;];
+      style=filled;
+      color="#FFF9C4";
+      TopicChangeHandler -> processTopicChange[style=dashed];
+    }
+
+    subgraph cluster_partition {
+      graph[label="zk partition";fontsize=20;];
+      style=filled;
+      color="#FFF9C4";
+
+      PartitionModificationsHandler -> processPartitionModifications[style=dashed];
+      PartitionReassignmentIsrChangeHandler -> processPartitionReassignmentIsrChange;
+    }
+
+    subgraph cluster_controller {
+      graph[label="zk controller";fontsize=20;];
+      style=filled;
+      color="#FFF9C4";
+
+      startup_afterInitializeingSession -> processRegisterBrokerAndReelect[style=dashed];
+      ControllerChangeHandler -> processReelect;
+    }
+
+    subgraph cluster_zkBrokerChange {
+      graph[label="zk Broker";fontsize=20;];
+      style=filled;
+      color="#FFF9C4";
+
+      BrokerChangeHandler -> processBrokerChange -> {onBrokerFailure, onBrokerStartup};
+      {ranke=same; onBrokerStartup;onBrokerFailure};
+    }
+    onBrokerFailure -> onReplicasBecomeOffline;
+    onBrokerStartup -> maybeResumeReassignments
+    replicaFetcherManager_electLeaders -> electLeaders;
+
+  }
+}

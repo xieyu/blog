@@ -1,0 +1,76 @@
+#include "styles.h"
+digraph ResolveLock {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_MvccTxn {
+    graph[label="MvccTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    MvccTxn_new;
+    set_start_ts;
+    check_write_and_rollback_lock[style_func;label="{{
+      check_write_and_rollback_lock|
+      Check whether there's an \l 
+      overlapped write record,\l 
+      and then perform rollback.\l
+    }}"]
+    check_write_and_rollback_lock -> {
+      rollback_lock;
+      unlock_key;
+    }
+    rollback_lock -> {
+      put_write;
+      collapse_prev_rollback;
+      unlock_key;
+    }
+    put_write;
+  }
+  subgraph cluster_ReleasedLocks {
+    graph[label="ReleasedLocks";fontsize=20;style="rounded,dashed";color="slategrey"]
+    wake_up;
+  }
+  subgraph cluster_MvccReader {
+    graph[label="MvccReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    load_lock;
+  }
+  subgraph cluster_ResolveLock {
+    graph[label="ResolveLock";fontsize=20;style="rounded,dashed";color="slategrey"]
+    process_write[style_func;label="{{
+      process_write|
+      cleanup或者commit lock\l
+    }}"]
+    process_write -> {
+      MvccTxn_new;
+      set_start_ts;
+      cleanup;
+      commit;
+      wake_up;
+      ResolveLockReadPhase_new;
+    }
+    cleanup[style_func;label="{{
+      cleanup|
+        清理掉expired lock\l
+    }}"]
+    cleanup -> {
+      check_write_and_rollback_lock;
+      load_lock;
+    }
+    released_lock -> wake_up[style_edge_data];
+    {cleanup;commit} -> released_lock[style_edge_data];
+    released_lock[style_var;label="{{
+      released_lock|
+    }}"]
+    commit -> {
+      put_write;
+      unlock_key;
+      set_overlapped_rollback;
+    }
+    ResolveLockReadPhase_new[style_func;label="{{
+      ResolveLockReadPhase_new|
+      如果txn.write_size > MAX_TXN_WRITE_SIZE\l
+      则从current_key 重新新开始一个\l
+      ResolveLockReadPhase\l
+    }}"]
+  }
+  
+}

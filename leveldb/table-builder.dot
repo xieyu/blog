@@ -1,0 +1,239 @@
+digraph table_builder {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Footer{
+    graph[label="Fotter";fontsize=20;style=rounded];
+    Footer_EncodeTo;
+    Footer_Set_metaindex_handle;
+    Footer_Set_index_handle;
+  };
+
+  subgraph cluster_WriteableFile {
+    graph[label="WriteableFile";fontsize=20;style=rounded];
+    WriteableFile_Append[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        Append|
+        以Append方式写文件
+      }}";
+    ];
+  };
+  subgraph cluster_BlockBuilder {
+    graph[label="BlockBuilder";fontsize=20;style=rounded];
+    subgraph cluster_members {
+      graph[label="成员变量";fontsize=20;style=rounded];
+      restarts_;
+      buffer_;
+      last_key_
+      counter_;
+      finished_;
+    };
+    BlockBuilder_Add[
+      shape="record";
+      label="{{
+        Add|
+        将key,value 加入到buffer中\l
+      }}";
+    ];
+    BlockBuilder_Finish[
+      shape="record";
+      label="{{
+        Finish|
+        将restarts_写入buffer_中\l
+        并返回buffer_\l
+      }}";
+    ];
+    BlockBuilder_Finish -> {
+      buffer_;
+      restarts_;
+    };
+    BlockBuilder_Reset -> {
+      buffer_;
+      restarts_;
+      counter_;
+      finished_;
+      last_key_;
+    }
+    BlockBuilder_Add -> {
+      restarts_;
+      buffer_;
+      last_key_
+    };
+  };
+  subgraph cluster_FilterBlockBuilder {
+    graph[label="FilterBlockBuilder";fontsize=20;style=rounded];
+    FilterBlockBuilder_AddKey;
+    FilterBlockBuilder_StartBlock;
+    
+  };
+
+  subgraph cluster_TableBuilder {
+    graph[label="TableBuilder";fontsize=20;style=rounded];
+    TableBuilder_Add[
+      shape="record";
+      label="{{
+        Add|
+        将key,value加入block中\l
+        1.使用key 更新FilterBlock/IndexBlock\l 
+        2.key,value更新BlockContent\l
+        3.如果block大小超过了block_size\l
+        4.则调用Flush将block写入文件中\l
+      }}";
+    ];
+    FilterBlockBuilder_AddKey[
+      shape="record";
+      label="{{
+        FilterBlockBuilder_AddKey|
+        将key加入到FilterBlockBuilder中
+      }}";
+    ];
+    IndexBlock_Add[
+      shape="record";
+      label="{{
+        BlockBuilder::Add|
+        IndexBlock中加入key
+      }}";
+    ];
+    DataBlock_Add[
+      shape="record";
+      label="{{
+        BlockBuilder::Add|
+        data block中加入key, value
+      }}";
+    ];
+    {IndexBlock_Add; DataBlock_Add} -> BlockBuilder_Add;
+    TableBuilder_Add -> {
+      FilterBlockBuilder_AddKey
+      DataBlock_Add
+      IndexBlock_Add;
+      Flush;
+      last_key;
+    }
+    Flush -> {
+      WriteBlock;
+      FilterBlockBuilder_StartBlock;
+      offset;
+    }
+    Flush[
+      shape="record";
+      label="{{
+        Flush|
+        1.将DataBlock写入文件中\l
+        2.更新FilterBlock的offset
+      }}";
+    ];
+    WriteBlock -> {
+      BlockBuilder_Finish;
+      WriteRawBlock;
+      Snappy_Compress;
+      BlockBuilder_Reset;
+    }
+    WriteBlock[
+      shape="record";
+      label="{{
+        WriteBlock|
+        1.调用Finish获得block的内容\l
+        2.然后根据配置需要做Snappy_Compress\l
+        3.WriteRawBlock将block内容写入文件中\l
+        4.重置block;\l
+      }}";
+    ];
+    WriteRawBlock[
+      shape="record";
+      label="{{
+        WriteRawBlock|
+        1.将block追加到文件中\l
+        2.然后计算crc32,追加到文件中\l
+        3.更新offset\l
+      }}";
+    ];
+    WriteRawBlock -> offset;
+    crc32c_Value[
+      shape="record";
+      label="{{
+        crc32c::Value|
+        对block内容进行crc32运算
+      }}";
+    ];
+    Snappy_Compress[
+      shape="record";
+      label="{{
+        Snappy_Compress|
+        对block内容压缩\l
+      }}";
+    ];
+    WriteRawBlock -> {
+      WriteableFile_Append;
+      crc32c_Value;
+    }
+
+
+    TableBuilder_Finish[
+      shape="record";
+      label="{{
+        Finish|
+        向文件中写入元数据\l
+        1.首先调用Flush,将剩余数据刷新到磁盘上\l
+        2.写入filterblock，不用压缩\l
+        3.写入MetaIndex block\l
+        4.写入IndexBlock \l
+        5.写入Fotter\l
+      }}";
+    ];
+    TableBuilder_Finish -> {
+      WriteRawBlock;
+      Flush;
+      FindShortSuccessor;
+      last_key;
+      Footer_EncodeTo;
+      Footer_Set_metaindex_handle;
+      Footer_Set_index_handle;
+    }
+    {rank=same;TableBuilder_Finish;TableBuilder_Add}
+  };
+  BuildTable[
+    shape="record";
+    label="{{
+      BuildTable|
+      1.新建一个TableBuilder\l
+      2.遍历iter，将key,value加入到Tablebuilder中\l
+      3.最后调用Finish完成table的写入\l
+    }}";
+  ];
+  BuildTable -> {
+    TableBuilder_Add;
+    TableBuilder_Finish;
+  }
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;style=rounded];
+    CompactMemTable;
+    DoCompactionWork;
+    WriteLevel0Table;
+    FinishCompactionOutputFile;
+    DoCompactionWork[
+      shape="record";
+      label="{{
+        DoCompactionWork|
+        1.建立归并排序的iter\l
+        2.然后使用TableBuilder创建新的Table\l
+      }}";
+    ];
+    CompactMemTable[
+      shape="record";
+      label="{{
+        CompactMemTable|
+        将imm_写入新的level0文件\l
+      }}";
+    ];
+    DoCompactionWork -> {
+      TableBuilder_Add;
+      FinishCompactionOutputFile;
+    }
+    FinishCompactionOutputFile -> TableBuilder_Finish;
+    CompactMemTable -> WriteLevel0Table -> BuildTable;
+  };
+
+}

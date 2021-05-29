@@ -1,0 +1,228 @@
+digraph partition_replica_assignment {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_zkClient {
+    graph[label="zkClient";fontsize=20;];
+    setTopicAssignmentRaw;
+    getTopicPartitionStates;
+  }
+
+  subgraph cluster_Controller {
+    graph[label="Controller";fontsize=20;];
+    partitionsBeingReassigned[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        partitionsBeingReassigned|
+          当前正在迁移的\l
+          partition列表\l
+      }}";
+    ];
+    partitionAssignments[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        partitionAssignments|
+        topic,partition到\l 
+        assignment的映射
+      }}";
+    ];
+    markTopicIneligibleForDeletion[shape="record";
+      label="{{
+        markTopicIneligibleForDeletion|
+        将正在partition迁移的topic \l 
+        标记为不可删除状态
+      }}";
+    ];
+    sendUpdateMetadataRequest[shape="record";
+      label="{{
+        sendUpdateMetadataRequest|
+          leader选举之后，\l 
+          发送metadata给replicaset中所有的broker\l
+      }}";
+    ];
+    updateCurrentReassignment[shape="record";
+      label="{{
+        updateCurrentReassignment|
+          更新zk和mem中的assignment状态\l
+          删掉不需要的replica
+      }}";
+    ];
+    updateReplicaAssignmentForPartition[shape="record";
+      label="{{
+        updateReplicaAssignmentForPartition|
+          更新RA在zk中的状态\l
+      }}";
+    ];
+    updatePartitionFullReplicaAssignment[shape="record";
+      label="{{
+        updatePartitionFullReplicaAssignment|
+          更新RA 在mem中的状态\l
+      }}";
+    ];
+    moveReassignedPartitionLeaderIfRequired[shape="record";
+      label="{{
+        moveReassignedPartitionLeaderIfRequired|
+        发送LeaderAndIsr和一个潜在的leader\l 
+        给在ORS+TRS中的所有的broker
+      }}";
+    ];
+    stopRemovedReplicasOfReassignedPartition[shape="record";
+      label="{{
+        stopRemovedReplicasOfReassignedPartition|
+          RR中的副本设置为offline状态(强制从ISR中删除)\l 
+          状态变更如下：\l
+          OfflineReplica\l
+          ReplicaDeletionStarted;\l
+          ReplicaDeletionSuccessful;\l
+          NonExistentReplica;\l
+      }}";
+    ];
+    stopRemovedReplicasOfReassignedPartition -> replica_handleStateChanges;
+    onPartitionReassignment -> {
+      updatePartitionFullReplicaAssignment;
+      updateCurrentReassignment;
+      markTopicIneligibleForDeletion;
+      isReassignmentComplete;
+      updateLeaderEpochAndSendRequest;
+      startNewReplicasForReassignedPartition;
+      replica_handleStateChanges;
+      moveReassignedPartitionLeaderIfRequired;
+      stopRemovedReplicasOfReassignedPartition;
+      updateReplicaAssignmentForPartition;
+      removePartitionFromReassigningPartitions;
+      sendUpdateMetadataRequest;
+      resumeDeletionForTopics;
+    }
+    updateCurrentReassignment -> {
+      partitionFullReplicaAssignment;
+      updateReplicaAssignmentForPartition;
+      updatePartitionFullReplicaAssignment;
+      stopRemovedReplicasOfReassignedPartition;
+      registerZNodeChangeHandler;
+      partitionsBeingReassigned;
+    }
+    updateReplicaAssignmentForPartition -> {
+      partitionFullReplicaAssignmentForTopic;
+      setTopicAssignmentRaw;
+    }
+    isReassignmentComplete -> {
+      getTopicPartitionStates;
+    }
+    isReassignmentComplete[shape="record";
+      label="{{
+        isReassignmentComplete|
+          查看RAR的副本是否都在isr中\l
+      }}";
+    ];
+    startNewReplicasForReassignedPartition[shape="record";
+      label="{{
+        startNewReplicasForReassignedPartition|
+        将AR中的replica 状态改为NewReplica
+      }}";
+    ];
+    startNewReplicasForReassignedPartition -> {
+      replica_handleStateChanges;
+    }
+    partitionFullReplicaAssignmentForTopic -> partitionAssignments;
+    updatePartitionFullReplicaAssignment -> partitionAssignments[color=red];
+    partitionFullReplicaAssignment -> partitionAssignments;
+
+    moveReassignedPartitionLeaderIfRequired -> {
+      updateLeaderEpochAndSendRequest;
+      partitionLeadershipInfo;
+    }
+    moveReassignedPartitionLeaderIfRequired -> partitionStateMachine_handleStateChange[color="red"];
+    partitionLeadershipInfo[shape="record";
+      label="{{
+        partitionLeadershipInfo|
+        获取leader相关信息
+      }}";
+    ];
+    updateLeaderEpochAndSendRequest[shape="record";
+      label="{{
+        updateLeaderEpochAndSendRequest|
+          更新partition leader在zk中的任期
+      }}";
+    ];
+    addLeaderAndIsrRequestForBrokers[shape="record";
+      label="{{
+        addLeaderAndIsrRequestForBrokers|
+          添加leaderAndIsr请求\l
+      }}";
+    ];
+    sendRequestsToBrokers[shape="record";
+      label="{{
+        sendRequestsToBrokers|
+          发送LeaderAndIsr请求给\l 
+          assignment中的所有replica broker\l
+      }}";
+    ];
+    updateLeaderEpochAndSendRequest -> {
+      addLeaderAndIsrRequestForBrokers;
+      sendRequestsToBrokers;
+    }
+    subgraph cluster_memebers {
+      graph[label="controller 数据成员";fontsize=20;];
+      partitionAssignments;
+      partitionsBeingReassigned;
+    }
+    subgraph cluster_partitionStateMachine {
+      graph[label="partitionStateMachine";fontsize=20;];
+      partitionStateMachine_handleStateChange[label="handleStateChanges"];
+      partitionStateMachine_handleStateChange[shape="record";
+        label="{{
+          handleStateChanges|
+          更改partition leader
+        }}";
+      ];
+    }
+
+    subgraph cluster_ReplicaStateMachine {
+      graph[label="ReplicaStateMachine";fontsize=20;];
+      replica_handleStateChanges[label="handleStateChanges"]
+    }
+    subgraph cluster_ControllerChannelManager {
+      graph[label="ControllerChannelManager";fontsize=20;];
+      sendRequestsToBrokers -> channelMananger_sendRequest;
+      channelMananger_sendRequest[label="sendRequest"];
+    }
+    replica_handleStateChanges -> channelMananger_sendRequest;
+    partitionStateMachine_handleStateChange -> channelMananger_sendRequest;
+
+    replica_handleStateChanges -> {
+        updatePartitionFullReplicaAssignment;
+        partitionFullReplicaAssignment;
+    }
+    processPartitionReassignmentIsrChange[shape="record";
+      label="{{
+        processPartitionReassignmentIsrChange|
+          zk中的isr发生了变化\l 
+          如果该partition处于\l 
+          partitionBeingRessigned队列中\l
+      }}";
+    ];
+    processPartitionReassignmentIsrChange -> onPartitionReassignment;
+  }
+
+  subgraph cluster_Broker1 {
+    graph[label="Broker1";fontsize=20;];
+    broker1_KafkaApi[label="KafkaApi"];
+  }
+
+  subgraph cluster_Broker2 {
+    graph[label="Broker2";fontsize=20;];
+    broker2_KafkaApi[label="KafkaApi"];
+  }
+  channelMananger_sendRequest -> {
+    broker1_KafkaApi;
+    broker2_KafkaApi;
+  };
+
+  subgraph cluster_zkserver {
+    graph[label="zkserver";fontsize=20;];
+    zk_partitionState[label="partitionState"];
+  }
+  zk_partitionState -> processPartitionReassignmentIsrChange;
+}

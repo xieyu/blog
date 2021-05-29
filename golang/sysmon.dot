@@ -1,0 +1,80 @@
+digraph sysmon {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  retake[shape="record";
+    label="{{
+      retake|
+        遍历allp,对符合\l条件的调用preemptone\l
+    }}";
+  ];
+  preemptone[shape="record";
+    label="{{
+      preemptone|
+        gp.statckguard0 = stackPreempt\l
+        gp.preempt = true\l
+        将会在newstack中\l 
+        配合该参数做协作调度\l
+    }}";
+  ];
+  subgraph cluster_sysmon {
+    graph[label="sysmon线程启动";fontsize=20;];
+    runtime_main -> newm [label="创建m线程执行"];
+    newm -> newm1 -> newosproc -> clone
+    clone -> mstart[label="新线程入口"];
+    mstart -> mstartfn;
+    mstartfn -> sysmon[label="即为"];
+  };
+  fn_sysmon[label="sysmon"]
+  subgraph cluster_forloop{
+    graph[label="forloop";fontsize=20;];
+    notesleep;
+    noteclear;
+    retake;
+    osRelax;
+    subgraph cluster_netpoll {
+      graph[label="netpoll";fontsize=20;];
+      netpoll;
+      injectglist;
+    }
+  }
+  fn_sysmon -> {
+    notesleep;
+    noteclear;
+    retake;
+    netpoll;
+    injectglist;
+    osRelax;
+  }
+  handoffp[shape="record";
+    label="{{
+      handoffp|
+        对于处于syscall的P\l
+    }}";
+  ];
+
+  retake -> {
+    handoffp;
+    preemptone;
+  }
+  preemptone -> preemptM;
+  preemptM -> signalM[label="unix"];
+  signalM[shape="record";
+    label="{{
+      signalM|
+        发送抢占\l信号给线程\l
+    }}";
+  ];
+  doSigPreempt[shape="record";
+    label="{{
+      doSigPreempt|
+        异步\l
+    }}";
+  ];
+  signalM -> tgkill[label="linux"];
+  tgkill -> doSigPreempt[label="SIGUSR", style=dashed]
+  doSigPreempt -> {preemptPark, gopreempt_m}[label="mcall"];
+  {preemptPark, gopreempt_m} -> schedule[style=dashed];
+  newm2[label="newm"];
+  handoffp -> startm -> newm2;
+}

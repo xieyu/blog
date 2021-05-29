@@ -1,0 +1,214 @@
+digraph producerId {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_zkClient {
+    graph[label="zkClient";fontsize=20;style=rounded];
+    zk_getDataAndVersion -> ProducerIdBlockZNode;
+    conditionalUpdatePath;
+  };
+  subgraph cluster_ReplicaManager {
+    graph[label="ReplicaManager";fontsize=20;style=rounded];
+    appendRecords;
+    getLog;
+  };
+
+  subgraph cluster_TransactionMetadata {
+    graph[label="TransactionMetadata";fontsize=20;style=rounded];
+    TransactionMetadata[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        TransactionMetadata|
+        transactionalId: String \l|
+        producerId: long \l|
+        lastProducerId: Long \l|
+        producerEpoch: short \l|
+        txnTimeoutMs: Int \l|
+        state: TransactionState \l|
+        topicPartitions: mutable.Set[TopicPartition]\l
+      }}";
+    ];
+    
+  };
+
+  subgraph cluster_TransactionStateManager {
+    graph[label="TransactionStateManager";fontsize=20;style=rounded];
+    appendTransactionToLog[
+      shape="record";
+      label="{{
+        appendTransactionToLog|
+        将事务日志对应的\l 
+        写入topic_partition\l
+      }}";
+    ];
+    getTransactionState[
+      shape="record";
+      label="{{
+        getTransactionState|
+        根据tid获取事务对应状态
+      }}";
+    ];
+    putTransactionStateIfNotExists[
+      shape="record";
+      label="{{
+        putTransactionStateIfNotExists|
+        保存事务状态
+      }}";
+    ];
+    transactionMetadataCache[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="transactionMetadataCache"
+    ];
+    transactionMetadataCache[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        transactionMetadataCache|
+        <entry>mutable.Map[Int, TxnMetadataCacheEntry]\l
+        parition 到cacheEntry的映射
+      }}";
+    ];
+    TxnMetadataCacheEntry[
+      shape="record";
+      fillcolor="#95e1d3";
+      style=filled;
+      label="{{
+        TxnMetadataCacheEntry|
+        coordinatorEpoch Int \l|
+        <meta> metadataPerTransactionalId \l 
+        Pool[String, TransactionMetadata]\l
+        事务ID到事务metadata映射
+      }}";
+    ];
+    partitionFor[
+      shape="record";
+      label="{{
+        partitionFor|
+        Utils.abs(transactionalId.hashCode)\%\l transactionTopicPartitionCount 
+        \l 根据事务id获取对应的partition\l
+      }}";
+    ];
+    loadTransactionsForTxnTopicPartition[
+      shape="record";
+      label="{{
+        loadTransactionsForTxnTopicPartition|
+        从tp 日志恢复事务metadata内存中
+      }}";
+    ];
+    transactionMetadataCache:entry -> TxnMetadataCacheEntry;
+    TxnMetadataCacheEntry:meta -> TransactionMetadata;
+
+    putTransactionStateIfNotExists -> getAndMaybeAddTransactionState;
+    getTransactionState -> getAndMaybeAddTransactionState;
+    getAndMaybeAddTransactionState -> {
+      transactionMetadataCache;
+      partitionFor;
+    }
+    loadTransactionsForTxnTopicPartition-> {
+      addLoadedTransactionsToCache
+      getLog;
+    }
+
+    addLoadedTransactionsToCache -> transactionMetadataCache;
+    appendTransactionToLog -> {
+      TRANSACTION_STATE_TOPIC_NAME;
+      appendRecords;
+    }
+  };
+
+  subgraph cluster_PorudcerIdManager {
+    graph[label="PorudcerIdManager";fontsize=20;style=rounded];
+    generateProducerId[
+      shape="record";
+      label="{{
+        generateProducerId|
+        先从本地producerIdBlock中分配\l
+        如果已分配完向zk申请新的block\l
+      }}";
+    ];
+    getNewProducerIdBlock[
+      shape="record";
+      label="{{
+        getNewProducerIdBlock|
+        不断的尝试从zk中获取新的\l 
+        ProducerIdBlock;\l
+        通过zkversion来控制\l 
+        分布式的更新\l
+      }}";
+    ];
+    conditionalUpdatePath[
+      shape="record";
+      label="{{
+        conditionalUpdatePath|
+        更新数据到期望的zkVersion\l
+        如果zkVersion不对则失败\l
+      }}";
+    ];
+    generateProducerId ->{
+      currentProducerIdBlock;
+      getNewProducerIdBlock;
+    }
+    getNewProducerIdBlock -> {
+      zk_getDataAndVersion;
+      parseProducerIdBlockData;
+      generateProducerIdBlockJson;
+      conditionalUpdatePath;
+    }
+    getNewProducerIdBlock -> currentProducerIdBlock[color=red];
+
+    currentProducerIdBlock[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        currentProducerIdBlock|
+        TYPE: ProducerIdBlock\l|
+        brokerId int \l|
+        blockStartProducerId int\l|
+        blockEndProducerId int\l
+      }}";
+    ];
+  };
+
+  subgraph cluster_TranscationCoordinator {
+    graph[label="TranscationCoordinator";fontsize=20;style=rounded];
+    handleInitProducerId[
+      shape="record";
+      label="{{
+        handleInitProducerId|
+        生成唯一的producerId\l
+        如果tid对应的\l 
+        TranscationState不存在的话\l
+        就新建一个\l
+      }}";
+    ];
+    handleInitProducerId -> {
+      generateProducerId;
+      getTransactionState;
+      putTransactionStateIfNotExists;
+      TransactionMetadata
+      appendTransactionToLog;
+    }
+    handleTxnImmigration -> loadTransactionsForTxnTopicPartition;
+  };
+  subgraph cluster_KafkaApi {
+    graph[label="KafkaApi";fontsize=20;style=rounded];
+    handleLeaderAndIsrRequest -> handleTxnImmigration;
+    handleInitProducerIdRequest -> handleInitProducerId;
+    handleInitProducerIdRequest[
+      shape="record";
+      label="{{
+        handleInitProducerIdRequest|
+        transactionalId String|
+        transactionTimeoutMs Int|
+        expectedProducerIdAndEpoch \lOption[ProducerIdAndEpoch]
+      }}";
+    ];
+  };
+}

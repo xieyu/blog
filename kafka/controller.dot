@@ -1,0 +1,8 @@
+digraph controller {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_controller {
+    graph[label="controller";fontsize=20;style=rounded];
+  };
+}

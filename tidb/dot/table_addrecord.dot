@@ -1,0 +1,152 @@
+digraph table_addrecord {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_tablecodec {
+    graph[label="tablecodec";fontsize=20;];
+    tablePrefix[
+      shape="record";
+      label="{{
+        tablePrefix|
+          tablePrefix     = []byte\{'t'\}\l|
+	        recordPrefixSep = []byte(\"_r\")
+      }}";
+    ];
+    GenTableRecordPrefix[
+      fillcolor="#f38181";
+      style=filled;
+      shape="record";
+      label="{{
+        GenTableRecordPrefix|
+        生成table record的key prefix\l
+      }}";
+    ];
+    {
+      tablePrefix;
+      tableID;
+    } ->
+    GenTableRecordPrefix -> {
+      recordPrefix;
+    }[style=dashed];
+
+    EncodeRow[
+      shape="record";
+      label="{{
+        EcodeRow|
+        ecode row data and column\l 
+        ids into a slice of byte\l
+      }}";
+    ];
+
+    EncodeRow -> {
+      Ecode;
+      EncodeOldRow;
+    }
+    GenIndexKey[
+      shape="record";
+      label="{{
+        GenIndexKey|
+        generates index key using\l 
+        input physical table id\l
+      }}";
+    ];
+  }
+  subgraph cluster_Kv{
+    graph[label="kv";fontsize=20;];
+    memBuffer_Set[
+      shape="record";
+      label="{{
+        memBuffer_Set|
+          MemBuffer is an in-memory\l 
+          kv collection\l 
+          , can be used to buffer\l 
+          write operations.
+      }}";
+    ];
+    memBuffer_Set ->  {
+      memdb_Set;
+    };
+    subgraph cluster_Transaction {
+      graph[label="Transaction";fontsize=20;];
+      GetMemBuffer[
+        shape="record";
+        label="{{
+          GetMemBuffer|
+          return the MemBuffer binding\l 
+          to this transaction\l
+        }}";
+      ];
+    }
+  }
+  subgraph cluster_TableCommond {
+    graph[label="TableCommon";fontsize=20;];
+    TableCommon_AddRecord -> {
+      RecordKey;
+      EncodeRow;
+      addIndices;
+      addInsertBinlog;
+      UpdateDeltaForTable;
+      GetMemBuffer;
+      memBuffer_Set;
+      memBuffer_SetWithFlags;
+      IntHandle;
+      NewCommonHandle;
+      allocHandleIDs;
+    }
+    allocHandleIDs -> Alloc -> alloc4Signed -> RunInNewTxn -> Commit;
+    allocHandleIDs[
+      fillcolor="#f38181";
+      style=filled;
+      shape="record";
+      label="{{
+        allocHandleIDs|
+        从tikv中分配一批自增ID
+      }}";
+    ];
+    recordPrefix[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        recordPrefix|
+        表的前缀
+      }}";
+    ];
+    RecordKey -> {
+      EncodeRecordKey;
+      recordPrefix;
+    }
+    addIndices -> {
+      Index_Create;
+    }
+
+    subgraph cluster_Index {
+      graph[label="Index";fontsize=20;];
+      Index_Create -> {
+        GenIndexValueNew;
+        GenIndexKey;
+        MemBuffer_Set;
+      };
+    }
+  }
+
+  subgraph cluster_Table {
+    graph[label="Table";fontsize=20;];
+    Table_AddRecord[
+      shape="record";
+      label="{{
+        Table.AddRecord|
+	        AddRecord inserts a row\l 
+          which should contain only\l 
+          public columns|
+          Table的AddRecord接口
+      }}";
+    ];
+    Table_AddRecord -> {
+      TableCommon_AddRecord;
+      partitionedTable_AddRecord;
+      partitionTableWithGivenSets_AddRecord;
+    }[label=impl];
+  }
+}

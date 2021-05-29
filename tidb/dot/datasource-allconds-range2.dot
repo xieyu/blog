@@ -1,0 +1,66 @@
+#include"styles.h"
+
+digraph datasource_allconds_ranges {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  DataSource[style_struct;label="{{
+    DataSource|
+    <allConds> allConds\l|
+    <pushedDownConds> pushedDownConds\l
+  }}"]
+  rangeDetacher[style_struct;label="{{
+    rangeDetacher|
+      <allConds> allConds []expression.Expression\l|
+      <cols> cols []*expression.Column\l
+  }}"]
+
+  TableInfo[style_struct;label="{{
+    TableInfo|
+      <Partition> Partition *PartitionInfo\l
+  }}"]
+  //conditionChecker[style_struct;label="{{
+  //  conditionChecker|
+  //    <colUniqueID> colUniqueID   int64\l|
+  //    shouldReserve bool\l|
+  //    length        int\l
+  //}}"]
+  //dnfItem[style_var];
+  //cnfItems[style_var];
+  //points[style_var];
+
+  TableInfo:Partition -> generateHashPartitionExpr -> ExtractColumns -> rangeDetacher:cols;
+
+  DataSource:allConds -> pruneHashPartition -> findUsedPartitions -> DetachCondAndBuildRangeForPartition;
+  DetachCondAndBuildRangeForPartition -> rangeDetacher:allConds;
+  DetachCondAndBuildRangeForPartition -> detachCondAndBuildRangeForCols;
+  detachCondAndBuildRangeForCols -> {
+    detachDNFCondAndBuildRangeForIndex;
+    detachCNFCondAndBuildRangeForIndex;
+  }
+  //detachDNFCondAndBuildRangeForIndex[style_func;label="{{
+  //  detachDNFCondAndBuildRangeForIndex|
+  //  如果len(allConds)==1, 并且是Or func\l
+  //}}"]
+  //detachDNFCondAndBuildRangeForIndex -> {
+  //  conditionChecker;
+  //  FlattenDNFConditions;
+  //}
+  //conditionChecker_check -> rb_build;
+  //dnfItem -> rb_build -> points -> points2Ranges;
+  //FlattenDNFConditions -> dnfItem;
+  //rangeDetacher:allConds -> FlattenDNFConditions;
+  //rangeDetacher:cols -> conditionChecker:colUniqueID;
+  //dnfItem -> FlattenCNFConditions -> cnfItems;
+  //dnfItem -> conditionChecker_check;
+  //cnfItems -> detachCNFCondAndBuildRangeForIndex;
+
+  DataSource:pushedDownConds -> DeriveStats;
+  DeriveStats -> fillIndexPath -> DetachCondAndBuildRangeForIndex;
+  DeriveStats -> deriveTableStats -> deriveCommonHandleTablePathStats -> DetachCondAndBuildRangeForIndex;
+  DetachCondAndBuildRangeForIndex -> {
+    rangeDetacher;
+    detachCondAndBuildRangeForCols;
+  }
+}

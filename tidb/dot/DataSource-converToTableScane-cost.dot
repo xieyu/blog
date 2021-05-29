@@ -1,0 +1,149 @@
+digraph DataSourceConvertToTableScanCost {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_crossEstimateTableRowCount {
+    graph[label="crossEstimateTableRowCount";fontsize=20;style="rounded,dashed";color="slategrey"]
+    crossEstimateTableRowCount;
+  }
+  subgraph cluster_TableStats {
+    graph[label="TableStats";fontsize=20;style="rounded,dashed";color="slategrey"]
+    tableStats_RowCount;
+    tableStats_HistColl_Selectivity;
+    tblColHists_GetTableAvgRowSize;
+  }
+
+  subgraph cluster_getOriginalPhysicalTableScan {
+    graph[label="getOriginalPhysicalTableScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    SeekFactor[
+      shape="record";
+      label="{{
+        SeekFactor|
+        tidb_opt_seek_factor 20\l
+      }}"];
+    NetworkFactor[
+      shape="record";
+      label="{{
+        NetworkFactor|
+        tidb_opt_network_factor 1\l
+      }}"];
+    DescScanFactor[
+      shape="record";
+      label="{{
+        DescScanFactor|
+        tidb_opt_desc_factor 3\l
+      }}"];
+    ScanFactor[
+      shape="record";
+      label="{{
+        ScanFactor|
+        tidb_opt_scan_factor 1.5\l
+      }}"];
+    {
+      CountAfterAccess;
+      crossEstimateTableRowCount;
+    } -> rowCount;
+    {
+      tblColHists_GetTableAvgRowSize;
+    } -> rowSize;
+    {
+      Ranges
+      SeekFactor
+    } -> {
+      TiKV;
+      TiFlash;
+    }
+    TiKV[
+      shape="record";
+      label="{{
+        TiKV|
+          cost += float64(len(ts.Ranges))\l 
+          * sessVars.SeekFactor
+      }}"];
+    TiFlash[
+      shape="record";
+      label="{{
+        TiFlash|
+  		cost += float64(len(ts.Ranges))\l 
+      * float64(len(ts.Columns)) \l 
+      * sessVars.SeekFactor\l
+      }}"];
+  
+    {
+      NetworkFactor;
+      rowCount;
+      IsGlobalRead;
+    } -> cost_global;
+    cost_global[
+      shape="record";
+      label="{{
+        cost|
+  		cost += rowCount \l 
+        * sessVars.NetworkFactor \l 
+        * rowSize
+      }}"];
+  
+    {TiFlashReplica; TiFlashReplica_Available} -> IsTiFlashGlobalRead;
+    IsTiFlashGlobalRead -> IsGlobalRead;
+    {rowCount;rowSize;ScanFactor} -> cost_base;
+    cost_base[
+      shape="record";
+      label="{{
+        cost|
+  	    cost := rowCount\l 
+        * rowSize\l 
+        * sessVars.ScanFactor\l
+      }}"];
+    {isMatchProp; rowCount; rowSize; DescScanFactor} -> cost_matchProp;
+    cost_matchProp[
+      shape="record";
+      label="{{
+        cost_matchProp|
+  			cost = rowCount\l
+        * rowSize\l 
+        * sessVars.DescScanFactor\l
+      }}"];
+    {
+      cost_base;
+      cost_matchProp;
+      cost_global;
+      TiKV;
+      TiFlash;
+    } -> partialCost;
+    {
+      tableStats_RowCount;
+      tableStats_HistColl_Selectivity; 
+    } -> CountAfterAccess;
+  }
+
+  subgraph cluster_convertToTableScan{
+    graph[label="convertToTableScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    partialCost -> copTask_cst;
+  }
+
+  subgraph cluster_convertToPartialTableScan {
+    graph[label="convertToPartialTableScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    CopCPUFactor[
+      shape="record";
+      label="{{
+        CopCPUFactor|
+        tidb_opt_cpu_factor 3\l
+      }}"];
+    partialCost -> cost;
+    {
+      CopCPUFactor;
+      tableStats_HistColl_Selectivity;
+      NetworkFactor;
+      rowCount;
+    }-> cost[color=red];
+    cost[
+      shape="record";
+      label="{{
+        cost|
+          partialCost += rowCount * sessVars.CopCPUFactor\l|
+          partialCost += selectivity * rowCount * rowSize * sessVars.NetworkFactor\l|
+          partialCost += rowCount * rowSize * sessVars.NetworkFactor\l
+      }}"];
+  }
+}

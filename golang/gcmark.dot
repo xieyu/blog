@@ -1,0 +1,153 @@
+digraph gcmark {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_mspan {
+    graph[label="mspan";fontsize=20;];
+    mspan[shape="record";
+    label="{{
+      mspan|
+        <allocBits> allocBits *gcBits\l|
+        <gcmarkBits> gcmarkBits *gcmarkBits\l
+    }}";
+    ];
+    markBitsForIndex -> mspan:gcmarkBits;
+  };
+
+  subgraph cluster_gcwork {
+    graph[label="gcwork: 队列中为灰色对象";fontsize=20;style=rounded];
+    subgraph cluster_workerbuf {
+      graph[label="workerbuf";fontsize=20;style=rounded];
+      wbuf1[
+        fillcolor="#95e1d3";
+        style=filled;
+        shape="box3d";
+        label="wbuf1"
+      ];
+      wbuf2[
+        fillcolor="#95e1d3";
+        style=filled;
+        shape="box3d";
+        label="wbuf2"
+      ];
+    };
+    gcw_put[
+      shape="record";
+      label="{{
+        put|
+        putFast\l|
+        put\l|
+        putBatchl\
+      }}";
+    ];
+    gcw_tryGet[
+      shape="record";
+      label="{{
+        tryGet|
+        tryGetFast\l|
+        tryGet\l
+      }}";
+    ];
+    gcw_balance[
+      shape="record";
+      label="{{
+        balance|
+        \l
+      }}";
+    ];
+    gcw_balance -> {wbuf1, wbuf2}
+    gcw_put -> {wbuf1, wbuf2};
+    gcw_tryGet -> {wbuf1, wbuf2};
+  };
+
+  gcDrain[
+    shape="record";
+    label="{{
+      gcDrain|
+      gcDrain scans roots and\l 
+      objects in work buffers,\l 
+      blackening grey \l
+      objects until it is unable\l 
+      to get more work. It may \l 
+      return before
+      field \l
+    }}";
+  ];
+
+  subgraph cluster_gcMark {
+    graph[label="gcMark";fontsize=20;style=rounded];
+    gcStart -> gcBgMarkStartWorkers;
+    gcBgMarkStartWorkers -> gcBgMarkWorker[label="go"];
+    gcBgMarkWorker -> {
+      gcDrain;
+      gcMarkDone;
+    }
+    gcDrain -> {
+      gcw_tryGet;
+      gcw_balance;
+      scanobject;
+      markroot;
+      wbBufFlush;
+    };
+    subgraph cluster_markroot {
+      graph[label="标记root和stack";fontsize=20;style=rounded];
+      markroot -> {
+        markrootBlock;
+        scanblock;
+        scang;
+      };
+      scang -> scanstack -> scanblock;
+    };
+    subgraph cluster_gcWriteBarrier {
+      graph[label="gcWriteBarrier";fontsize=20;style=rounded];
+      wbBufFlush -> wbBufFlush1 -> gcw_put;
+      subgraph cluster_p {
+        graph[label="p";fontsize=20;style=rounded];
+        wbuf[
+          fillcolor="#95e1d3";
+          style=filled;
+          shape="box3d";
+          label="wbuf"
+        ];
+      };
+      gcWriteBarrier[
+        shape="record";
+        label="{{
+          gcWriteBarrier|
+          gc写屏障\l
+        }}";
+      ];
+      gcWriteBarrier -> wbuf[label="添加"];
+      wbBufFlush -> wbuf;
+    };
+
+
+    markrootBlock -> scanblock;
+    scanblock -> greyobject;
+
+    scanobject -> {
+      findObject;
+      greyobject;
+    };
+    setMarked[
+      shape="record";
+      label="{{
+        setMarked|
+        标记为黑色对象\l
+      }}";
+    ];
+    greyobject -> gcw_put;
+    greyobject -> setMarked;
+    greyobject -> markBitsForIndex;
+    gcMarkDone -> {
+      stopTheWorldWithSema;
+      wbBufFlush1;
+      gcMarkTermination;
+    }
+    gcMarkTermination -> {
+      gcSweep;
+      startTheWorldWithSema;
+    }
+  };
+}

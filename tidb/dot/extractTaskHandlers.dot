@@ -1,0 +1,21 @@
+#include "styles.h"
+
+digraph extractTaskHandles {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  fetchHandles -> extractTaskHandles;
+  extractTaskHandles -> {
+    getHandle;
+    isCommonHandle;
+  }
+  getHandle -> {
+    TruncateIndexValues;
+    EncodeKey;
+    NewCommonHandle;
+    IntHandle;
+    NewPartitionHandle;
+  }
+}

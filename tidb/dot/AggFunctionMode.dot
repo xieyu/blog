@@ -1,0 +1,72 @@
+digraph AggFunctionMode {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  origin_data;
+  partial_data;
+  final_result;
+  origin_data[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      origin data\l|
+      rowsInGroup []chunk.Row\l
+    }}"
+  ];
+  partial_data[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      partial data|
+      AllocPartialResult\l|
+      partialResult4Count\l|
+      partialResult4CountDistinctInt\l|
+      ...
+    }}"
+  ];
+  final_result[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      final result\l|
+      chunk.Chunk
+    }}"
+  ];
+
+  origin_data -> DedupMode -> origin_data;
+  origin_data -> CompleteMode -> final_result;
+  partial_data -> FinalMode -> final_result;
+  origin_data -> Partial1Mode -> partial_data;
+  partial_data -> Partial2Mode -> partial_data;
+
+  Partial1Mode[
+    shape="record";
+    label="{{
+      Partial1Mode|
+      UpdatePartialResult
+    }}"];
+  Partial2Mode[
+    shape="record";
+    label="{{
+      Partial2Mode|
+      MergePartialResult
+    }}"];
+  FinalMode[
+    shape="record";
+    label="{{
+      FinalMode|
+      MergePartialResult\l|
+      AppendFinalResult2Chunk\l|
+    }}"];
+  CompleteMode[
+    shape="record";
+    label="{{
+      CompleteMode|
+      UpdatePartialResult\l|
+      AppendFinalResult2Chunk\l
+    }}"];
+}

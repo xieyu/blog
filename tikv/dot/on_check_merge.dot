@@ -1,0 +1,88 @@
+#include "styles.h"
+digraph on_check_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    start -> on_check_merge;
+
+    on_tick -> {
+      on_check_merge;
+      PeerTicks_CHECK_MERGE
+    }
+    PeerTicks_CHECK_MERGE -> on_check_merge;
+
+    on_check_merge[style_func;label="{{
+      on_check_merge|
+      检查是否要schedule_merge\l
+      并处理schedule_merge error\l
+    }}"]
+    fsm_stopped[style_func;label="{{
+      fsm.stopped \|\|\l 
+      fsm.peer.pending_remove\l
+      fsm.peer.pending_merge_state.is_none\l
+      就直接返回不往下执行\l
+    }}"]
+    schedule_merge[style_func;label="{{
+      schedule_merge|
+      向本地的target region发送\l
+      CommitMerge RaftCommand\l|
+      会附带上还没提交的日志\l
+    }}"]
+
+    on_check_merge -> {
+      fsm_stopped;
+      register_merge_check_tick;
+      schedule_merge;
+      handle_error;
+    }
+    schedule_merge -> handle_error[style_edge_data];
+    handle_error[style_var;label="{{
+      处理schedule_merge\l 
+      返回的错误
+    }}"]
+    handle_error -> {
+      add_want_rollback_merge_peer;
+      has_quorum;
+      rollback_merge;
+    }
+    register_merge_check_tick -> PeerTicks_CHECK_MERGE;
+    peer_get_store_entries[style_func;label="{{
+      获取fsm peer还没提交的日志\l
+      fsm.peer.get_store().entries(\l
+      low, state.get_commit() +1, NO_LIMIT)\l
+    }}"]
+    {
+      get_min_progress ;
+      get_min_index;
+    } -> low -> peer_get_store_entries [style_edge_data];
+    peer_get_store_entries -> AdminRequest;
+    AdminRequest[style_func;label="{{
+      AdminRequest|
+      AdminCmdType::CommitMerge\l
+    }}"]
+    router_force_send[style_func;label="{{
+      router_force_send|
+      向本地的target_id\l 
+      发送RaftCommand \l 
+      非leader的peer会丢弃该消息\l
+      leader处理完该epoch后会将epcho +1\l
+      避免多次重复提交\l
+    }}"]
+    AdminRequest -> router_force_send[style_edge_data];
+
+    schedule_merge -> {
+      get_min_progress;
+      get_min_index;
+      validate_merge_peer;
+      peer_get_store_entries;
+      AdminRequest;
+      router_force_send;
+    }
+      
+  }
+  
+}

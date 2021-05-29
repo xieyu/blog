@@ -1,0 +1,317 @@
+digraph controller_failover_zk {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_controllerContext {
+    graph[label="controllerContext";fontsize=20;style=rounded];
+    partitionsInStates -> partitionStates;
+    updateBrokerMetadata -> liveBrokers -> liveBrokerEpochs;
+    partitionLeadershipInfo;
+    replicasOnOfflineDirs[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        replicasOnOfflineDirs|
+        这个作用是？
+      }}";
+    ];
+    partitionStates[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        partitionStates\l|
+        所有partition的状态\l
+      }}";
+    ];
+    isReplicaOnline ->  {
+      liveOrShuttingDownBrokerIds;
+      replicasOnOfflineDirs;
+    }
+
+    liveOrShuttingDownBrokerIds
+    partitionsBeingReassigned[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        partitionsBeingReassigned|
+        迁移中的partition;
+      }}";
+    ];
+    addLiveBrokersAndEpochs[
+      shape="record";
+      label="{{
+        addLiveBrokersAndEpochs|
+        将新增的broker加入\l 
+        到liveBrokerEpochs中\l
+      }}";
+    ];
+    liveBrokerEpochs[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        liveBrokerEpochs
+      }}";
+    ];
+    removeLiveBrokers[
+      shape="record";
+      label="{{
+        removeLiveBrokers|
+        将挂掉的broker从\l 
+        liveBrokerEpochs中删掉\l
+      }}";
+    ];
+    removeLiveBrokers -> liveBrokerEpochs;
+    addLiveBrokersAndEpochs -> liveBrokerEpochs;
+    removeLiveBrokers;
+    replicasOnBrokers;
+    replicasOnOfflineDirs;
+    replicasOnBrokers;
+    shuttingDownBrokerIds;
+    replicasOnBrokers[
+      shape="record";
+      label="{{
+        replicasOnBrokers|
+        获取broker列表上的所有replica
+      }}";
+    ];
+    partitionAssignment[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        partitionAssignment|
+        记录了所有分区映射
+      }}";
+    ];
+    shuttingDownBrokerIds[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        shuttingDownBrokerIds
+      }}";
+    ];
+    liveOrShuttingDownBrokerIds -> liveBrokerEpochs;
+    replicasOnBrokers -> partitionAssignment;
+  };
+
+  subgraph cluster_ControllerChannelManager {
+    graph[label="ControllerChannelManager";fontsize=20;style=rounded];
+    sendRequest;
+    controllerChannelManager_removeBroker[
+      shape="record";
+      label="{{
+        removeBroker|
+        删掉挂掉的broker通信线程\l
+      }}";
+    ];
+    controllerChannelManager_addBroker[
+      shape="record";
+      label="{{
+        addBroker|
+        新增broker, 创建通信线程\l
+      }}";
+    ];
+    sendUpdateMetadataRequest;
+  };
+  subgraph cluster_replicaStateMachine {
+    graph[label="replicaStateMachine";fontsize=20;style=rounded];
+    replicaStateMachine_handleStateChanges_OnlineReplica[
+      shape="record";
+      label="{{
+        handleStateChanges_OnlineReplica|
+        将副本设置为在线状态
+      }}";
+    ];
+
+    replicaStateMachine_handleStateChanges_OfflineReplica[
+      shape="record";
+      label="{{
+        handleStateChanges_OfflineReplica|
+        将副本设置为离线状态
+      }}";
+    ];
+  };
+
+  subgraph cluster_PartitionStateMachine {
+    graph[label="PartitionStateMachine";fontsize=20;style=rounded];
+    triggerOnlinePartitionStateChange[
+      shape="record";
+      label="{{
+        triggerOnlinePartitionStateChange|
+        从partitionStates过滤出处于\l 
+        Newpartition和Offline的partition\l
+      }}";
+    ];
+    triggerOnlinePartitionStateChange -> {
+      partitionsInStates;
+      triggerOnlineStateChangeForPartitions;
+    };
+    triggerOnlineStateChangeForPartitions -> {
+      partitionStateMachine_handleStateChange_OnlinePartition
+    }
+    partitionStateMachine_handleStateChange_OfflinePartition[
+      shape="record";
+      label="{{
+        handleStateChange_OfflinePartition|
+        partitionleader挂了\l
+        将partition设置为offline状态\l
+      }}";
+    ];
+    partitionStateMachine_handleStateChange_OnlinePartition[
+      shape="record";
+      label="{{
+        handleStateChange_OnlinePartition|
+        触发partition leader选举
+      }}";
+    ];
+    partitionStateMachine_handleStateChange_OnlinePartition -> {
+      electLeaderForPartitions;
+    };
+    electLeaderForPartitions[
+      shape="record";
+      label="{{
+        electLeaderForPartitions|
+        从备选的replica中选出leader
+      }}";
+    ];
+ 
+  };
+  subgraph cluster_topicDeletionManager {
+    graph[label="topicDeletionManager";fontsize=20;style=rounded];
+    failReplicaDeletion;
+  };
+  onBrokerFailure[
+    fillcolor="#f38181"
+    style=filled;
+    shape="record";
+    label="{{
+      onBrokerFailure|
+      1. 对于dead broker调用onBrokerFail\l
+      2. 取消注册brokerModify zk回调
+    }}";
+  ];
+  onReplicasBecomeOffline[
+    shape="record";
+    label="{{
+      onReplicasBecomeOffline|
+      1. 将该broker上的replica设置为离线\l
+      2. 如果parition leader为该broker，将partition设置offline\l
+      3. 更新所有live broker的metadata\l
+    }}";
+  ];
+  onBrokerStartup[
+    fillcolor="#f38181"
+    style=filled;
+    shape="record";
+    label="{{
+      onBrokerStartup|
+      新增的broker，调用onBrokerStartup\l
+      1. 注册brokerModify的zk回调\l
+      2. 向所有live broker发送updateMeta请求\l
+      3. 将该broker上的replica设置为在线\l
+      4. 可能触发partition leader选举\l
+      5. 检查是否要恢复parition 迁移\l
+    }}";
+  ];
+
+  onControllerFailover -> {
+    registerZNodeChildChangeHandler 
+  }
+  processBrokerChange[
+    shape="record";
+    label="{{
+      processBrokerChange|
+      从zk中获取所有的BrokerAndEpochsl\l
+      和context中的作比较，\l 
+      计算出新增的和挂掉的\l
+      然后分别处理\l
+    }}";
+  ];
+  getAllBrokerAndEpochsInCluster[
+    shape="record";
+    label="{{
+      getAllBrokerAndEpochsInCluster|
+      从zk中获取所有的BrokerAndEpochs\l
+    }}";
+  ];
+  brokerChangeHandler -> processBrokerChange -> {
+    getAllBrokerAndEpochsInCluster;
+    liveOrShuttingDownBrokerIds;
+    addLiveBrokersAndEpochs;
+    removeLiveBrokers;
+    controllerChannelManager_removeBroker;
+    controllerChannelManager_addBroker;
+    onBrokerStartup;
+    onBrokerFailure;
+  }
+  onBrokerStartup -> {
+    sendUpdateMetadataRequest;
+    triggerOnlinePartitionStateChange;
+    replicaStateMachine_handleStateChanges_OnlineReplica;
+    replicasOnBrokers;
+    maybeResumeReassignments;
+    registerBrokerModificationsHandler;
+  }
+
+  onBrokerFailure -> {
+    onReplicasBecomeOffline;
+    replicasOnOfflineDirs;
+    replicasOnBrokers;
+    shuttingDownBrokerIds;
+    unregisterBrokerModificationsHandler;
+  }
+  onReplicasBecomeOffline -> {
+    partitionsWithoutLeader;
+    partitionStateMachine_handleStateChange_OfflinePartition;
+    replicaStateMachine_handleStateChanges_OfflineReplica;
+    triggerOnlinePartitionStateChange;
+    sendUpdateMetadataRequest;
+    failReplicaDeletion;
+  }
+  maybeResumeReassignments[
+    shape="record";
+    label="{{
+      maybeResumeReassignments|
+      判断partition是否在迁移中\l
+      触发partition迁移\l
+    }}";
+  ];
+  partitionsWithoutLeader -> {
+    partitionLeadershipInfo;
+    isReplicaOnline;
+    isTopicQueuedUpForDeletion;
+  }
+  maybeResumeReassignments -> {
+    partitionsBeingReassigned;
+    onPartitionReassignment;
+  }
+  {
+    partitionStateMachine_handleStateChange_OfflinePartition;
+    partitionStateMachine_handleStateChange_OnlinePartition
+    replicaStateMachine_handleStateChanges_OfflineReplica;
+    replicaStateMachine_handleStateChanges_OnlineReplica;
+    sendUpdateMetadataRequest
+  } -> sendRequest;
+  subgraph cluster_zkClient {
+    graph[label="zkClient";fontsize=20;style=rounded];
+    getAllBrokerAndEpochsInCluster;
+    registerBrokerModificationsHandler;
+    unregisterBrokerModificationsHandler;
+    registerZNodeChildChangeHandler;
+  };
+  registerBrokerModificationsHandler -> processBrokerModification;
+
+  processBrokerModification -> {
+    getBroker;
+    updateBrokerMetadata;
+    onBrokerUpdate;
+  }
+  onBrokerUpdate -> sendUpdateMetadataRequest;
+  {rank=same; onBrokerFailure;onBrokerStartup};
+}

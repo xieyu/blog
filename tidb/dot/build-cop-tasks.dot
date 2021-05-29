@@ -1,0 +1,208 @@
+digraph build_cop_tasks {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  splitRanges -> {
+    LocateKey;
+  }
+  LocateKey[
+    shape="record";
+    label="{{
+      LocateKey|
+      searchs for the region\l
+      and range that the key is located\l
+    }}";
+  ];
+
+  Send -> {
+    CopIterator_Open;
+  }
+
+
+  CopIterator_Open -> run -> handleTaskOnce -> SendReqCtx -> onRegionError;
+  SendReqCtx -> {
+    GetTiKVRPCContext;
+  }
+
+  subgraph cluster_PdClient {
+    graph[label="PdClient";fontsize=20;];
+    GetPrevRegion;
+    GetRegion;
+    GetStore;
+  }
+  subgraph cluster_CopIteartorWorker {
+    graph[label="CopIteratorWorker";fontsize=20;];
+    run[
+      shape="record";
+      label="{{
+        run|
+        启动多个goroutine worker
+      }}";
+    ];
+    run;
+    handleTaskOnce;
+  }
+
+  subgraph cluster_CopClient {
+    graph[label="CopClient";fontsize=20;];
+    Send -> buildCopTasks -> splitRanges;
+    buildCopTasks;
+  }
+  subgraph cluster_RegionCache {
+    graph[label="RegionCache";fontsize=20;];
+    LocateKey -> findRegionByKey;
+    findRegionByKey[
+      shape="record";
+      label="{{
+        findRegionByKey|
+        先从缓存中查找\l
+        如果没查找到或者需要重新load\l
+        则去reload\l
+      }}";
+    ];
+    findRegionByKey -> {
+      searchCachedRegion;
+      loadRegion;
+      needReload;
+      insertRegionToCache;
+    }
+    insertRegionToCache[
+      shape="record";
+      label="{{
+        insertRegionToCache|
+        将region信息插入缓存中\l
+        留下一次查询
+      }}";
+    ];
+    loadRegion[
+      shape="record";
+      label="{{
+        loadRegion|
+        从pdserver中获取region信息\l
+      }}";
+    ];
+    InvalidateCachedRegion -> getCachedRegionWithRLock -> mu;
+    OnRegionEpochNotMatch -> {
+      insertRegionToCache;
+      mu;
+      invalidate;
+      switchWorkLeaderToPeer;
+      findElectableStoreID;
+    }[color="#3f72af"];
+
+    loadRegion -> {
+      GetPrevRegion;
+      GetRegion;
+    }
+    searchCachedRegion -> {
+      checkRegionCacheTTL;
+      DescendLessOrEqual;
+      mu
+    }
+    insertRegionToCache -> {
+      mu;
+      ReplaceOrInsert;
+    }
+    mu[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        mu|
+          sync.RWMutex\l|
+          <region> regions map[RegionVerID]*Region\l|
+          sorted *btree.Btree\l
+      }}";
+    ];
+    mu:region -> Region;
+    Region[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape="record";
+      label="{{
+        Region|
+        meta *metapb.Region\l|
+        store unsafe.Pointer\l|
+        syncFlag int32\l|
+        lastAccess int64\l
+      }}";
+    ];
+    ReplaceOrInsert -> mu[style=dashed];
+    DescendLessOrEqual -> mu[style=dashed];
+    UpdateLeader -> {
+      getCachedRegionWithRLock;
+      getStore;
+      switchNextTiKVPeer;
+      switchWorkLeaderToPeer;
+    }
+    needReload -> {
+      Region_syncFlag;
+    }
+
+    switchWorkLeaderToPeer -> {
+      getPeerStoreIndex;
+    }
+
+    subgraph cluster_RegionStore {
+      graph[label="RegionStore";fontsize=20;];
+      switchNextTiKVPeer;
+    }
+
+    GetTiKVRPCContext[
+      shape="record";
+      label="{{
+        GetTiKVRPCContext|
+        将region 对应store tikv\l
+        server地址填进去\l
+      }}";
+    ];
+    GetTiKVRPCContext -> {
+      getCachedRegionWithRLock;
+      getStoreAddr;
+    }
+    getStoreAddr[
+      shape="record";
+      label="{{
+        getStoreAddr|
+        从pdserver中获取store地址\l
+      }}";
+    ];
+    getStoreAddr -> {
+      initResolve;
+      changeToActiveStore;
+    }
+    initResolve -> {
+      GetStore;
+      Region;
+    }
+  }
+
+  subgraph cluster_RegionRequestSender {
+    graph[label="RegionRequestSender";fontsize=20;];
+    SendReqCtx;
+    SendReqCtx[
+      shape="record";
+      label="{{
+        SendReqCtx|
+        发送请求到TiKV服务器\l
+      }}";
+    ];
+    onRegionError[
+      shape="record";
+      label="{{
+        onRegionError|
+        处理Grpc请求返回的regionError\l
+        比如更新epoach\l
+        清理region的无效缓存等\l
+      }}";
+    ];
+    onRegionError -> {
+      OnRegionEpochNotMatch;
+      InvalidateCachedRegion;
+      UpdateLeader;
+    }[color="#3f72af"];
+    
+  }
+}

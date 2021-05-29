@@ -1,0 +1,99 @@
+//
+// current-thread-executor.dot
+//
+// Created on 07-10-2019 by xieyu
+//
+digraph current_thread_executor {
+  node[shape=box;style=rounded];
+  rankdir=LR;
+  newrank=true;
+
+  subgraph cluster_taskexecutor {
+    label="TaskExecutor";
+    spawn_local;
+  };
+
+  subgraph cluster_threadlocal{
+    label="thread local var";
+    CURRENT[shape=egg;style=filled;];
+  };
+
+  subgraph cluster_currenthread {
+    label="CurrentThread";
+    ct_borrow[label="borrow"];
+    ct_enter[label="enter"];
+    ct_block_on[label="block_on"];
+    ct_run[label="run"];
+    ct_spawn[label="spawn"];
+    ct_run_timeout[label="run_timeout"];
+    ct_turn[label="turn"];
+    ct_new[label="new"];
+    spawn_receiver;
+    spawn_sender;
+  };
+
+  subgraph cluster_Entered {
+    label="Entered";
+    entered_spawn[label="spawn"];
+    entered_trun[label="turn"];
+    entered_run_timeout[label="run_timeout"];
+    entered_block_on[label="block_on"];
+    entered_tick[label="tick"];
+    entered_new[label="struct Entered"];
+    entered_run_timeout2[label="run_timeout2"];
+    entered_run[label="run"];
+
+    entered_run_timeout -> entered_run_timeout2 -> entered_tick;
+    entered_run -> entered_run_timeout2;
+    entered_trun -> entered_tick;
+    entered_block_on -> entered_tick;
+  }
+
+  subgraph cluster_Borrow {
+    label="Borrow"
+    Borrow;
+    borrow_enter[label="enter"];
+    borrow_enter -> CURRENT[label="set";color=red;];
+    borrow_spawn_local[label="spawn_local"];
+  };
+
+  subgraph cluster_enter {
+    label="enter.rs"
+    enter;
+    exit;
+  }
+
+  subgraph cluster_schedule {
+    label="Schedule"
+    schedule;
+    schedule_tick[label="tick"];
+  };
+
+  subgraph cluster_park{
+    label="park";
+    park_timeout;
+    park;
+  }
+
+  {ct_block_on, ct_run} -> enter;
+  {ct_block_on, ct_run} -> ct_enter;
+  ct_block_on -> entered_block_on;
+  ct_run -> entered_run;
+  ct_spawn -> {ct_borrow, borrow_spawn_local};
+  ct_run_timeout -> {ct_enter, entered_run_timeout}
+  ct_turn -> entered_trun;
+  block_on_all -> {ct_block_on, ct_run, ct_new}
+
+  spawn_local -> CURRENT;
+  ct_enter -> entered_new[lhead=cluster_Entered;];
+
+  entered_spawn -> ct_borrow -> Borrow;
+  entered_spawn -> borrow_spawn_local -> schedule;
+  entered_run_timeout2 -> {park_timeout, borrow_spawn_local};
+  entered_trun -> park_timeout;
+  entered_block_on -> {ct_borrow, borrow_enter, park};
+
+  entered_tick -> borrow_spawn_local;
+  entered_tick -> schedule_tick;
+  entered_tick -> spawn_receiver;
+}

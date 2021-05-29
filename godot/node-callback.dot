@@ -1,0 +1,43 @@
+digraph nodecallback {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  _Ready[
+    shape="record";
+    label="{{
+      _Ready|
+      首次调用？
+    }}";
+  ];
+  _Process[
+    shape="record";
+    label="{{
+      _Process|
+      画每一帧之前的调用\l 
+      有参数delta\l
+      依赖于FPS\l
+    }}";
+  ];
+  _PhysicalProcess[
+    shape="record";
+    label="{{
+      _PhysicalProcess|
+      在开始phyicial step之前调用\l
+    }}";
+  ];
+
+  overrideFunctions -> {
+    _EnterTree;
+    _Ready;
+    _ExitTree;
+    _Process;
+    _PhysicalProcess;
+    _Notification;
+  }
+  _Notification -> {
+    NotificationReady;
+    NotificationProcess;
+  }
+  Signal -> _OnEmmiterNodeSignal;
+}

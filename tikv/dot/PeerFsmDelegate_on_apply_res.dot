@@ -1,0 +1,80 @@
+#include "styles.h"
+digraph on_apply_res {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+	edge[color=gray40];
+	newrank=true;
+	rankdir=LR;
+  subgraph cluster_RawNode {
+    graph[label="RawNode";fontsize=20;style="rounded,dashed";color="slategrey"]
+    advance_apply_to;
+  }
+
+
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    set_applied_state;
+    set_applied_term;
+  }
+
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    post_apply -> {
+      is_applying_snapshot;
+      advance_apply_to;
+      advance_apply;
+      set_applied_state;
+      set_applied_term;
+      ready_to_handle_pending_snap;
+      post_pending_read_index_on_replica;
+      ready_to_handle_read;
+      response_read;
+      maybe_update_read_progress;
+      get_applied_index;
+    };
+
+    post_pending_read_index_on_replica -> {
+      pending_reads;
+      ready_to_handle_unsafe_replica_read;
+      is_read_index_request;
+      response_read;
+      peding_reads_push_front;
+    }
+    ready_to_handle_read -> {
+      applied_index_term;
+      is_splitting;
+      is_mergging;
+    }
+    response_read -> {
+      cb_invoke_read;
+      handle_read;
+    }
+    handle_read;
+  }
+
+
+  on_apply_res -> {
+    on_ready_result;
+    post_apply;
+    register_pd_heartbeat_tick;
+  }
+  ApplyRes[style_struct;label="{{
+    ApplyRes|
+      pub region_id: u64,\l|
+      pub apply_state: RaftApplyState,\l|
+      pub applied_index_term: u64,\l|
+      pub exec_res: VecDeque\<ExecResult\<S\>\>,\l|
+      pub metrics: ApplyMetrics,\l|
+    }}"]
+  RaftApplyState[style_struct;label="{{
+    RaftApplyState|
+    pub applied_index: u64,\l|
+    pub last_commit_index: u64,\l|
+    pub commit_index: u64,\l|
+    pub commit_term: u64,\l
+  }}"]
+
+  RaftApplyState -> {advance_apply;}[style_edge_data];
+  ApplyRes -> RaftApplyState;
+}
+

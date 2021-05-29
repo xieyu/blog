@@ -1,0 +1,74 @@
+digraph block {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Block {
+    graph[label="Block";fontsize=20;];
+    ColumnsWithTypeAndName;
+    IndexByName;
+    Block[
+      shape="record";
+      label="{{
+        Block|
+        Container data;|
+        IndexByName index_by_name;|
+        BlockInfo info\l|
+      }}";
+    ];
+    Block:Container -> ColumnsWithTypeAndName;
+    Block:IndexByName -> IndexByName;
+    Block:BlockInfo -> BlockInfo;
+    IndexByName[
+      shape="record";
+      label="{{
+        IndexByName|
+        sstd::unordered_map\<String,size_t\>
+      }}";
+    ];
+    ColumnsWithTypeAndName[
+      shape="record";
+      label="{{
+        ColumnsWithTypeAndName|
+        std::vector\<ColumnsWithTypeAndName\>
+      }}";
+    ];
+    ColumnsWithTypeAndName -> ColumnWithTypeAndName
+    ColumnWithTypeAndName[
+      shape="record";
+      label="{{
+        ColumnWithTypeAndName|
+        ColumnPtr column\l|
+        DataTypePtr type\l|
+        String name\l
+      }}";
+    ];
+    ColumnWithTypeAndName -> {
+      ColumnPtr;
+      DataTypePtr;
+    }
+    ColumnPtr -> IColumn_Ptr;
+    IColumn_Ptr[
+      shape="record";
+      label="{{
+      IColumn::Ptr
+      }}";
+    ];
+    shared_ptr_IDataType[
+      shape="record";
+      label="{{
+        shared_ptr\<IDataType\>
+      }}";
+    ];
+    DataTypePtr -> shared_ptr_IDataType
+
+    BlockInfo[
+      shape="record";
+      label="{{
+      BlockInfo|
+      bool is_overflows\l|
+      Int32 bucket_num\l
+      }}";
+    ];
+  }
+}

@@ -1,0 +1,112 @@
+#include "styles.h"
+digraph collect_ready {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_raft {
+    graph[label="raft-rs";fontsize=20;style="rounded,dashed";color="slategrey"]
+    has_ready;
+    ready -> Ready;
+    Ready[style_struct;label="{{
+      Ready|
+       number: u64,\l|
+       ss: Option\<SoftState\>,\l|
+       <hs> hs: Option\<HardState\>,\l|
+       read_states: Vec\<ReadState\>,\l|
+       <entries> entries: Vec\<Entry\>,\l|
+       snapshot: Snapshot,\l|
+       <light> light: LightReady,\l|
+       must_sync: bool,\l
+    }}"]
+    Ready:light -> LightReady;
+
+    LightReady[style_struct;label="{{
+      LightReady|
+       commit_index: Option\<u64\>,\l|
+       <committed_entries> committed_entries: Vec\<Entry\>,\l|
+       <messages> messages: Vec\<Vec\<Message\>\>,\l
+    }}"]
+  }
+  subgraph cluster_PollContext {
+    graph[label="PollContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    raft_wb;
+    kv_wb;
+  }
+
+  subgraph cluster_InvokeContext {
+    graph[label="InvokeContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    raft_state[style_var;label="{{
+      raft_state|
+      RaftLocalState
+      hard_state HardState\l|
+      last_index: u64\l
+    }}"]
+    raft_state ->  save_raft_state_to -> raft_wb[style_edge_data];
+    save_snapshot_raft_state_to -> kv_wb[style_edge_data];
+  }
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_raft_ready[style_func;label="{{
+      handle_raft_ready|
+      保存log entries\l
+      raft state 到raft_wb\l
+    }}"]
+    handle_raft_ready -> {
+      append
+      raft_state;
+      save_raft_state_to;
+      save_snapshot_raft_state_to;
+    }
+    append[style_func;label="{{
+      append|
+      将log entry 存到cache\l
+      和raft_wb\l
+    }}"]
+    append -> raft_wb;
+    Ready:entries -> append[style_edge_data];
+    Ready:hs -> raft_state[style_edge_data];
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_raft_committed_entries[style_func;label="{{
+      handle_raft_committed_entries|
+      使用apply_router发送\l 
+      ApplyTask::apply \l
+      让ApplyDelegate执行log entry\l
+    }}"]
+    handle_raft_ready_append[style_func;label="{{
+      handle_raft_ready_append|
+      调用raft的ready\l
+      1.发送messages\l
+      2.将log entries 保存到raft_wb\l
+      3.保存ready hard state到raft_wb\l
+      4.发消息给apply router\l 
+      由apply router apply\l 
+      log entry 到state machine\l
+    }}"]
+
+    handle_raft_ready_append -> {
+      has_ready;
+      ready;
+      send;
+      handle_raft_committed_entries;
+      handle_raft_ready;
+    };
+    LightReady:messages -> send[style_edge_data];
+    LightReady:committed_entries -> handle_raft_committed_entries[style_edge_data];
+    send[style_func;label="{{
+      send|
+      发送ready中的messages\l
+    }}"]
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    collect_ready -> {
+      handle_raft_ready_append;
+    }
+  }
+  
+}

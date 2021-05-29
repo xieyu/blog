@@ -1,0 +1,92 @@
+#include "styles.h"
+digraph handle_snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  step_follower -> handle_snapshot;
+  handle_snapshot -> {
+    get_metadata;
+    take_snapshot;
+    restore;
+  }
+  restore[style_func;label="{{
+    restore|
+    Recovers the state machine from a snapshot\l
+    It restores the log and the configuration\l
+    of state machine\l|
+    检查自己是否在confstate中\l
+  }}"]
+  raft_log_commit_to[style_func;label="{{
+    raft_log.commit_to(meta.index)|
+    如果没有请求snapshot,可以根据\l 
+    meta.index更新自己的commit_to|\l
+    if self.pending_request_snapshot \l 
+      == INVALID_INDEX\l
+      && self.raft_log.match_term(meta.index,\l 
+      meta.term)\l|
+      self.raft_log.commit_to(meta.index);
+  }}"]
+
+  restore -> {
+    get_metadata;
+    become_follower;
+    get_conf_state;
+    raft_log_commit_to;
+    raft_log_restore;
+    pr_maybe_update;
+    pending_request_snapshot;
+    prs_clear;
+    confchange_restore;
+    post_conf_change;
+  }
+  confchange_restore[style_func;label="{{
+    confchange_restore|
+      Restore takes a Changer \l 
+      (which must represent an\l 
+      empty configuration), and runs a\l
+    sequence of changes enacting the\l 
+    configuration described in the ConfState.\l
+  }}"]
+  prs_clear[style_func;label="{{
+    self.prs.clear()\l|
+    清理掉自己的prs \l 
+    准备使用snapshot的配置\l
+  }}"]
+
+  pending_request_snapshot[style_var;label="{{
+    pending_request_snapshot|
+    pending_request_snapshot = INVALID_INDEX
+  }}"]
+
+  raft_log_restore[style_func;label="{{
+    raft_log.restore(snap)|
+    Restores the current\l
+    log from a snapshot\l
+  }}"]
+  raft_log_restore -> {
+    unstable_restore;
+    raft_log_committed;
+  }
+  raft_log_committed[style_var;label="{{
+    raft_log.committed|
+    更新committed\l|
+    let index = snapshot.get_metadata().index;\l
+    self.committed = index;\l
+  }}"];
+
+  unstable_restore -> {
+    unstable_entries_clear;
+    unstable_offset
+    unstable_snapshot;
+  }
+  ready[style_func;label="{{
+    ready|
+    RawNode.ready\l|
+    集成raft服务获取snapshot\l
+    负责把snapshot apply 到自己的\l
+    statemachine上\l
+  }}"]
+
+  ready -> raft_log_unstable_snapshot -> unstable_snapshot;
+}

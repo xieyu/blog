@@ -1,0 +1,82 @@
+digraph processor {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  Processor[shape="record";
+    label="{{
+      Interface Processor|
+        <pc> void init(ProcessorContext context);\l|
+        void process(K key, V value);\l|
+        void close();\l
+    }}";
+  ];
+  AbstractProcessor[
+    shape="record";
+    label="{{
+      AbstractProcessor|
+      ProcessorContext context\l|
+    }}";
+  ];
+
+  Processor -> {
+    AbstractProcessor;
+    KStreamTransformValuesProcessor;
+    KTableSuppressProcessor;
+    KstreamFlatTransformValuesProcessor;
+  };
+  subgraph cluster_Stream {
+    graph[label="Stream";fontsize=20;style=rounded];
+    KStreamMapProcessor;
+    KStreamPeekProcessor;
+    KStreamPrintProcessor;
+    KStreamBranchProcessor;
+    KStreamReduceProcessor;
+    KStreamFlatMapProcessor;
+    KStreamFlatMapValuesProcessor;
+    KStreamAggregateProcessor;
+    KStreamFlatTransformProcessor;
+    KStreamWindowAggregateProcessor;
+    KStreamSessionWindowAggregateProcessor
+  };
+  subgraph cluster_Table {
+    graph[label="Table";fontsize=20;style=rounded];
+    KTableSuppressProcessor;
+    KTableReduceProcessor;
+    KTableFilterProcesor;
+    KTableTransformValuesProcessor;
+  };
+
+  subgraph cluster_Join {
+    graph[label="Join";fontsize=20;style=rounded];
+    KTableKTableLeftJoinProcessor;
+    KTableKTableRightJoinProcessor;
+    KTableKTableOuterJoinProcessor;
+    KTableKTableJoinProcessor;
+    kStreamkTableJoinProcessor;
+    KStreamJoinWindowProcessor;
+  };
+
+  AbstractProcessor -> {
+    KStreamMapProcessor;
+    KStreamPeekProcessor;
+    KStreamPrintProcessor;
+    KStreamBranchProcessor;
+    KStreamReduceProcessor;
+    KStreamFlatMapProcessor;
+    KStreamAggregateProcessor;
+    KStreamJoinWindowProcessor;
+    KStreamFlatMapValuesProcessor;
+    KStreamWindowAggregateProcessor;
+    KTableSuppressProcessor;
+    KTableReduceProcessor;
+    KTableFilterProcesor;
+    KTableTransformValuesProcessor;
+    KTableKTableJoinProcessor;
+    KTableKTableLeftJoinProcessor;
+    KTableKTableRightJoinProcessor;
+    KTableKTableOuterJoinProcessor;
+    kStreamkTableJoinProcessor;
+    KStreamSessionWindowAggregateProcessor;
+    KStreamFlatTransformProcessor;
+  }
+}

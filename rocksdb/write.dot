@@ -1,0 +1,125 @@
+digraph write {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  DBImpl_Write -> WriteImpl;
+  WriteImpl -> {
+    Tracer_Write;
+    WriteImplWALOnly;
+    ThrottleLowPriWritesIfNeeded;
+    PipelinedWriteImpl;
+    write_sw;
+    WriteThread_Writer;
+    ShouldWriteToMemtable;
+    column_family_memtables;
+    JoinBatchGroup;
+    ShouldWriteToMemtable;
+    WriteBatchInternal_InsertInto;
+    CompleteParallelMemTableWriter;
+    MemTableInsertStatusCheck;
+    SetLastSequence;
+    ExitAsBatchGroupFollower;
+    WriteThread_Writer_FinalStatus;
+    PreprocessWrite;
+    EnterAsBatchGroupLeader;
+    WriteBatchInternal_AppendByteSize;
+    AddDBStats;
+    RecordInHistogram;
+    ConcurrentWriteToWAL;
+    FetchAddLastAllocatedSequence;
+    pre_release_callback;
+    ShouldWriteToMemtable;
+    WriteBatchInternal_InsertInto;
+    MemTableInsertStatusCheck;
+    ExitAsBatchGroupLeader;
+    WriteBatchInternal_Count;
+    LaunchParallelMemTableWriters;
+    GetColumnFamilySet;
+    MarkLogsSynced;
+  }[color=red];
+
+  PreprocessWrite -> {
+    GetColumnFamilySet;
+    WaitForPendingWrites;
+    SwitchWAL;
+    HandleWriteBufferFull;
+    ShouldFlush;
+    TrimMemtableHistory;
+    ScheduleFlushes;
+  }[color=blue];
+
+  PipelinedWriteImpl -> {
+    write_sw;
+    WriteThread_Writer;
+    JoinBatchGroup;
+    WaitForMemTableWriters;
+    PreprocessWrite;
+    EnterAsBatchGroupLeader;
+    UpdateLastSequence;
+    ShouldWriteToMemtable;
+    AppendedByteSize;
+    UpdateLastSequence;
+    AddDBStats;
+    MarkLogsSynced;
+    ExitAsBatchGroupFollower;
+    EnterAsMemTableWriter;
+    LaunchParallelMemTableWriters;
+    SetLastSequence;
+    ExitAsMemTableWriter;
+  };
+
+  WriteImplWALOnly -> {
+    WriteThread_Writer;
+    write_sw;
+    JoinBatchGroup;
+    FinalStatus;
+    IsDBStopped;
+    EnterAsBatchGroupLeader;
+    ExitAsBatchGroupLeader;
+    WriteBatchInternal_AppendByteSize;
+    FlushWAL;
+    SyncWAL;
+  }
+
+  WriteBatchInternal_InsertInto -> {
+    sequence;
+    ShouldWriteToMemtable;
+    MaybeAdvanceSeq;
+    set_log_number_ref;
+    MemTableInserter;
+  };
+
+  MemTableInserter -> {
+    concurrent_memtable_writes_;
+    post_info_created_;
+  }
+
+  subgraph cluster_WriteThread {
+    graph[label="WriteThread";fontsize=20;style=rounded];
+    WriteThread_Writer;
+    JoinBatchGroup;
+    ShouldWriteToMemtable;
+    CompleteParallelMemTableWriter;
+    ExitAsBatchGroupFollower;
+    EnterAsBatchGroupLeader;
+    ExitAsBatchGroupFollower;
+    EnterAsMemTableWriter;
+    LaunchParallelMemTableWriters;
+    WriteThread_Writer_FinalStatus;
+    pre_release_callback;
+    ExitAsMemTableWriter;
+  };
+
+  subgraph cluster_WriteBatchInternal {
+    graph[label="WriteBatchInternal";fontsize=20;style=rounded];
+    WriteBatchInternal_AppendByteSize;
+    WriteBatchInternal_Count;
+    WriteBatchInternal_InsertInto;
+    
+  };
+  subgraph cluster_Versions {
+    graph[label="Versions";fontsize=20;style=rounded];
+    SetLastSequence;
+    GetColumnFamilySet;
+  };
+}

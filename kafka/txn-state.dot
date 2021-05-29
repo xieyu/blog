@@ -1,0 +1,62 @@
+digraph txn_state {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  recv_all_p_ack[
+    shape="record";
+    label="{{
+      coordinator收到事务涉及到的\l 
+      所有partition的对于\l 
+      writeMark请求的ack\l
+    }}";
+  ];
+
+  Empty -> {
+    AddPartitionsToTxnRequest;
+    AddOffsetsToTxnRequest;
+  } -> Ongoing;
+  Ongoing ->  EndTxnRequest_Commit -> PrepareCommit;
+  Ongoing -> EndTxnRequest_Abort -> PrepareAbort;
+  Ongoing -> {AddOffsetsToTxnRequest;AddPartitionsToTxnRequest} -> Ongoing;
+  PrepareCommit -> {recv_all_p_ack} -> CompleteCommit;
+  PrepareAbort-> {recv_all_p_ack} -> CompleteAbort;
+
+  Empty[shape=egg; fillcolor="#95e1d3"; style=filled;]
+  Ongoing[shape=egg; fillcolor="#95e1d3"; style=filled;]
+  PrepareAbort[shape=egg; fillcolor="#95e1d3"; style=filled;];
+  PrepareCommit[shape=egg; fillcolor="#95e1d3"; style=filled;];
+  CompleteCommit[shape=egg; fillcolor="#95e1d3"; style=filled;];
+  CompleteAbort[shape=egg; fillcolor="#95e1d3"; style=filled;];
+  subgraph cluster_TransactionMetadata {
+    graph[label="TransactionMetadata";fontsize=20;style=rounded];
+    prepareTransitionTo -> pendingState;
+    prepareTransitionTo -> newMetadata;
+  };
+  handle[
+    shape="record";
+    label="{{
+      handle|
+      需要设置状态的函数
+    }}";
+  ];
+  appendTransactionToLog[
+    shape="record";
+    label="{{
+      appendTransactionToLog|
+      将事务日志写入topic中\l
+      成功后回调updateCacheCallback\l
+    }}";
+  ];
+  updateCacheCallback[
+    shape="record";
+    label="{{
+      updateCacheCallback|
+      在回调中内存中metadata\l 
+      设置为新的metadata \l 
+    }}";
+  ];
+  handle -> {appendTransactionToLog;prepareTransitionTo}
+  appendTransactionToLog -> newMetadata;
+  appendTransactionToLog -> updateCacheCallback;
+  updateCacheCallback -> completeTransitionTo;
+}

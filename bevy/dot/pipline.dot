@@ -1,0 +1,144 @@
+digraph pipline {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Stage {
+    graph[label="Stage";fontsize=20;];
+    stage_DRAW -> stage_RENDER;
+  }
+
+  subgraph cluster_RenderPass {
+    graph[label="RenderPass";fontsize=20;];
+    _draw_indexed
+    draw;
+    set_vertex_buffer;
+    set_index_buffer;
+    set_bind_group;
+    pass_set_pipeline;
+    set_bind_group;
+    get_bind_group;
+    get_layout;
+  }
+
+  subgraph cluster_RenderCommand {
+    graph[label="RenderCommand";fontsize=20;];
+    SetPipeline;
+    DrawIndexed;
+    Draw;
+    SetVertexBuffer;
+    SetIndexBuffer;
+    SetBindGroup;
+
+    DrawIndexed -> _draw_indexed;
+    Draw -> draw;
+    SetVertexBuffer -> set_vertex_buffer;
+    SetBindGroup -> set_bind_group;
+    SetIndexBuffer -> set_index_buffer;
+    SetPipeline -> {
+      pass_set_pipeline;
+      set_bind_group;
+      get_bind_group;
+      get_layout;
+    }
+  }
+
+
+  subgraph cluster_draw {
+    graph[label="draw";fontsize=20;];
+    draw_indexed -> {
+      render_command
+      DrawIndexed
+    };
+    draw_set_pipeline -> {
+      render_command;
+      SetPipeline;
+    };
+    render_command -> render_commands[label="push"];
+  }
+
+  subgraph cluster_DrawContext{
+    graph[label="draw_context";fontsize=20;];
+    set_pipeline -> {
+      compile_pipeline;
+      draw_set_pipeline;
+    }
+    set_bind_groups_from_bindings;
+  }
+
+  subgraph cluster_WgpuRenderGraphExecutor {
+    graph[label="WgpuRenderGraphExecutor";fontsize=20;];
+    execute;
+  }
+  execute -> Node_update;
+
+  subgraph cluster_WgpuRenderer {
+    graph[label="WgpuRenderer";fontsize=20;];
+    WgpuRenderer_update -> run_graph;
+    run_graph -> execute;
+  }
+  subgraph cluster_AppBuilder {
+    graph[label="AppBuilder";fontsize=20;];
+    add_system_to_stage;
+  }
+
+  subgraph cluster_WgpuPlugin {
+    graph[label="WgpuPlugin";fontsize=20;];
+    wgpu_render_system -> WgpuRenderer_update;
+    WgpuPlugin_build -> {
+      add_system_to_stage;
+      stage_RENDER;
+    }
+  }
+
+  subgraph cluster_PassNode {
+    graph[label="PassNode";fontsize=20;];
+    render_commands -> Node_update[label="iter";color=red];
+    PassNode[
+      shape="record";
+      label="{{
+        PassNode|
+          descriptor: PassDescriptor,\l|
+          inputs: Vec\<ResourceSlotInfo\>,\l|
+          cameras: Vec\<CameraInfo\>,\l|
+          color_attachment_input_indices: Vec\<Option\<usize\>\>,\l|
+          color_resolve_target_indices: Vec\<Option\<usize\>\>\l|
+          depth_stencil_attachment_input_index: Option\<usize\>\l|
+          default_clear_color_inputs: Vec\<usize\>\l|
+          camera_bind_group_descriptor: BindGroupDescriptor\l|
+          _marker: PhantomData\<Q\>\l
+      }}";
+    ];
+    Node_update[
+      shape="record";
+      label="{{
+        update
+      }}";
+    ];
+    PassNode -> Node_update;
+    Node_update -> {
+      SetPipeline;
+      DrawIndexed;
+      Draw;
+      SetVertexBuffer;
+      SetIndexBuffer;
+      SetBindGroup;
+    }
+  }
+  subgraph cluster_RenderPlugin {
+    graph[label="RenderPlugin";fontsize=20;];
+    RenderPlugin_build -> {
+      add_system_to_stage;
+      stage_DRAW;
+      draw_render_pipelines_system;
+    }
+  }
+
+  draw_render_pipelines_system -> {
+    set_pipeline;
+    set_bind_groups_from_bindings;
+    set_vertex_buffers_from_bindings;
+    draw_indexed;
+  }
+}

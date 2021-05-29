@@ -1,0 +1,126 @@
+digraph logStruct {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  Topic[shape="record";
+    label="{{
+      Topic:每个topic有多个partition|
+        <p> Partition1: 每个parition有多个副本|
+        Partition2 \l|
+        Partition3\l|
+        ...\l
+    }}";
+  ];
+
+  Partition[shape="record";
+    label="{{
+      Partition:\l每个partion有多个segment日志文件|
+        segment1 \l|
+        <s> segment2 \l|
+        segment3 \l|
+        ... \l
+    }}";
+  ];
+  Segement[shape="record";
+    label="{{
+      Segement|
+      以Segment中第一个消息在\l
+      partition中的offset为文件名\l|
+        <msg> xxxx.log\l|
+        <index> xxxx.index\l
+    }}";
+  ];
+
+  Messages[shape="record";
+    label="{{
+      Messages|
+        <msg> msg1\l|
+        msg2\l|
+        msg3\l|
+        ...\l|
+        <msgN> msgN\l|
+        ...\l
+    }}";
+  ];
+  Index[shape="record";
+    label="{{
+      Index|
+      用于快速定位消息\l 
+      在Segment日志文件中的offset\l
+      为稀疏索引\l|
+        1, 0\l|
+        ...\l|
+        <msgN> msgN, filePosition\l
+    }}";
+  ];
+  Message[shape="record";
+    label="{{
+      Msg|
+        8byte offset\l|
+        4byte messageSize \l|
+        4byte crc32\l|
+        1byte magic\l|
+        1byte attributes\l|
+        4byte keylen\l|
+        key paload\l|
+        4byte payloadLen\l|
+        value payload\l
+    }}";
+  ];
+
+  Segement:msg -> Messages;
+  Segement:index -> Index;
+  Messages:msg -> Message;
+  Index:msgN -> Messages:msgN;
+
+  subgraph cluster_ReplicaLeader {
+    graph[label="broker1/Replica-Leader";fontsize=20;];
+    Partition;
+    Segement;
+  }
+
+  subgraph cluster_Replica2 {
+    graph[label="broker2/Replica-follower";fontsize=20;];
+    Partition2[shape="record";
+      label="{{
+        Partition|
+          segment1 \l|
+          <s> segment2 \l|
+          segment3 \l|
+          ... \l
+      }}";
+    ];
+    Segement2[shape="record";
+      label="{{
+        Segement|
+          xxxx.log\l|
+          xxxx.index\l
+      }}";
+    ];
+    Partition2:s -> Segement2;
+  }
+
+  subgraph cluster_Replica3 {
+    graph[label="broker3/Replica-follower";fontsize=20;];
+    Partition3[shape="record";
+      label="{{
+        Partition|
+          segment1 \l|
+          <s> segment2 \l|
+          segment3 \l|
+          ... \l
+      }}";
+    ];
+    Segement3[shape="record";
+      label="{{
+        Segement|
+          xxxx.log\l|
+          xxxx.index\l
+      }}";
+    ];
+    Partition3:s -> Segement3;
+  }
+
+  Topic:p -> {Partition, Partition2, Partition3};
+  Partition:s -> Segement;
+}

@@ -1,0 +1,63 @@
+digraph table_update_record {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_kv {
+    graph[label="kv";fontsize=20;style=rounded];
+    txn_Set[label="Set"];
+
+  }
+  subgraph cluster_sessionCtx {
+    graph[label="sessionCtx";fontsize=20;style=rounded];
+    UpdateDeltaForTable;
+  }
+
+  subgraph cluster_tablecodec {
+    graph[label="tablecodec";fontsize=20;style=rounded];
+    EncodeRow;
+  }
+
+  subgraph cluster_Index {
+    graph[label="Index";fontsize=20;style=rounded]
+    Index_FetchValues[label="FetchValues"];
+    Index_Create[label="Create"];
+    Index_Delete[label="Delete"];
+  }
+
+  subgraph cluster_tableCommon {
+    graph[label="tableCommon";fontsize=20;style=rounded];
+    Table_UpdateRecord[label="UpdateRecord"];
+    rebuildIndices[label="rebuildIndices\l更新索引"];
+    WritableCols[label="WritableCols\l从schema中获取可写的colum"];
+    RecordKey[label="RecordKey\l根据recordkey和handle\l生成对应的key\l"];
+
+    Table_UpdateRecord-> {
+      rebuildIndices;
+      WritableCols;
+      RecordKey;
+      EncodeRow;
+      txn_Set;
+      addUpdateBinlog;
+      UpdateDeltaForTable;
+    };
+
+    rebuildIndices -> {
+      removeRowIndices;
+      Index_FetchValues;
+      buildIndexForRow;
+    };
+    buildIndexForRow -> Index_Create;
+    removeRowIndices -> Index_Delete;
+  }
+
+  subgraph cluster_executor {
+    graph[label="executor/write.go";fontsize=20;style=rounded]
+    updateRecord -> Table_UpdateRecord;
+  }
+
+  subgraph cluster_UpdateExec {
+    graph[label="UpdateExec";fontsize=20;style=rounded]
+    exec -> { updateRecord; }
+  }
+}

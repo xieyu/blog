@@ -1,0 +1,71 @@
+#include "./styles.h"
+digraph buildDataSourceSchema {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  buildDataSource -> {
+    getPossibleAccessPath;
+    filterPathByIsolationRead;
+  }
+  filterPathByIsolationRead -> possibleAccessPaths;
+  possibleAccessPaths -> DataSource:possibleAccessPaths;
+
+  DataSource[style_struct;label="{{
+    DataSource|
+    field(logicalSchemaProducer,)
+    field(indexMergeHints, []indexMergeHints)
+    field(possibleAccessPaths, []*util.AccessPath)
+    field(handleCols, HandleCols)
+    field(preferStoreType, int)
+    field(TblCols, []*expression.Column)
+    tail_field(Columns, []*models.ColumnInfo)
+  }}"]
+  DataSource:logicalSchemaProducer -> logicalSchemaProducer;
+  logicalSchemaProducer[style_struct;label="{{
+    logicalSchemaProducer|
+    field(schema, *expression.Schema)
+    field(names, types.NameSlice)
+    tail_field(baseLogicalPlan,)
+  }}"]
+  possibleAccessPaths[style_var];
+  TableInfo[style_struct;label="{{
+    TableInfo\l|
+    field(Indices, []*IndexInfo)
+  }}"]
+
+  getPossibleAccessPath[style_func;label="{{
+    getPossibleAccessPath|
+    遍历Public State的Table索引\l
+  }}"]
+  OptimizerUseInvisibleIndexes[style_var];
+
+  getPossibleAccessPath -> {
+    fillContentForTablePath;
+    Meta;
+    genTiFlashPath;
+    getTablePath;
+    OptimizerUseInvisibleIndexes;
+  }
+  fillContentForTablePath -> {
+    IsCommonHandle;
+    IsIntHandlePath;
+  }
+  filterPathByIsolationRead -> {
+    GetIsolationReadEngines;
+  }
+  available[style_var];
+  publicPaths[style_var];
+  Meta -> TableInfo;
+  //dep_data(getPossibleAccessPath, filterPathByIsolationRead)
+  dep_data(TableInfo, fillContentForTablePath);
+  dep_data(TableInfo:Indices, publicPaths);
+  dep_data(fillContentForTablePath, publicPaths);
+  dep_data(publicPaths, getTablePath);
+  dep_data(publicPaths, getPathByIndexName);
+  dep_data(getTablePath, available);
+  dep_data(getPathByIndexName, available);
+  dep_data(available, filterPathByIsolationRead);
+  dep_data(publicPaths, available);
+}

@@ -1,0 +1,64 @@
+//
+// executor-setup.dot
+//
+// Created on 07-10-2019 by xieyu
+//
+digraph executorsetup {
+  rankdir=LR;
+  newrank=true;
+  node[shape="box";style="rounded"]
+  subgraph cluster_thread_local {
+    label="thread local";
+    EXECUTOR[label="Thread local var\n Executor"];
+  }
+
+  subgraph cluster_current_thread{
+    label="current thread"
+    subgraph cluster_runtime {
+      label="runtime"
+      current_thread_run[label="run"]
+      block_on -> enter;
+      run -> enter;
+    }
+    subgraph cluster_current_thread{
+      label="current thread"
+      current_thread_block_on[label="block_on"];
+      current_thread_run[label="run"];
+    }
+  }
+
+  subgraph cluster_tokio_executor{
+    label="tokio executor"
+    with_default -> EXECUTOR[label="with_default";color=red];
+  }
+
+  subgraph cluster_thread_pool{
+    label="thread pool"
+    subgraph cluster_pool {
+      label="pool"
+      spawn_thread;
+    }
+
+    subgraph cluster_worker{
+      label="worker"
+      do_run;
+      worker_run[label="run"];
+    }
+    spawn_thread -> do_run;
+  }
+
+  subgraph cluster_default_executor{
+    label="default executor";
+    with_current;
+  }
+
+  tokio_spawn[label="tokio::spawn"];
+
+  enter -> with_default[label="TaskExecutor"];
+  do_run -> with_default[label="Sender"];
+  with_default -> {worker_run, current_thread_run, current_thread_block_on}[style=dashed;color=gray60];
+
+  tokio_spawn -> with_current;
+  with_current -> EXECUTOR[label="read";color=blue];
+}
+

@@ -1,0 +1,112 @@
+digraph backgroun_compaction_job {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_CompactionJob {
+    graph[label="CompactionJob";fontsize=20;];
+    //compaction job
+    CompactionJob[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        CompactionJob\l|
+          const std::string& dbname_;\l|
+          <CompactionState> CompactionState* compact_;\l|
+          FSDirectory* output_directory_;\l|
+          VersionSet* versions_;\l|
+          ...
+      }}"
+    ];
+    CompactionJob:CompactionState -> CompactionState;
+    CompactionState[
+      shape="record"
+      label="{{
+        CompactionState|
+          <SubcompactionState> std::vector\<CompactionJob::SubcompactionState\>\l sub_compact_states;\l|
+          Compaction* const compaction;\l|
+      }}"
+    ];
+    CompactionState:SubcompactionState -> sub_compact_states;
+    Compaction -> CompactionJob[style=dashed];
+    CompactionJob -> {
+      CompactionJob_Prepare;
+      CompactionJob_Run;
+    }
+    CompactionJob_Prepare[
+      shape="record"
+      label="{{
+        CompactionJob_Prepare|
+        将compactionJob划分为\l 
+        sub compact state\l
+      }}"
+    ];
+    CompactionJob_Prepare -> {
+      sub_compact_states;
+      ShouldFormSubcompactions;
+      boundaries_;
+    }
+
+    CompactionJob_Run[shape="record";
+      label="{{
+        CompactionJob_Run|
+        使用线程池跑key/value压缩\l
+        每个线程参数为sub_comact_states[i]\l
+      }}";
+    ];
+    thread_pool[
+      shape="record"
+      label="{{
+        thread_pool|
+        使用多线程做压缩
+      }}"
+    ];
+    CompactionJob_Run -> {
+      thread_pool;
+      sub_compact_states;
+      ProcessKeyValueCompaction;
+    }[color="#3f72af"]
+
+    sub_compact_states[shape="record";
+      label="{{
+        CompactionJob::SubcompactionState\l|
+        Slice *start, *end;\l|
+        Status status;\l|
+        ...
+        std::vector\<Output\> outputs;\l|
+        std::unique_ptr\<WritableFileWriter\> outfile;\l|
+        std::unique_ptr\<TableBuilder\> builder;\l
+      }}";
+    ];
+    sub_compact_states -> ProcessKeyValueCompaction[style=dashed;color=gray70];
+    thread_pool -> ProcessKeyValueCompaction[style=dashed;color=gray70];
+    ProcessKeyValueCompaction[shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        ProcessKeyValueCompaction
+      }}";
+    ];
+    ProcessKeyValueCompaction -> {
+      CreateCompactionFilter;
+      MakeInputIterator;
+      MergeHelper;
+      OpenCompactionOutputFile;
+      FinishCompactionOutputFile;
+      TableBuilder_Add;
+      TableBuilder_Finish;
+      TableBuilder_Abandon;
+    }
+  }
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    BackgrondCompaction -> {
+      CompactionJob_Run;
+      CompactionJob_Prepare;
+      CompactionJob;
+      Compaction;
+    }
+    
+  }
+}

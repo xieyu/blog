@@ -1,0 +1,31 @@
+#include "styles.h"
+digraph GetRegion {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  GetRegion -> {
+    GetRaftCluster;
+    GetRegionByKey;
+  }
+  GetRaftCluster -> RaftCluster;
+  GetRegionByKey -> SearchRegion;
+  SearchRegion -> RegionInfo_SearchRegion;
+  RegionInfo_SearchRegion -> {
+    regionMap_Get;
+  }
+
+  GetPrevRegion -> {
+    GetRaftCluster;
+    GetPrevRegionByKey;
+  }
+  GetPrevRegionByKey -> {
+    SearchPrevRegion;
+  }
+  SearchPrevRegion -> RegionsInfo_SearchPrevRegion;
+  RegionsInfo_SearchPrevRegion -> {
+    searchPrev;
+  }
+  searchPrev -> getAdjacentRegions;
+}

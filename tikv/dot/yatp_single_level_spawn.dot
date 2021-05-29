@@ -1,0 +1,196 @@
+#include "styles.h"
+digraph single_level_spawn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_crossbeam_deque {
+    graph[label="crossbeam_deque ";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Injector_push[style_func;label="{{
+      Injector::push
+    }}"]
+    Worker_push[style_func;label="{{
+      Worker::push
+    }}"]
+    Injector[style_func;label="{{
+      Injector|
+      全局任务队列\l
+    }}"]
+    Worker[style_func;label="{{
+      Worker|
+      worker自己本地任务队列\l
+    }}"]
+    Injector_push -> Injector;
+    {Worker_push;
+    Worker_pop;
+    } -> Worker;
+    Injector_steal_batch_and_pop[style_func;label="{{
+      Injector::steal_batch_and_pop|
+      Steals a batch of tasks\l
+    }}"]
+    Injector -> Injector_steal_batch_and_pop -> Worker[style_edge_data];
+    Stealer_steal_batch_and_pop -> Worker[style_edge_data];
+    Stealer_steal_batch_and_pop[style_func;label="{{
+      Stealer::steal_batch_and_pop|
+      从其它worker steal batch  job\l
+    }}"]
+    Worker_pop[style_func;label="{{
+      Worker::pop
+    }}"]
+  }
+
+  single_level_TaskInjector_push -> {
+    set_schedule_time;
+    Injector_push
+  }
+  subgraph cluster_signle_level {
+    graph[label="signle_level";fontsize=20;style="rounded,dashed";color="slategrey"]
+    single_level_TaskInjector_push[style_func;label="{{
+      TaskInjector::push\l|
+      push task全局队列\l
+    }}"]
+    single_level_LocalQueue_push[style_func;label="{{
+      LocalQueue::push\l|
+      向自己本地Worker\l 
+      队列push task\l
+    }}"]
+    single_level_LocalQueue_pop[style_func;label="{{
+      LocalQueue::pop\l|
+      先从本地队列中取task\l
+      为空的话，去global 队列\l 
+      steal 一批 task\l
+      还为空的话，去其它\l 
+      worker steal 一批task\l
+    }}"]
+    single_level_LocalQueue_pop -> {
+      into_pop;
+      Worker_pop;
+      Stealer_steal_batch_and_pop;
+      Injector_steal_batch_and_pop;
+    }
+  }
+
+  subgraph cluster_parking_lot_core {
+    graph[label="parking_lot_core";fontsize=20;style="rounded,dashed";color="slategrey"]
+    unpark_one;
+    park;
+      
+  }
+
+  subgraph cluster_QueueCore {
+    graph[label="QueueCore";fontsize=20;style="rounded,dashed";color="slategrey"]
+    QueueCore_push[style_func;label="{{
+      QueueCore::push
+    }}"]
+    QueueCore_push -> {
+      single_level_TaskInjector_push;
+      ensure_workers;
+    }
+    ensure_workers[style_func;label="{{
+      ensure_workers|
+      Ensures there are enough\l
+      workers to handle pending tasks\l
+    }}"]
+    ensure_workers -> {
+       active_workers;
+       unpark_one;
+    }
+    mark_sleep -> {
+      active_workers;
+    }
+    mark_woken -> {
+      active_workers;
+    }
+  }
+  subgraph cluster_Remote {
+    graph[label="Remote";fontsize=20;style="rounded,dashed";color="slategrey"]
+    remote_spawn -> {
+     QueueCore_push;
+    };
+    remote_spawn[style_func;label="{{
+      spawn
+    }}"]
+      
+  }
+
+  subgraph cluster_Local {
+    graph[label="Local";fontsize=20;style="rounded,dashed";color="slategrey"]
+    spawn -> single_level_LocalQueue_push;
+    spawn_remote -> QueueCore_push;
+    pop -> {
+      single_level_LocalQueue_pop;
+    }
+    pop_or_sleep -> {
+     park;
+     mark_sleep;
+     single_level_LocalQueue_pop;
+     mark_woken;
+    }
+  }
+
+  subgraph cluster_future {
+    graph[label="future";fontsize=20;style="rounded,dashed";color="slategrey"]
+    future_Runner_handle[style_func;label="{{
+      handle|
+      调用task.future.poll\l
+    }}"]
+    future_Runner_handle;
+    wake_task;
+    wake_task[style_func;label="{{
+      wake_task|
+      task将自己重新\l 
+      放入队列中\l|
+      优先放到本地队列中\l
+    }}"]
+    future_Runner_handle -> wake_task[style_edge_data];
+  }
+  subgraph cluster_WorkerThread {
+    graph[label="WorkerThread";fontsize=20;style="rounded,dashed";color="slategrey"]
+    WorkerThread_pop -> {
+      pop;
+      pop_or_sleep;
+    }
+    WorkerThread_run -> {
+       WorkerThread_pop;
+       future_Runner_handle;
+    }
+    WorkerThread_pop[style_func;label="{{
+      pop|
+      去队列中取task\l
+    }}"]
+    WorkerThread_run[style_func;label="{{
+      run|
+      worker thread 主线程\l
+    }}"]
+  }
+
+  subgraph cluster_ThreadPool {
+    graph[label="ThreadPool";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ThreadPool_spawn -> {
+      QueueCore_push;
+    };
+    ThreadPool_spawn[style_func;label="{{
+      spawn\l|
+      将async task放入\l 
+      全局队列中\l
+    }}"]
+      
+  }
+
+  wake_task -> {
+    spawn_remote;
+    spawn;
+    remote_spawn;
+  }
+
+  single_level_LocalQueue_push -> {
+    set_schedule_time;
+    Worker_push;
+  }
+  set_schedule_time[style_func;label="{{
+    set_schedule_time|
+    设置task的schedule_time\l
+    task_cell.mut_extras().schedule_time\l
+  }}"]
+
+}

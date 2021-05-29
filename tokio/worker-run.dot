@@ -1,0 +1,53 @@
+//
+// worker-run.dot
+//
+// Created on 02-10-2019 by xieyu
+//
+digraph workerrun {
+  node[shape=box];
+  newrank=true
+  subgraph cluster_worker {
+    graph[label="worker";fontsize=20;style=rounded]
+    run -> {check_run_state, try_run_task, sleep_light, yield_now, sleep};
+    try_run_task -> {try_run_owned_task, try_steal_task};
+    try_run_owned_task -> run_task -> run_task2;
+    run_task -> remotely_complete_task[label="complete"];
+    run_task2 -> Guard;
+  }
+
+  subgraph cluster_entry {
+    graph[label="entry";fontsize=20;style=rounded]
+    entry_pop_task[label="pop_task"];
+    entry_register_task[label="register_task"];
+    entry_unregister_task[label="unregister_task"];
+    entry_push_internal[label="push_internal"];
+    steal_tasks;
+  }
+
+  subgraph cluster_pool {
+    graph[label="pool";fontsize=20;style=rounded]
+    submit_external;
+    signal_work;
+    pool_state[label="state";];
+    termiate_sleeping_workers;
+  }
+
+  subgraph cluster_task {
+    graph[label="task";fontsize=20;style=rounded]
+    task_run[label="run"];
+  }
+
+  subgraph cluster_stealer {
+    graph[label="stealer";fontsize=20;style=rounded];
+    steal_bach_and_pop;
+  }
+
+  try_run_owned_task -> entry_pop_task;
+  run_task -> {entry_register_task, submit_external, entry_push_internal}[label="schedule"];
+  run_task -> {termiate_sleeping_workers,entry_unregister_task}[label="complete"];
+  run_task2 -> task_run;
+  check_run_state -> pool_state[style=dashed];
+  try_steal_task -> signal_work;
+  try_steal_task -> steal_tasks[label="steal from other"];
+  steal_tasks -> steal_bach_and_pop;
+}

@@ -1,0 +1,92 @@
+digraph task_waker {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_std {
+    graph[label="std";fontsize=20;]
+    
+
+    RawWaker[shape="record";
+      label="{{
+        RawWaker　|
+          data: *const ()\l|
+          <vtable> vtable: &'static RawWakerVTable\l
+      }}";
+    ];
+
+    RawWaker:vtable -> RawWakerVTable;
+    RawWakerVTable [shape="record";
+      label="{{
+        RawWakerVTable |
+          <c> clone \l|
+          <w1> wake_by_ref \l|
+          <w2> wake \l|
+          drop\l
+      }}";
+    ];
+
+    Waker [shape="record";
+      label="{{
+        Waker |
+          waker: RawWaker\l
+      }}";
+    ];
+
+    Waker -> RawWaker;
+
+    Context [shape="record";
+      label="{{
+        Context |
+          <w> waker : &'a Waker\l|
+          _marker:\l
+      }}";
+    ];
+    Context:w -> Waker;
+
+  }
+  subgraph cluster_tokio{
+    graph[label="tokio";fontsize=20;]
+    AtomicWaker [shape="record";
+      label="{{
+        AtomicWaker |
+          state: AtomicUsize \l|
+          <waker> waker: CausalCell\<Option\<Waker\>\> \l
+      }}";
+    ];
+
+    subgraph cluster_threadpool {
+      graph[label="threadpool";fontsize=20;]
+      
+      park[shape="record";
+        label="{{
+          park.rs|
+            <c> + clone \l|
+            <w1> + wake\l|
+            <w2> + wake_by_ref\l
+        }}";
+      ];
+    }
+
+    subgraph cluster_concurrent_thread {
+      graph[label="concurrent_thread";fontsize=20;]
+      schedule[shape="record";
+        label="{{
+          schedule.rs|
+            <c> clone_inner\l|
+            <w1> wake_inner\l|
+            <w2> wake_by_ref_inner\l|
+            <d> drop_inner\l
+        }}";
+      ];
+      Node_notify[label="Node::\<U\>::notify"];
+      {schedule:w1, schedule:w2} -> Node_notify;
+    }
+
+  }
+
+  RawWakerVTable:w1 -> {park:w1, schedule:w1};
+  RawWakerVTable:w2 -> {park:w2, schedule:w2};
+  RawWakerVTable:c -> {park:c, schedule:c};
+  AtomicWaker:waker -> Waker;
+}

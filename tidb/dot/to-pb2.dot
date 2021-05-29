@@ -1,0 +1,55 @@
+digraph toPB2 {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  PhysicalLimit_ToPB;
+  PhysicalStreamAgg_ToPB;
+  PhysicalIndexScan_ToPB;
+  PhysicalSelection_ToPB;
+  PhysicalHashAgg_ToPB;
+  PhysicalTableScan_ToPB;
+  PhysicalBroadCastJoin_ToPB;
+  PhysicalTopN_ToPB;
+  PhysicalLimit_ToPB -> {
+    tipb_Limit;
+    child_ToPB;
+  }
+  PhysicalStreamAgg_ToPB -> {
+    ExpressionsToPBList;
+    tipb_Aggregation;
+    child_ToPB;
+  }
+
+  PhysicalIndexScan_ToPB -> {
+    tipb_IndexScan;
+  }
+  PhysicalTopN_ToPB -> {
+    tipb_ExecType_TypeTopN;
+    child_ToPB;
+  }
+  PhysicalBroadCastJoin_ToPB -> {
+    ExecType_TypeJoin;
+    tipb_Join;
+    child_ToPB;
+    ExpressionsToPBList;
+  }
+  ExpressionsToPBList -> ExprToPB;
+  PhysicalTableScan_ToPB -> {
+    BuildTableScanFromInfos;
+    TableRangesToKVRanges;
+    ExecType_TypeTableScan;
+    SetPBColumnsDefaultValue;
+  }
+  PhysicalHashAgg_ToPB -> {
+    tipb_Aggregation;
+    ExpressionsToPBList;
+    AggFuncToPBExpr;
+    ExecType_TypeAggregation;
+  }
+  PhysicalSelection_ToPB -> {
+    ExpressionsToPBList;
+    tipb_Selection;
+    child_ToPB;
+  }
+}

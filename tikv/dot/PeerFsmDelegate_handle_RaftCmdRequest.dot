@@ -1,0 +1,139 @@
+#include "styles.h"
+digraph RaftCmdRequest {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Callback {
+    graph[label="Callback";fontsize=20;style="rounded,dashed";color="slategrey"]
+    invoke_proposed;
+    invoke_with_response;
+  }
+  subgraph cluster_RaftRs {
+    graph[label="RaftRs";fontsize=20;style="rounded,dashed";color="slategrey"]
+    raft_group_propose;
+    raft_group_propose[style_func;label="{{
+      propose|
+      raft group发起propose\l
+      后续通过ready接口获取\l
+      commit的状况\l
+    }}"]
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    propose[style_func;label="{{
+      propose|
+      在向raft group提交msg之后\l
+      调用cb 的invoke_proposed\l
+    }}"]
+    propose_normal[style_func;label="{{
+      propose_normal|
+      将request序列化\l
+      然后调用raft_group的propose\l
+    }}"]
+    inspect[style_func;label="{{
+      inspect|
+      计算RequestPolicy\l
+      write的polic为l
+      RequestPolicy::\l 
+      ProposeNormal\l
+      所以后面调用propose_normal\l
+    }}"]
+    inspect -> propose_normal[style_edge_data];
+    propose -> {
+      inspect;
+      propose_normal;
+      invoke_with_response;
+      invoke_proposed;
+      post_propose;
+    };
+    propose_normal -> {
+      has_applied_to_current_term;
+      propose_check_epoch;
+      pre_propose;
+      write_to_bytes;
+      raft_group_propose
+    }
+    propose -> Proposal -> proposals;
+    Proposal[style_struct;label="{{
+      Proposal|
+    pub is_conf_change: bool,\l|
+    pub index: u64,\l|
+    pub term: u64,\l|
+    pub cb: Callback\<S\>,\l|
+    pub renew_lease_time: Option\<Timespec\>,\l|
+    pub must_pass_epoch_check: bool,\l
+    }}"]
+    post_propose[style_func;label="{{
+      post_propose|
+      将Proposal 插入到队列中\l
+      等后面collect_ready 回调该cb\l
+    }}"]
+    post_propose -> proposals;
+    proposals[style_var;label="{{
+      proposals|
+        ProposalQueue\<EK::Snapshot\>,\l
+    }}"]
+    write_to_bytes[style_func;label="{{
+      write_to_bytes|
+      将req序列化为bytes\l|
+      protobuf\<Vec\<V8\>\>\l
+    }}"]
+    pre_propose[style_func;label="{{
+      pre_propose|
+      做一些检查\l
+    }}"]
+    pre_propose -> {
+      has_admin_request;
+      get_sync_log_from_request;
+    }
+    write_to_bytes -> raft_group_propose[style_edge_data];
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_msgs[style_func;label="{{
+      handle_msgs|
+      处理发送过来的RaftComand\l
+    }}"]
+    handle_msgs -> {
+      propose_batch_raft_command;
+      propose_raft_command;
+    }
+    propose_batch_raft_command -> {
+       propose_raft_command;
+       batch_req_builder_build
+    }
+    propose_raft_command -> {
+      pre_propose_raft_command;
+      invoke_with_response;
+      check_merge_proposal;
+      reset_raft_tick;
+      register_pd_heartbeat_tick;
+      propose;
+    }
+
+    pre_propose_raft_command[style_func;label="{{
+      pre_propose_raft_command|
+      做一些检查\l
+    }}"]
+    collect_ready;
+    collect_ready[style_func;label="{{
+      collect_ready|
+      收集raft group的ready\l
+      这样根据ready中的\l 
+      commited entries信息\l
+      就能回调callback的\l 
+      invoke_committed了\l
+    }}"]
+  }
+  subgraph cluster_PollHandler {
+    graph[label="PollHandler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_normal -> {
+      handle_msgs;
+      collect_ready;
+    }
+  }
+  
+}

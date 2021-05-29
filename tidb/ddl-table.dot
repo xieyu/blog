@@ -1,0 +1,75 @@
+digraph ddl_table {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ddl {
+    graph[label="ddl/ddl.go";fontsize=20;style=rounded]
+    doDDLJob;
+  }
+
+  subgraph cluster_ReaderWriter {
+    graph[label="kv/kv.go";fontsize=20;style=rounded]
+    readerWriter_Set[label="Set"];
+    readerWriter_Delete[label="Delete"];
+  }
+
+  subgraph cluster_txstucture {
+    graph[label="txstucture";fontsize=20;style=rounded]
+    txn_Set[label="Set"];
+    txn_HSet[label="HSet"];
+    txn_HDel[label="HDel"];
+    txn_HSet -> updateHash -> readerWriter_Set;
+    txn_HDel -> readerWriter_Delete;
+    txn_Set -> readerWriter_Set;
+  }
+
+  subgraph cluster_model_ddl {
+    graph[label="model/ddl.go";fontsize=20;style=rounded]
+    FinishDBJob;
+  }
+
+  subgraph cluster_meta {
+    graph[label="meta/meta.go";fontsize=20;style=rounded]
+    CreateTableOrView -> {
+      txn_HSet;
+    };
+    DropTableOrView-> {
+      txn_HDel
+    };
+  }
+
+  subgraph cluster_ddl_table {
+    graph[label="ddl/table.go";fontsize=20;style=rounded]
+    onCreateTable ->{
+      createTableOrViewWithCheck;
+      FinishDBJob;
+      CreateTableOrView;
+    };
+    onDropTableOrView -> {
+      DropTableOrView;
+    }
+  }
+  subgraph cluster_ddl_worker {
+    graph[label="ddl/ddl_worker.go";fontsize=20;style=rounded]
+    runDDLJob;
+    runDDLJob -> {
+      onCreateTable;
+      onDropTableOrView;
+    }
+  }
+  doDDLJob -> runDDLJob[style=dashed;label="QueueDDLJob"]
+  
+
+  subgraph cluster_ddl_api {
+    graph[label="ddl/ddl_api.go";fontsize=20;style=rounded]
+      CreateTable;
+      DropTable;
+      CreateTable -> {
+        CreateTableWithLike;
+        buildTableInfoWithCheck;
+      }
+      {CreateTable, CreateTableWithLike} -> doDDLJob[label="ActionCreateTable"];
+      DropTable -> doDDLJob;
+  }
+}

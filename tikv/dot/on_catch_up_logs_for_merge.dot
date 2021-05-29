@@ -1,0 +1,49 @@
+#include "styles.h"
+digraph on_catch_up_logs_for_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Raft {
+    graph[label="raft-rs";fontsize=20;style="rounded,dashed";color="slategrey"]
+    maybe_append -> {
+     find_conflict;
+     append;
+     commit_to;
+    }
+    maybe_append[style_func;label="{{
+      maybe_append|
+      将log entries \l 
+      append 到raft log\l
+    }}"]
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    maybe_append_merge_entries -> {
+      commit_to;
+      maybe_append;
+    }
+      
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    SignificantMsg_CatchUpLogs -> on_catch_up_logs_for_merge;
+    on_catch_up_logs_for_merge -> {
+      pending_merge_state;
+      maybe_append_merge_entries;
+      schedule_task_ApplyTask_LogsUptoDate
+      has_ready;
+      catch_up_logs;
+    }
+
+    on_ready_prepare_merge -> {
+      pending_merge_state;
+      catch_up_logs;
+      schedule_task_ApplyTask_LogsUptoDate;
+    }
+  }
+  
+}

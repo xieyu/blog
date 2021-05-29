@@ -1,0 +1,73 @@
+digraph insert_exec_next {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Table {
+    graph[label="Table";fontsize=20;];
+    Table_AddRecord[
+      shape="record";
+      label="{{
+        Table.AddRecord|
+	        AddRecord inserts a row\l 
+          which should contain only\l 
+          public columns|
+          Table的AddRecord接口
+      }}";
+    ];
+    Table_AddRecord -> {
+      TableCommon_AddRecord;
+      partitionedTable_AddRecord;
+      partitionTableWithGivenSets_AddRecord;
+    }[label=impl];
+    
+  }
+  InsertExec_Next -> {
+    insertRowsFromSelect;
+    insertRows;
+  }
+  insertRowsFromSelect[
+    shape="record";
+    label="{{
+      insertRowsFromSelect|
+      如果有child exec\l
+      insert ... select \l
+    }}";
+  ];
+  insertRows[
+    shape="record";
+    label="{{
+      insertRows|
+      insertRows processes \l 
+      `insert\|replace into values ()`\l 
+      or `insert\|replace into set x=y`\l
+    }}";
+  ];
+
+  insertRows -> {
+    insertCommon;
+    processSetList;
+    GetSessionVars;
+    evalRowFunc;
+    lazyAdjustAutoIncrementDatum;
+    insertCommon_exec;
+  }
+  insertCommon_exec -> {
+    InsertExec_exec;
+    ReplaceExec_exec;
+  }
+
+  InsertExec_exec -> {
+    AddRecordRows;
+    batchUpdateDupRows;
+    batchCheckAndInsert;
+    addRecordWithAutoIDHint;
+    addRecord;
+  }
+  addRecord -> addRecordWithAutoIDHint;
+  addRecordWithAutoIDHint -> {
+    Table_AddRecord;
+    SetLastInsertID;
+  }
+}

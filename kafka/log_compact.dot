@@ -1,0 +1,115 @@
+digraph logcompact {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_log {
+    graph[label="log";fontsize=20;];
+    deleteOldSegments;
+  }
+  subgraph cluster_logSegment {
+    graph[label="logSegment";fontsize=20;];
+    LogSegment_append[label="append"];
+  }
+  subgraph cluster_cleaner {
+    graph[label="cleaner";fontsize=20;];
+    cleaner_startup[label="startup"];
+    new_CleanerThread[shape="record";
+      label="{{
+        new CleanerThread|
+          根据配置启动n个cleaner线程\l
+      }}";
+    ];
+    cleaner_startup -> {
+      new_CleanerThread;
+      cleaner_start;
+    }
+    subgraph cluster_cleanManager {
+      graph[label="cleanManager";fontsize=20;];
+      doneCleaning;
+      doneDeleting;
+    }
+
+
+    subgraph cluster_cleaner {
+      graph[label="cleaner";fontsize=20;];
+      doClean[
+        fillcolor="#f38181";
+        style=filled;
+        shape=box;
+        label="doClean"
+      ];
+      clean -> doClean -> {
+        buildOffsetMap;
+        groupSegmentsBySize;
+        cleanSegments;
+      };
+      cleanSegments -> { cleanInto; }
+      cleanInto -> {
+        MemoryRecords_readInto;
+        MemoryRecords_filterTo;
+        LogSegment_append;
+      }
+      MemoryRecords_filterTo -> logCleanerFilter;
+      logCleanerFilter -> shouldRetainRecord -> offsetMap;
+      buildOffsetMap -> buildOffsetMapForSegment;
+      buildOffsetMapForSegment -> offsetMap[color="red"];
+
+      buildOffsetMapForSegment[shape="record";
+        label="{{
+          buildOffsetMapForSegment|
+            创建key -\> offset的映射\l
+        }}";
+      ];
+
+      shouldRetainRecord[
+        fillcolor="#f38181";
+        style=filled;
+        shape=box;
+        label="shouldRetainRecord"
+      ];
+
+      offsetMap[
+        fillcolor="#95e1d3"
+        style=filled;
+        shape=box3d;
+        label="offsetMap"
+      ];
+      cleanInto[shape="record";
+        label="{{
+          cleanInto|
+            读取src records\l
+            根据offsetMap过滤完毕后\l　
+            写入dst segment\l
+        }}";
+      ];
+    }
+
+    subgraph cluster_cleaner_thread {
+      graph[label="cleaner thread";fontsize=20;];
+      cleaner_start[label="start"];
+      cleaner_start-> doWork -> tryCleanFilthiestLog -> cleanFilthiestLog;
+      cleanFilthiestLog -> {
+        grabFilthiestCompactedLog;
+        deletableLogs;
+        deleteOldSegments;
+        doneDeleting;
+        cleanLog;
+      };
+      cleanLog -> {
+        clean;
+        doneCleaning;
+      }
+    }
+  }
+
+  subgraph cluster_logManager {
+    graph[label="logManager";fontsize=20;];
+    logManager_startup[label="startup"];
+    logManager_startup -> cleaner_startup
+  }
+
+  subgraph cluster_KafkaServer {
+    graph[label="KafkaServer";fontsize=20;];
+    startup -> logManager_startup;
+  }
+}

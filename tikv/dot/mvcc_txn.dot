@@ -1,0 +1,115 @@
+#include "styles.h"
+digraph mvcc_txn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  MvccTxn -> {
+    MvccReader;
+    TimeStamp;
+    Modify;
+    Key;
+    Lock;
+    ConcurrencyManager;
+    KeyHandleGuard;
+  }
+
+  MvccReader -> {
+    Snapshot;
+    Statistics;
+    Cursor;
+    ScanMode;
+    Key
+    IsolationLevel;
+  }
+  ConcurrencyManager -> {
+    LockTable;
+  }
+  ConcurrencyManager[style_struct;label="{{
+    ConcurrencyManager|
+    set memory locks for prewritten keys\l|
+    max_ts: Arc\<AtomicU64\>,\l|
+    lock_table: LockTable,\l
+  }}"]
+
+  Modify[style_struct;label="{{
+    enum Modify|
+  }}"]
+
+  Modify[style_struct;label="{{
+    enum Modify|
+    Delete(CfName, Key),\l|
+    Put(CfName, Key, Value),\l|
+    DeleteRange(CfName, Key, Key, bool),\l
+  }}"]
+  Key[style_struct;label="{{
+    Key|
+    pub struct Key(Vec\<u8\>)\l
+  }}"]
+
+  KeyHandleGuard[style_struct;label="{{
+    KeyHandleGuard|
+    _mutex_guard: AsyncMutexGuard\<'static, ()\>,\l|
+    handle: Arc\<KeyHandle\>,\l
+  }}"]
+
+  MvccTxn[style_struct;label="{{
+    MvccTxn|
+    pub(crate) reader: MvccReader\<S\>,\l|
+    pub(crate) start_ts: TimeStamp,\l|
+    pub(crate) write_size: usize,\l|
+    pub(crate) modifies: Vec\<Modify\>,\l|
+    pub(crate) locks_for_1pc: Vec\<(Key, Lock, bool)\>,\l|
+    pub(crate) collapse_rollback: bool,\l|
+    pub(crate) concurrency_manager: ConcurrencyManager,\l|
+    pub(crate) guards: Vec\<KeyHandleGuard\>,\l
+  }}"]
+
+  MvccReader[style_struct;label="{{
+    MvccReader|
+    snapshot: S,\l|
+    pub statistics: Statistics,\l|
+    data_cursor: Option\<Cursor\<S::Iter\>\>,\l|
+    lock_cursor: Option\<Cursor\<S::Iter\>\>,\l|
+    pub write_cursor: Option\<Cursor\<S::Iter\>\>,\l|
+    scan_mode: Option\<ScanMode\>,\l|
+    current_key: Option\<Key\>,\l|
+    key_only: bool,\l|
+    fill_cache: bool,\l|
+    isolation_level: IsolationLevel,\l
+  }}"]
+
+  Cursor[style_struct;label="{{
+    Cursor|
+    iter: I,\l|
+    scan_mode: ScanMode,\l|
+    prefix_seek: bool,\l|
+    min_key: Option\<Vec\<u8\>\>,\l|
+    max_key: Option\<Vec\<u8\>\>,\l|
+    cur_key_has_read: Cell\<bool\>,\l|
+    cur_value_has_read: Cell\<bool\>,\l
+  }}"]
+
+  Lock[style_struct;label="{{
+    Lock|
+    pub lock_type: LockType,\l|
+    pub primary: Vec\<u8\>,\l|
+    pub ts: TimeStamp,\l|
+    pub ttl: u64,\l|
+    pub short_value: Option\<Value\>,\l|
+    pub for_update_ts: TimeStamp,\l|
+    pub txn_size: u64,\l|
+    pub min_commit_ts: TimeStamp,\l|
+    pub use_async_commit: bool,\l|
+    pub secondaries: Vec\<Vec\<u8\>\>,\l|
+    pub rollback_ts: Vec\<TimeStamp\>,\l
+  }}"]
+  Lock -> LockType;
+  LockType[style_struct;label="{{
+    LockType|
+    Put,\l|
+    Delete,\l|
+    Lock,\l|
+    Pessimistic,\l
+  }}"]
+}

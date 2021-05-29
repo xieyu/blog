@@ -1,0 +1,204 @@
+digraph Datasource {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  DataSource[
+    shape="record";
+    label="{{
+      DataSource|
+	      logicalSchemaProducer\l|
+	      astIndexHints []*ast.IndexHint\l|
+	      IndexHints    []indexHintInfo\l|
+	      table         table.Table\l|
+	      <TableInfo> tableInfo     *model.TableInfo\l|
+	      <ColumnInfo> Columns       []*model.ColumnInfo\l|
+	      DBName        model.CIStr\l|
+      	TableAsName *model.CIStr\l|
+      	indexMergeHints []indexHintInfo\l|
+      	pushedDownConds []expression.Expression\l|
+      	allConds []expression.Expression\l|
+      	statisticTable *statistics.Table\l|
+      	tableStats     *property.StatsInfo\l|
+      	possibleAccessPaths []*util.AccessPath\l|
+      	isPartition     bool\l|
+      	physicalTableID int64\l|
+      	partitionNames  []model.CIStr\l|
+      	handleCols HandleCols\l|
+      	TblCols []*expression.Column\l|
+      	commonHandleCols []*expression.Column\l|
+      	commonHandleLens []int\l|
+      	TblColHists *statistics.HistColl\l|
+      	preferStoreType int\l|
+      	preferPartitions map[int][]model.CIStr\l
+    }}"];
+  TableInfo[
+    shape="record";
+    label="{{
+      TableInfo|
+        ID int64\l|
+	      Columns     []*ColumnInfo\l|
+	      Indices     []*IndexInfo \l|
+	      Constraints []*ConstraintInfo \l|
+	      ForeignKeys []*FKInfo\l|
+	      State       SchemaState\l|
+        ...
+    }}"];
+  IndexInfo[
+    shape="record";
+    label="{{
+      IndexInfo|
+	      ID        int64\l|
+	      Name      CIStr\l|
+	      Table     CIStr\l|
+	      Columns   []*IndexColumn\l|
+	      State     SchemaState\l|
+	      Comment   string\l|
+	      <IndexType> Tp        IndexType \l|     
+	      Unique    bool\l|
+	      Primary   bool\l|
+	      Invisible bool\l|         
+	      Global    bool\l        
+    }}"];
+  IndexColumn[
+    shape="record";
+    label="{{
+      IndexColumn|
+	      Name   CIStr\l|
+	      Offset int\l|
+	      Length int\l
+    }}"];
+  IndexType[
+    shape="record";
+    label="{{
+      type IndexType int|
+      BTREE\l|
+      HASH\l|
+      RTREE\l
+    }}"];
+  ColumnInfo[
+    shape="record";
+    label="{{
+      ColumnInfo|
+	      ID                    int64       \l|
+	      Name                  CIStr       \l|
+	      Offset                int         \l|
+	      OriginDefaultValue    interface\{\} \l|
+	      OriginDefaultValueBit []byte      \l|
+	      DefaultValue          interface\{\} \l|
+	      DefaultValueBit       []byte      \l|
+	      DefaultIsExpr       bool                \l|
+	      GeneratedExprString string              \l|
+	      GeneratedStored     bool                \l|
+	      Dependences         map[string]struct\{\} \l|
+	      types.FieldType     \l|
+	      State               SchemaState \l|
+	      Comment             string      \l|
+	      Hidden           bool \l|
+	      *ChangeStateInfo \l|
+	      Version uint64 \l|
+    }}"];
+
+  SchemaState[
+    shape="record";
+    label="{{
+      SchemaState|
+	      StateNone SchemaState = iota\l|
+	      StateDeleteOnly\l|
+	      StateWriteOnly\l|
+	      StateWriteReorganization\l|
+	      StateDeleteReorganization\l|
+	      StatePublic\l|
+	      StateReplicaOnly\l
+    }}"];
+
+  indexHintInfo[
+    shape="record";
+    label="{{
+      indexHintInfo|
+	      dbName     model.CIStr\l|
+	      tblName    model.CIStr\l|
+	      partitions []model.CIStr\l|
+	      indexHint  *ast.IndexHint\l|
+        matched bool\l|
+    }}"];
+  AccessPath[
+    shape="record";
+    label="{{
+      AccessPath|
+	      Index          *model.IndexInfo\l|
+	      FullIdxCols    []*expression.Column\l|
+	      FullIdxColLens []int\l|
+	      IdxCols        []*expression.Column\l|
+	      IdxColLens     []int\l|
+	      Ranges         []*ranger.Range\l|
+        CountAfterAccess float64\l|
+        CountAfterIndex float64\l|
+	      AccessConds     []expression.Expression\l|
+	      EqCondCount     int\l|
+	      EqOrInCondCount int\l|
+	      IndexFilters    []expression.Expression\l|
+	      TableFilters    []expression.Expression\l|
+        PartialIndexPaths []*AccessPath\l|
+        StoreType kv.StoreType\l|
+	      IsDNFCond bool\l|
+	      IsTiFlashGlobalRead bool\l|
+	      IsIntHandlePath    bool\l|
+	      IsCommonHandlePath bool\l|
+	      Forced bool\l
+    }}"];
+  DataSource -> AccessPath;
+  AccessPath -> IndexInfo;
+  DataSource -> indexHintInfo;
+  DataSource:TableInfo -> TableInfo;
+  DataSource:ColumnInfo-> ColumnInfo;
+  TableInfo -> {
+    ColumnInfo;
+    IndexInfo;
+  }
+  IndexInfo -> IndexColumn;
+  IndexInfo:IndexType -> IndexType;
+  //schema state
+  {
+    TableInfo;
+    IndexInfo;
+    ColumnInfo;
+  } -> SchemaState;
+
+  DataSource -> logicalSchemaProducer;
+  logicalSchemaProducer[
+    shape="record";
+    label="{{
+      logicalSchemaProducer|
+	      schema *expression.Schema\l|
+	      names  types.NameSlice\l|
+	      baseLogicalPlan\l
+    }}"];
+  logicalSchemaProducer -> {
+    Schema;
+  }
+  Schema[
+    shape="record";
+    label="{{
+      Schema|
+       Schema stands for the row schema\l 
+       and unique key information\l
+       get from input.\l|
+	      Columns []*Column\l|
+	      Keys    []KeyInfo\l
+    }}"];
+  Schema -> Column;
+  Column[
+    shape="record";
+    label="{{
+      Column|
+	    RetType *types.FieldType\l|
+	    ID int64\l|
+      UniqueID int64\l|
+	    Index int\l|
+      hashcode []byte\l|
+	    VirtualExpr Expression\l|
+	    OrigName string\l
+	    collationInfo\l
+    }}"];
+}

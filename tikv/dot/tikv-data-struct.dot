@@ -1,0 +1,642 @@
+#include "styles.h"
+digraph TiKV_DataStruct {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  TiKVServer  -> {
+    RaftEngine;
+    TiKVConfig;
+    ConfigController;
+    RaftRouter;
+    RpcClient;
+    RaftBatchSystem;
+    PdStoreAddrResolver;
+    GlobalReplicationState;
+    DataKeyManager
+    TiKVEngines
+    Servers
+    RegionInfoAccessor;
+    CoprocessorHost
+    RocksEngine
+    ConcurrencyManager;
+    Environment;
+    Worker;
+  }
+
+  RaftBatchSystem[style_struct;label="{{
+    RaftBatchSystem\<EK: KvEngine, ER: RaftEngine\>|
+    system: BatchSystem\<PeerFsm\<EK, ER\>, StoreFsm\<EK\>\>,\l|
+    apply_router: ApplyRouter\<EK\>,\l|
+    apply_system: ApplyBatchSystem\<EK\>,\l|
+    router: RaftRouter\<EK, ER\>,\l|
+    workers: Option\<Workers\<EK\>\>,\l
+  }}"]
+
+  RaftBatchSystem -> {
+    BatchSystem;
+    ApplyRouter;
+    ApplyBatchSystem;
+    Workers;
+    PeerFsm;
+    StoreFsm;
+  }
+  BatchSystem[style_struct;label="{{
+    BatchSystem\<N: Fsm, C:Fsm\>|
+    A system that can poll FSMs\l 
+    concurrently and in batch.\l|
+    name_prefix: Option\<String\>,\l|
+    router: BatchRouter\<N, C\>,\l|
+    receiver: channel::Receiver\<FsmTypes\<N, C\>\>,\l|
+    pool_size: usize,\l|
+    max_batch_size: usize,\l|
+    workers: Vec\<JoinHandle\<()\>\>,\l|
+    reschedule_duration: Duration,\l
+  }}"]
+  BatchSystem -> {
+    BatchRouter;
+    Receiver;
+    FsmTypes;
+    JoinHandle;
+    Duration;
+  }
+  FsmTypes[style_struct;label="{{
+    FsmTypes|
+    Normal(Box\<N\>),\l|
+    Control(Box\<C\>),\l|
+    Empty,\l|
+  }}"]
+
+  Workers -> {
+    FutureWorker;
+    PdTask;
+    Worker;
+    CoprocessorHost;
+  }
+  FutureWorker -> {
+    Scheduler;
+    UnboundedReceiver;
+    JoinHandle;
+  }
+  RaftRouter[style_struct;label="{{
+    RaftRouter|
+    pub router: BatchRouter\<PeerFsm\l 
+    \<EK, ER\>, StoreFsm\<EK\>\>,\l
+  }}"]
+
+  RaftRouter -> {
+    RocksEngine;
+    RaftEngine;
+    PeerFsm;
+    StoreFsm;
+    BatchRouter;
+  }
+
+  RaftBatchSystem -> {
+    RocksEngine;
+    RaftEngine;
+  }
+  RaftEngine -> {
+    RaftLogBatch;
+  }
+  RocksEngine -> {
+    DB;
+  }
+
+  TiKVConfig -> {
+    ReadableDuration;
+    ReadPoolConfig;
+    ServerConfig;
+    StorageConfig;
+    MetricConfig;
+    PdConfig;
+    MetricConfig;
+    RaftstoreConfig;
+    DbConfig;
+    RaftDbConfig;
+    RaftEngineConfig;
+    SecurityConfig;
+    ImportConfig;
+    BackupConfig;
+    PessimisticTxnConfig;
+    GcConfig;
+    SplitConfig;
+    CdcConfig;
+  }
+
+  RaftEngine -> {
+    RaftLogEngine;
+    PanicEngine;
+    RocksEngine;
+  }[label="impl"];
+
+  RaftLogEngine -> {
+    RawRaftEngine;
+    Entry;
+    EntryExtTyped;
+  }
+  RaftLogEngine -> {
+    PipeLog;
+    Engine;
+  }
+  Engine -> {
+    Config;
+    MemTableAccessor;
+    GlobalStats;
+    PurgeManager;
+    Workers;
+  }
+  MemTableAccessor -> {
+    MemTables;
+  }
+  MemTables -> MemTable;
+  MemTable -> {
+    EntryIndex;
+    LogQueue;
+    GlobalStats;
+  }
+  PurgeManager -> {
+    Config;
+    MemTableAccessor;
+    GlobalStats;
+  }
+  Config -> {
+    RecoveryMode;
+    ReadableSize;
+  }
+  RaftLogBatch -> {
+    LogBatch;
+    Entry;
+    EntryExtTyped;
+  }
+  LogBatch -> {
+    LogItem;
+  }
+  LogItem -> LogItemContent;
+  LogItemContent -> {
+    Entries;
+    Command;
+    KeyValue;
+  }
+  Entries -> EntryIndex;
+  Command -> {
+    Clean;
+    Compact;
+  }
+
+  ConfigController -> ConfigInner;
+  ConfigInner -> {
+    TiKVConfig;
+    ConfigManager;
+  }
+  ConfigManager -> {
+    SplitCheckConfigManager;
+    RaftstoreConfigManager;
+    SplitConfigManager;
+    DBConfigManger;
+    GcWorkerConfigManager;
+    LockManagerConfigManager;
+    StorageConfigManager;
+    backup_ConfigManager;
+  }
+
+  RaftStoreRouter[style_var;label="{{
+    RaftStoreRouter|
+    Routes messages to the raftstore
+  }}"]
+
+  RaftStoreRouter -> {
+    RaftRouter;
+    ServerRaftStoreRouter;
+    RaftStoreBlackHole;
+    RaftMessage;
+    RaftStoreResult;
+    PeerMsg;
+    CasualMessage;
+    CasualRouter;
+    StoreMsg;
+    RaftCmdRequest;
+    Callback;
+    SignificantMsg;
+  }
+  BatchRouter[style_struct;label="{{
+    BatchRouter|
+    pub type BatchRouter\<N, C\>\l 
+    = Router\<N, C, NormalScheduler\<N, C\>,\l|
+    ControlScheduler\<N, C\>\>;\l
+  }}"]
+  BatchRouter -> {
+    PeerFsm;
+    StoreFsm;
+    NormalScheduler;
+    ControlScheduler;
+    Router;
+  }
+  Router[style_struct;label="{{
+    Router|
+    Router route messages\l 
+    to its target mailbox.\l
+  }}"]
+  TiKVEngines -> {
+    RocksEngine;
+    StoreMeta;
+    ServerRaftStoreRouter;
+  }
+  RegionInfoAccessor -> {
+    RegionInfoQuery;
+    Worker;
+  }
+  RegionInfoQuery -> {
+    RaftStoreEvent;
+    SeekRegionCallback;
+    Callback;
+    RegionInfo;
+    Region;
+  }
+  RegionInfo -> {
+    Region;
+    StateRole;
+  }
+  RaftStoreEvent -> {
+    CreateRegion;
+    UpdateRegion;
+    DestroyRegion;
+    RoleChange;
+  }
+
+  CoprocessorHost -> {
+    Registry;
+  }
+  Registry -> {
+    Entry;
+    BoxAdminObserver;
+    BoxQueryObserver;
+    BoxSplitCheckObserver;
+    BoxConsistencyCheckObserver;
+    BoxRegionChangeObserver;
+    BoxRoleObserver;
+    BoxCmdObserver;
+    BoxReadIndexObserver;
+  }
+
+  BoxAdminObserver -> {
+    AdminObserver;
+    WrappedAdminObserver;
+  }
+  BoxQueryObserver -> {
+    QueryObserver;
+    WrappedQueryObserver;
+  }
+  BoxRoleObserver -> {
+    RoleObserver;
+    WrappedRoleObserver;
+  }
+  BoxSplitCheckObserver -> {
+    SplitCheckObserver;
+    WrappedSplitCheckObserver;
+  }
+
+  ConcurrencyManager -> {
+    LockTable;
+  }
+  LockTable -> {
+    SkipMap;
+    KeyHandle;
+  }
+  Environment -> {
+    CompletionQueue;
+    AtomicUsize;
+    JoinHandle;
+  }
+
+  Worker -> {
+    TaskCell;
+    ThreadPool;
+    Remote
+  }
+
+  BatchRouter -> Router;
+  Router -> {
+    BasicMailbox;
+    LruCache;
+  }
+  BasicMailbox -> {
+    LooseBoundedSender;
+    FsmState;
+    Fsm;
+  }
+  FsmState[style_struct;label="{{
+    FsmState|
+    status: AtomicUsize,\l|
+    data: AtomicPtr\<N\>,\l|
+  }}"]
+  Fsm[style_var;label="{{
+    trait Fsm|
+    A Fsm is a finite state machine.\l 
+    It should be able to be notified for\l
+    updating internal state\l 
+    according to incoming messages.\l
+  }}"]
+
+  Fsm -> {
+    Runner;
+    ApplyFsm;
+    ControlFsm;
+    PeerFsm;
+    StoreFsm;
+  }
+  Runner[style_struct;label="{{
+    Runner|
+    A simple runner used\l 
+    for benchmarking only\l
+  }}"]
+
+  Runner -> {
+    mpsc_Receiver;
+    test_runner_Message;
+    BasicMailbox;
+  }
+
+  ApplyFsm[style_struct;label="{{
+    ApplyFsm|
+    delegate: ApplyDelegate\<EK\>,\l|
+    receiver: Receiver\<Msg\<EK\>\>,\l|
+    mailbox: Option\<BasicMailbox\<ApplyFsm\<EK\>\>\>,\l
+  }}"]
+  
+  ApplyFsm -> {
+    ApplyDelegate;
+    Receiver;
+    apply_Msg;
+  }
+  apply_Msg[style_struct;label="{{
+      pub enum Msg\<EK\>\l|
+  }}"]
+  apply_Msg -> {
+    Instant;
+    Apply;
+    Registration;
+    CatchUpLogs;
+    Noop;
+    Destroy;
+    GenSnapTask;
+    ChangeCmd;
+    RegionEpoch;
+    Callback
+  }
+  Registration -> RaftApplyState;
+  CatchUpLogs -> {
+    CommitMergeRequest;
+  }
+  GenSnapTask -> {
+    RaftSnapshot;
+    SyncSender;
+  }
+  ChangeCmd -> {
+    RegisterObserver;
+    Snapshot;
+  }
+  RegisterObserver -> ObserveID;
+  Snapshot -> ObserveID;
+
+  ApplyDelegate -> {
+    Instant;
+    Snapshot;
+    YieldState;
+    WaitSourceMergeState;
+    RaftApplyState;
+    ObserveCmd;
+    ApplyMetrics;
+    PendingCmdQueue;
+  }
+  Instant -> {
+    Monotonic;
+    MonotonicCoarse;
+  }
+  PendingCmdQueue -> {
+    PendingCmd;
+    VecDeque;
+  }
+  PendingCmd -> {
+    Snapshot;
+    Callback;
+  }
+  Callback -> {
+    ReadCallback;
+    WriteCallback;
+    ExtCallback;
+  }
+  ReadCallback -> ReadResponse;
+  WriteCallback -> WriteResponse;
+  ReadResponse -> {
+    RaftCmdResponse;
+    RegionSnapshot;
+    TxnExtraOp;
+  }
+  WriteResponse -> {
+    RaftCmdResponse;
+  }
+  RaftCmdResponse -> {
+    RaftResponseHeader;
+    Response;
+    AdminResponse;
+    StatusResponse;
+  }
+
+  StoreFsm -> {
+    Store;
+    StoreMsg;
+    Receiver;
+  }
+  Store -> {
+    Instant;
+  }
+  StoreMsg -> {
+    KvEngine;
+    RaftMessage;
+    ValidateSSTResult;
+    ClearRegionSizeInRange;
+    StoreUnreachable;
+    CompactedEvent;
+    CheckLeader;
+    StoreTick;
+    metapb_Store;
+    LeaderInfo;
+  }
+
+  PeerFsm[style_struct;label="{{
+    PeerFsm|
+    pub peer: Peer\<EK, ER\>,\l|
+    tick_registry: PeerTicks,\l|
+    missing_ticks: usize,\l|
+    hibernate_state: HibernateState,\l|
+    stopped: bool,\l|
+    has_ready: bool,\l|
+    mailbox: Option\<BasicMailbox\<PeerFsm\<EK, ER\>\>\>,\l|
+    pub receiver: Receiver\<PeerMsg\<EK\>\>,\l|
+    skip_split_count: usize,\l|
+    skip_gc_raft_log_ticks: usize,\l|
+    batch_req_builder: BatchRaftCmdRequestBuilder\<EK\>,\l
+  }}"]
+
+  PeerFsm -> {
+    KvEngine;
+    RaftEngine;
+    Peer;
+    PeerTicks;
+    HibernateState;
+    BasicMailbox;
+    PeerMsg;
+    BatchRaftCmdRequestBuilder;
+  }
+  Peer -> {
+    metapb_Peer;
+    PeerStorage;
+    RawNode;
+    ProposalQueue;
+    ReadIndexQueue;
+  }
+  RawNode[style_var;label="{{
+    RawNode|
+    pub raft: Raft\<T\>,\l|
+    prev_ss: SoftState,\l|
+    prev_hs: HardState,\l|
+    max_number: u64,\l|
+    records: VecDeque\<ReadyRecord\>,\l|
+    commit_since_index: u64,\l|
+    messages: Vec\<Vec\<Message\>\>,\l
+  }}"]
+
+  PeerTicks[style_var;label="{{
+    PeerTicks|
+        const RAFT                   = 0b00000001;\l|
+        const RAFT_LOG_GC            = 0b00000010;\l|
+        const SPLIT_REGION_CHECK     = 0b00000100;\l|
+        const PD_HEARTBEAT           = 0b00001000;\l|
+        const CHECK_MERGE            = 0b00010000;\l|
+        const CHECK_PEER_STALE_STATE = 0b00100000;\l
+  }}"]
+  HibernateState[style_struct;label="{{
+    HibernateState|
+    group: GroupState,\l|
+    leader: LeaderState,\l|
+  }}"]
+  HibernateState -> {
+    GroupState;
+    LeaderState;
+  }
+  LeaderState[style_struct;label="{{
+    LeaderState|
+    Awaken,\l|
+    Poll(Vec\<u64\>),\l|
+    Hibernated,\l
+  }}"]
+
+  GroupState[style_struct;label="{{
+    GroupState|
+    Ordered,\l|
+    Chaos,\l|
+    PreChaos,\l|
+    Idle,\l
+  }}"]
+
+  PeerStorage -> {
+    metapb_Region;
+    RaftLocalState;
+    RaftApplyState;
+    GenSnapTask;
+    SnapState;
+    EntryCache;
+  }
+
+  BatchRaftCmdRequestBuilder -> {
+    RaftCmdRequest;
+    Callback;
+  }
+  RaftCmdRequest -> {
+    RaftRequestHeader;
+    Request;
+    AdminRequest;
+    StatusRequest;
+  }
+  ControlFsm -> ControlMsg;
+  ServerRaftStoreRouter -> {
+    LocalReader;
+    RaftRouter;
+  }
+  LocalReader -> {
+    RaftRouter;
+    KvEngine;
+    StoreMeta;
+    ReadMetrics;
+    ReadDelegate;
+    ThreadReadId
+  }
+  ReadDelegate -> {
+    Region;
+    RemoteLease;
+    TxnExtraOp;
+    TrackVer;
+  }
+  Request -> {
+    CmdType
+    GetRequest;
+    PutRequest;
+    DeleteRequest;
+    SnapRequest;
+    PrewriteRequest;
+    DeleteRangeRequest;
+    IngestSSTRequest;
+    ReadIndexRequest;
+  }
+
+  CmdType[style_var;label="{{
+    CmdType|
+    Invalid = 0,\l|
+    Get = 1,\l|
+    Put = 3,\l|
+    Delete = 4,\l|
+    Snap = 5,\l|
+    Prewrite = 6,\l|
+    DeleteRange = 7,\l|
+    IngestSst = 8,\l|
+    ReadIndex = 9,\l
+  }}"]
+
+  Servers -> {
+    RaftEngine;
+    RaftRouter;
+    LockManager;
+    PdStoreAddrResolver;
+    SSTImporter;
+    cdc_Schedule;
+    cdc_Task;
+  }
+  RaftEngine[style_var;label="{{
+    RaftEngine|
+    pub trait RaftEngine\l
+  }}"]
+
+  GlobalReplicationState -> {
+    ReplicationStatus;
+    StoreGroup;
+  }
+  ReplicationStatus -> {
+    ReplicationMode;
+    DrAutoSync;
+  }
+  ReplicationMode[style_struct;label="{{
+    ReplicationMode|
+    Majority = 0,\l|
+    DrAutoSync = 1,\l
+  }}"]
+
+  DataKeyManager -> {
+    Dicts;
+    EncryptionMethod;
+    channel_Sender;
+    background_worker;
+  }
+
+}

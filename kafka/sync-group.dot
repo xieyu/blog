@@ -1,0 +1,173 @@
+digraph sync_group {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_MemeberMetaData {
+    graph[label="MemeberMetaData";fontsize=20;style=rounded];
+    MemberMetadata[
+      shape="record";
+      label="{{
+        MemberMetadata|
+        assignment: Array[Byte]\l
+      }}";
+    ];
+  };
+
+  subgraph cluster_group {
+    graph[label="GroupMetadata";fontsize=20;style=rounded];
+    group_get[
+      shape="record";
+      label="{{
+        get
+      }}";
+    ];
+    members[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        members|
+        <meta> mutable.HashMap[String, MemberMetadata]\l
+      }}";
+    ];
+    allMemberMetadata -> members;
+    members:meta -> MemberMetadata;
+    group_get -> members;
+    group_add -> members;
+    group_add[
+      shape="record";
+      label="{{
+        group_add|
+        添加member成员
+      }}";
+    ];
+  };
+
+  subgraph cluster_ReplicaManaer {
+    graph[label="ReplicaManaer";fontsize=20;style=rounded];
+    appendRecords[
+      shape="record";
+      label="{{
+        appendRecords|
+        将records存放\l到kafka topic中\l
+      }}";
+    ];
+  };
+
+  subgraph cluster_GroupManager {
+    graph[label="GroupManager";fontsize=20;style=rounded];
+    getGroup[
+      shape="record";
+      label="{{
+        getGroup|
+        根据groupId获取\lGroupMetadata\l
+      }}";
+    ];
+    storeGroup[
+      shape="record";
+      label="{{
+        storeGroup|
+        将group信息存储到kafka topic中？
+      }}";
+    ];
+    addGroup[
+      shape="record";
+      label="{{
+        addGroup|
+        将groupId加入到Pool中\l
+      }}";
+    ];
+    addGroup -> groupMetadataCache;
+    storeGroup -> {
+      partitionFor;
+      TopicPartition;
+      groupMetadataValue;
+      groupMetadataKey;
+      GROUP_METADATA_TOPIC_NAME;
+      appendForGroup;
+    }
+    getGroup -> groupMetadataCache;
+    groupMetadataCache[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        groupMetadataCache|
+        Pool[String, GroupMetadata]
+      }}";
+    ];
+    appendForGroup -> appendRecords;
+  };
+  subgraph cluster_Consumer {
+    graph[label="Consumer";fontsize=20;style=rounded];
+    Request[
+      shape="record";
+      label="{{
+        Request|
+        leader 请求中包含了assignment\l|
+        groupAssignment Map[String, Array[Bytes]]\l|
+        memberId string\l|
+        groupId string\l|
+      }}";
+    ];
+  };
+  subgraph cluster_GroupCoordinator {
+    graph[label="GroupCoordinator";fontsize=20;style=rounded];
+    Request -> handleSyncGroup;
+    doSyncGroup[
+      shape="record";
+      label="{{
+        doSyncGroup|
+        如果是leader将\l 
+        assignment存储起来\l
+        否则就获得当前Member的assignment\l
+      }}";
+    ];
+    setAndPropagateAssignment[
+      shape="record";
+      label="{{
+        setAndPropagateAssignment|
+        leader\l
+        设置members遍历\l 
+        设置metadata中\l 
+        的中的assignment\l
+      }}";
+    ];
+    resetAndPropagateAssignmentError[
+      shape="record";
+      label="{{
+        resetAndPropagateAssignmentError|
+        将members中每个\l metadata置空\l
+      }}";
+    ];
+    handleSyncGroup -> {
+      getGroup;
+      doSyncGroup;
+    };
+    doSyncGroup -> {
+      storeGroup;
+      isLeader;
+      resetAndPropagateAssignmentError;
+      maybePrepareRebalance;
+      setAndPropagateAssignment;
+      transitionTo;
+      completeAndScheduleNextHeartbeatExpiration;
+      group_get
+    };
+    setAndPropagateAssignment -> {
+      allMemberMetadata;
+      propagateAssignment;
+    };
+    propagateAssignment -> {
+      maybeInvokeJoinCallback;
+      completeAndScheduleNextHeartbeatExpiration;
+    }
+    resetAndPropagateAssignmentError -> {
+      allMemberMetadata;
+      propagateAssignment;
+    };
+    handleJoinGroup ->  addGroup;
+    handleJoinGroup -> addMemberAndRebalance[style="dashed"];
+    addMemberAndRebalance -> group_add;
+  };
+}
