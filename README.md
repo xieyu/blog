@@ -1,4 +1,8 @@
+
+建议看[html版本](https://xieyu.github.io/blog/)
+
 # 个人技术博客
+
 
 ## 读书笔记
 
