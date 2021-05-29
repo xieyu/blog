@@ -1,0 +1,100 @@
+#include "styles.h"
+digraph min_commit_ts {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  forUpdateTS -> MinCommitTs[style_edge_data];
+
+  Lock[style_func;label="{{
+    Lock|
+      MinCommitTS     uint64\l|
+      LockForUpdateTS uint64\l|
+      UseAsyncCommit  bool\l
+      TxnID           uint64\l
+  }}"]
+  twoPhaseCommitter[style_func;label="{{
+    twoPhaseCommitter|
+      startTS             uint64\l|
+      commitTS            uint64\l|
+      <minCommitTS> minCommitTS       uint64\l|
+      maxCommitTS       uint64\l|
+      onePCCommitTS uint64\l
+  }}"]
+  prewriteResp[style_func;label="{{
+    prewriteResp|
+    MinCommitTS\l|
+    onePCCommmitTS\l
+  }}"]
+  twoPhaseCommitter -> prewriteRequest;
+  buildPrewriteRequest -> prewriteRequest;
+  buildPrewriteRequest[style_func;label="{{
+    buildPrewriteRequest|
+    minCommitTS = c.forUpdateTS + 1\l|
+    minCommitTS = c.startTS + 1\l
+    MaxCommitTs = c.maxCommitTS\l
+  }}"]
+  actionPrewrite_handleSingleBatch -> prewriteResp -> twoPhaseCommitter;
+  actionPrewrite_handleSingleBatch -> buildPrewriteRequest;
+  subgraph cluster_TiKV {
+    graph[label="TiKV";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    tikv_prewrite_process_write -> async_commit_timestamps -> final_min_commit_ts;
+    async_commit_timestamps -> {
+      txn_concurrency_manager_max_ts;
+    }
+    txn_concurrency_manager_max_ts -> max_ts;
+    txn_concurrency_manager_update_max_ts -> max_ts;
+    {
+       prepare_snap_ctx;
+       Storage_scan;
+       CheckSecondaryLocks;
+    } -> txn_concurrency_manager_update_max_ts;
+    final_min_commit_ts -> prewriteResp;
+    ConcurrencyManager[style_func;label="{{
+      ConcurrencyManager|
+        <max_ts> max_ts: Arc\<AtomicU64\>,\l|
+        lock_table: LockTable,\l
+    }}"]
+    max_ts -> ConcurrencyManager:max_ts;
+    KvService -> Storage -> ConcurrencyManager;
+  }
+
+  twoPhaseCommitter_execute[style_func;label="{{
+    twoPhaseCommitter_execute|
+    在prewrite之前，去oracle服务\l 
+    请求最新的latestTS\l
+  }}"]
+
+  subgraph cluster_twoPhaseCommitter {
+    graph[label="twoPhaseCommitter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    twoPhaseCommitter_execute -> {
+      calculateMaxCommitTS;
+      commitTSMayBeCalculated;
+      needLinearizability;
+      GetTimestamp;
+      minCommitTS;
+    }
+    {commitTSMayBeCalculated; needLinearizability} -> GetTimestamp -> minCommitTS[style_edge_data];
+    commitTSMayBeCalculated -> calculateMaxCommitTS[style_edge_data];
+    calculateMaxCommitTS -> {
+      EncodeTSO;
+      SafeWindow;
+      checkSchemaValid;
+    }
+    SafeWindow[style_func;label="{{
+      SafeWindow|
+        config.GetGlobalConfig()\l 
+        .TiKVClient.AsyncCommit\.
+        .SafeWindow\l
+    }}"]
+
+    {EncodeTSO;SafeWindow} -> maxCommitTS;
+    maxCommitTS -> buildPrewriteRequest;
+  }
+
+  read_index -> start_ts;
+
+  
+}

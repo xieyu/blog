@@ -1,0 +1,169 @@
+#include "styles.h"
+digraph txn_types {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Write[style_func;label="{{
+    Write|
+    pub write_type: WriteType,\l|
+    pub start_ts: TimeStamp,\l|
+    pub short_value: Option\<Value\>,\l|
+    pub has_overlapped_rollback: bool,\l|
+    pub gc_fence: Option\<TimeStamp\>,\l
+  }}"]
+
+  Write -> {
+    WriteType;
+    TimeStamp;
+    Value;
+  }
+
+  WriteType[style_func;label="{{
+    WriteType|
+    Put,\l|
+    Delete,\l|
+    Lock,\l|
+    Rollback,\l
+  }}"]
+
+  Value[style_func;label="{{
+    Value|
+      pub type Value = Vec\<u8\>;\l
+  }}"]
+  TimeStamp[style_func;label="{{
+    TimeStamp|
+      pub struct TimeStamp(u64);\l
+  }}"]
+
+
+  WriteRef[style_func;label="{{
+    WriteRef|
+    和Write不同地方在于\l 
+    short_value 是引用\l|
+    pub write_type: WriteType,\l|
+    pub start_ts: TimeStamp,\l|
+    pub short_value: Option\<&'a [u8]\>,\l|
+    pub has_overlapped_rollback: bool,\l|
+    pub gc_fence: Option\<TimeStamp\>,\l
+  }}"]
+
+  WriteRef -> {
+    WriteType;
+    TimeStamp;
+  }
+
+  WriteRef_parse[style_func;label="{{
+    WriteRef::parse|
+    反序列化\l
+  }}"]
+  WriteRef_parse -> WriteRef;
+
+  WriteRef_tobytes -> WriteRef;
+  WriteRef_tobytes[style_func;label="{{
+    WriteRef::tobytes|
+    序列化
+  }}"]
+  MvccTxn_put_write -> WriteRef_tobytes[style_edge_data]
+  MvccTxn_put_write[style_func;label="{{
+    MvccTxn::put_write|
+    向CF_WRITE写入write\l
+    放入modifies中\l
+    写入writeBatch\l
+    然后写入rocksdb中\l
+  }}"]
+
+  Lock[style_func;label="{{
+    Lock|
+    pub lock_type: LockType,\l|
+    pub primary: Vec\<u8\>,\l|
+    pub ts: TimeStamp,\l|
+    pub ttl: u64,\l|
+    pub short_value: Option\<Value\>,\l|
+    pub for_update_ts: TimeStamp,\l|
+    pub txn_size: u64,\l|
+    pub min_commit_ts: TimeStamp,\l|
+    pub use_async_commit: bool,\l|
+    pub secondaries: Vec\<Vec\<u8\>\>,\l|
+    pub rollback_ts: Vec\<TimeStamp\>,\l
+  }}"]
+
+  Lock -> {
+    LockType;
+    TimeStamp;
+    Value;
+  }
+  LockType[style_func;label="{{
+    LockType|
+    Put,\l|
+    Delete,\l|
+    Lock,\l|
+    Pessimistic,\l
+  }}"]
+
+  Lock_parse -> Lock;
+  Lock_tobytes -> Lock;
+  Lock_parse[style_func;label="{{
+    Lock::parse|
+    反序列化
+  }}"]
+  Lock_tobytes[style_func;label="{{
+    Lock::tobytes|
+    序列化
+  }}"]
+  Lock -> into_lock_info -> LockInfo[style_edge_data];
+
+  LockInfo[style_func;label="{{
+    LockInfo|
+    bytes primary_lock = 1;\l|
+    uint64 lock_version = 2;\l|
+    bytes key = 3;\l|
+    uint64 lock_ttl = 4;\l|
+    uint64 txn_size = 5;\l|
+    Op lock_type = 6;\l|
+    uint64 lock_for_update_ts = 7;\l|
+    bool use_async_commit = 8;\l|
+    uint64 min_commit_ts = 9;\l|
+    repeated bytes secondaries = 10;\l
+  }}"]
+
+  MvccTxn_put_lock[style_func;label="{{
+    MvccTxn::put_lock|
+    向CF_LOCK 写入lock, \l 
+    放入modifies中\l
+    后续写入writeBatch\l
+    然后写入RocksDB\l
+  }}"]
+
+  MvccTxn_put_lock -> Lock_tobytes;
+
+  TxnCommitRecord -> {
+    OverlappedWrite
+    SingleRecord;
+    OverlappedRollback;
+  }
+  SingleRecord[style_func;label="{{
+    SingleRecord|
+    commit_ts: TimeStamp\l|
+    write: Write\l
+  }}"]
+  SingleRecord -> Write;
+  OverlappedRollback[style_func;label="{{
+    OverlappedRollback|
+    commit_ts: TimeStamp\l
+  }}"]
+  OverlappedWrite[style_func;label="{{
+    OverlappedWrite|
+    pub write: Write\l|
+    pub gc_fence: TimeStamp,\l
+  }}"]
+  OverlappedWrite -> Write;
+  TxnCommitRecord[style_func;label="{{
+    TxnCommitRecord|
+    SingleRecord\l|
+    OverlappedRollback\l|
+    None\l
+  }}"]
+  
+}

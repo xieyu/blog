@@ -1,14 +1,17 @@
 # Percolator
 
-> * 每个column 有`data`, `write`, `lock` 几个属性, data负责保存多版本的value, write负责控制value版本可见性，lock 表示事务的锁，表示有并发的事务在修改该key。
-> * lock分为`primary lock`和`secondary lock`, secondary lock 指向了primary lock，只要primay lock提交成功，则认为事务提交成功了。secondary lock可以异步提交
-> * client failure的处理：在读数据时会检查lock和write由此确定是rollback事务还是roll-foward接着完成commit事务。
+>* 分布式事务关键点在于所有的参与者对于事务状态(commit/abort) 达成共识，并且每个参与者保证最终可以完成该共识。
+>* `2PC` 在commit时候，只有coordinator知道事务的状态, 如果coordinator node fail stop，并且唯一收到commit消息的参与者也fail了，新起的coordinator(也无旧的coordinator的事务日志)无法通过询问存活的参与者来推算事务状态。
+>* `3PC` 增加了precommit 阶段, 在所有参与者收到precommit消息后(precommit 相当于告参与者投票结果)，才会进入commit阶，新起的coordinator 可以根据precommit来推算事务的状态。
+> 但是无法解决network partition的问题。
+>* `Percolator` coordinator是无状态的，它将事务信息保存在BigTable中，使用primary key来存储事务状态，并且所有的参与者(secondary keys) 保存了指向primary key的指针，随时可以知道事务的状态。
 
 <!-- toc -->
 
 ## 2PC(Two Phase Commit)
 
 > 2PC is an atomic commit protocol meaning all participants will eventually commit if all voted “YES” or leave the system unchanged otherwise.
+
 
 ### 2PC 主要思想
 
@@ -147,7 +150,11 @@ client failure由读操作处理，假定client正在执行事务t1, client fail
 ## 伪代码
 
 ```
+CF_DEFAULT: (key, start_ts) -> value
+CF_LOCK: key -> lock_info
+CF_WRITE: (key, commit_ts) -> write_info
 ```
+>An instance of RocksDB may have multiple CFs, and each CF is a separated key namespace and has its own LSM-Tree. However different CFs in the same RocksDB instance uses a common WAL, providing the ability to write to different CFs atomically.
 
 ```
 CF_DEFAULT: (key, start_ts) -> value
@@ -196,6 +203,10 @@ Short Value in Write Column
 
 ## Percolator in TiKV
 
+### Memcomparable-format
+
+[MyRocks-record-format](https://github.com/facebook/mysql-5.6/wiki/MyRocks-record-format#memcomparable-format)
+
 ### async commit
 
 > 判断 Async Commit 事务则需要知道所有 keys 的状态，所以我们需要能从事务的任意一个 key 出发，查询到事务的每一个 key。于是我们做了一点小的修改，保留从 secondary key 到 primary key 指针的同时，在 primary key 的 value 里面存储到到每一个 secondary key 的指针
@@ -209,7 +220,7 @@ Short Value in Write Column
 
 ## 参考文献
 
-### percolator
+### Percolator 相关
 
 * [Google Percolator事务](https://zhuanlan.zhihu.com/p/53197633)
 

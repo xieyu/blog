@@ -1,0 +1,22 @@
+#include "styles.h"
+digraph resolve_pessimistic_lock {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  resolvePessimisticLock -> {
+    LocateKey;
+    CmdPessimisticRollback;
+    regionErr;
+  }
+  regionErr[style_func;label="{{
+    regionErr|
+    如果报regionErr就把\l
+    continue重试一次\l
+  }}"]
+  CmdPessimisticRollback[style_func;label="{{
+    CmdPessimisticRollback|
+    Rollback pessimistic locks\l
+  }}"]
+}

@@ -1,0 +1,63 @@
+#include "styles.h"
+digraph txn_put_lock {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  put_lock;
+
+  PrewriteMutation_write_lock -> {
+    put_lock;
+    put_locks_for_1pc;
+  }
+
+  TxnHeartBeat_process_write -> {
+    put_lock;
+  }
+
+  acquire_pessimistic_lock -> put_lock;
+
+  check_txn_status_lock_exists -> put_lock;
+  mark_rollback_on_mismatching_lock -> put_lock;
+
+  check_txn_status_missing_lock -> mark_rollback_on_mismatching_lock;
+  CheckSecondaryLocks_process_write -> mark_rollback_on_mismatching_lock;
+  PreWrite_process_write -> PreWriter_process_write -> PreWriter_prewrite -> prewrite -> PrewriteMutation_write_lock;
+
+  Command_process_write -> {
+    TxnHeartBeat_process_write;
+    PreWrite_process_write;
+    CheckSecondaryLocks_process_write;
+    CheckTxnStatus_process_write;
+    ResolveLock_process_write;
+    Rollback_process_write;
+  }
+
+  CheckTxnStatus_process_write -> check_txn_status_lock_exists;
+  cleanup -> check_txn_status_missing_lock;
+  ResolveLock_process_write -> cleanup;
+  Rollback_process_write -> cleanup;
+
+  TxnHeartBeat_process_write[style_func;label="{{
+    TxnHeartBeat::process_write|
+    更新lock.ttl = self.advise_ttl\l
+    更新的是primary key 的lock\l
+  }}"]
+  mark_rollback_on_mismatching_lock[style_func;label="{{
+    mark_rollback_on_mismatching_lock|
+     lock.rollback_ts.push(self.start_ts);\l
+      Add the timestamp of the current \l 
+      rollback operation to another\l 
+      transaction's lock if necessary.\l
+  }}"]
+
+  check_txn_status_lock_exists[style_func;label="{{
+    check_txn_status_lock_exists|
+    更新lock.min_comit_ts\l
+    更新的是primary lock\l
+    lock.min_commit_ts = caller_start_ts.next();\l
+    lock.min_commit_ts = current_ts\l
+  }}"]
+  
+}

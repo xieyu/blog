@@ -1,0 +1,29 @@
+#include "styles.h"
+digraph lockKeysCaller {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  doLockKeys -> KVTxn_LockKeys;
+  subgraph cluster_executor {
+    graph[label="executor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    doLockKeys;
+    LockKeys -> doLockKeys;
+    SelectLockExec_Next[style_func;label="{{
+      SelectLockExec_Next|
+      SELECT ... FOR UPDATE\l
+      SELECT ... LOCK IN SHARE MODE\l
+    }}"]
+    SelectLockExec_Next -> doLockKeys;
+    subgraph cluster_PointGetExecutor {
+      graph[label="PointGetExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+      lockKeyIfNeeded -> doLockKeys; 
+      getAndLock -> lockKeyIfNeeded;
+      PointGetExecutor_Next -> getAndLock;
+    }
+    BatchPointGetExec_initialize -> LockKeys;
+  }
+  prefetchPointPlanKeys -> LockKeys;
+
+  
+}

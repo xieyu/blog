@@ -1,0 +1,94 @@
+#include "styles.h"
+digraph handleSingleBatch {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ttlManager_run -> ttlManager_keepAlive ->sendTxnHeartBeat;
+
+  sendTxnHeartBeat[style_func;label="{{
+    sendTxnHeartBeat|
+    更新lock的ttl时间\l
+    newttl = uptime + ManagedLockTTL\l
+  }}"]
+  sendTxnHeartBeat -> CmdTxnHeartBeat;
+  ttlManager_keepAlive[style_func;label="{{
+    ttlManager| 
+    keepAlive|
+    每隔ManagedLockTTL/2\l 
+    发送一次TxnHeartBeat\l
+  }}"]
+  handleSingleBatch[style_func;label="{{
+    preWriteAction|
+    handleSingleBatch\l
+  }}"]
+  buildPrewriteRequest[style_func;label="{{
+    buildPrewriteRequest|
+    将batch mutations 复制到request中\l
+    并选择mutations[0]的key\l 
+     作为primary key\l
+  }}"]
+  buildPrewriteRequest -> Mutation;
+  Mutation[style_func;label="{{
+    Mutation|
+    Op Op\l|
+    Key []byte\l|
+    Value []byte\l
+  }}"]
+  Mutation -> Op;
+  Op[style_func;label="{{
+    Op|
+	   Op_Put      Op = 0\l|
+	   Op_Del      Op = 1\l|
+	   Op_Lock     Op = 2\l|
+	   Op_Rollback Op = 3\l|
+	   Op_Insert          Op = 4\l|
+	   Op_PessimisticLock Op = 5\l|
+	   Op_CheckNotExists  Op = 6\l
+  }}"]
+
+  handleSingleBatch -> {
+     buildPrewriteRequest;
+     SendReq;
+     ttlManager_run;
+     resolveLocksForWrite;
+     minCommitTS;
+  }
+
+  ttlManager_run[style_func;label="{{
+    ttlManager|
+    run|
+    prewrite成功\l
+    如果batch.isPrimary\l
+    且txn size \> 32M(TTLRefreshedTxnSize)\l
+    则调用ttlManager.run\l
+    定期发送TxnHeartBea心跳\l
+  }}"]
+  SendReq[style_func;label="{{
+    SendReq|
+    发送请求到TiKV\l
+  }}"]
+
+  resolveLocksForWrite[style_func;label="{{
+    resolveLocksForWrite|
+    prewrite报错\l
+    从err中抽出冲突的locks\l
+    尝试resolve这些locks\l
+  }}"]
+
+  resolveLocksForWrite -> resolveLocks -> resolve;
+  resolveLocks[style_func;label="{{
+    resolveLocks|
+    遍历locks，对于每个Lock\l 
+    调用resolve函数\l
+  }}"]
+
+  buildPrewriteRequest -> SendReq -> {
+    resolveLocksForWrite;
+    ttlManager_run
+  }[style_edge_data];
+  CmdTxnHeartBeat[style_func;label="{{
+    CmdTxnHeartBeat|
+    更新primay lock的ttl\l
+  }}"]
+}

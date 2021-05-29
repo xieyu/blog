@@ -1,0 +1,148 @@
+#include "styles.h"
+digraph tikv_acquire_pessimistic_lock {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  AcquirePessimisticLock[style_func;label="{{
+    AcquirePessimisticLock|
+    keys: Vec\<(Key, bool)\>,\l|
+    primary: Vec\<u8\>,\l|
+    start_ts: TimeStamp,\l|
+    lock_ttl: u64,\l|
+    is_first_lock: bool,\l|
+    for_update_ts: TimeStamp,\l|
+    wait_timeout: Option\<WaitTimeout\>,\l|
+    return_values: bool,\l|
+    min_commit_ts: TimeStamp,\l
+  }}"]
+  process_write[style_func;label="{{
+    AcquirePessimisticLock |
+    process_write
+  }}"]
+
+  AcquirePessimisticLock -> process_write[style_edge_data];
+  process_write -> {
+    acquire_pessimistic_lock;
+    update_max_ts;
+  }
+  update_max_ts[style_func;label="{{
+    update_max_ts|
+    使用for_update_ts更新\l
+    ConcurrencyManager::max_ts\l
+    这个max_ts的作用是啥？
+  }}"]
+
+  acquire_pessimistic_lock -> {
+    reader_load_lock;
+    put_lock_update;
+    put_lock_new;
+    seek_write;
+  }
+  process_write[style_func;label="{{
+    process_write|
+    遍历所有的keys\l
+    对于每一个key调用\l 
+    acquire_pessimistic_lock\l
+  }}"]
+
+  subgraph cluster_checklock {
+    graph[label="检查lock";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    reader_load_lock[style_func;label="{{
+      MvccReader::load_lock|
+        读取lock\l
+        然后检查lock的start_ts\l
+        lock_type\l 
+        for_update_ts\l
+    }}"]
+    reader_load_lock -> {
+      ErrorInner_KeyIsLocked;
+      ErrorInner_LockTypeNotMatch;
+      update_for_udpate_ts;
+      other_case_dup_lock;
+    }[style_edge_data];
+
+    other_case_dup_lock[style_func;label="{{
+      其他情况为重复请求\l
+      直接返回OK\l
+    }}"]
+
+    update_for_udpate_ts[style_func;label="{{
+      for_update_ts \> lock.for_update_ts\l|
+      更新lock的for_update_ts\l
+    }}"]
+
+    ErrorInner_KeyIsLocked[style_func;label="{{
+      ErrorInner::KeyIsLocked|
+      lock.ts != reader.start_ts\l
+      不是当前同一事务的lock\l
+      返回KeyIsLocked Error\l
+    }}"]
+
+    ErrorInner_LockTypeNotMatch[style_func;label="{{
+      ErrorInner::LockTypeNotMatch|
+      lock.lock_type != LockType::Pessimistic\l
+      锁的类型不是悲观锁\l 
+      返回锁类型不匹配\l|
+      意味该请求已超时\l
+      什么情况会这种情况?\l
+    }}"]
+  }
+  update_for_udpate_ts -> put_lock_update;
+  put_lock_update[style_func;label="{{
+    put_lock|
+    更新lock的for_update_ts\l
+  }}"]
+  put_lock_new[style_func;label="{{
+    put_lock|
+    当前请求key加上悲观锁
+  }}"]
+
+  subgraph cluster_check_write {
+    graph[label="检查是否有更新\l 的写入版本";fontsize=20;style="rounded,dashed";color="slategrey"]
+    seek_write -> {
+       ErrorInner_WriteConflict
+       ErrorInner_PessimisticLockRolledBack;
+       ErrorInner_PessimisticLockRolledBack2
+       check_data_constraint;
+    }[style_edge_data];
+
+    seek_write[style_func;label="{{
+      MvccReader::seek_write|
+      读取commit记录\l
+    }}"]
+    ErrorInner_WriteConflict[style_func;label="{{
+      ErrorInner::WriteConflict|
+      commit_ts \> for_update_ts\l
+      已提交的commit_ts比当前的\l 
+      for_update_ts 更新\l
+      存在写冲突\l
+    }}"]
+    ErrorInner_PessimisticLockRolledBack[style_func;label="{{
+      ErrorInner::PessimisticLockRolledBack|
+      commit_ts == reader.start_ts\l
+      且数据是当前事务的Rollback记录\l
+      返回PessimisticLockRollbacked错误\l
+    }}"]
+    ErrorInner_PessimisticLockRolledBack2[style_func;label="{{
+      ErrorInner::PessimisticLockRolledBack|
+      commit_ts \> reader.start_ts\l
+      commit_ts 比当前事务的 start_ts 更新，\l 
+      说明在当前事务 begin 后有其他事务提交过\l
+      检查历史版本，如果发现当前请求的事务\l 
+      有没有被 Rollback 过，返回 \l 
+      PessimisticLockRollbacked 错误\l
+    }}"]
+    ErrorInner_PessimisticLockRolledBack2
+    check_data_constraint;
+    check_data_constraint[style_func;label="{{
+      check_data_constraint|
+      Checks the existence of the key\l
+      according to `should_not_exist`\l
+      if not, return an `AlreadyExist` Error\l
+    }}"]
+  }
+  
+}

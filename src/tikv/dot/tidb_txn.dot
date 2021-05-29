@@ -1,0 +1,158 @@
+#include "styles.h"
+digraph tikvTxn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  tikvTxn -> {
+    tikvSnapshot;
+    twoPhaseCommitter;
+    UnionStore;
+    commitCallback;
+  }
+  twoPhaseCommitter -> {
+    memBufferMutations;
+    primaryKey;
+    ttlManager;
+  }
+
+  asyncSecondaries;
+  txnLockTTL
+  twoPhaseCommitAction;
+
+
+  twoPhaseCommitAction_handleSingleBatch -> {
+    actionPrewrite_handleSingleBatch;
+  }
+
+  actionPrewrite_handleSingleBatch -> {
+    buildPrewriteRequest;
+    SendReq;
+    resolveLocksForWrite;
+  }
+  subgraph cluster_LockResolver {
+    graph[label="LockResolver";fontsize=20;style="rounded,dashed";color="slategrey"]
+    resolveLocksForWrite -> {
+      resolveLocks;
+    }
+    resolveLocksForWrite[style_func;label="{{
+      resolveLocksForWrite|
+      prewrite返回write conflict\l
+      返回了conflict的locks\l
+      尝试resolve这些locks\l
+    }}"]
+    resolveLocks -> {
+       getTxnStatusFromLock;
+       resolvePessimisticLock;
+       resolveLock;
+       resolveLockAsync;
+    }
+    resolveLocks[style_func;label="{{
+      resolveLocks|
+      1.获取txnStatus\l
+      2.如果status.ttl == 0 \l 
+      根据lock type调用\l
+      不同的resolveLock方法\l
+    }}"]
+    TxnStatus[style_func;label="{{
+      TxnStatus|
+	     ttl         uint64\l|
+	     commitTS    uint64\l|
+	     action      kvrpcpb.Action\l|
+	     primaryLock *kvrpcpb.LockInfo\l
+    }}"]  
+    resolveLock -> CmdResolveLock;
+    resolvePessimisticLock -> CmdPessimisticRollback;
+    getTxnStatusFromLock -> TxnStatus;
+    getTxnStatusFromLock -> {
+      getTxnStatus;
+    }
+    getTxnStatus -> {
+      CmdCheckTxnStatus;
+      CommitVersion;
+    }
+    resolveLockAsync -> {
+      checkAllSecondaries;
+      resolveRegionLocks;
+    }
+    checkAllSecondaries -> {
+      GroupKeysByRegion;
+      checkSecondaries;
+      CmdCheckSecondaryLocks;
+      checkSecondaries;
+    }
+    resolveRegionLocks -> {
+      CmdResolveLock;
+    }
+
+    checkSecondaries -> {
+     CmdCheckSecondaryLocks;
+     checkSecondaries;
+    }
+
+    CmdCheckTxnStatus[style_func;label="{{
+      CmdCheckTxnStatus|
+      tikv: 如果primay lock expire了\l
+      则会rollback the primary lock\l
+      并返回commit Version 0\l
+      否则返回正常的commit version\l
+    }}"]
+
+    TxnStatus -> resolveLock -> CmdResolveLock[style_edge_data];
+    CmdResolveLock[style_func;label="{{
+      CmdResolveLock|
+      Tikv: 根据txn status\l
+      resolve lock\l
+      commit或者cleanup\l
+      这里的commit对应的就是\l
+      percolator论文里面的roll forward吧\l
+    }}"]
+    TxnStatus -> resolveLockAsync[style_edge_data];
+    TxnStatus -> checkAllSecondaries[style_edge_data];
+    GroupKeysByRegion[style_func;label="{{
+      GroupKeysByRegion|
+      把status.primaryLock.Secondaries\l
+      根据region 分组\l
+    }}"]
+    LockInfo -> GroupKeysByRegion[style_edge_data];
+
+    CmdCheckSecondaryLocks[style_func;label="{{
+      CmdCheckSecondaryLocks|
+      check secondary locks of\l 
+      an async commit transaction\l
+      If all prewritten locks exist,\l 
+      the lock information is returned.\l|
+    Otherwise, it returns the commit timestamp\l 
+    of the transaction.\l
+    If the lock does not exist or\l 
+    is a pessimistic lock, to prevent the\l
+    status being changed, a rollback may be written.\l
+    }}"]
+    checkSecondaries[style_func;label="{{
+      checkSecondaries|
+      对于每个region 调用checkSecondaries\l
+    }}"]
+    checkAllSecondaries -> asyncResolveData;
+    checkSecondaries -> addKeys -> asyncResolveData;
+
+  }
+
+  TxnStatus[style_func;label="{{
+    TxnStatus|
+	ttl         uint64\l|
+	commitTS    uint64\l|
+	action      kvrpcpb.Action\l|
+	primaryLock *kvrpcpb.LockInfo\l
+  }}"]
+
+  TxnStatus -> LockInfo;
+  LockInfo[style_func;label="{{
+    LockInfo|
+	  PrimaryLock []byte \l|
+	  LockVersion uint64 \l|
+	  Key         []byte \l|
+	  LockTtl     uint64 \l
+  }}"]
+
+}

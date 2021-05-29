@@ -1,5 +1,9 @@
 # Summary
 - [About](./about.md)
+- [Paper notes](./papers/index.md)
+  - [raft paper](./papers/raft.md)
+  - [gfs](./papers/gfs.md)
+
 - [LevelDB](./leveldb/index.md)
   - [draft](./leveldb/draft.md)
   - [代码模块间关系](./leveldb/code-struct.md)
@@ -76,6 +80,7 @@
 - [TiKV](./tikv/index.md)
   - [draft](./tikv/draft/index.md)
     - [PeerFsm](./tikv/PeerFsm.md)
+    - [MvccReader](./tikv/mvcc_reader.md)
   - [raft-rs](./tikv/raft.md)
   - [BatchSystem](./tikv/batch-system.md)
     - [Poller](./tikv/poller.md)
@@ -90,8 +95,9 @@
     - [async write](./tikv/async_write.md)
   - [Storage](./tikv/storage.md)
     - [Percolator](./tikv/percolator.md)
-    - [MvccReader](./tikv/mvcc_reader.md)
-    - [scanner](./tikv/storage_scanner.md)
+    - [Txn Types](./tikv/txn_types.md)
+    - [TiDB txn](./tikv/tidb_txn.md)
+    - [Scanner](./tikv/storage_scanner.md)
     - [MvccTxn](./tikv/MvccTxn.md)
     - [Scheduler](./tikv/scheduler.md)
     - [Command](./tikv/command.md)
@@ -154,14 +160,6 @@
 
 - [Blender](./blender/Readme.md)
     - [blender manual notes](./blender/manual-notes.md)
-
-- [Raft](./raft/index.md)
-  - [raft paper](./raft/raft.md)
-  - [pingcap talent plan raft lab](./raft/raft-lab.md)
-
-- [mit6.824: 分布式系统](./mit6-824/index.md)
-  - [GFS](./mit6-824/gfs.md)
-  - [Raft](./mit6-824/raft.md)
 
 - [tensorflow inside](./tensorflow/index.md)
   - [Executor: 执行Computation Sub Graph](./tensorflow/executor.md)

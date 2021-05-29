@@ -33,10 +33,34 @@ digraph storage_scanner_draft {
       }}"]
     }
   }
+  IsolationLevel[style_func;label="{{
+    IsolationLevel|
+    SI: snapshot isolation\l|
+    RC: read Commit\l
+  }}"]
 
   ScannerBuilder[style_func;label="{{
     ScannerBuilder|
     ScannerConfig\<S\>\l
+  }}"]
+
+  ScannerConfig -> CursorBuilder;
+  Snapshot -> CursorBuilder -> Cursor[style_edge_data];
+
+  ScannerConfig[style_func;label="{{
+    ScannerConfig|
+    snapshot: S,\l|
+    fill_cache: bool,\l|
+    omit_value: bool,\l|
+    isolation_level: IsolationLevel,\l|
+    lower_bound: Option\<Key\>,\l|
+    upper_bound: Option\<Key\>,\l|
+    hint_min_ts: Option\<TimeStamp\>,\l|
+    hint_max_ts: Option\<TimeStamp\>,\l|
+    ts: TimeStamp,\l|
+    desc: bool,\l|
+    bypass_locks: TsSet,\l|
+    check_has_newer_ts_data: bool,\l
   }}"]
 
   ScannerBuilder -> {

@@ -1,0 +1,90 @@
+#include "styles.h"
+digraph delete_write {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  
+  delete_write;
+  collapse_prev_rollback -> delete_write;
+
+  CheckSecondaryLocks_process_write -> collapse_prev_rollback;
+  rollback_lock -> collapse_prev_rollback;
+  check_txn_status_missing_lock -> collapse_prev_rollback;
+
+  collapse_prev_rollback[style_func;label="{{
+    collapse_prev_rollback|
+    删掉WriteType为RollBack\l
+    且!is_protected的write record\l
+  }}"]
+
+  CheckSecondaryLocks_process_write[style_func;label="{{
+    CheckSecondaryLocks::process_write\l|
+    check secondary lock of an\l 
+    aysnc commit transaction\l
+  }}"]
+  cleanup -> check_txn_status_missing_lock;
+  check_txn_status_missing_lock[style_func;label="{{
+    check_txn_status_missing_lock|
+    如果获取的TxnCommitRecord为None
+  }}"]
+  cleanup -> rollback_lock;
+  CheckTxnStatus_process_write -> check_txn_status_lock_exists;
+  check_txn_status_lock_exists -> rollback_lock;
+  {
+    ResolveLock_process_write;
+    Rollback_process_write;
+  } -> cleanup;
+
+  Command_process_write -> {
+    ResolveLock_process_write;
+    Rollback_process_write;
+    CheckSecondaryLocks_process_write;
+    CheckTxnStatus_process_write;
+  }
+  CheckSecondaryLocks_process_write -> get_txn_commit_record;
+  get_txn_commit_record -> collapse_prev_rollback[style_edge_data]
+  Rollback_process_write[style_func;label="{{
+    Rollback::process_write|
+    遍历self.keys\l
+    对于每一个key call cleanup\l|
+    Rollback is called only if\l
+    the transaction is know to fail\l
+    后续会调用collapse_prev_rollback\l
+  }}"]
+  rollback_lock[style_func;label="{{
+    rollback_lock|
+    根据参数collapse_rollback\l
+    来决定是否要调用\l
+    collapse_prev_rollback\l
+  }}"]
+  check_txn_status_lock_exists[style_func;label="{{
+    check_txn_status_lock_exists|
+    check whether there's an overlapped\l
+    write rercord and then perform rollback\l|
+    检查lock的ttl，如果过期了\l 
+    清理掉这个key\l
+  }}"]
+
+  CheckTxnStatus_process_write[style_func;label="{{
+    CheckTxnStatus::process_write|
+    Check the status of a transaction\l
+    this is usually invoked by a transaction\l
+    that meets another transaction's lock\l|
+    读取primary lock\l
+  }}"]
+
+  ResolveLock_process_write[style_func;label="{{
+    ResolveLock::process_write|
+    清理已经commit/abort\l 
+    事务遗留的\l 
+    not-yet-committed key\l|
+    对于abort的事务的key做rollback\l
+  }}"]
+
+  check_txn_status_missing_lock -> get_txn_commit_record;
+  Command_process_write[style_func;label="{{
+    Command::process_write
+  }}"]
+
+}

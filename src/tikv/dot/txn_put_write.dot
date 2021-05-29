@@ -1,0 +1,118 @@
+#include "styles.h"
+digraph txn_put_write {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  MvccTxn_put_write[style_func;label="{{
+    MvccTxn::put_write
+  }}"]
+
+  Command_process_write[style_func;label="{{
+    Command::process_write
+  }}"]
+  Command_process_write -> {
+    Prewriter_process_write;
+    ResolveLock_process_write;
+    Rollback_process_write;
+    CheckTxnStatus_process_write;
+    CheckSecondaryLocks_process_write;
+    Commit_process_write;
+  }
+  Commit_process_write[style_func;label="{{
+    Commit::process_write
+  }}"]
+  Commit_process_write ->commit;
+  CheckTxnStatus_process_write[style_func;label="{{
+    CheckTxnStatus::process_write
+  }}"]
+
+  CheckTxnStatus_process_write -> {
+    check_txn_status_lock_exists
+  }
+  Prewriter_process_write[style_func;label="{{
+    Prewriter::process_write
+  }}"]
+
+  Prewriter_process_write -> Prewriter_write_result;
+  Prewriter_write_result -> one_pc_commit_ts;
+  one_pc_commit_ts -> handle_1pc_locks
+  handle_1pc_locks[style_func;label="{{
+    handle_1pc_locks|
+    Commit and delete \l 
+    all 1pc locks int txn\l
+  }}"]
+  handle_1pc_locks -> {
+    MvccTxn_put_write;
+  }
+
+  CheckSecondaryLocks_process_write[style_func;label="{{
+    CheckSecondaryLocks::process_write
+  }}"]
+
+  CheckSecondaryLocks_process_write -> {
+    make_rollback;
+    MvccTxn_put_write;
+  }
+  make_rollback[style_func;label="{{
+    make_rollback|
+    创建一个write_type\l
+    为Rollback的Write\l
+  }}"]
+  make_rollback -> MvccTxn_put_write[style_edge_data];
+
+  commit[style_func;label="{{
+    commit|
+    写入write\l
+    清除lock\l
+  }}"]
+
+  commit -> MvccTxn_put_write;
+  rollback_lock -> {
+     MvccTxn_put_write;
+     make_rollback;
+  }
+
+  check_txn_status_lock_exists -> rollback_lock;
+  cleanup -> rollback_lock;
+  cleanup[style_func;label="{{
+    cleanup|
+    Cleanupt the lock\l
+  }}"]
+
+  ResolveLock_process_write -> cleanup;
+  ResolveLock_process_write[style_func;label="{{
+    ResolveLock::process_write|
+    Resolve locks according\l
+    txn_status\l
+  }}"]
+  Rollback_process_write -> cleanup;
+  Rollback_process_write[style_func;label="{{
+    Rollback::process_write|
+    Rollback from the transaction that\l
+    was started at `start_ts`\l
+  }}"]
+
+  subgraph cluster_commit {
+    graph[label="commit";fontsize=20;style="rounded,dashed";color="slategrey"]
+    one_pc_commit_ts;
+    handle_1pc_locks;
+    commit;
+  }
+
+  subgraph cluster_rollback {
+    graph[label="rollback";fontsize=20;style="rounded,dashed";color="slategrey"]
+    cleanup;
+    check_txn_status_lock_exists;
+    make_rollback;
+    rollback_lock;
+  }
+  {
+    rank=same;
+    Commit_process_write;
+    CheckSecondaryLocks_process_write;
+    ResolveLock_process_write
+  };
+
+}
