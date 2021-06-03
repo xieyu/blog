@@ -8,23 +8,62 @@ digraph async_commit_execute {
   subgraph cluster_twoPhaseCommitter {
     graph[label="twoPhaseCommitter";fontsize=20;style="rounded,dashed";color="slategrey"]
     execute -> {
+      GetTimestamp;
       checkAsyncCommit;
       setAsyncCommit;
       prewriteMutations;
       go_commitMutations;
     }
-    checkAsyncCommit -> setAsyncCommit[style_edge_data];
+    checkAsyncCommit -> setAsyncCommit -> GetTimestamp[style_edge_data];
+
+    GetTimestamp[style_func;label="{{
+     1. GetTimestamp|
+      if needLinearizability\l|
+      在prewrite前\l
+      获取minCommitTS\l
+      用保证async commit线性一致性.\l
+    }}"]
     go_commitMutations[style_func;label="{{
-      go commitMutations|
+      4. commitMutations|
       新起一个go routine 执行\l
       commitMutations\l
+      client不必等待primary key 提交成功
     }}"]
     go_commitMutations -> commitMutations;
     prewriteMutations[style_func;label="{{
-      prewriteMutations|
-      在prewriteMutation完成之后\l
-      就可以告诉client事务\l 
-      提交成功了\l
+      prewriteMutations
+    }}"]
+    prewriteMutations -> minCommitTS;
+    minCommitTS[style_var;label="{{
+      minCommitTS\l|
+      成员变量minCommitTS\l
+      带了mu lock\l
+      可以并发的更新\l
+    }}"]
+
+    buildPrewriteRequest[style_func;label="{{
+      2. buildPrewriteRequest|
+      minCommitTS = c.forUpdateTS + 1\l|
+      minCommitTS = c.startTS + 1\l
+      MaxCommitTs = c.maxCommitTS\l
+    }}"]
+    prewriteMutations -> actionPrewrite_handleSingleBatch[style_edge_data];
+    actionPrewrite_handleSingleBatch -> buildPrewriteRequest;
+    minCommitTS -> buildPrewriteRequest;
+    actionPrewrite_handleSingleBatch -> prewriteResp -> minCommitTS[style_edge_data];
+    GetTimestamp -> minCommitTS[style_edge_data];
+
+    prewriteMutations -> go_commitMutations[style_edge_data];
+    prewriteResp[style_func;label="{{
+      3. prewriteResp|
+      TiKV resp中带了minCommitTS\l
+      commiter更新自己的minCommitTS\l
+    }}"]
+    actionPrewrite_handleSingleBatch[style_func;label="{{
+      actionPrewrite\l|
+      handleSingleBatch\l|
+      向TikV发送prewrite请求\l
+      处理conflict, regionError\l
     }}"]
   }
 }

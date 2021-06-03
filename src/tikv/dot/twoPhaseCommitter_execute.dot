@@ -24,11 +24,36 @@ digraph execute {
     commitTxn -> {
       commitMutations;
     }
-    commitMutations -> doActionOnMutations;
-    prewriteMutations -> doActionOnMutations;
+    commitTxn[style_func;label="{{
+      commitTxn|
+      等primary ke提交成功后\l
+      才会返回, 其他的secondaries keys\l
+      由go rutine异步提交\l
+    }}"]
+    prewriteMutations[style_func;label="{{
+      prewriteMutations|
+      由batchExecutor 并发执行\l
+    }}"]
+    commitMutations -> doActionOnGroupMutations;
+    prewriteMutations -> doActionOnGroupMutations;
     prewriteMutations -> actionPrewrite_handleSingleBatch[style_edge_data];
     commitMutations -> actionCommit_handleSingleBatch[style_edge_data];
-    doActionOnMutations -> {
+    doActionOnGroupMutations[style_func;label="{{
+      doActionOnGroupMutations|
+      primaryBatch的size 为1\l
+      并且是最先提交的\l|
+      primayBatch后面会同步直调用\l 
+      actionCommit::handleSingleBatch\l
+    }}"]
+    doActionOnGroupMutations -> {
+      primaryBatch;
+    }
+    primaryBatch[style_func;label="{{
+      primaryBatch|
+      b.batches[:1]\l
+      primayBatch size为1\l
+    }}"]
+    doActionOnGroupMutations -> doActionOnMutations -> {
       actionPrewrite_handleSingleBatch;
       actionCommit_handleSingleBatch;
     }

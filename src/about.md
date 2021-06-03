@@ -1,10 +1,10 @@
 # About
 
-主要记录了一些平时代码阅读和读书笔记.
+记录了一些代码阅读和读书笔记.
 
 ## 代码阅读
 
-主要看了以下代码，目前主要在看分布式数据库这块.
+看了以下代码，在学习分布式数据库代码
 
 * leveldb
 * rocksdb
@@ -24,7 +24,7 @@
 
 ## 书籍
 
-目前在读以下书籍:
+在读以下书籍:
 
 * Design data Intensive Application
 * Database Internals

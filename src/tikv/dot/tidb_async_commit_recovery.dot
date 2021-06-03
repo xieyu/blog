@@ -1,0 +1,49 @@
+#include "styles.h"
+digraph async_commit_recovery {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  asyncResolveData[style_func;label="{{
+    asyncResolveData|
+	  commitTs    uint64\l|
+	  keys        [][]byte\l|
+	  missingLock bool\l
+  }}"]
+
+  resolveLockAsync -> {
+    checkAllSecondaries;
+    GroupKeysByRegion;
+    resolveRegionLocks;
+  }
+  checkAllSecondaries -> checkSecondaries -> addKeys -> asyncResolveData;
+  resolveRegionLocks -> CmdResolveLock;
+  checkSecondaries -> CmdCheckSecondaryLocks;
+  asyncResolveData -> GroupKeysByRegion -> resolveRegionLocks[style_edge_data];
+  checkAllSecondaries[style_func;label="{{
+    1. checkAllSecondaries|
+    检查所有secondaries keys的lock info\l
+    先对secondaries keys 根据regio分组\l
+    对每个group调用checkSecondaries\l
+    然后将key状态添加到asyncResolveData中\l
+  }}"]
+  addKeys[style_func;label="{{
+    2.addKeys|
+    将checkSecondaries 结果加入到\l 
+    asyncResolveData中\l
+    计算事务的min_commit_ts\l|
+    注意这块对missingLock的处理\l
+  }}"]
+
+  resolveLock[style_func;label="{{
+    3.resolveLock|
+  }}"]
+
+  subgraph cluster_TiKV {
+    graph[label="TiKV";fontsize=20;style="rounded,dashed";color="slategrey"]
+    CmdResolveLock;
+    CmdCheckSecondaryLocks;
+  }
+
+  
+}

@@ -1,0 +1,61 @@
+#include "styles.h"
+digraph tikv_one_pc {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_MvccTxn {
+    graph[label="MvccTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    locks_for_1pc[style_var;label="{{
+      locks_for_1pc
+    }}"]
+    put_locks_for_1pc -> locks_for_1pc;
+    put_write;
+  }
+
+  handle_1pc_locks[style_func;label="{{
+    handle_1pc_locks|
+    遍历locks_for_1pc\l
+    向write column 写入\l 
+    write record\l
+  }}"]
+
+  one_pc_commit_ts[style_func;label="{{
+    one_pc_commit_ts|
+    Compute commit ts of a 1pc\l
+    transaction\l
+  }}"]
+
+  one_pc_commit_ts -> handle_1pc_locks;
+
+  handle_1pc_locks -> {
+    locks_for_1pc;
+    put_write;
+  }
+
+  PreWriter_write_result -> one_pc_commit_ts;
+  PreWriter_prewrite -> PrewriteMutation_write_lock;
+  subgraph cluster_PreWriter {
+    graph[label="PreWriter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    process_write -> {
+      PreWriter_prewrite;
+      PreWriter_write_result;
+    }
+    PreWriter_prewrite[style_func;label="{{
+      prewrite
+    }}"]
+    PreWriter_write_result[style_func;label="{{
+      write_result
+    }}"]
+    PreWriter_prewrite -> final_min_commit_ts;
+    final_min_commit_ts -> put_write;
+  }
+
+  PrewriteMutation_write_lock[style_func;label="{{
+    PrewriteMutation\l|
+    write_lock\l
+  }}"];
+  PrewriteMutation_write_lock -> put_locks_for_1pc;
+  
+}

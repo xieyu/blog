@@ -5,123 +5,6 @@
 
 <!-- toc -->
 
-![](./dot/tidb_txn.svg)
-
-## Timestamp
-
-### startTs
-
-在执行start transaction时，会去Oracle服务获取时间戳，作为事务的startTS,
-startTs会保存在TransactionContext中
-
-![](./dot/txn_startTS.svg)
-
-### forUpdateTS
-
-forUpdateTS 是每个write的sql stmt都会更一次吗？
-
-TODO: 解释ForUpdateTS的作用，是什么时候更新的.
-UpdateForUpdateTS
-
-```go
-// UpdateForUpdateTS updates the ForUpdateTS, if newForUpdateTS is 0, it obtain a new TS from PD.
-func UpdateForUpdateTS(seCtx sessionctx.Context, newForUpdateTS uint64) error {
-```
-
-![](./dot/for_update_ts.svg)
-
-### commitTS
-
-事务提交的commitTs, 在commit之前去time oracle 服务获取timestamp.
-
-### MinCommitTs/MaxCommitTs
-
->线性一致性实际上有两方面的要求：
-
->循序性（sequential）
-
->实时性（real-time）
-
->实时性要求在事务提交成功后，事务的修改立刻就能被新事务读取到。新事务的快照时间戳是向 PD 上的 TSO 获取的，这要求 Commit TS 不能太大，最大不能超过 TSO 分配的最大时间戳 + 1。
-
-async commit会用到minCommitTs, 省去了一次去Time服务获取tso的操作。
-
-每个TiKV server有个ConcurrencyManager 记录了max_ts
-
-> 对于 Async Commit 事务的每一个 key，prewrite 时会计算并在 TiKV 记录这个 key 的 Min Commit TS，事务所有 keys 的 Min Commit TS 的最大值即为这个事务的 Commit TS。
-> TiDB 的每一次快照读都会更新 TiKV 上的 Max TS。Prewrite 时，Min Commit TS 会被要求至少比当前的 Max TS 大2，也就是比所有先前的快照读的时间戳大，所以可以取 Max TS + 1 作为 Min Commit TS。
-
-
-```rust
-	// If we want to use async commit or 1PC and also want linearizability across
-	// all nodes, we have to make sure the commit TS of this transaction is greater
-	// than the snapshot TS of all existent readers. So we get a new timestamp
-	// from PD and plus one as our MinCommitTS.
-	if commitTSMayBeCalculated && c.needLinearizability() {
-		failpoint.Inject("getMinCommitTSFromTSO", nil)
-		latestTS, err := c.store.oracle.GetTimestamp(ctx, &oracle.Option{TxnScope: oracle.GlobalTxnScope})
-		// If we fail to get a timestamp from PD, we just propagate the failure
-		// instead of falling back to the normal 2PC because a normal 2PC will
-		// also be likely to fail due to the same timestamp issue.
-		if err != nil {
-			return errors.Trace(err)
-		}
-		// Plus 1 to avoid producing the same commit TS with previously committed transactions
-		c.minCommitTS = latestTS + 1
-	}
-
-	// Calculate maxCommitTS if necessary
-	if commitTSMayBeCalculated {
-		if err = c.calculateMaxCommitTS(ctx); err != nil {
-			return errors.Trace(err)
-		}
-	}
-```
-
-maxCommitTs的作用是什么？
-
-Tikv 在async_commit_timestamps 中会检查min_commit_ts和max_commit_ts
-如果min_commit_ts > max_commit_ts 会返回CommitTsTooLarge
-
-![](./dot/tidb_min_commit_ts.svg)
-
-### TiKV update_max_ts
-
-每次对于TiKV的读操作，以及事务的write command
-都会更新max_ts.
-
-读操作分为coprocessor和直接使用Storage 接口去get/scan的，
-还有Replica read这块做了特殊处理。
-
-
-#### update max_ts on read
-
-![](./dot/update_max_ts.svg)
-
-#### replica reader
-> There is a time gap between setting the “min commit TS” in the lock and the lock being applied to the raft store. These unapplied locks are saved in memory temporarily. So readers must see these in-memory locks which only exist on the leader.
-
-replica reader 是怎么更新这个max_ts的？
-
-replica reader 在read之前会发readIndex消息给leader吗？
-
-follower reader在发送ReadIndex 请求给leader 会附带上start_ts,
-然后leader在处理reader index消息时，会回调`ReplicaReadLockChecker::on_step`
-
-在该函数中更新concurrency_manager的max_ts。
-
-![](./dot/replica_reader_max_ts.svg)
-
-check memory locks in replica read #8926
-
-addition_request
-locked
-ReadIndexContext
-ReplicaReadLockChecker
-
-
-### onePCCommitTS
-
 ## CommitterMutations
 
 基本数据流程如下：
@@ -149,15 +32,239 @@ KVTxn的write操作(Set, Delete)  会现将操作
 ### MemDB
 
 
-## twoPhaseCommitter::execute
+## 事务提交协议：twoPhaseCommitter::execute
+
+### NormalCommit
+
+像pecolator论文中描述的协议一样，
+1. 先Prewrite，TiDB中可以并发的prewrite.
+2. 去TSO 服务获取commit ts， 
+3. commit primary key, 提交完primary key后，就可以返回给client事提交成功了。
+4. 其他的secondaries keys 异步提交。
+
+下图摘自[Async Commit 原理介绍][async-commit]
+
+![](./dot/tidb_2pc_normal.png)
+
+
+对应代码调用流程如下:
 
 ![](./dot/twoPhaseCommitter_execute.svg)
 
-### AsyncCommit execute
 
-async commit 省掉了一次commit之前去time oracle 服务器获取时间戳的调用。
+在`doActionOnGroupMutations`中，先执行primary Batch的，这样保证primaryBatch会被先commit.
+
+```go
+func (c *twoPhaseCommitter) doActionOnGroupMutations(bo *Backoffer, action twoPhaseCommitAction, groups []groupedMutations) error {
+//...
+	if firstIsPrimary &&
+		((actionIsCommit && !c.isAsyncCommit()) || actionIsCleanup || actionIsPessimiticLock) {
+		// primary should be committed(not async commit)/cleanup/pessimistically locked first
+		err = c.doActionOnBatches(bo, action, batchBuilder.primaryBatch())
+    //...
+		batchBuilder.forgetPrimary()
+	}
+//...
+```
+
+然后在`doActionOnBatches`决定是否`noNeedFork`，
+对于primay Batch会直接,同步的调用`handleSignleBatch`
+其他的则由batchExecutor异步并发的执行。
+
+```go
+// doActionOnBatches does action to batches in parallel.
+func (c *twoPhaseCommitter) doActionOnBatches(bo *Backoffer, action twoPhaseCommitAction, batches []batchMutations) error {
+	if len(batches) == 0 {
+		return nil
+	}
+
+  //直接调用handleSignleBatch
+	noNeedFork := len(batches) == 1
+	if !noNeedFork {
+		if ac, ok := action.(actionCommit); ok && ac.retry {
+			noNeedFork = true
+		}
+	}
+	if noNeedFork {
+		for _, b := range batches {
+			e := action.handleSingleBatch(c, bo, b)
+      /...
+    }
+    return nil
+  }
+
+  //由batchExecutor并发的执行
+	batchExecutor := newBatchExecutor(rateLim, c, action, bo)
+	err := batchExecutor.process(batches)
+	return errors.Trace(err)
+}
+```
+
+
+### AsyncCommit
+
+AsyncCommit 等所有的key prewrite之后，就算成功了，TiDB即可返回告诉client事务提交成功了。
+primary key 可以异步的commit.其流程如下(摘自[Async Commit 原理介绍][async-commit])
+
+![](./dot/tidb_async_commit.png)
+
+
+对应代码流程如下, 关键是minCommitTS的更新。
 
 ![](./dot/twoPhaseCommitter_async_commit_exe.svg)
+
+#### minCommitTS
+
+PreWrite前从TSO获取ts, 更新成员变量`minCommitTS`
+
+```go
+func (c *twoPhaseCommitter) execute(ctx context.Context) (err error) {
+//...
+	if commitTSMayBeCalculated && c.needLinearizability() {
+		latestTS, err := c.store.oracle.GetTimestamp(ctx, &oracle.Option{TxnScope: oracle.GlobalTxnScope})
+    //...
+		// Plus 1 to avoid producing the same commit TS with previously committed transactions
+		c.minCommitTS = latestTS + 1
+	}
+//...
+}
+```
+
+TiDB发送给TiKV的prewrite请求中带上minCommitTS.
+
+```go
+func (c *twoPhaseCommitter) buildPrewriteRequest(batch batchMutations, txnSize uint64) *tikvrpc.Request {
+ //...
+	c.mu.Lock()
+	minCommitTS := c.minCommitTS
+	c.mu.Unlock()
+	if c.forUpdateTS > 0 && c.forUpdateTS >= minCommitTS {
+		minCommitTS = c.forUpdateTS + 1
+	} else if c.startTS >= minCommitTS {
+		minCommitTS = c.startTS + 1
+	}
+  //...
+```
+
+根据prewriteResp.minCommitTS 更新commiter的`minCommitTS`
+
+```go
+func (action actionPrewrite) handleSingleBatch(c *twoPhaseCommitter, bo *Backoffer, batch batchMutations) error {
+//...
+			if c.isAsyncCommit() {
+				if prewriteResp.MinCommitTs == 0 {
+        // fallback到normal commit
+        }else {
+					c.mu.Lock()
+					if prewriteResp.MinCommitTs > c.minCommitTS {
+						c.minCommitTS = prewriteResp.MinCommitTs
+					}
+					c.mu.Unlock()
+        }
+```
+
+#### txn recovery
+
+asycn commit txn 的恢复
+如果TiDB在async commit 返回给client成功，
+但是后台async commit primay key
+都失败了，这时候该recovery txn呢？
+
+1. 获取primay key 的txn status
+2. checkAllSecondaries
+3. 是否有key没有被lock(addKeys), 没有则说明需要rollback ?
+4. resolve lock
+
+missingLock 可能是被rollback了，或者被commit了。有Tikv自己处理
+
+![](./dot/tidb_async_commit_recovery.svg)
+
+#### TiKV端处理AsyncCommit
+
+![](./dot/tikv_async_commit_min_commit_ts.svg)
+
+
+
+##### 计算min_commit_ts
+
+> TiDB 的每一次快照读都会更新 TiKV 上的 Max TS。Prewrite 时，Min Commit TS 会被要求至少比当前的 Max TS 大，也就是比所有先前的快照读的时间戳大，所以可以取 Max TS + 1 作为 Min Commit TS
+
+这个地方为什么要lock_key ?
+
+```rust
+// The final_min_commit_ts will be calculated if either async commit or 1PC is enabled.
+// It's allowed to enable 1PC without enabling async commit.
+fn async_commit_timestamps(/*...*/) -> Result<TimeStamp> {
+    // This operation should not block because the latch makes sure only one thread
+    // is operating on this key.
+    let key_guard = CONCURRENCY_MANAGER_LOCK_DURATION_HISTOGRAM.observe_closure_duration(|| {
+        ::futures_executor::block_on(txn.concurrency_manager.lock_key(key))
+    });
+
+    let final_min_commit_ts = key_guard.with_lock(|l| {
+        let max_ts = txn.concurrency_manager.max_ts();
+        fail_point!("before-set-lock-in-memory");
+        let min_commit_ts = cmp::max(cmp::max(max_ts, start_ts), for_update_ts).next();
+        let min_commit_ts = cmp::max(lock.min_commit_ts, min_commit_ts);
+
+        lock.min_commit_ts = min_commit_ts;
+        *l = Some(lock.clone());
+        Ok(min_commit_ts)
+    }
+    ...
+}
+```
+
+##### max_ts更新
+
+TiKV的每次读操作，都会更新max_ts
+
+![](./dot/update_max_ts.svg)
+
+值得注意的是replica read index 这块也会更新max_ts
+
+replica reader 在read之前会发readIndex消息给leader吗？
+
+follower reader在发送ReadIndex 请求给leader 会附带上start_ts,
+然后leader在处理reader index消息时，会回调`ReplicaReadLockChecker::on_step`
+
+在该函数中更新concurrency_manager的max_ts。
+
+![](./dot/replica_reader_max_ts.svg)
+
+check memory locks in replica read #8926
+
+addition_request
+locked
+ReadIndexContext
+ReplicaReadLockChecker
+
+### OnePC(一阶段提交)
+
+只涉及一个region，且一个batch就能完成的事务，不使用分布式提交协议，只使用一阶段完成事务，
+和AsyncCommit相比， 省掉了后面的commit步骤。
+
+
+![](./dot/twoPhaseCommitter_one_pc_execute.svg)
+
+对于batchCount > 1的事务不会使用OnePC.
+
+```go
+func (c *twoPhaseCommitter) checkOnePCFallBack(action twoPhaseCommitAction, batchCount int) {
+	if _, ok := action.(actionPrewrite); ok {
+		if batchCount > 1 {
+			c.setOnePC(false)
+		}
+	}
+}
+```
+
+#### Tikv端 处理OnePC
+
+在TiKV端，OnePC 直接向Write Column 写write record, 提交事务，
+省掉了写lock, 以及后续commit时候cleanup lock这些操作了。
+
+![](./dot/tikv_one_pc.svg)
 
 ## doActionOnMutations
 
@@ -303,3 +410,93 @@ TODO: 没找到insert/delete/update这块的lock代码
 2. [async commit design spec](https://github.com/tikv/sig-transaction/blob/master/design/async-commit/spec.md)
 3. [async commit and replica read](https://tikv.github.io/sig-transaction/design/async-commit/replica-read.html)
 4. [support checking memory locks at read index](https://github.com/pingcap/kvproto/pull/665)
+
+[async-commit]: https://pingcap.com/blog-cn/async-commit-principle/
+
+
+# draft
+
+![](./dot/tidb_txn.svg)
+
+## Timestamp
+
+### startTs
+
+在执行start transaction时，会去Oracle服务获取时间戳，作为事务的startTS,
+startTs会保存在TransactionContext中
+
+![](./dot/txn_startTS.svg)
+
+### forUpdateTS
+
+forUpdateTS 是每个write的sql stmt都会更一次吗？
+
+TODO: 解释ForUpdateTS的作用，是什么时候更新的.
+UpdateForUpdateTS
+
+```go
+// UpdateForUpdateTS updates the ForUpdateTS, if newForUpdateTS is 0, it obtain a new TS from PD.
+func UpdateForUpdateTS(seCtx sessionctx.Context, newForUpdateTS uint64) error {
+```
+
+![](./dot/for_update_ts.svg)
+
+### commitTS
+
+事务提交的commitTs, 在commit之前去time oracle 服务获取timestamp.
+
+### MinCommitTs/MaxCommitTs
+
+>线性一致性实际上有两方面的要求：
+
+>循序性（sequential）
+
+>实时性（real-time）
+
+>实时性要求在事务提交成功后，事务的修改立刻就能被新事务读取到。新事务的快照时间戳是向 PD 上的 TSO 获取的，这要求 Commit TS 不能太大，最大不能超过 TSO 分配的最大时间戳 + 1。
+
+async commit会用到minCommitTs, 省去了一次去Time服务获取tso的操作。
+
+每个TiKV server有个ConcurrencyManager 记录了max_ts
+
+> 对于 Async Commit 事务的每一个 key，prewrite 时会计算并在 TiKV 记录这个 key 的 Min Commit TS，事务所有 keys 的 Min Commit TS 的最大值即为这个事务的 Commit TS。
+> TiDB 的每一次快照读都会更新 TiKV 上的 Max TS。Prewrite 时，Min Commit TS 会被要求至少比当前的 Max TS 大2，也就是比所有先前的快照读的时间戳大，所以可以取 Max TS + 1 作为 Min Commit TS。
+
+
+```rust
+	// If we want to use async commit or 1PC and also want linearizability across
+	// all nodes, we have to make sure the commit TS of this transaction is greater
+	// than the snapshot TS of all existent readers. So we get a new timestamp
+	// from PD and plus one as our MinCommitTS.
+	if commitTSMayBeCalculated && c.needLinearizability() {
+		failpoint.Inject("getMinCommitTSFromTSO", nil)
+		latestTS, err := c.store.oracle.GetTimestamp(ctx, &oracle.Option{TxnScope: oracle.GlobalTxnScope})
+		// If we fail to get a timestamp from PD, we just propagate the failure
+		// instead of falling back to the normal 2PC because a normal 2PC will
+		// also be likely to fail due to the same timestamp issue.
+		if err != nil {
+			return errors.Trace(err)
+		}
+		// Plus 1 to avoid producing the same commit TS with previously committed transactions
+		c.minCommitTS = latestTS + 1
+	}
+
+	// Calculate maxCommitTS if necessary
+	if commitTSMayBeCalculated {
+		if err = c.calculateMaxCommitTS(ctx); err != nil {
+			return errors.Trace(err)
+		}
+	}
+```
+
+maxCommitTs的作用是什么？
+
+Tikv 在async_commit_timestamps 中会检查min_commit_ts和max_commit_ts
+如果min_commit_ts > max_commit_ts 会返回CommitTsTooLarge
+
+![](./dot/tidb_min_commit_ts.svg)
+
+
+
+### onePCCommitTS
+

@@ -48,6 +48,11 @@ digraph update_max_ts {
     CheckSecondaryLocks_process_write -> update_max_ts;
     AcquirePessimisticLock_process_write -> update_max_ts;
   }
+  actions_prewrite_prewrite[style_func;label="{{
+    actions_prewrite_prewrite|
+    should_not_write也被认为是一种read\l
+    也会更新max_ts\l
+  }}"]
 
   store_worker_pd_Runner_handle_update_max_timestamp -> update_max_ts;
 

@@ -1,0 +1,52 @@
+#include "styles.h"
+digraph tikv_min_commit_ts {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ConcurrencyManager {
+    graph[label="ConcurrencyManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    max_ts[style_var;label="{{
+      max_ts|
+      每次TiDB的读操作都会更新\l
+      TiKV上的max_ts\l
+    }}"]
+    max_ts;
+    lock_key;
+  }
+  max_ts -> final_min_commit_ts[style_edge_data];
+
+  subgraph cluster_PrewriteMutation {
+    graph[label="PrewriteMutation";fontsize=20;style="rounded,dashed";color="slategrey"]
+    async_commit_timestamps[style_func;label="{{
+      async_commit_timestamps|
+      使用start_ts, forUpdateTS\l 
+      lock.min_commit_ts, max_ts\l
+      最大值作为final_min_commit_ts\l
+    }}"]
+    write_lock -> async_commit_timestamps;
+  }
+
+  prewrite -> write_lock;
+  PreWriter_prewrite -> prewrite;
+  subgraph cluster_PreWriter {
+    graph[label="PreWriter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    process_write -> {
+      PreWriter_prewrite;
+      write_result;
+    }
+    PreWriter_prewrite[style_func;label="{{
+      prewrite|
+      遍历所有的mutation\l
+      调用prewrite\l
+      取最大的ts为final_min_commit_ts\l
+    }}"]
+  }
+
+  async_commit_timestamps -> {
+    max_ts;
+    lock_key;
+  }
+  
+}
