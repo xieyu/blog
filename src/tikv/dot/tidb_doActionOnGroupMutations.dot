@@ -1,0 +1,83 @@
+#include "styles.h"
+digraph doActionOnGroupMutations {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  appendBatchMutationsBySize;
+  newBatched[style_func;label="{{
+    newBatched|
+    新创建一个batchBuilder\l
+		primaryIdx: -1,\l
+		primaryKey: primaryKey,\l
+  }}"]
+
+      
+  doActionOnGroupMutations -> {
+    newBatched;
+    primary;
+    appendBatchMutationsBySize;
+    checkOnePCFallBack;
+    doActionOnBatches_primaryBatch;
+    doActionOnBatches_go
+    doActionOnBatches_n;
+    batched_SetPrimary;
+    batched_forgetPrimary;
+  }
+
+  subgraph cluster_firstIsPrimay {
+    graph[label="1. if firstIsPrimay and \l((ActionIsCommit and !c.isAsyncCommit) \l or actionIsCleanup  or actionIsPessimiticLock)\l";fontsize=14;style="rounded,dashed";color="slategrey"]
+    doActionOnBatches_primaryBatch;
+    doActionOnBatches_primaryBatch[style_func;label="{{
+      doActionOnBatches(...,primaryBatch)|
+      先提交primary Batch\l
+    }}"]
+    batched_SetPrimary -> firstIsPrimary -> doActionOnBatches_primaryBatch[style_edge_data];
+    batched_forgetPrimary[style_func;label="{{
+      batched::forgetPrimary
+    }}"]
+    batched_SetPrimary[style_func;label="{{
+      batched::SetPrimary|
+      if the baches include the primary key\l
+      put it to the first\l
+    }}"]
+    firstIsPrimary -> batched_forgetPrimary[style_edge_data];
+  }
+  subgraph cluster_ActionIsCommit {
+    graph[label="2. if actionIsCommit and\l !actionCommit.retry\l and !isAsyncCommit";fontsize=14;style="rounded,dashed";color="slategrey"]
+    doActionOnBatches_go[style_func;label="{{
+      新启一个go routine\l
+      调用doActionOnBatches\l
+      异步的提交事务\l
+      调用者不用等.\l
+    }}"]
+    doActionOnBatches_go
+  }
+
+  {rank=same; doActionOnBatches_go;doActionOnBatches_n;doActionOnBatches_primaryBatch};
+  doActionOnBatches_n[style_func;label="{{
+    3. doActionOnBatches\l
+    处理2的else\l
+  }}"]
+  newBatched -> appendBatchMutationsBySize -> batched_SetPrimary[style_edge_data];
+  appendBatchMutationsBySize -> doActionOnBatches_go[style_edge_data];
+
+  primary -> newBatched[style_edge_data];
+  primary[style_func;label="{{
+    primary|
+    如果primayKey为空\l
+    则选择第一个key为primary key\l
+  }}"]
+  
+  appendBatchMutationsBySize -> txnCommitBatchSize;
+  appendBatchMutationsBySize[style_func;label="{{
+    appendBatchMutationsBySize|
+    将mutations 根据\l 
+    size limit 分批\l
+  }}"]
+  txnCommitBatchSize[style_var;label="{{
+    txnCommitBatchSize|
+    TikV推荐RPC大小\< 1MB\l
+    key + value size below 16KB\l
+  }}"]
+}

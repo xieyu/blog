@@ -1,13 +1,12 @@
 # TiDB txn
 
-> * TiDB的修改会先保存在MemDB中, 在两阶段提交中会batch的提交这些修改。
+> * TiDB的修改会先保存在MemDB中, 在2PC中会batch,并发的提交这些修改。
+> * TiDB在prewrite/commit时，会先对mutation根据region做分组，然后每个分组分批，并发的发送给TiKV
+> * TiDB在Pecolator基础上增加了AsyncCommit和OnePC提交。
 > * commit/prewrite/resolvelock等都需要处理regionError
 
 <!-- toc -->
-
-## CommitterMutations
-
-基本数据流程如下：
+## 数据流程
 
 KVTxn的write操作(Set, Delete)  会现将操作
 保存在MemDB中。然后在`KVTxn::Commit`时
@@ -23,16 +22,15 @@ KVTxn的write操作(Set, Delete)  会现将操作
 
 ![](./dot/batch_mutation.svg)
 
-数据结构引用关系如下:
+## 事务提交协议
 
-![](./dot/commiter_mutations.svg)
+### startTS
 
-### KeyFlags
+在执行start transaction时，会去TimmStamp Oracle服务获取时间戳，作为事务的startTS,
+startTs会保存在TransactionContext中
+startTS 是单调递增的，这样startT标识事务, 也可以用来表示事务之间的先后关系。
 
-### MemDB
-
-
-## 事务提交协议：twoPhaseCommitter::execute
+![](./dot/txn_startTS.svg)
 
 ### NormalCommit
 
@@ -163,33 +161,15 @@ func (action actionPrewrite) handleSingleBatch(c *twoPhaseCommitter, bo *Backoff
         }
 ```
 
-#### txn recovery
 
-asycn commit txn 的恢复
-如果TiDB在async commit 返回给client成功，
-但是后台async commit primay key
-都失败了，这时候该recovery txn呢？
+#### TiKV端计算min_commit_ts
 
-1. 获取primay key 的txn status
-2. checkAllSecondaries
-3. 是否有key没有被lock(addKeys), 没有则说明需要rollback ?
-4. resolve lock
-
-missingLock 可能是被rollback了，或者被commit了。有Tikv自己处理
-
-![](./dot/tidb_async_commit_recovery.svg)
-
-#### TiKV端处理AsyncCommit
+每次TiDB的prewrite请求，TiKV都会返回一个minCommitTS, minCommitTS流程如下
 
 ![](./dot/tikv_async_commit_min_commit_ts.svg)
 
 
-
-##### 计算min_commit_ts
-
-> TiDB 的每一次快照读都会更新 TiKV 上的 Max TS。Prewrite 时，Min Commit TS 会被要求至少比当前的 Max TS 大，也就是比所有先前的快照读的时间戳大，所以可以取 Max TS + 1 作为 Min Commit TS
-
-这个地方为什么要lock_key ?
+关键函数在`async_commit_timestamps`， 这个地方为什么要lock_key ?
 
 ```rust
 // The final_min_commit_ts will be calculated if either async commit or 1PC is enabled.
@@ -215,29 +195,22 @@ fn async_commit_timestamps(/*...*/) -> Result<TimeStamp> {
 }
 ```
 
-##### max_ts更新
+> TiDB 的每一次快照读都会更新 TiKV 上的 Max TS。Prewrite 时，Min Commit TS 会被要求至少比当前的 Max TS 大，也就是比所有先前的快照读的时间戳大，所以可以取 Max TS + 1 作为 Min Commit TS
 
-TiKV的每次读操作，都会更新max_ts
+每次读操作，都会更新`concurrency_manager.max_ts`
 
 ![](./dot/update_max_ts.svg)
 
-值得注意的是replica read index 这块也会更新max_ts
+值得注意的是replica read 也会更新max_ts。replica reader 在read之前会发readIndex消息给leader（
+TODO:不确定是否是这样）
 
-replica reader 在read之前会发readIndex消息给leader吗？
-
-follower reader在发送ReadIndex 请求给leader 会附带上start_ts,
-然后leader在处理reader index消息时，会回调`ReplicaReadLockChecker::on_step`
-
-在该函数中更新concurrency_manager的max_ts。
+发送ReadIndex 请求会附带上事务的start_ts, leader在处理reader index消息时，
+会回调`ReplicaReadLockChecker::on_step` 更新`concurrency_manager.max_ts`。
 
 ![](./dot/replica_reader_max_ts.svg)
 
-check memory locks in replica read #8926
+相关commit见[check memory locks in replica read #8926]
 
-addition_request
-locked
-ReadIndexContext
-ReplicaReadLockChecker
 
 ### OnePC(一阶段提交)
 
@@ -266,39 +239,140 @@ func (c *twoPhaseCommitter) checkOnePCFallBack(action twoPhaseCommitAction, batc
 
 ![](./dot/tikv_one_pc.svg)
 
-## doActionOnMutations
+## 事务Recovery
+
+Pecolator的coordinator在完成commit或者rollback之前crash了，
+事务遗留的Lock，由后续事务的在处理lock冲突时，resolve lock.
+将事务的lock提交了或者rollback。
+
+写冲突时候，先检查lock的ttl，如果lock已经查超时了, 则会调用`getTxnStatus`，获取事务状态。
+
+
+NormalCommit可以根据Primay key状态来确定整个事务的状态和commitTs(commitTs=0，表示
+loc需要被rollback)
+
+AsyncCommit则需要扫描所有的keys来确定事务的状态和minCommitTS.
+如果所有的Key的lock都exsit，那么事务的commitTs 应该为所有key lock
+的minCommitTS的最大值。
+
+
+### resolveLocksForWrite
+
+先调用`getTxnStatus`获取primary lock状态，然后和当前write事务冲突的secondary key做`commit`或者`rollback`.
+
+![](./dot/resolveLocksForWrite.svg)
+
+
+### resolveLockAsync
+
+
+![](./dot/tidb_async_commit_recovery.svg)
+
+```go
+// addKeys adds the keys from locks to data, keeping other fields up to date. startTS and commitTS are for the
+// transaction being resolved.
+//
+// In the async commit protocol when checking locks, we send a list of keys to check and get back a list of locks. There
+// will be a lock for every key which is locked. If there are fewer locks than keys, then a lock is missing because it
+// has been committed, rolled back, or was never locked.
+//
+// In this function, locks is the list of locks, and expected is the number of keys. asyncResolveData.missingLock will be
+// set to true if the lengths don't match. If the lengths do match, then the locks are added to asyncResolveData.locks
+// and will need to be resolved by the caller.
+func (data *asyncResolveData) addKeys(locks []*kvrpcpb.LockInfo, expected int, startTS uint64, commitTS uint64) error {
+  //...
+	// Check locks to see if any have been committed or rolled back.
+	if len(locks) < expected {
+		// A lock is missing - the transaction must either have been rolled back or committed.
+		if !data.missingLock {
+			// commitTS == 0 => lock has been rolled back.
+			if commitTS != 0 && commitTS < data.commitTs {
+				return errors.Errorf("commit TS must be greater or equal to min commit TS: commit ts: %v, min commit ts: %v", commitTS, data.commitTs)
+			}
+			data.commitTs = commitTS
+		}
+		data.missingLock = true
+
+		if data.commitTs != commitTS {
+			return errors.Errorf("commit TS mismatch in async commit recovery: %v and %v", data.commitTs, commitTS)
+		}
+    //...
+```
+
+
+
+![](./dot/resolveLocksForWriteAsyncCommit.svg)
+
+### resolveRegionLocks
+ resolveRegionLocks is essentially the same as resolveLock, but we resolve all keys in the same region at the same time.
+
+![](./dot/resolve_region_locks.svg)
+
+
+
+
+## 批量提交
+
+TiDB 提交事务时，会先将mutation按照key的region做分组，
+然 每个分组会分批并发的提交。
+
+doActionOnBatches 这个对primaryBatch的commit操作做了特殊处理。
 
 ![](./dot/doActionOnMuations.svg)
 
-## actionPrewrite::handleSingleBatch
+### groupMutations: 按照region分组
+
+先对mutations做分组，如果某个region的mutations 太多。
+则会先对那个region先做个split, 这样避免对单个region
+too much write workload.
+
+![](./dot/tidb_groupmutations.svg)
+
+### doActionOnGroupMutations: 分批
+
+![](./dot/tidb_doActionOnGroupMutations.svg)
+
+### batchExecutor: 并发的处理batches
+
+![](./dot/tidb_doActionOnBatches.svg)
+
+
+
+## 参考文献
+
+1. [TiDB 悲观锁实现原理](https://asktug.com/t/topic/33550)
+2. [async commit design spec](https://github.com/tikv/sig-transaction/blob/master/design/async-commit/spec.md)
+3. [async commit and replica read](https://tikv.github.io/sig-transaction/design/async-commit/replica-read.html)
+4. [support checking memory locks at read index](https://github.com/pingcap/kvproto/pull/665)
+
+[async-commit]: https://pingcap.com/blog-cn/async-commit-principle/
+
+
+# draft
+
+## CommitterMutations
+
+数据结构引用关系如下:
+
+![](./dot/commiter_mutations.svg)
+
+### KeyFlags
+
+### MemDB
+
+
+## twoPhaseCommitAction
+
+
+### actionPrewrite
 
 tries to send a signle request to as single region.
 
 ![](./dot/actionPrewrite_handleSingleBatch.svg)
 
 
-### resolveLocksForWrite
 
-
-先getTxnSta获取primary lock状态，然后和当前write事务冲突的secondary key做`commit`或者`rollback`.
-
-![](./dot/resolveLocksForWrite.svg)
-
-
-#### resolveLockAsync
-
-由于Async commit的 primay lock中保留了Secondaries locks列表，
-所以这块可一次性的把这个lock的所有secondary lock都resolve掉。
-
-![](./dot/resolveLocksForWriteAsyncCommit.svg)
-
-#### resolveRegionLocks
- resolveRegionLocks is essentially the same as resolveLock, but we resolve all keys in the same region at the same time.
-
-![](./dot/resolve_region_locks.svg)
-
-
-## actionCommit::handleSingleBatch
+### actionCommit
 
 TiDB中提交primay key 然后就返回，其他的seconaries keys
 异步提交的，这个过程体现在哪里？
@@ -314,7 +388,7 @@ TiDB中提交primay key 然后就返回，其他的seconaries keys
 
 ![](./dot/actionCommit_handleSingleBatch.svg)
 
-## Pessimestic Lock(悲观锁)
+## 悲观事务
 
 ### 悲观事务步骤:
 
@@ -404,28 +478,10 @@ TODO: 没找到insert/delete/update这块的lock代码
         // transaction should retry to get the latest data.
 ```
 
-## 参考文献
-
-1. [TiDB 悲观锁实现原理](https://asktug.com/t/topic/33550)
-2. [async commit design spec](https://github.com/tikv/sig-transaction/blob/master/design/async-commit/spec.md)
-3. [async commit and replica read](https://tikv.github.io/sig-transaction/design/async-commit/replica-read.html)
-4. [support checking memory locks at read index](https://github.com/pingcap/kvproto/pull/665)
-
-[async-commit]: https://pingcap.com/blog-cn/async-commit-principle/
-
-
-# draft
-
 ![](./dot/tidb_txn.svg)
 
 ## Timestamp
 
-### startTs
-
-在执行start transaction时，会去Oracle服务获取时间戳，作为事务的startTS,
-startTs会保存在TransactionContext中
-
-![](./dot/txn_startTS.svg)
 
 ### forUpdateTS
 

@@ -1,0 +1,71 @@
+#include "styles.h"
+digraph doActionOnBatches {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  doActionOnBatches -> {
+     handleSignleBatch;
+     newBatchExecutor;
+     process;
+     CommitterConcurrency;
+  }
+
+  subgraph cluster_batchExecutor {
+    graph[label="batchExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+      
+    process -> {
+      startWorker;
+      wait_ch;
+    }
+    startWorker -> {
+       rateLimiter_GetToken;
+       go_func;
+    }
+    startWorker -> wait_ch[style_edge_data];
+    rateLimiter_GetToken[style_func;label="{{
+      rateLimiter_GetToken|
+      使用rateLimiter token方式\l
+      做并发控制\l
+    }}"]
+    go_func[style_func;label="{{
+      go func \{...\}\l|
+      启动一个新的go routine\l
+      发送batches\l
+      go routine跑完后\l 
+      调用PutToken归还token\l
+    }}"]
+
+    go_func -> {
+      rateLimiter_PutToken;
+      action_handleSingleBatch;
+    }
+    subgraph cluster_RateLimiter {
+      graph[label="RateLimiter";fontsize=20;style="rounded,dashed";color="slategrey"]
+      rateLimiter_PutToken[style_func;label="{{
+        rateLimiter::PutToken|
+        go routin归还token
+      }}"]
+      rateLimiter_GetToken[style_func;label="{{
+        rateLimiter::GetToken|
+        block一直等到有token\l
+      }}"]
+      rateLimiter;
+    }
+
+    wait_ch[style_func;label="{{
+      wait ch|
+      等待baches处理完\l
+    }}"]
+    newBatchExecutor;
+  }
+  CommitterConcurrency -> rateLimiter -> {
+    rateLimiter_GetToken;
+    rateLimiter_PutToken;
+  }
+  CommitterConcurrency[style_func;label="{{
+    CommitterConcurrency|
+    控制rateLimiter
+  }}"]
+}

@@ -35,8 +35,8 @@ digraph async_commit_recovery {
     注意这块对missingLock的处理\l
   }}"]
 
-  resolveLock[style_func;label="{{
-    3.resolveLock|
+  resolveRegionLocksLock[style_func;label="{{
+    3.resolveRegionLocks
   }}"]
 
   subgraph cluster_TiKV {
