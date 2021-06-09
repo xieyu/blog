@@ -1,0 +1,32 @@
+#include "styles.h"
+digraph wait_pessimistic_lock {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  AcquirePessimisticLock_process_write -> {
+     acquire_pessimistic_lock;
+     extract_lock_from_result;
+     lock_info;
+     wait_timeout;
+  }
+  extract_lock_from_result -> lock_info;
+  Scheduler_process_by_worker -> Scheduler_process_write;
+  Scheduler_process_write -> {
+     Cmd_process_write;
+     Scheduler_on_wait_for_lock;
+  }
+  Scheduler_on_wait_for_lock -> {
+     LockManager_wait_for;
+     Scheduler_release_lock;
+  }
+  LockManager_wait_for[style_func;label="{{
+    LockManager_wait_for|
+    transaction with start_ts \l
+    wait for lock release\l
+  }}"]
+  Cmd_process_write -> AcquirePessimisticLock_process_write;
+
+
+}

@@ -8,19 +8,23 @@
 <!-- toc -->
 ## 数据流程
 
-KVTxn的write操作(Set, Delete)  会现将操作
-保存在MemDB中。然后在`KVTxn::Commit`时
-创建`twoPhaseCommitter`, 并调用`twoPhaseCommitter::initKeysAndMutations`
+TiDB中乐观事务提交流程如下(摘自[TiDB 新特性漫谈：悲观事务][6]):
+
+![](./dot/Optimistic_pecolator.png)
+
+首先Begin 操作会去TSO服务获取一个timestamp，作为事务的`startTS`.
+
+DML阶段先KVTxn将写(Set, Delete)操作保存在MemDB中。
+
+Commit阶段 在`KVTxn::Commit`时创建`twoPhaseCommitter`, 并调用它的`initKeysAndMutations`
 遍历`MemDB`, 初始化`memBufferMutations`.
 
 在`twoPhaseCommitter::execute`中，首先对`memBufferMutations`先按照region做分组，
-, 分为groupMutations, 其次每个分组内，按照size limit，分成batchMutations。
-
-最后调用不同action的`handleSingleBatch`, 发送对应的cmd
-到TiKV。
-
+然后每个分组内，按照size limit分批。最后每批mutations,调用对应的action
+的`handleSignleBatch`，发送相应命令到TiKV.
 
 ![](./dot/batch_mutation.svg)
+
 
 ## 事务提交协议
 
@@ -34,11 +38,12 @@ startTS 是单调递增的，这样startT标识事务, 也可以用来表示事�
 
 ### NormalCommit
 
-像pecolator论文中描述的协议一样，
-1. 先Prewrite，TiDB中可以并发的prewrite.
+像pecolator论文中描述的协议一样，两阶段提交步骤如下：
+
+1. 先Prewrite，和论文中按顺序prewrite，不同的是，TiDB中可以并发的prewrite。
 2. 去TSO 服务获取commit ts， 
-3. commit primary key, 提交完primary key后，就可以返回给client事提交成功了。
-4. 其他的secondaries keys 异步提交。
+3. commit primary key, 提交完primary key后，就可以返回给client，事务提交成功了。
+4. 其它剩下的keys由go routine在后台异步提交。
 
 下图摘自[Async Commit 原理介绍][async-commit]
 
@@ -50,11 +55,18 @@ startTS 是单调递增的，这样startT标识事务, 也可以用来表示事�
 ![](./dot/twoPhaseCommitter_execute.svg)
 
 
-在`doActionOnGroupMutations`中，先执行primary Batch的，这样保证primaryBatch会被先commit.
+在`doActionOnGroupMutations`中，先对每个group的进行分批，
+然后对于actionCommit，先提交primary key 所在的batch
+其它的key由go routine在后台异步提交。
 
 ```go
 func (c *twoPhaseCommitter) doActionOnGroupMutations(bo *Backoffer, action twoPhaseCommitAction, groups []groupedMutations) error {
-//...
+  // 1.每个分组内的再分批
+	for _, group := range groups {
+		batchBuilder.appendBatchMutationsBySize(group.region, group.mutations, sizeFunc, txnCommitBatchSize)
+  }
+
+  //2.commit先同步的提交primary key所在的batch
 	if firstIsPrimary &&
 		((actionIsCommit && !c.isAsyncCommit()) || actionIsCleanup || actionIsPessimiticLock) {
 		// primary should be committed(not async commit)/cleanup/pessimistically locked first
@@ -62,41 +74,32 @@ func (c *twoPhaseCommitter) doActionOnGroupMutations(bo *Backoffer, action twoPh
     //...
 		batchBuilder.forgetPrimary()
 	}
+  //...
+
+  //3. 其它的key由go routine后台异步的提交
+	// Already spawned a goroutine for async commit transaction.
+	if actionIsCommit && !actionCommit.retry && !c.isAsyncCommit() {
+    //..
+		go func() {
+      //其它的action异步提交
+			e := c.doActionOnBatches(secondaryBo, action, batchBuilder.allBatches())
+    }
+  }else {
+		err = c.doActionOnBatches(bo, action, batchBuilder.allBatches())
+  }
 //...
 ```
 
-然后在`doActionOnBatches`决定是否`noNeedFork`，
-对于primay Batch会直接,同步的调用`handleSignleBatch`
-其他的则由batchExecutor异步并发的执行。
+#### Prewrite
 
-```go
-// doActionOnBatches does action to batches in parallel.
-func (c *twoPhaseCommitter) doActionOnBatches(bo *Backoffer, action twoPhaseCommitAction, batches []batchMutations) error {
-	if len(batches) == 0 {
-		return nil
-	}
+tries to send a signle request to as single region.
 
-  //直接调用handleSignleBatch
-	noNeedFork := len(batches) == 1
-	if !noNeedFork {
-		if ac, ok := action.(actionCommit); ok && ac.retry {
-			noNeedFork = true
-		}
-	}
-	if noNeedFork {
-		for _, b := range batches {
-			e := action.handleSingleBatch(c, bo, b)
-      /...
-    }
-    return nil
-  }
+![](./dot/actionPrewrite_handleSingleBatch.svg)
 
-  //由batchExecutor并发的执行
-	batchExecutor := newBatchExecutor(rateLim, c, action, bo)
-	err := batchExecutor.process(batches)
-	return errors.Trace(err)
-}
-```
+#### Commit
+
+![](./dot/actionCommit_handleSingleBatch.svg)
+
 
 
 ### AsyncCommit
@@ -239,7 +242,91 @@ func (c *twoPhaseCommitter) checkOnePCFallBack(action twoPhaseCommitAction, batc
 
 ![](./dot/tikv_one_pc.svg)
 
-## 事务Recovery
+## Wait Lock
+
+Lock冲突事后，TiKV会将lock, StorageCallback, ProcessResult等打包成waiter.
+放入等待队列中，等lock释放了，或者timeout了，再调用callback(ProcessResult)
+回调通知client ProcessResult.  相当于延迟等待一段时间，避免client 无效的重试
+
+![](./dot/wait_for_lock.svg)
+
+
+lock和cb还有ProcessResult会被打包成waiter, cb调用会触发向client返回结果吗？
+
+```rust
+/// If a pessimistic transaction meets a lock, it will wait for the lock
+/// released in `WaiterManager`.
+///
+/// `Waiter` contains the context of the pessimistic transaction. Each `Waiter`
+/// has a timeout. Transaction will be notified when the lock is released
+/// or the corresponding waiter times out.
+pub(crate) struct Waiter {
+    pub(crate) start_ts: TimeStamp,
+    pub(crate) cb: StorageCallback,
+    /// The result of `Command::AcquirePessimisticLock`.
+    ///
+    /// It contains a `KeyIsLocked` error at the beginning. It will be changed
+    /// to `WriteConflict` error if the lock is released or `Deadlock` error if
+    /// it causes deadlock.
+    pub(crate) pr: ProcessResult,
+    pub(crate) lock: Lock,
+    delay: Delay,
+    _lifetime_timer: HistogramTimer,
+}
+```
+
+
+### 加入等待队列
+
+
+将请求放入等待队列中，直到lock被cleanup了，调用StorageCallback, cb中返回WriteConflict错误给
+client 让client重试。
+
+在放入前还会将wait lock信息放入dead lock scheduler, 检测死锁.
+
+![](./dot/lock_manager_wait_for.svg)
+
+WaitManager 从channel中去取task, 放入lock的等待队列中。
+并加个timeout, 等待超时了会调用cb。并从dead lock scheduler中去掉wait lock。
+
+![](./dot/wait_manager_handle_wait_for.svg)
+
+### WakeUp
+
+lock被释放后, LockaManager::wake_up 唤醒等待该lock的waiter.
+
+TODO: 需要对lock.hash做一些说明。
+TODO: task的回调机制需要整理下。
+
+![](./dot/lock_manager_wake_up.svg)
+
+LockManager::Wakeup
+
+![](./dot/lock_manager_wake_up2.svg)
+
+WaiterManager::handle_wake_up
+
+![](./dot/wait_manager_handle_wake_up.svg)
+
+### 死锁检测
+
+在事务被加到lock的等待队列之前，会做一发一个rpc请求, 到deadlock detector服务做deadlock检测。
+
+
+TiKV 会动态选举出一个 TiKV node 负责死锁检测。
+
+(下图摘自[TiDB 新特性漫谈：悲观事务][6]):
+
+![](./dot/dead_lock_detect.png)
+
+死锁检测逻辑如下(摘自[TiDB 悲观锁实现原理][1])
+
+1. 维护全局的 wait-for-graph，该图保证无环。
+2. 每个请求会尝试在图中加一条 `txn -> wait_for_txn` 的 edge，若新加的导致有环则发生了死锁。
+3. 因为需要发 RPC，所以死锁时失败的事务无法确定。
+
+
+## 事务冲突和Recovery
 
 Pecolator的coordinator在完成commit或者rollback之前crash了，
 事务遗留的Lock，由后续事务的在处理lock冲突时，resolve lock.
@@ -264,6 +351,11 @@ AsyncCommit则需要扫描所有的keys来确定事务的状态和minCommitTS.
 
 
 ### resolveLockAsync
+
+在`addKeys`中，会根据lock的minCommitTS，更新事务的commitTS.
+如果lock个数比key的个数少，说明有的key的lock已经被commit或者rollback了,
+则会用返回的commitTS作为事务的commitTS 
+(如果被rollback了，TiKV返回的CommitTs为0).
 
 
 ![](./dot/tidb_async_commit_recovery.svg)
@@ -330,67 +422,36 @@ too much write workload.
 
 ### doActionOnGroupMutations: 分批
 
+doActionOnGroupMutations 会对每个group的mutations 做进一步的分批处理。
+对于actionCommit做了特殊处理，如果是NormalCommit, primay Batch要先提交，
+然后其他的batch可以新起一个go routine在后台异步提交。
+
 ![](./dot/tidb_doActionOnGroupMutations.svg)
 
 ### batchExecutor: 并发的处理batches
 
+`batchExecutor::process` 每个batch会启动一个go routine来并发的处理,
+并通过channel等待batch的处理结果。当所有batch处理完了，再返回给调用者。
+
+其中会使用令牌做并发控制, 启动goroutine前先去获取token, goroutine运行
+完毕，归还token。
+
 ![](./dot/tidb_doActionOnBatches.svg)
 
 
-
-## 参考文献
-
-1. [TiDB 悲观锁实现原理](https://asktug.com/t/topic/33550)
-2. [async commit design spec](https://github.com/tikv/sig-transaction/blob/master/design/async-commit/spec.md)
-3. [async commit and replica read](https://tikv.github.io/sig-transaction/design/async-commit/replica-read.html)
-4. [support checking memory locks at read index](https://github.com/pingcap/kvproto/pull/665)
-
-[async-commit]: https://pingcap.com/blog-cn/async-commit-principle/
-
-
-# draft
-
-## CommitterMutations
-
-数据结构引用关系如下:
-
-![](./dot/commiter_mutations.svg)
-
-### KeyFlags
-
-### MemDB
-
-
-## twoPhaseCommitAction
-
-
-### actionPrewrite
-
-tries to send a signle request to as single region.
-
-![](./dot/actionPrewrite_handleSingleBatch.svg)
-
-
-
-### actionCommit
-
-TiDB中提交primay key 然后就返回，其他的seconaries keys
-异步提交的，这个过程体现在哪里？
-
-在`doActionOnMutations`中，会做检查，NoNeedFork就会以同步的方式提交查询。
-
-```go
-  actionCommit::handleSingleBatch
-	// Group that contains primary key is always the first.
-	// We mark transaction's status committed when we receive the first success response.
-	c.mu.committed = true
-```
-
-![](./dot/actionCommit_handleSingleBatch.svg)
-
 ## 悲观事务
 
-### 悲观事务步骤:
+悲观事务将上锁时机从prewrite阶段提前到进行DML阶段,如下图所示(摘自[TiDB 新特性漫谈：悲观事务][6])
+
+![](./dot/Pessimisitc_Pecolator.png)
+
+实现细节如下图所示(摘自[TiDB 悲观锁实现原理][1])
+
+![](./dot/pessimistic_lock_detail.jpeg)
+
+在DML阶段，多了获取从TSO服务for_update_ts和获取悲观锁步骤。
+
+具体步骤如下：(摘自[TiDB 悲观锁实现原理][1])
 
 1. 从 PD 获取当前 tso 作为当前锁的 for_update_ts
 2. TiDB 将写入信息写入 TiDB 的内存中（与乐观锁相同）
@@ -400,69 +461,106 @@ TiDB中提交primay key 然后就返回，其他的seconaries keys
 6. 如果遇到 Write Conflict， 重新回到步骤 1 直到加锁成功。
 7. 如果超时或其他异常，返回客户端异常信息
 
-LockCtx
 
-for_update_ts是什么？表示tidb的写入ts? 用来做冲突检测的？
+### forUpdateTS
 
+ForUpdateTS 存放在SessionVar的TransactionContext中。
+然后放到twoPhaseCommitter中，最后在actionIsPessimiticLock
+向TiK发送请求时，放到PessimisticRequest请求参数中,发给TiKV.
 
-![](./dot/tidb_pessimisticlock.svg)
-
-### 加锁规则
-
-* 插入（ Insert）
-如果存在唯一索引，对应唯一索引所在 Key 加锁
-如果表的主键不是自增 ID，跟索引一样处理，加锁。
-* 删除（Delete）
-RowID 加锁
-* 更新 (update)
-对旧数据的 RowID 加锁
-如果用户更新了 RowID, 加锁新的 RowID
-对更新后数据的唯一索引都加锁
+![](./dot/for_update_ts_var.svg)
 
 
-### LockKeys
-
-KeyFlags
+在buildDelete, buildInsert, buildUpdate, buildSelectLock
+时会去TSO服务获取最新的ts作为ForUpdateTS.
 
 ```go
-	flagPresumeKNE KeyFlags = 1 << iota
-	flagKeyLocked
-	flagNeedLocked
-	flagKeyLockedValExist
-	flagNeedCheckExists
-	flagPrewriteOnly
-	flagIgnoredIn2PC
-	persistentFlags = flagKeyLocked | flagKeyLockedValExist
+// UpdateForUpdateTS updates the ForUpdateTS, if newForUpdateTS is 0, it obtain a new TS from PD.
+func UpdateForUpdateTS(seCtx sessionctx.Context, newForUpdateTS uint64) error {
 ```
 
+![](./dot/for_update_ts.svg)
+
+### 悲观锁: LockKeys
+
+悲观锁不包含数据，只有锁，只用于防止其他事务修改相同的 Key，不会阻塞读，但 Prewrite 后会阻塞读（和 Percolator 相同，但有了大事务支持后将不会阻塞 
+(摘自[TiDB in Action, 6.2 悲观事务][3])
+
+调用流程类似于上面的，也是先对mutation按照region分组，然后每个组内分批。
 
 ![](./dot/KvTxn_LockKeys.svg)
 
-TiKV端获取Pessimistic处理方法:
+### PessimisticLock
+这个地方有LockWaitTime
+
+![](./dot/tidb_actionPessimisticLock_handleSingleBatch.svg)
+
+### PessimisticLockRollback
+
+
+### TiKV处理PessimisticLock
+
+TiKV端获取Pessimistic处理方法(摘自[TiDB 悲观锁实现原理][1])
 
 * 检查 TiKV 中锁情况，如果发现有锁
-  * 不是当前同一事务的锁，返回 KeyIsLocked Error
-  * 锁的类型不是悲观锁，返回锁类型不匹配（意味该请求已经超时）
-  * 如果发现 TiKV 里锁的 for_update_ts 小于当前请求的 for_update_ts(同一个事务重复更新)， 使用当前请求的 for_update_ts 更新该锁
-  * 其他情况，为重复请求，直接返回成功
+  1. 不是当前同一事务的锁，返回 KeyIsLocked Error
+  2. 锁的类型不是悲观锁，返回锁类型不匹配（意味该请求已经超时）
+  3. 如果发现 TiKV 里锁的 for_update_ts 小于当前请求的 for_update_ts(同一个事务重复更新)， 使用当前请求的 for_update_ts 更新该锁
+  4. 其他情况，为重复请求，直接返回成功
 * 检查是否存在更新的写入版本，如果有写入记录
-  * 若已提交的 commit_ts 比当前的 for_update_ts 更新，说明存在冲突，返回 WriteConflict Error
-  * 如果已提交的数据是当前事务的 Rollback 记录，返回 PessimisticLockRollbacked 错误
-  * 若已提交的 commit_ts 比当前事务的 start_ts 更新，说明在当前事务 begin 后有其他事务提交过
-  * 检查历史版本，如果发现当前请求的事务有没有被 Rollback 过，返回 PessimisticLockRollbacked 错误
+  1. 若已提交的 commit_ts 比当前的 for_update_ts 更新，说明存在冲突，返回 WriteConflict Error
+  2. 如果已提交的数据是当前事务的 Rollback 记录，返回 PessimisticLockRollbacked 错误
+  3. 若已提交的 commit_ts 比当前事务的 start_ts 更新，说明在当前事务 begin 后有其他事务提交过
+  4. 检查历史版本，如果发现当前请求的事务有没有被 Rollback 过，返回 PessimisticLockRollbacked 错误
 
 ![](./dot/acquire_pessimistic_lock.svg)
 
+### 加锁规则
 
-#### caller of lock keys
+TiDB中加锁规则如下(摘自[TiDB 悲观锁实现原理][1])
+
+* 插入（ Insert）
+  * 如果存在唯一索引，对应唯一索引所在 Key 加锁
+  * 如果表的主键不是自增 ID，跟索引一样处理，加锁。
+* 删除（Delete）
+  * RowID 加锁
+* 更新 (update)
+  * 对旧数据的 RowID 加锁
+  * 如果用户更新了 RowID, 加锁新的 RowID
+  * 对更新后数据的唯一索引都加锁
 
 TODO: 没找到insert/delete/update这块的lock代码
-
 ![](./dot/tidb_tikv_lock_keys_caller.svg)
 
-## cleanup
 
-![](./dot/tidb_txn_cleanup.svg)
+## CommitterMutations
+
+数据结构引用关系如下:
+
+![](./dot/commiter_mutations.svg)
+
+
+## 参考文献
+
+[TiDB 悲观锁实现原理](https://asktug.com/t/topic/33550)
+2. [async commit design spec](https://github.com/tikv/sig-transaction/blob/master/design/async-commit/spec.md)
+3. [async commit and replica read](https://tikv.github.io/sig-transaction/design/async-commit/replica-read.html)
+4. [support checking memory locks at read index](https://github.com/pingcap/kvproto/pull/665)
+
+[1]: https://asktug.com/t/topic/33550
+[async-commit]: https://pingcap.com/blog-cn/async-commit-principle/
+[3]: https://book.tidb.io/session1/chapter6/pessimistic-txn.html
+[6]: https://pingcap.com/blog-cn/pessimistic-transaction-the-new-features-of-tidb/
+
+
+# draft
+
+
+### KeyFlags
+
+### MemDB
+
+
 
 ## Questions:
 
@@ -481,21 +579,6 @@ TODO: 没找到insert/delete/update这块的lock代码
 ![](./dot/tidb_txn.svg)
 
 ## Timestamp
-
-
-### forUpdateTS
-
-forUpdateTS 是每个write的sql stmt都会更一次吗？
-
-TODO: 解释ForUpdateTS的作用，是什么时候更新的.
-UpdateForUpdateTS
-
-```go
-// UpdateForUpdateTS updates the ForUpdateTS, if newForUpdateTS is 0, it obtain a new TS from PD.
-func UpdateForUpdateTS(seCtx sessionctx.Context, newForUpdateTS uint64) error {
-```
-
-![](./dot/for_update_ts.svg)
 
 ### commitTS
 
@@ -555,4 +638,32 @@ Tikv 在async_commit_timestamps 中会检查min_commit_ts和max_commit_ts
 
 
 ### onePCCommitTS
+
+## cleanup
+
+事务回滚？
+
+![](./dot/tidb_txn_cleanup.svg)
+
+finishStmt
+
+## SimpleExec
+
+![](./dot/SimpleExec.svg)
+### 获取悲观锁: LockKeys
+
+![](./dot/tidb_pessimisticlock.svg)
+
+KeyFlags
+
+```go
+	flagPresumeKNE KeyFlags = 1 << iota
+	flagKeyLocked
+	flagNeedLocked
+	flagKeyLockedValExist
+	flagNeedCheckExists
+	flagPrewriteOnly
+	flagIgnoredIn2PC
+	persistentFlags = flagKeyLocked | flagKeyLockedValExist
+```
 

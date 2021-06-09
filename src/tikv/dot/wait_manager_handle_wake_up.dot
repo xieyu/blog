@@ -1,0 +1,103 @@
+#include "styles.h"
+digraph handle_wake_up {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_WaitTable {
+    graph[label="WaitTable";fontsize=20;style="rounded,dashed";color="slategrey"]
+    remove_oldest_waiter;
+  }
+  subgraph cluster_Waiter {
+    graph[label="Waiter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    conflict_with;
+    notify;
+    remove;
+    notify -> {
+       cb_execute;
+       delay_cancel;
+    }
+    notify[style_func;label="{{
+      notify|
+        1.取消delay timeout\l
+        2.调用回调\l
+    }}"]
+    conflict_with[style_func;label="{{
+      conflict_with|
+      Changes the ProcessResult\l
+      to WriteConflict\l
+    }}"]
+    WriteConflict -> cb_execute[style_edge_data];
+    cb_execute[style_func;label="{{
+      cb.execute(self.pr)|
+      pr为WriteConflict error\l
+    }}"]
+    conflict_with -> {
+      extract_key_info;
+      WriteConflict;
+    }
+    extract_key_info -> WriteConflict[style_edge_data];
+  }
+  WaiterManager_run[style_func;label="{{
+    WaiterManager\l|
+    run\l
+  }}"]
+  WaiterManager_handle_wake_up[style_func;label="{{
+    WaiterManager\l|
+    handle_wake_up\l
+  }}"]
+  remove_oldest_waiter[style_func;label="{{
+    remove_oldest_waiter|
+    将waiters分为smallest start ts\l
+    和others的\l
+  }}"]
+  remove_oldest_waiter -> {old;others}
+  old -> {
+    conflict_with;
+    notify;
+  }[style_edge_data];
+  remove[style_func;label="{{
+    remove|
+    如果others为空\l
+    删掉wait_table中的lock
+  }}"]
+  old[style_var;label="{{
+    old\l|
+    有最小start_ts的事务\l
+  }}"]
+  others[style_var;label="{{
+    others\l|
+    等待队里中的其他事务\l
+  }}"]
+  others -> {remove;reset_timeout;conflict_with}[style_edge_data];
+  reset_timeout[style_func;label="{{
+    reset_timeout|
+    重置其他事务的timeout\l
+    等待now + wake_up_delay_duration\l|
+    这样old事务会先通知到先尝试\l
+    其他事务wake_up_delay_duration\l 
+    后才会被通知到\l
+  }}"]
+  wake_up_delay_duration -> others;
+  wake_up_delay_duration[style_func;label="{{
+    wake_up_delay_duration|
+    从配置获得
+  }}"]
+
+  WaiterManager_run -> WaiterManager_handle_wake_up;
+  WaiterManager_handle_wake_up -> {
+    deadlock_clean_up_wait_for;
+    remove_oldest_waiter;
+    conflict_with;
+    notify;
+    reset_timeout;
+    wake_up_delay_duration;
+    remove;
+  }
+  old -> deadlock_clean_up_wait_for[style_edge_data];
+  deadlock_clean_up_wait_for[style_func;label="{{
+    deadlock\l|
+    clean_up_wait_for\l
+  }}"]
+}

@@ -1,0 +1,59 @@
+#include "styles.h"
+digraph lock_manager_wake_up {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_future_Scheduler {
+    graph[label="future/Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    schedule -> UnboundedSender_send;
+    UnboundedSender_send[style_func;label="{{
+      UnboundedSender\l|send\l|
+      将task放入channel中\l
+    }}"]
+  }
+  WaitManager_run[style_func;label="{{
+    WaitManager::run|
+    从channel中获取task\l
+    并处理\l
+  }}"]
+  UnboundedSender_send -> WaitManager_run[style_edge_data];
+  subgraph cluster_wait_manager {
+    graph[label="wait_manager/Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    wait_manager_Scheduler_wake_up[style_func;label="{{
+      wake_up
+    }}"]
+    wait_manager_Scheduler_wake_up -> {
+      notify_scheduler;
+    }
+    notify_scheduler -> schedule;
+  }
+
+  subgraph cluster_deadlock_Scheduler {
+    graph[label="deadlock/Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    deadlock_clean_up;
+    deadlock_clean_up[style_func;label="{{
+      deadlock_clean_up|
+      cleanup(lock_ts)
+    }}"]
+      
+  }
+  subgraph cluster_LockManager {
+    graph[label="LockManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+      
+     LockManager_wake_up[style_func;label="{{
+       LockManager::wake_up\l
+     }}"]
+     LockManager_wake_up -> {
+       wait_manager_Scheduler_wake_up;
+       remove_from_detected;
+       deadlock_clean_up;
+     }
+     remove_from_detected -> detected;
+     detected[style_var;label="{{
+       detected|
+         detected: Arc\<[CachePadded\<Mutex\<HashSet\<TimeStamp\>\>\>]\>,\l
+     }}"]
+  }
+  
+}

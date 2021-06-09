@@ -28,6 +28,11 @@ digraph for_update_ts {
   }}"]
 
   UpdateForUpdateTS -> SetForUpdateTS -> TransactionContext:forUpdateTS;
+  SetForUpdateTS[style_func;label="{{
+    SetForUpdateTS|
+    设置ForUpdateTS
+  }}"]
+  //GetTimestamp -> SetForUpdateTS[weight=0];
   UpdateForUpdateTS[style_func;label="{{
     UpdateForUpdateTS|
     if newForUpdateTS == 0\l
@@ -46,17 +51,54 @@ digraph for_update_ts {
     UpdateForUpdateTS;
       
   }
+
+  subgraph cluster_tikvStore {
+    graph[label="tikvStore";fontsize=20;style="rounded,dashed";color="slategrey"]
+    GetStore_CurrentVersion -> CurrentTimestamp;
+    CurrentTimestamp -> {
+      getTimestampWithRetry;
+    }
+    getTimestampWithRetry -> {
+      GetTimestamp;
+    }
+    GetTimestamp[style_func;label="{{
+      GetTimestamp|
+      从TimeStamp Oracle服务获取时间戳\l
+    }}"]
+  }
   subgraph cluster_executorBuilder {
     graph[label="executorBuilder";fontsize=20;style="rounded,dashed";color="slategrey"]
       refreshForUpdateTSForRC -> {
         UpdateForUpdateTS;
         GetSessionVars_TxnCtx_GetStmtFutureForRC;
       }
+      updateForUpdateTSIfNeeded[style_func;label="{{
+        updateForUpdateTSIfNeeded|
+        更新悲观事务的ForUpdateTS if needed\l
+        PointGet executor will get conflict error\l
+        if the ForUpdateTS is older than the latest commitTS\l
+      }}"]
       updateForUpdateTSIfNeeded -> {
         UpdateForUpdateTS;
         refreshForUpdateTSForRC;
+        IsPessimisticReadConsistency;
       }
+      IsPessimisticReadConsistency[style_func;label="{{
+        IsPessimisticReadConsistency|
+        The Repeatable read transaction used Read \l
+        Committed level to read data for writting\l
+      }}"]
       IsPessimisticReadConsistency -> refreshForUpdateTSForRC[style_edge_data];
+      refreshForUpdateTSForRC[style_func;label="{{
+        refreshForUpdateTSForRC|
+        it could use the cached tso from\l
+        the statement future to avoid get tso many times\l
+      }}"]
+      GetStore_CurrentVersion[style_func;label="{{
+        Store.CurrentVersion|
+        return current max committed version\l
+        with the given txnScope(local or global)\l
+      }}"]
       getSnapshotTS[style_func;label="{{
         getSnapshotTS|
         returns the timestamp\l
@@ -64,11 +106,14 @@ digraph for_update_ts {
         that a reader should read\l
       }}"]
 
+
       getSnapshotTS -> {
         refreshForUpdateTSForRC;
         IsPessimisticReadConsistency;
       }
 
+      buildSelectLock -> updateForUpdateTSIfNeeded;
+      buildSelectLock -> getSnapshotTS;
       buildDelete -> updateForUpdateTSIfNeeded;
       buildUpdate -> updateForUpdateTSIfNeeded;
       buildInsert -> updateForUpdateTSIfNeeded;

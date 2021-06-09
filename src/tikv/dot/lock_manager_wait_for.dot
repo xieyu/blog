@@ -1,0 +1,74 @@
+#include "styles.h"
+digraph lock_manager_wait_for {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  LockManager_wait_for[style_func;label="{{
+    LockManager\l|
+    wait_for\l
+  }}"]
+  StorageCallback_execute[style_func;label="{{
+    StorageCallback\l|
+    execute\l|
+    timeout已经为none了\l
+    直接执行cb\l
+  }}"]
+  deadlock_Scheduler_detect[style_func;label="{{
+    deadlock/Scheduler\l|
+    detect
+  }}"]
+  add_to_detected[style_func;label="{{
+    LockManager\l|
+    add_to_detected\l|
+    记录已经发送请求到\l
+    detect deadlock的事务\l
+  }}"]
+  add_to_detected ->  detected;
+  detected[style_var;label="{{
+  LockManager\l|
+    detected: Arc\<[CachePadded\<Mutex\<HashSet\<TimeStamp\>\>\>]\>,\l
+  }}"]
+
+  LockManager_wait_for -> {
+    StorageCallback_execute;
+    add_to_detected;
+    deadlock_Scheduler_detect;
+    wait_manager_Scheduler_wait_for;
+  }
+  subgraph cluster_FutureScheduler {
+    graph[label="worker/future.rs/Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    FutureScheduler_schedule[style_func;label="{{
+      schedule
+    }}"]
+    FutureScheduler_schedule -> {
+      UnboundedSender_send;
+    }
+    UnboundedSender_send[style_func;label="{{
+      UnboundedSender\l|
+      send|
+      发送到channel中
+    }}"]
+  }
+  WaiterManager_run[style_func;label="{{
+    WaiterManager::run|
+    从channel 去消息并处理\l
+  }}"]
+  UnboundedSender_send -> WaiterManager_run[style_edge_data];
+
+  subgraph cluster_WaitManagerScheduler {
+    graph[label="wait_manager.rs/Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    wait_manager_Scheduler_wait_for -> {
+       wait_manager_Scheduler_notify_scheduler;
+    }
+    wait_manager_Scheduler_wait_for[style_func;label="{{
+      wait_for\l
+    }}"]
+
+    wait_manager_Scheduler_notify_scheduler[style_func;label="{{
+    notify_scheduler\l
+    }}"]
+  }
+  wait_manager_Scheduler_notify_scheduler -> FutureScheduler_schedule;
+  
+}

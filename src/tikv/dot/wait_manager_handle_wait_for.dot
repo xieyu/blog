@@ -1,0 +1,72 @@
+#include "styles.h"
+digraph wait_manager_handle_wait_for {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_WaitTable {
+    graph[label="WaitTable";fontsize=20;style="rounded,dashed";color="slategrey"]
+    add_waiter[style_func;label="{{
+      add_waiter|
+      将wait_table加入lock.hash\l
+      对应的的队列中\l
+    }}"]
+    remove_waiter[style_func;label="{{
+      remove_waiter|
+      从wait_table队列总去掉waiter\l
+    }}"]
+  }
+  subgraph cluster_detector_scheduler {
+    graph[label="detector_scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    clean_up_wait_for;
+      
+  }
+
+  subgraph cluster_Waiter {
+    graph[label="Waiter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_timeout[style_func;label="{{
+      on_timeout|
+      等待lock超时了\l
+      1.从waiter队列中去掉该waiter\l
+      2.从deadlock检测中去掉该waiter\l
+      3.调用cb\l
+    }}"]
+    on_timeout -> {
+      remove_waiter;
+      clean_up_wait_for;
+      notify;
+    }
+    notify -> {
+      delay_cancel;
+      cb_execute;
+    }
+  }
+
+  subgraph cluster_WaitManager {
+    graph[label="WaitManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    WaitManager_run -> {
+       handle_wait_for;
+    }
+    handle_wait_for[style_func;label="{{
+      handle_wait_for|
+      处理Task::WaitFor\l|
+      生成一个timeout future\l
+    }}"]
+    spawn_local[style_func;label="{{
+      spawn_local|
+      将future放入自己\l 
+      本地队列中\l
+      开始poll\l
+    }}"]
+    handle_wait_for -> {
+      on_timeout;
+      add_waiter;
+      spawn_local;
+    }
+    spawn_local -> on_timeout[style_edge_data];
+
+  }
+
+  
+}

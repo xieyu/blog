@@ -48,7 +48,7 @@ digraph tikv_acquire_pessimistic_lock {
   }}"]
 
   subgraph cluster_checklock {
-    graph[label="检查lock";fontsize=20;style="rounded,dashed";color="slategrey"]
+    graph[label="有lock，检查lock";fontsize=20;style="rounded,dashed";color="slategrey"]
 
     reader_load_lock[style_func;label="{{
       MvccReader::load_lock|
@@ -65,24 +65,24 @@ digraph tikv_acquire_pessimistic_lock {
     }[style_edge_data];
 
     other_case_dup_lock[style_func;label="{{
-      其他情况为重复请求\l
+      4.其他情况为重复请求\l
       直接返回OK\l
     }}"]
 
     update_for_udpate_ts[style_func;label="{{
-      for_update_ts \> lock.for_update_ts\l|
+      3. for_update_ts \> lock.for_update_ts\l|
       更新lock的for_update_ts\l
     }}"]
 
     ErrorInner_KeyIsLocked[style_func;label="{{
-      ErrorInner::KeyIsLocked|
+      1.ErrorInner::KeyIsLocked|
       lock.ts != reader.start_ts\l
       不是当前同一事务的lock\l
       返回KeyIsLocked Error\l
     }}"]
 
     ErrorInner_LockTypeNotMatch[style_func;label="{{
-      ErrorInner::LockTypeNotMatch|
+      2. ErrorInner::LockTypeNotMatch|
       lock.lock_type != LockType::Pessimistic\l
       锁的类型不是悲观锁\l 
       返回锁类型不匹配\l|
@@ -114,26 +114,24 @@ digraph tikv_acquire_pessimistic_lock {
       读取commit记录\l
     }}"]
     ErrorInner_WriteConflict[style_func;label="{{
-      ErrorInner::WriteConflict|
-      commit_ts \> for_update_ts\l
+      1.commit_ts \> for_update_ts\l
       已提交的commit_ts比当前的\l 
-      for_update_ts 更新\l
-      存在写冲突\l
+      for_update_ts 更新存在写冲突\l|
+      返回ErrorInner::WriteConflict
     }}"]
     ErrorInner_PessimisticLockRolledBack[style_func;label="{{
-      ErrorInner::PessimisticLockRolledBack|
-      commit_ts == reader.start_ts\l
+      2. commit_ts == reader.start_ts\l|
       且数据是当前事务的Rollback记录\l
-      返回PessimisticLockRollbacked错误\l
+      返回PessimisticLockRollbacked错误\l|
+      返回ErrorInner::PessimisticLockRolledBack
     }}"]
     ErrorInner_PessimisticLockRolledBack2[style_func;label="{{
-      ErrorInner::PessimisticLockRolledBack|
-      commit_ts \> reader.start_ts\l
+      3. commit_ts \> reader.start_ts\l|
       commit_ts 比当前事务的 start_ts 更新，\l 
       说明在当前事务 begin 后有其他事务提交过\l
       检查历史版本，如果发现当前请求的事务\l 
-      有没有被 Rollback 过，返回 \l 
-      PessimisticLockRollbacked 错误\l
+      有没有被 Rollback 过，\l|
+      返回ErrorInner::PessimisticLockRolledBack|
     }}"]
     ErrorInner_PessimisticLockRolledBack2
     check_data_constraint;

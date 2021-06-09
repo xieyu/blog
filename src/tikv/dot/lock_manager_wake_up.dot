@@ -1,0 +1,138 @@
+#include "styles.h"
+digraph lock_manager_wake_up {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  LockManager_wake_up[style_func;label="{{
+    LockManager::wake_up|
+    唤醒lock.hash等待队列中\l 
+    的第一个waiter\l
+  }}"]
+
+  subgraph cluster_ReleasedLock {
+    graph[label="ReleasedLock";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ReleasedLocks_push[style_func;label="{{
+      push\l|
+      hashes.push(lock.hash)\l
+      将lock.hash数组hashes\l
+    }}"]
+    ReleasedLocks_wake_up[style_func;label="{{
+      wake_up\l|
+      将start_ts, hashes\l
+      commit_ts, pessimistic\l
+      等参数传给LockManager::wake_up\l
+    }}"]
+    ReleasedLocks_wake_up;
+    ReleasedLocks_push -> ReleasedLocks_wake_up[style_edge_data];
+  }
+  Command_process_write[style_func;label="{{
+    Command\l|
+    process_write\
+  }}"]
+  Cleanup_process_write[style_func;label="{{
+    Cleanup\l|
+    process_write\l
+  }}"]
+  CheckSecondaryLocks_process_write[style_func;label="{{
+    CheckSecondaryLocks\l|
+    process_write\l
+    如果是悲观锁\l 
+    且lock.ts == self.start_ts\l
+    则释放锁？\l
+  }}"]
+  PessimisticLockRollback_process_write[style_func;label="{{
+    PessimisticLockRollback\l|
+    process_write\l|
+    释放掉悲观锁\l
+  }}"]
+  ResolveLockLite_process_write[style_func;label="{{
+    ResolveLockLite\l|
+    process_write\l
+  }}"]
+  ResolveLock_process_write[style_func;label="{{
+    ResolveLock\l|
+    process_write\l
+  }}"]
+  Rollback_process_write[style_func;label="{{
+    Rollback\l|
+    process_write\l
+  }}"]
+  Commit_process_write[style_func;label="{{
+    Commit\l|
+    process_write\l
+  }}"]
+  PreWriter_process_write[style_func;label="{{
+    PreWriter\l|
+    process_write\l
+    1pc 提交完后会释放lock\l
+  }}"]
+  CheckTxnStatus_process_write[style_func;label="{{
+    CheckTxnStatus\l|
+    process_write\l
+  }}"]
+  Command_process_write -> {
+    Cleanup_process_write;
+    CheckSecondaryLocks_process_write;
+    CheckTxnStatus_process_write;
+    PessimisticLockRollback_process_write;
+    ResolveLockLite_process_write;
+    ResolveLock_process_write;
+    Commit_process_write;
+    Rollback_process_write;
+    PreWriter_process_write;
+  }
+  MvccTxn_unlock_key[style_func;label="{{
+    MvccTxn\l |
+    unlock_key
+    删掉store中key\l 
+    对应的lock\l
+  }}"]
+  PreWriter_process_write -> one_pc_commit_ts;
+  check_txn_status_lock_exists[style_func;label="{{
+    check_txn_status_lock_exists|
+    如果lock TtlExpire 释放lock\l
+  }}"]
+  check_txn_status_lock_exists -> MvccTxn_unlock_key;
+
+  ReleasedLocks_wake_up -> LockManager_wake_up;
+  CheckSecondaryLocks_process_write -> ReleasedLocks_wake_up;
+  CheckSecondaryLocks_process_write -> MvccTxn_unlock_key;
+
+  CheckTxnStatus_process_write -> ReleasedLocks_wake_up;
+  CheckTxnStatus_process_write -> check_txn_status_lock_exists;
+
+  Cleanup_process_write -> ReleasedLocks_wake_up;
+  Cleanup_process_write -> cleanup;
+
+  Commit_process_write -> ReleasedLocks_wake_up;
+  Commit_process_write -> commit;
+
+  {MvccTxn_unlock_key} -> ReleasedLocks_push[style_edge_data];
+
+  PessimisticLockRollback_process_write -> ReleasedLocks_wake_up;
+  PessimisticLockRollback_process_write -> MvccTxn_unlock_key;
+
+  one_pc_commit_ts -> ReleasedLocks_wake_up;
+  one_pc_commit_ts -> handle_1pc_locks -> MvccTxn_unlock_key;
+
+  ResolveLock_process_write -> {
+    ReleasedLocks_wake_up;
+    cleanup;
+    commit;
+  }
+
+  ResolveLockLite_process_write -> {
+    ReleasedLocks_wake_up;
+     commit;
+     cleanup
+  };
+  Rollback_process_write -> ReleasedLocks_wake_up;
+  Rollback_process_write -> cleanup;
+  cleanup -> {
+    rollback_lock;
+  }
+  rollback_lock -> MvccTxn_unlock_key;
+  commit -> MvccTxn_unlock_key;
+  
+}
