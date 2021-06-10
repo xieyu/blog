@@ -1,0 +1,14 @@
+#include "styles.h"
+digraph deadlock_service_change_role {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RoleChangeNotifier_on_region_changed -> {
+     deadlock_Scheduler_change_role;
+  }
+  RoleChangeNotifier_on_role_changed -> {
+     deadlock_Scheduler_change_role;
+  }
+}

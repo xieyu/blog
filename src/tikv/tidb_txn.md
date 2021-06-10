@@ -325,8 +325,62 @@ TiKV 会动态选举出一个 TiKV node 负责死锁检测。
 2. 每个请求会尝试在图中加一条 `txn -> wait_for_txn` 的 edge，若新加的导致有环则发生了死锁。
 3. 因为需要发 RPC，所以死锁时失败的事务无法确定。
 
+#### deadlock leader本地detect
 
-## 事务冲突和Recovery
+对应代码调用流程如下：
+
+![](./dot/deadloack_Detector_handle_detect.svg)
+
+其中比较关键的是wait_for_map ，保存了txn 之间的依赖关系DAG图。
+
+```rust
+/// Used to detect the deadlock of wait-for-lock in the cluster.
+pub struct DetectTable {
+    /// Keeps the DAG of wait-for-lock. Every edge from `txn_ts` to `lock_ts` has a survival time -- `ttl`.
+    /// When checking the deadlock, if the ttl has elpased, the corresponding edge will be removed.
+    /// `last_detect_time` is the start time of the edge. `Detect` requests will refresh it.
+    // txn_ts => (lock_ts => Locks)
+    wait_for_map: HashMap<TimeStamp, HashMap<TimeStamp, Locks>>,
+
+    /// The ttl of every edge.
+    ttl: Duration,
+
+    /// The time of last `active_expire`.
+    last_active_expire: Instant,
+
+    now: Instant,
+}
+```
+
+#### 转发请求给Deadlock leader
+
+如果当前Deadlock detector不是leader,则会把请求转发给Deadlock leader, 转发流程如下:
+
+首先Deadlock client和leader 维持一个grpc stream, detect请求会发到一个channel中
+然后由send_task异步的发送DeadlockRequest给Deadlock leader. 
+
+recv_task则从stream接口中去获取resp, 然后调用回调函数，最后调用waiter_manager的
+deadlock函数来通知等待的事务死锁了。
+
+![](./dot/deadlock_send_request_to_leader.svg)
+
+
+#### Deadlock Service
+
+Deadlock leader会在`handle_detect_rpc`中处理deadlock detect请求，流程和leader处理本地的一样。
+
+![](./dot/deadlock_service.svg)
+
+#### Deadlock Service的高可用
+
+wait_for_map 这个是怎么做到持久化的？
+新起的deadlock service是怎么有这个wait_for_map的。
+
+DeadLock Service由leader region(第一个region)的leader来提供服务
+
+![](./dot/deadlock_service_change_role.svg)
+
+## 事务Recovery
 
 Pecolator的coordinator在完成commit或者rollback之前crash了，
 事务遗留的Lock，由后续事务的在处理lock冲突时，resolve lock.

@@ -1,0 +1,148 @@
+#include "styles.h"
+digraph handle_detect {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_DetectTable {
+    graph[label="DetectTable";fontsize=20;style="rounded,dashed";color="slategrey"]
+    DetectTable_detect[style_func;label="{{
+      DetectTable::detect|
+      处理Detect类型的请求\l
+      txn_ts, lock_ts, lock_hash\l
+      如果不会deadlock,则将边\l 
+      加入wait_for_map中\l
+    }}"]
+    DetectTable_clean_up_wait_for[style_func;label="{{
+      DetectTable::clean_up_wait_for|
+      处理CleanUpWaitFor类型的请求\l|
+      从wait_for_map中删除\l
+      txn =\> lock_ts =\> lock_hash 的这个entry
+    }}"]
+    DetectTable_clean_up[style_func;label="{{
+      DetectTable_clean_up|
+      处理cleanup类型的请求\l|
+      从wait_for_map中删掉\l
+      txn这个entry\l
+    }}"]
+
+    DetectTable_detect -> {
+      active_expire;
+      register_if_existed;
+      do_detect;
+      register;
+    }
+    do_detect -> wait_for_map;
+    register -> wait_for_map;
+    register_if_existed -> wait_for_map;
+    wait_for_map[style_var;label="{{
+      wait_for_map|
+        HashMap\<TimeStamp,\l 
+        HashMap\<TimeStamp, Locks\>\>,\l|
+        保存了事务的依赖DAG图\l
+        txn_ts =\> (lock_ts =\> Locks)\l
+    }}"]
+    Locks_is_expired[style_func;label="{{
+      Locks::is_expired|
+      检查Locks是否过期了\l
+    }}"]
+    register[style_func;label="{{
+      4.register|
+      插入txn_ts =\>(lock_ts =\> lock_hash)\l 
+      到wait_for_map中\l
+      txn_ts =\> lock_ts这个\l 
+      entry应该不存在\l
+    }}"]
+    register_if_existed[style_func;label="{{
+      2.register_if_existed|
+      插入txn_ts =\>(lock_ts =\> lock_hash)\l 
+      wait_for_map中已存在txn_ts =\> lock_ts\l
+      不会导致死锁\l
+    }}"]
+  }
+
+  Detector_run[style_func;label="{{
+    Detector::run|
+    从Future channel中取task\l
+    并执行\l
+  }}"]
+  Detector_run -> {
+    handle_detect;
+    handle_detect_rpc;
+  }
+  handle_detect[style_func;label="{{
+    handle_detect|
+    处理自己的detect请求\l
+  }}"]
+  handle_detect_rpc[style_func;label="{{
+    handle_detect_rpc|
+    处理其他node发来的detect请求
+  }}"]
+  send_request_to_leader[style_func;label="{{
+    send_request_to_leader|
+    自己不是leader\l
+    将请求转发给leader
+  }}"]
+  handle_detect_locally[style_func;label="{{
+    handle_detect_locally|
+    自己是leader\l
+    直接处理detect请求\l
+  }}"]
+  do_detect[style_func;label="{{
+    3.do_detect|
+    检查如果加了txn_ts =\> Lock_ts 边\l
+    DAG依赖是否有环\l
+  }}"]
+  active_expire[style_func;label="{{
+    1.active_expire|
+    遍历整个map\l
+    清理掉过期的entry\l
+  }}"]
+  active_expire -> Locks_is_expired;
+  send_request_to_leader -> handle_detect_rpc[style_edge_data];
+  handle_detect -> {
+    handle_detect_locally;
+    send_request_to_leader;
+  }
+  handle_detect_locally -> {
+    DetectTable_detect;
+    DetectTable_clean_up_wait_for;
+    DetectTable_clean_up;
+    WaiterMgrScheduler_deadlock;
+  }
+  DetectTable_detect -> WaiterMgrScheduler_deadlock;
+  WaiterMgrScheduler_deadlock[style_func;label="{{
+    WaiterMgrScheduler::deadlock|
+    发送Task::Deadlock到\l
+    WaiterManager channel\l
+  }}"]
+  WaiterManager_handle_deadlock[style_func;label="{{
+    WaiterManager::handle_deadlock|
+    将死锁的lock, waiter_ts从\l 
+    等待队列中取出来\l
+    并通知waiter_ts死锁了\l
+  }}"]
+  WaiterMgrScheduler_deadlock -> WaiterManager_handle_deadlock[style_edge_data];
+  WaiterManager_handle_deadlock -> {
+    WaitTable_remove_waiter;
+    waiter_deadlock_with;
+    waiter_notify;
+  }
+  WaitTable_remove_waiter[style_func;label="{{
+    WaitTable::remove_waiter|
+    将死锁的wait_ts从\l 
+    等待队列取出\l
+  }}"]
+  waiter_deadlock_with[style_func;label="{{
+    Waiter::deadlock_with|
+    准备pr为MvccErrorInner::DeadLock\l
+    包含了deadlock_key_hash\l
+  }}"]
+  waiter_notify[style_func;label="{{
+    Waiter::notify|
+    1.去掉timeout定时器\l
+    2.调用waiter的回调函数\l
+  }}"]
+  
+}
