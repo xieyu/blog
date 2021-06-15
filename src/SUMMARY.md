@@ -95,7 +95,7 @@
     - [async write](./tikv/async_write.md)
   - [Storage](./tikv/storage.md)
     - [Percolator](./tikv/percolator.md)
-    - [TiDB txn](./tikv/tidb_txn.md)
+    - [TiDB-TiKV 事务](./tikv/tidb_txn.md)
     - [Txn Types](./tikv/txn_types.md)
     - [Scanner](./tikv/storage_scanner.md)
     - [MvccTxn](./tikv/MvccTxn.md)

@@ -1,0 +1,72 @@
+#include "styles.h"
+digraph pessimistic_rollback {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  SimpleExec_executeRollback -> KVTxn_Rollback;
+  SimpleExec_executeRollback[style_func;label="{{
+    SimpleExec::executeRollback|
+    执行Rollback语句\l
+  }}"]
+
+  KVTxn_Rollback[style_func;label="{{
+    KVTxn::Rollback\l|
+    回滚事务\l
+  }}"]
+  KVTxn_rollbackPessimisticLocks[style_func;label="{{
+    KVTxn::rollbackPessimisticLocks\l|
+    释放掉获取的悲观锁\l
+  }}"]
+
+  KVTxn_Rollback -> {
+    KVTxn_rollbackPessimisticLocks;
+  }
+
+  KVTxn_rollbackPessimisticLocks -> {
+    KVTxn_collectLockedKeys;
+    txn_committer_pessimisticRollbackMutations;
+  }
+
+  KVTxn_collectLockedKeys -> {
+    txn_GetMemBuffer;
+    IterWithFlags;
+    HasLocked;
+  }
+  KVTxn_collectLockedKeys[style_func;label="{{
+    KVTxn::collectLockedKeys|
+    收集Locked keys\l|
+    1.遍历MemBuffer\l
+    检查key flags 为locked keys\l
+  }}"]
+  txn_GetMemBuffer[style_func;label="{{
+    1.KVTxn::GetMemBuffer|
+    获取事务的MemBuffer\l
+  }}"]
+  IterWithFlags[style_func;label="{{
+    2.MemDB::IterWithFlags|
+    遍历事务的MemBuffer\l
+  }}"]
+  HasLocked[style_func;label="{{
+    3.KeyFlags::HasLocked|
+    检查key是否有Locked flags\l
+  }}"]
+  KVTxn_collectLockedKeys -> txn_committer_pessimisticRollbackMutations[style_edge_data];
+  txn_committer_pessimisticRollbackMutations[style_func;label="{{
+    twoPhaseCommitter\l|
+    pessimisticRollbackMutations\l
+  }}"]
+  doActionOnMutations[style_func;label="{{
+    doActionOnMutations|
+    对mutations分组，分批\l
+    并发的调用actionPessimisticRollback\l
+    handleSignleBatch\l
+  }}"]
+  txn_committer_pessimisticRollbackMutations -> doActionOnMutations;
+  actionPessimisticRollback_handleSingleBatch[style_func;label="{{
+    actionPessimisticRollback\l|
+    handleSingleBatch\l|
+    发送PessimisticRollback请求给TiKV
+  }}"]
+  doActionOnMutations -> actionPessimisticRollback_handleSingleBatch[style_edge_data];
+}

@@ -1,9 +1,9 @@
-# TiDB txn
+# TiDB 事务
 
-> * TiDB的修改会先保存在MemDB中, 在2PC中会batch,并发的提交这些修改。
-> * TiDB在prewrite/commit时，会先对mutation根据region做分组，然后每个分组分批，并发的发送给TiKV
-> * TiDB在Pecolator基础上增加了AsyncCommit和OnePC提交。
-> * commit/prewrite/resolvelock等都需要处理regionError
+> * TiDB在Pecolator基础上增加了并发Prewrite, AsyncCommit和OnePC提交，实现了悲观事务。
+> * TiDB的Mutations(key的put/delete)会先保存在MemDB中, 在2PC中分region, 分批, 并发的提交这些修改。
+> * TiKV返回RegionError时，TiDB要重新按照region 做分组，分批，然后重新提交。
+> * TiKV在lock冲突时，会等待一段时间或者等key release了, 再返回client，key conflict或者deadlock错误。避免client无效的重试。
 
 <!-- toc -->
 ## 数据流程
@@ -12,11 +12,10 @@ TiDB中乐观事务提交流程如下(摘自[TiDB 新特性漫谈：悲观事务
 
 ![](./dot/Optimistic_pecolator.png)
 
-首先Begin 操作会去TSO服务获取一个timestamp，作为事务的`startTS`.
-
-DML阶段先KVTxn将写(Set, Delete)操作保存在MemDB中。
-
-Commit阶段 在`KVTxn::Commit`时创建`twoPhaseCommitter`, 并调用它的`initKeysAndMutations`
+1. 首先Begin 操作会去TSO服务获取一个timestamp，作为事务的`startTS`.
+2. DML阶段先KVTxn将写(Set, Delete)操作保存在MemDB中。
+3. 悲观事务会在DML 阶段去TiKV获取悲观lock。
+4. 2PC提交阶段 在`KVTxn::Commit`时创建`twoPhaseCommitter`, 并调用它的`initKeysAndMutations`
 遍历`MemDB`, 初始化`memBufferMutations`.
 
 在`twoPhaseCommitter::execute`中，首先对`memBufferMutations`先按照region做分组，
@@ -94,11 +93,40 @@ func (c *twoPhaseCommitter) doActionOnGroupMutations(bo *Backoffer, action twoPh
 
 tries to send a signle request to as single region.
 
+ttlManager会定期的向TiKV发送txnHeartbeat, 更新lock的ttl.
+
 ![](./dot/actionPrewrite_handleSingleBatch.svg)
+
+#### TiKV端处理Prewrite
+
+![](./dot/prewrite.svg)
+
+#### TiKV端处理TxnHeartBeat
+
+直接更新primary key lock的ttl.
+
+```rust
+//txn_heart_beat.rs
+impl<S: Snapshot, L: LockManager> WriteCommand<S, L> for TxnHeartBeat {
+    fn process_write(self, snapshot: S, context: WriteContext<'_, L>) -> Result<WriteResult> {
+    //...
+    let lock = match reader.load_lock(&self.primary_key)? {
+        Some(mut lock) if lock.ts == self.start_ts => {
+           if lock.ttl < self.advise_ttl {
+              lock.ttl = self.advise_ttl;
+              txn.put_lock(self.primary_key.clone(), &lock);
+            }
+            lock
+        }
+```
 
 #### Commit
 
 ![](./dot/actionCommit_handleSingleBatch.svg)
+
+#### TiKV端处理commit
+
+![](./dot/Commit_process_write.svg)
 
 
 
@@ -242,6 +270,108 @@ func (c *twoPhaseCommitter) checkOnePCFallBack(action twoPhaseCommitAction, batc
 
 ![](./dot/tikv_one_pc.svg)
 
+
+## 悲观事务
+
+悲观事务将上锁时机从prewrite阶段提前到进行DML阶段,如下图所示(摘自[TiDB 新特性漫谈：悲观事务][6])
+
+![](./dot/Pessimisitc_Pecolator.png)
+
+实现细节如下图所示(摘自[TiDB 悲观锁实现原理][1])
+
+![](./dot/pessimistic_lock_detail.jpeg)
+
+在DML阶段，多了获取从TSO服务for_update_ts和获取悲观锁步骤。
+
+具体步骤如下：(摘自[TiDB 悲观锁实现原理][1])
+
+1. 从 PD 获取当前 tso 作为当前锁的 for_update_ts
+2. TiDB 将写入信息写入 TiDB 的内存中（与乐观锁相同）
+3. 使用 for_update_ts 并发地对所有涉及到的 Key 发起加悲观锁（acquire pessimistic lock）请求，
+4. 如果加锁成功，TiDB 向客户端返回写成功的请求
+5. 如果加锁失败
+6. 如果遇到 Write Conflict， 重新回到步骤 1 直到加锁成功。
+7. 如果超时或其他异常，返回客户端异常信息
+
+
+### forUpdateTS
+
+ForUpdateTS 存放在SessionVar的TransactionContext中。
+然后放到twoPhaseCommitter中，最后在actionIsPessimiticLock
+向TiK发送请求时，放到PessimisticRequest请求参数中,发给TiKV.
+
+![](./dot/for_update_ts_var.svg)
+
+
+在buildDelete, buildInsert, buildUpdate, buildSelectLock
+时会去TSO服务获取最新的ts作为ForUpdateTS.
+
+```go
+// UpdateForUpdateTS updates the ForUpdateTS, if newForUpdateTS is 0, it obtain a new TS from PD.
+func UpdateForUpdateTS(seCtx sessionctx.Context, newForUpdateTS uint64) error {
+```
+
+![](./dot/for_update_ts.svg)
+
+### 悲观锁: LockKeys
+
+悲观锁不包含数据，只有锁，只用于防止其他事务修改相同的 Key，不会阻塞读，但 Prewrite 后会阻塞读（和 Percolator 相同，但有了大事务支持后将不会阻塞 
+(摘自[TiDB in Action, 6.2 悲观事务][3])
+
+调用流程类似于上面的，也是先对mutation按照region分组，然后每个组内分批。
+
+![](./dot/KvTxn_LockKeys.svg)
+
+### PessimisticLock
+这个地方有LockWaitTime
+
+![](./dot/tidb_actionPessimisticLock_handleSingleBatch.svg)
+
+### PessimisticLockRollback
+
+在LockKey枷锁成功后，会update MemBuffer的Keys
+
+![](./dot/tidb_pessimistic_rollback.svg)
+
+### TiKV处理PessimisticLockRollback
+
+![](./dot/tikv_pessimistic_lock_rollback.svg)
+
+
+### TiKV处理PessimisticLock
+
+TiKV端获取Pessimistic处理方法(摘自[TiDB 悲观锁实现原理][1])
+
+* 检查 TiKV 中锁情况，如果发现有锁
+  1. 不是当前同一事务的锁，返回 KeyIsLocked Error
+  2. 锁的类型不是悲观锁，返回锁类型不匹配（意味该请求已经超时）
+  3. 如果发现 TiKV 里锁的 for_update_ts 小于当前请求的 for_update_ts(同一个事务重复更新)， 使用当前请求的 for_update_ts 更新该锁
+  4. 其他情况，为重复请求，直接返回成功
+* 检查是否存在更新的写入版本，如果有写入记录
+  1. 若已提交的 commit_ts 比当前的 for_update_ts 更新，说明存在冲突，返回 WriteConflict Error
+  2. 如果已提交的数据是当前事务的 Rollback 记录，返回 PessimisticLockRollbacked 错误
+  3. 若已提交的 commit_ts 比当前事务的 start_ts 更新，说明在当前事务 begin 后有其他事务提交过
+  4. 检查历史版本，如果发现当前请求的事务有没有被 Rollback 过，返回 PessimisticLockRollbacked 错误
+
+![](./dot/acquire_pessimistic_lock.svg)
+
+### 加锁规则
+
+TiDB中加锁规则如下(摘自[TiDB 悲观锁实现原理][1])
+
+* 插入（ Insert）
+  * 如果存在唯一索引，对应唯一索引所在 Key 加锁
+  * 如果表的主键不是自增 ID，跟索引一样处理，加锁。
+* 删除（Delete）
+  * RowID 加锁
+* 更新 (update)
+  * 对旧数据的 RowID 加锁
+  * 如果用户更新了 RowID, 加锁新的 RowID
+  * 对更新后数据的唯一索引都加锁
+
+TODO: 没找到insert/delete/update这块的lock代码
+![](./dot/tidb_tikv_lock_keys_caller.svg)
+
 ## Wait Lock
 
 Lock冲突事后，TiKV会将lock, StorageCallback, ProcessResult等打包成waiter.
@@ -373,12 +503,29 @@ Deadlock leader会在`handle_detect_rpc`中处理deadlock detect请求，流程�
 
 #### Deadlock Service的高可用
 
-wait_for_map 这个是怎么做到持久化的？
-新起的deadlock service是怎么有这个wait_for_map的。
+Detector在handle_detect,如果leader client为none,
+则尝试先去pd server获取`LEADER_KEY`所在的region(Leader Key为空串，
+所以leader region为第一region. 
 
-DeadLock Service由leader region(第一个region)的leader来提供服务
+然后解析出leader region leader的
+store addr, 创建和deadlock detect leader的grpc detect接口的stream 连接
+
+![](./dot/deadlock_service_leader_info.svg)
+
+注册了使用Coprocessor的Observer, RoleChangeNotifier, 当leader
+region的信息发变动时, RoleChangeNotifier会收到回调
+会将leader_client和leader_inf清空，下次handle_detect时会重新
+请求leader信息。
 
 ![](./dot/deadlock_service_change_role.svg)
+
+
+### 问题: DetectTable的wait_for_map需要保证高可用吗？
+
+DetectTable的wait_for_map这个信息在deadlock detect leader
+变动时候，是怎么处理的？看代码是直接清空呀？这个之前的依赖关系丢掉了，
+这样不会有问题吗？
+
 
 ## 事务Recovery
 
@@ -493,98 +640,6 @@ doActionOnGroupMutations 会对每个group的mutations 做进一步的分批处�
 ![](./dot/tidb_doActionOnBatches.svg)
 
 
-## 悲观事务
-
-悲观事务将上锁时机从prewrite阶段提前到进行DML阶段,如下图所示(摘自[TiDB 新特性漫谈：悲观事务][6])
-
-![](./dot/Pessimisitc_Pecolator.png)
-
-实现细节如下图所示(摘自[TiDB 悲观锁实现原理][1])
-
-![](./dot/pessimistic_lock_detail.jpeg)
-
-在DML阶段，多了获取从TSO服务for_update_ts和获取悲观锁步骤。
-
-具体步骤如下：(摘自[TiDB 悲观锁实现原理][1])
-
-1. 从 PD 获取当前 tso 作为当前锁的 for_update_ts
-2. TiDB 将写入信息写入 TiDB 的内存中（与乐观锁相同）
-3. 使用 for_update_ts 并发地对所有涉及到的 Key 发起加悲观锁（acquire pessimistic lock）请求，
-4. 如果加锁成功，TiDB 向客户端返回写成功的请求
-5. 如果加锁失败
-6. 如果遇到 Write Conflict， 重新回到步骤 1 直到加锁成功。
-7. 如果超时或其他异常，返回客户端异常信息
-
-
-### forUpdateTS
-
-ForUpdateTS 存放在SessionVar的TransactionContext中。
-然后放到twoPhaseCommitter中，最后在actionIsPessimiticLock
-向TiK发送请求时，放到PessimisticRequest请求参数中,发给TiKV.
-
-![](./dot/for_update_ts_var.svg)
-
-
-在buildDelete, buildInsert, buildUpdate, buildSelectLock
-时会去TSO服务获取最新的ts作为ForUpdateTS.
-
-```go
-// UpdateForUpdateTS updates the ForUpdateTS, if newForUpdateTS is 0, it obtain a new TS from PD.
-func UpdateForUpdateTS(seCtx sessionctx.Context, newForUpdateTS uint64) error {
-```
-
-![](./dot/for_update_ts.svg)
-
-### 悲观锁: LockKeys
-
-悲观锁不包含数据，只有锁，只用于防止其他事务修改相同的 Key，不会阻塞读，但 Prewrite 后会阻塞读（和 Percolator 相同，但有了大事务支持后将不会阻塞 
-(摘自[TiDB in Action, 6.2 悲观事务][3])
-
-调用流程类似于上面的，也是先对mutation按照region分组，然后每个组内分批。
-
-![](./dot/KvTxn_LockKeys.svg)
-
-### PessimisticLock
-这个地方有LockWaitTime
-
-![](./dot/tidb_actionPessimisticLock_handleSingleBatch.svg)
-
-### PessimisticLockRollback
-
-
-### TiKV处理PessimisticLock
-
-TiKV端获取Pessimistic处理方法(摘自[TiDB 悲观锁实现原理][1])
-
-* 检查 TiKV 中锁情况，如果发现有锁
-  1. 不是当前同一事务的锁，返回 KeyIsLocked Error
-  2. 锁的类型不是悲观锁，返回锁类型不匹配（意味该请求已经超时）
-  3. 如果发现 TiKV 里锁的 for_update_ts 小于当前请求的 for_update_ts(同一个事务重复更新)， 使用当前请求的 for_update_ts 更新该锁
-  4. 其他情况，为重复请求，直接返回成功
-* 检查是否存在更新的写入版本，如果有写入记录
-  1. 若已提交的 commit_ts 比当前的 for_update_ts 更新，说明存在冲突，返回 WriteConflict Error
-  2. 如果已提交的数据是当前事务的 Rollback 记录，返回 PessimisticLockRollbacked 错误
-  3. 若已提交的 commit_ts 比当前事务的 start_ts 更新，说明在当前事务 begin 后有其他事务提交过
-  4. 检查历史版本，如果发现当前请求的事务有没有被 Rollback 过，返回 PessimisticLockRollbacked 错误
-
-![](./dot/acquire_pessimistic_lock.svg)
-
-### 加锁规则
-
-TiDB中加锁规则如下(摘自[TiDB 悲观锁实现原理][1])
-
-* 插入（ Insert）
-  * 如果存在唯一索引，对应唯一索引所在 Key 加锁
-  * 如果表的主键不是自增 ID，跟索引一样处理，加锁。
-* 删除（Delete）
-  * RowID 加锁
-* 更新 (update)
-  * 对旧数据的 RowID 加锁
-  * 如果用户更新了 RowID, 加锁新的 RowID
-  * 对更新后数据的唯一索引都加锁
-
-TODO: 没找到insert/delete/update这块的lock代码
-![](./dot/tidb_tikv_lock_keys_caller.svg)
 
 
 ## CommitterMutations
