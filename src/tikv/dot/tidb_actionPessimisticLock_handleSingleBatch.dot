@@ -28,22 +28,80 @@ digraph actionPessimisticLock_handleSingleBatch {
     extractLockFromKeyErr;
     ResolveLocks;
     locks;
+    ErrDeadlock[style_func;label="{{
+      ErrDeadlock|
+      如果有keyErr为deadLock\l
+      退出forLoop\l
+      返回ErrDeadLock\l
+    }}"]
+    extractLockFromKeyErr[style_func;label="{{
+      extractLockFromKeyErr|
+      提取可以locked error\l
+      加入到locks中\l
+    }}"]
+    extractKeyExistsErr[style_func;label="{{
+      extractKeyExistsErr|
+      检查key exists错误\l
+      如果有z退出forloop\l
+      返回ErrKeyExist\l
+    }}"]
+    ResolveLocks[style_func;label="{{
+      ResolveLocks|
+      尝试resolve locks\l
+      1. 使用lock.TTL 处理expired locks\l
+      2. 获取primary lock状态\l
+      3.发送ResolveLock cmd to the lock's region\l
+    }}"]
+    locks[style_var;label="{{
+      locks
+    }}"]
+    ErrLockWaitTimeout[style_func;label="{{
+    检查time.Since(lockWaitStartTime)\l 
+    \>= action.LockWaitTime\l
+    如果超时了，返回ErrLockWaitTimeout\l
+    }}"]
+    ResolveLocks -> ErrLockWaitTimeout[style_edge_data];
+    {LockWaitTime;lockWaitStartTime} -> ErrLockWaitTimeout[style_edge_data];
+    regionErr[style_func;label="{{
+      regionErr|
+      遇到了regionErr 需要重试\l
+      调用pessimisticLockMutations\l
+      并退出forLoop\l
+    }}"]
   }
+
+  PessimisticLockRequest[style_func;label="{{
+    PessimisticLockRequest|
+    构造发送给TIKV的\l 
+    PessimisticLockRequest\l
+  }}"]
+  SendReq[style_func;label="{{
+    SendReq|
+    发送请求给TiKV\l
+  }}"]
+  PessimisticLockRequest -> SendReq -> {
+    regionErr;
+    extractKeyExistsErr;
+    extractLockFromKeyErr;
+    ErrDeadlock;
+  }[style_edge_data];
   subgraph cluster_actionPessimisticLock {
     graph[label="actionPessimisticLock";fontsize=20;style="rounded,dashed";color="slategrey"]
     Killed[style_var;label="{{
-      Killed
+      Killed|
+      如果被killed会退出forloop
     }}"]
     WaitStartTime[style_var;label="{{
       WaitStartTime
     }}"]
   }
+  WaitStartTime -> {
+    LockWaitTime;
+    lockWaitStartTime;
+  }[style_edge_data];
   locks;
   regionErr -> pessimisticLockMutations[style_edge_data];
   extractLockFromKeyErr -> locks -> ResolveLocks[style_edge_data];
-  locks[style_var;label="{{
-    locks|
-  }}"]
 
   clientConn_dispatch  -> Killed;
   killConn -> Killed;

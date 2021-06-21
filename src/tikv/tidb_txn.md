@@ -323,20 +323,21 @@ func UpdateForUpdateTS(seCtx sessionctx.Context, newForUpdateTS uint64) error {
 ![](./dot/KvTxn_LockKeys.svg)
 
 ### PessimisticLock
-这个地方有LockWaitTime
+
+这个地方有LockWaitTime, 如果有key 冲突，TiKV会等待一段时间, 或者
+等key 的lock被释放了，才会返回给TiDB key writeConflict或者deadlock
 
 ![](./dot/tidb_actionPessimisticLock_handleSingleBatch.svg)
 
-### PessimisticLockRollback
+LockKeys中对于`ErrDeadlock`特殊处理，等待已经lock的key都被rollback之后并且sleep 5ms, 才会向上返回。
 
-在LockKey枷锁成功后，会update MemBuffer的Keys
+![](./dot/tidb_pessimitisticlock_handle_err.svg)
 
-![](./dot/tidb_pessimistic_rollback.svg)
+悲观事务对于`ErrDeadlock`和`ErrWriteConflict`重试，重新创建executor, 重试statementContext 状态，更新ForUpdateTS。
 
-### TiKV处理PessimisticLockRollback
+![](./dot/handle_pessimistic_dml.svg)
 
-![](./dot/tikv_pessimistic_lock_rollback.svg)
-
+做selectForUpdate 做了特殊处理，没看明白没什么要这么干。
 
 ### TiKV处理PessimisticLock
 
@@ -354,6 +355,18 @@ TiKV端获取Pessimistic处理方法(摘自[TiDB 悲观锁实现原理][1])
   4. 检查历史版本，如果发现当前请求的事务有没有被 Rollback 过，返回 PessimisticLockRollbacked 错误
 
 ![](./dot/acquire_pessimistic_lock.svg)
+
+### PessimisticLockRollback 
+
+TiDB从 事务的MemBuffer中获取所有被枷锁的key，向tikv发送rollback key lock请求。
+
+![](./dot/tidb_pessimistic_rollback.svg)
+
+### TiKV处理PessimisticLockRollback
+
+![](./dot/tikv_pessimistic_lock_rollback.svg)
+
+
 
 ### 加锁规则
 
@@ -525,6 +538,63 @@ region的信息发变动时, RoleChangeNotifier会收到回调
 DetectTable的wait_for_map这个信息在deadlock detect leader
 变动时候，是怎么处理的？看代码是直接清空呀？这个之前的依赖关系丢掉了，
 这样不会有问题吗？
+
+
+## Scheduler
+
+### schedule_txn_cmd
+
+从service/kv.rs grpc接口handler处理函数中，首先会将 req::into会将request 转换成
+对应的cmd, 然后创建一个oneshot channel, 并await oneshot channel返回的future.
+
+然后由`Scheduler::sched_txn_command`调度执行该cmd, cmd执行完毕，或者
+遇到error后，会调用callback, callback触发onshot channel,
+然后grpc handler 从await future中获取的resp 返回给client.
+
+
+![](./dot/sched_txn_command2.svg)
+
+### TaskSlots
+
+Scheduler command中，会将cmd 包装为一个TaskContext
+TaskContext中则包含了Task, cb(向上的回到), ProcessResult cmd的执行结果.
+
+对于每个cmd会分配一个唯一的cid, task_slot则用于从cid获取cmd 对应的taskContext.
+
+task slots 会先找到cid 对应的的slot, 之后上mutex lock，获取slot中的hashmap，
+做插入查找操作。这样的好处是检查mutex lock，增加了并发度。
+
+
+![](./dot/scheduler_task_slots.svg)
+
+### run_cmd
+
+在run cmd之前，会尝试获取cmd的所有的key的latches, 如果成功了，就执行cmd
+否则就放入latches等待队列中。latches和task slot一样，也对key hash做了slot.
+
+在cmd执行结束或者遇到error了，会release lock，释放掉command获取的key laches.
+
+然后唤醒等待key latch的command id.
+
+![](./dot/acquire_latches_lock.svg)
+
+### release lock
+
+释放cid拥有的latches lock, 唤醒等待的task,
+这些被唤醒的task 会尝试去获取lock
+如果task的涉及的所有key 的latches都拿到了，
+就去执行task.
+
+![](./dot/scheduler_release_lock2.svg)
+
+### Scheduler execute
+
+Scheduler执行cmd
+
+![](./dot/scheduler_execute2.svg)
+
+
+
 
 
 ## 事务Recovery

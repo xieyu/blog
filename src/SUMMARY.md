@@ -102,6 +102,7 @@
     - [Scheduler](./tikv/scheduler.md)
     - [Command](./tikv/command.md)
   - [Coprocessor](./tikv/coprocessor.md)
+      - [BatchExecutor](./tikv/batch_executor.md)
   - [yatp](./tikv/yatp.md)
 
 - [Rust](./rust/index.md)

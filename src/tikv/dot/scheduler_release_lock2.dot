@@ -1,0 +1,97 @@
+#include "styles.h"
+digraph release_lock {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  release_lock -> {
+    Latches_release;
+    try_to_wake_up;
+  }
+  try_to_wake_up -> {
+     SchedulerInner_acquire_lock;
+     execute;
+  }
+  Latches_release[style_func;label="{{
+    Latches::release|
+    releases all alatches owned by the lock\l
+    of command with ID `who`,\l
+    return the wakeup list\l|
+    遍历cid owned的required_hashes\l
+  }}"]
+  Latch_pop_front[style_func;label="{{
+    Latch::pop_front|
+    remove the first cid in the queue\l
+    whose hash value is equal to hash_key\l
+  }}"]
+  Latches_release -> {
+    Latch_pop_front;
+    Latch_get_first_req_by_hash;
+    Latches_lock_latch;
+  }
+  Latch_get_first_req_by_hash[style_func;label="{{
+    Latch::get_first_req_by_hash
+  }}"]
+  Latch_pop_front -> waitting;
+  waitting[style_var;label="{{
+    waitting
+  }}"]
+  Latch_get_first_req_by_hash -> waitting;
+  Latches_lock_latch[style_func;label="{{
+    Latches::lock_latch|
+      self.slots[(hash as usize)\l 
+      & (self.size - 1)].lock()\l|
+      获取对Latch操作的Mutex lock
+  }}"]
+  Latch_get_first_req_by_hash[style_func;label="{{
+    Latch::get_first_req_by_hash|
+    将等待key hash的cid\l 
+    加入到wakeuplist中\l
+  }}"]
+  Latch_get_first_req_by_hash -> try_to_wake_up[style_edge_data];
+  try_to_wake_up[style_func;label="{{
+    Scheduler::try_to_wake_up|
+    遍历wakeup list\l
+    对于每个wid 调用\l 
+    try_to_wake_up\l
+  }}"]
+
+  SchedulerInner_acquire_lock[style_func;label="{{
+    SchedulerInner::acquire_lock|
+    获取cid要的latches\l
+  }}"]
+  SchedulerInner_acquire_lock -> {
+    Latches_acquire;
+    get_task_slot;
+    task_slot_get_mut;
+  }
+  get_task_slot[style_func;label="{{
+    get_task_slot|
+      self.task_slots[id_index(cid)].lock()\l|
+      获取cid对应的task_slots\l
+  }}"]
+  task_slot_get_mut[style_func;label="{{
+    task_slot.get_mut|
+    从task_slot中获取\l 
+    cid对应的Task\l
+  }}"]
+  task_slot_get_mut -> Lock[style_edge_data];
+  Lock -> Latches_acquire;
+  Lock[style_var;label="{{
+    Lock|
+    pub required_hashes: Vec\<u64\>,\l
+    pub owned_count: usize,\l
+  }}"]
+  Latches_acquire -> execute[style_edge_data];
+  execute[style_func;label="{{
+    Scheduler::execute|
+    获取cid key的所有latchs后\l
+    执行cid 的task\l
+  }}"]
+  release_lock[style_func;label="{{
+    Scheduler::release_lock|
+    释放掉cid 拥有的latches\l
+    唤醒等待的task\l
+  }}"]
+}

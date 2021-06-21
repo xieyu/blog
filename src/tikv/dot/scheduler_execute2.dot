@@ -1,0 +1,72 @@
+#include "styles.h"
+digraph scheduler_execute {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Scheduler {
+    graph[label="Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    run_cmd -> schedule_command -> execute;
+     on_write_finished -> schedule_command;
+     on_read_finished -> schedule_command;
+     process_read -> on_read_finished;
+     process_write -> on_write_finished;
+     execute -> {
+       process_by_worker;
+       async_snapshot;
+     };
+     execute[style_func;label="{{
+       execute|
+       在async_snapshot的callback\l
+       中执行process_by_worker\l
+     }}"]
+     async_snapshot[style_func;label="{{
+       async_snapshot|
+       异步的去raft store\l 
+       获取一个snapshot\l
+     }}"]
+     process_by_worker -> {
+       process_read;
+       process_write;
+     }
+     process_read -> cmd_process_read;
+     process_write -> cmd_process_write;
+     process_by_worker[style_func;label="{{
+       process_by_worker|
+       在sched_pool中执行cmd\l
+     }}"]
+     on_write_finished[style_func;label="{{
+       on_write_finished|
+       如果ProcessResult是NextCommand\l
+       继续调度执行cmd\l
+     }}"]
+     on_read_finished[style_func;label="{{
+       on_read_finished|
+       如果ProcessResult是NextCommand\l
+       继续调度执行cmd
+     }}"]
+     cmd_process_read -> on_read_finished[style_edge_data];
+     cmd_process_write -> async_write_ext -> on_write_finished[style_edge_data];
+     cmd_process_read[style_func;label="{{
+       cmd::process_read
+     }}"]
+     cmd_process_write[style_func;label="{{
+       cmd::process_write
+     }}"]
+     process_write[style_func;label="{{
+       process_write|
+       处理cmd的WriteResult\l
+       写入raft store中\l
+     }}"]
+     process_write -> async_write_ext;
+     async_write_ext[style_func;label="{{
+       async_write_ext|
+       将writeresult中要写入的\l 
+       数据写入raft store\l
+       写完后回调callback\l
+       在回调中调用on_write_finished\l
+     }}"]
+  }
+  
+}

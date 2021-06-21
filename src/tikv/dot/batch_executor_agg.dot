@@ -1,0 +1,149 @@
+#include "styles.h"
+digraph agg {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  BatchExecutor -> {
+     AggregationExecutor;
+     BatchStreamAggregationExecutor;
+     BatchSlowHashAggregationExecutor;
+     BatchFastHashAggregationExecutor;
+     BatchSimpleAggregationExecutor;
+  }
+  //agg
+  AggregationExecutor -> {
+     AggregationExecutorImpl;
+     Entities;
+  }
+
+  AggregationExecutorImpl -> {
+    BatchStreamAggregationImpl;
+    FastHashAggregationImpl;
+    SlowHashAggregationImpl;
+    SimpleAggregationImpl;
+  }
+
+  BatchSimpleAggregationExecutor -> {
+     AggregationExecutor;
+     SimpleAggregationImpl;
+  }
+
+  BatchFastHashAggregationExecutor -> {
+    AggregationExecutor;
+    FastHashAggregationImpl;
+  }
+  BatchStreamAggregationExecutor -> {
+    AggregationExecutor;
+    BatchStreamAggregationImpl;
+  }
+
+  BatchSlowHashAggregationExecutor -> {
+     AggregationExecutor;
+     SlowHashAggregationImpl;
+  }
+
+  Entities[style_func;label="{{
+    Entities|
+    AggregationExecutor 和\l
+    AggregationExecutorImpl\l
+    都用到的公共数据\l|
+    pub src: Src,\l|
+    pub context: EvalContext,\l|
+    pub schema: Vec\<FieldType\>,\l|
+    pub each_aggr_fn: Vec\<Box\<dyn AggrFunction\>\>,\l|
+    pub each_aggr_cardinality: Vec\<usize\>,\l|
+    pub each_aggr_exprs: Vec\<RpnExpression\>,\l|
+    pub all_result_column_types: Vec\<EvalType\>,\l
+  }}"]
+  Entities -> {
+     BatchExecutor_Src;
+     EvalContext;
+     AggrFunction;
+     RpnExpression;
+  }
+  BatchExecutor_Src[style_struct;label="{{
+    BatchExecutor|
+    使用其他的Executor\l
+    作为数据源\l
+  }}"]
+  AggrFunction[style_func;label="{{
+    AggrFunction|
+    for all single parameter\l 
+    aggregate functions\l
+    calculates a summary\l 
+    value for multiple rows\l|
+    fn name(&self) -\> &'static str;\l|
+    fn create_state(&self)\l 
+    -\> Box\<dyn AggrFunctionState\>;\l
+  }}"]
+
+  AggrFunction -> AggrFunctionState;
+  AggrFunctionState[style_func;label="{{
+    AggrFunctionState|
+    for each state it can be 
+    updated or aggregated\l|
+    Aggfunc的状态，可以被更新和聚合\l|
+    fn push_result(&self, ctx: &mut EvalContext,\l 
+    target: &mut [VectorValue]) -\> Result\<()\>;\l
+  }}"]
+
+  RpnExpression[style_func;label="{{
+    RpnExpression|
+    An expression in Reverse Polish notatioon\l
+    Vec\<RpnExpressionNode\>\l\l
+  }}"]
+  RpnExpression -> RpnExpressionNode;
+
+  RpnExpressionNode[style_func;label="{{
+    RpnExpressionNode|
+    FncCall\l|
+    Constant\l|
+    ColumnRef\l
+  }}"]
+  RpnExpressionNode -> RpnFnMeta;
+
+  RpnFnMeta[style_func;label="{{
+    RpnFnMeta|
+    包含了fn_ptr 函数指针\l
+  }}"]
+  BatchStreamAggregationImpl[style_func;label="{{
+    BatchStreamAggregationImpl
+  }}"]
+
+  BatchStreamAggregationImpl -> {
+     RpnExpression;
+     AggrFunctionState;
+     RpnStackNode;
+  }
+
+  SlowHashAggregationImpl[style_func;label="{{
+    SlowHashAggregationImpl
+  }}"]
+
+  SlowHashAggregationImpl -> {
+    RpnExpression;
+    RpnStackNode;
+    AggrFunctionState;
+  }
+
+  FastHashAggregationImpl -> {
+     AggrFunctionState;
+     Groups;
+     RpnExpression;
+  }
+
+  RpnStackNode[style_func;label="{{
+    RpnStackNode|
+    a type for each node in \l 
+    the RPN evaluation stack\l
+  }}"]
+
+  RpnStackNode -> {
+     Scalar;
+     Vector;
+  }
+
+  SimpleAggregationImpl -> AggrFunctionState;
+}

@@ -1,0 +1,45 @@
+#include "styles.h"
+digraph selection {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  BatchExecutor -> BatchSelectionExecutor;
+  BatchSelectionExecutor -> {
+     EvalContext;
+     RpnExpression;
+     BatchExecutor_Src;
+  }
+  BatchSelectionExecutor[style_func;label="{{
+    BatchSelectionExecutor|
+    context: EvalContext,\l|
+    src: Src,\l|
+    conditions: Vec\<RpnExpression\>,\l
+  }}"]
+  BatchExecutor_Src[style_struct;label="{{
+    BatchExecutor|
+    使用其他batchExecutor\l 
+    作为数据源\l
+  }}"]
+  EvalContext[style_func;label="{{
+    EvalContext|
+    一些全局变量\l|
+    pub cfg: Arc\<EvalConfig\>,\l|
+    pub warnings: EvalWarnings,\l
+  }}"]
+  EvalContext -> EvalConfig;
+  RpnExpression[style_func;label="{{
+    RpnExpression|
+    express in Reverse Polish notation\l
+    Vec\<RpnExpressionNode\>\l
+  }}"]
+  EvalConfig[style_func;label="{{
+    EvalConfig|
+    pub tz: Tz,\l|
+    pub flag: Flag,\l|
+    pub max_warning_cnt: usize,\l|
+    pub sql_mode: SqlMode,\l
+  }}"]
+  
+}

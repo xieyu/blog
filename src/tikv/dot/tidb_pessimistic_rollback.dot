@@ -69,4 +69,10 @@ digraph pessimistic_rollback {
     发送PessimisticRollback请求给TiKV
   }}"]
   doActionOnMutations -> actionPessimisticRollback_handleSingleBatch[style_edge_data];
+
+  LockKeys -> asyncPessimisticRollback -> txn_committer_pessimisticRollbackMutations;
+  LockKeys[style_func;label="{{
+    LockKeys|
+    lockkeys失败
+  }}"]
 }

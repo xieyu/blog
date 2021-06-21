@@ -1,0 +1,54 @@
+#include "styles.h"
+digraph handle_error {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  amendPessimisticLock -> {
+    pessimisticLockMutations;
+    ErrWriteConflict;
+  }
+  LockKeys -> {
+     pessimisticLockMutations;
+     asyncPessimisticRollback;
+     HashPresumeKeyNotExists;
+     UnmarkPresumeKeyNotExists;
+     IsErrWriteConflict;
+     IsErrKeyExist;
+     ErrDeadlock;
+     wg_wait;
+     sleep_5_ms;
+  }
+
+  asyncPessimisticRollback -> wg_wait[style_edge_data];
+  ErrDeadlock -> wg_wait[style_edge_data];
+  ErrDeadlock -> sleep_5_ms;
+  asyncPessimisticRollback -> pessimisticRollbackMutations;
+  asyncPessimisticRollback[style_func;label="{{
+    asyncPessimisticRollback|
+    在一个goroutine中调用\l 
+    pessimisticRollbackMutations\l
+    返回了一个wg(wait_group)\l
+    在goroutine结束时候\l
+    会调用wg.done\l
+  }}"]
+  ErrDeadlock[style_func;label="{{
+    ErrDeadlock|
+    如果是死锁，调用wg_wait\l 
+    等待asyncPessimisticRollback完成
+    然后sleep 5ms\l
+    等待其他事务获取lock\l
+  }}"]
+  wg_wait[style_func;label="{{
+    wg_wait|
+    等待go routine执行结束\l
+  }}"]
+  sleep_5_ms[style_func;label="{{
+    sleep_5_ms|
+    sleep 5ms\l
+    等待其他事务获取lock\l
+    然后在重试\l
+  }}"]
+  
+}

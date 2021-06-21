@@ -1,0 +1,82 @@
+#include "styles.h"
+digraph task_slots {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  SchedulerInner_task_slots[style_var;label="{{
+    SchedulerInner::task_slots|
+     slot_id -\> \{ cid -\> `TaskContext` \} in the slot.\l|
+      Vec\<CachePadded\<\l 
+      Mutex\<HashMap\<u64, TaskContext\>\>\>\>,\l
+  }}"]
+  TaskContext[style_func;label="{{
+    TaskContext|
+    task: Option\<Task\>,\l|
+    lock: Lock,\l|
+    cb: Option\<StorageCallback\>,\l|
+    pr: Option\<ProcessResult\>,\l|
+    write_bytes: usize,\l|
+    tag: metrics::CommandKind,\l|
+    latch_timer: Instant,\l|
+    _cmd_timer: CmdTimer,\l
+  }}"]
+  SchedulerInner_task_slots -> TaskContext -> Task;
+
+  Task[style_func;label="{{
+    Task|
+    pub(super) cid: u64,\l|
+    pub(super) cmd: Command,\l|
+    pub(super) extra_op: ExtraOp,\l
+  }}"]
+  SchedulerInner_get_task_slot -> SchedulerInner_task_slots[style_edge_data];
+  SchedulerInner_get_task_slot -> id_index;
+  id_index[style_func;label="{{
+    id_index|
+    cid as usize % TASKS_SLOTS_NUM\l|
+    const TASKS_SLOTS_NUM: usize = 1 \<\< 12;\l
+  }}"]
+  Scheduler_schedule_command -> {
+     SchedulerInner_get_task_slot;
+     SchedulerInner_gen_id;
+     SchedulerInner_new_task_context;
+  }
+  SchedulerInner_task_slots[style_func;label="{{
+    SchedulerInner::task_slots|
+    获取cid对应的task_slots\l
+  }}"]
+
+  Scheduler_schedule_command[style_func;label="{{
+    Scheduler::schedule_command|
+    (cmd, callback)\l
+    callback为执行完cmd后的回调\l|
+    1.生成新的cid\l
+    2.创建新的task_context\l 
+    并插入到task_slots中\l
+    3.获取latches\l
+    4.执行task\l
+  }}"]
+  SchedulerInner_gen_id[style_func;label="{{
+    SchedulerInner::gen_id|
+    生成cmd唯一的id\l|
+    由atomic id_alloc\l 
+    单调递增生成\l
+  }}"]
+  SchedulerInner_new_task_context[style_func;label="{{
+    SchedulerInner::new_task_context|
+    (Task::new(cid, cmd), callback)\l
+  }}"]
+  SchedulerInner_new_task_context -> {
+    TaskContext_new;
+  }
+  TaskContext_new[style_func;label="{{
+    TaskContext::new
+  }}"]
+  TaskContext_new -> TaskContext[style_edge_data];
+  TaskContext_new -> Command_gen_lock;
+  Command_gen_lock[style_func;label="{{
+    Command::gen_lock|
+    生成command需要的Latch::Lock\l
+  }}"]
+}
