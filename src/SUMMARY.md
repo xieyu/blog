@@ -102,7 +102,13 @@
     - [Scheduler](./tikv/scheduler.md)
     - [Command](./tikv/command.md)
   - [Coprocessor](./tikv/coprocessor.md)
+      - [RpnExpression](./tikv/rpn_expression.md)
+      - [AggrFunction](./tikv/aggr_function.md)
       - [BatchExecutor](./tikv/batch_executor.md)
+        - [RangesScanner](./tikv/ranges_scanner.md)
+        - [ScanExecutor](./tikv/scan_executor.md)
+        - [Selection](./tikv/batch_executor_selection.md)
+        - [AggExecutor](./tikv/batch_executor_agg.md)
   - [yatp](./tikv/yatp.md)
 
 - [Rust](./rust/index.md)

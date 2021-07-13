@@ -1,0 +1,114 @@
+#include "styles.h"
+digraph logical_rows {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  LogicalRows[style_func;label="{{
+    enum LogicalRows|
+    Identical \{ size: usize \},\l|
+    Ref \{ logical_rows: &'a [usize] \},\l
+  }}"]
+  LogicalRows -> {
+     Identical;
+     Ref;
+  }
+  Identical[style_func;label="{{
+    Identical|usize\l|
+    <i> row i 的index为i\l
+  }}"]
+  Identical:i -> offsets:si;
+  Ref[style_func;label="{{
+    Ref|
+    <i> row k 的index为i\l|
+    k -\> i的映射关系\l 
+    保存在数组中\l
+  }}"]
+  Ref:i -> offsets:si;
+
+
+
+  LazyBatchColumn[style_func;label="{{
+    enum LazyBatchColumn|
+    Raw(BufferVec),\l|
+    Decoded(VectorValue),\l
+  }}"]
+
+  LazyBatchColumn -> {
+    BufferVec;
+    Decoded;
+  }
+  BufferVec[style_func;label="{{
+    BufferVec|
+    data: Vec\<u8\>,\l|
+    offsets: Vec\<usize\>,\l
+  }}"]
+  subgraph cluster_BufferVec {
+    graph[label="BufferVec";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BufferVec -> {
+      data;
+      offsets;
+    }
+    data[style_var;label="{{
+      data|
+      {<0> 0|elem 1}|
+      {<1> 8|elem 2}|
+      {<2> 16|elem 3}|
+      ...|
+      {<i> x|elem i}|
+    }}"]
+    offsets[style_blue1;label="{{
+      offsets|
+      {0|<0> 0}|
+      {1|<1> 8}|
+      {2|<2> 16}|
+      ...|
+      {<si> i|<i>}|
+    }}"]
+    offsets:0 -> data:0;
+    offsets:1 -> data:1;
+    offsets:2 -> data:2;
+    offsets:i -> data:i;
+  }
+  Decoded[style_func;label="{{
+    Decoded|
+    VectorValue
+  }}"]
+
+  Decoded -> VectorValue;
+  VectorValue[style_func;label="{{
+    VectorValue|
+    Int(ChunkedVecSized\<Int\>),\l|
+    Real(ChunkedVecSized\<Real\>),\l|
+    Decimal(ChunkedVecSized\<Decimal\>),\l|
+    Bytes(ChunkedVecBytes),\l|
+    DateTime(ChunkedVecSized\<DateTime\>),\l|
+    Duration(ChunkedVecSized\<Duration\>),\l|
+    Json(ChunkedVecJson),\l|
+    Enum(ChunkedVecEnum),\l|
+    Set(ChunkedVecSet),\l
+  }}"]
+
+  VectorValue -> ChunkedVecSized;
+  ChunkedVecSized[style_func;label="{{
+    ChunkedVecSized|
+    data: Vec\<T\>,\l|
+    bitmap: BitVec,\l|
+    phantom: std::marker::PhantomData\<T\>,\l
+  }}"]
+  ChunkedVecSized -> data2;
+  data2[style_func;label="{{
+    data|
+    解码后的数据\l|
+    Vec\<T\>\l|
+    类型为T的数据Vec|
+    ...\l|
+    <i> 第i个数据\l|
+    ...
+  }}"]
+  data -> data2[style_edge_data];
+  Identical:i -> data2:i[color=green];
+  Ref:k -> data:i[color=green];
+
+}

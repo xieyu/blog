@@ -1,0 +1,90 @@
+#include "styles.h"
+digraph rpn_fn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  rpn_fn -> {
+     rpn_function_transform;
+  }
+  rpn_function_transform[style_func;label="{{
+    rpn_function\l|
+    transform
+  }}"]
+
+  rpn_function_transform -> {
+     VargsRpnFn_new_generate;
+     RawVargsRpnFn_new_generate;
+     NormalRpnFn_new_generate;
+  }
+
+  NormalRpnFn_new_generate -> {
+     NormalRpnFn;
+     NormalRpnFn_generate_constructor;
+     item_fn_into_token_stream;
+  }
+  NormalRpnFn_generate_constructor -> {
+     generate_downcast_metadata;
+     generate_metadata_type_checker;
+     generate_init_metadata_fn;
+     ValidatorFnGenerator_generate;
+     item_fn_sig_ident_to_string;
+     macro_quote;
+     item_fn_sig_generics_split_for_impl;
+  }
+  item_fn_sig_generics_split_for_impl -> {
+    ImplGenerics;
+    TypeGenerics;
+    WhereClause;
+  }
+  TypeGenerics -> ty_generics_turbofish;
+  TypeGenerics[style_blue1;label="{{
+    TypeGenerics|
+    Turn a type's generics like `\<X, Y\>`\l 
+    into a turbofish like `::\<X, Y\>`.\l\l
+  }}"]
+  ImplGenerics[style_blue1;label="{{
+    ImplGenerics
+  }}"]
+  WhereClause[style_blue1;label="{{
+    WhereClause
+  }}"]
+  ImplGenerics -> {
+    generate_init_metadata_fn;
+    generate_metadata_type_checker;
+    ValidatorFnGenerator_generate;
+  }[style_edge_data];
+  WhereClause -> {
+    ValidatorFnGenerator_generate
+    macro_quote;
+  }[style_edge_data]
+
+  macro_quote[style_func;label="{{
+    macro_quote|
+      pub const fn #constructor_ident #impl_generics ()\l
+  }}"]
+
+  macro_quote -> {
+     RpnFnMeta;
+  }
+  RpnFnMeta[style_func;label="{{
+    RpnFnMeta|
+    <name> name: #fn_name\l|
+    <init_metadata> metadata_expr_ptr: init_metadata # ty_generics_tubofish\l|
+    <valid> validator_ptr validate #ty_generics_tubofish\l|
+    <fn_ptr> fn_ptr run #ty_generics_tubofish\l
+  }}"]
+
+  item_fn_sig_ident_to_string -> RpnFnMeta:name;
+  generate_init_metadata_fn -> RpnFnMeta:init_metadata;
+  ValidatorFnGenerator_generate -> RpnFnMeta:valid;
+  RpnFnMeta:fn_ptr -> {
+     evaluator_eval;
+  }
+  evaluator_eval[style_func;label="{{
+    \#evaluator.eval
+    quote! \{ #evaluator_ident\l #ty_generics_turbofish \l(std::marker::PhantomData) };\l
+  }}"]
+
+}

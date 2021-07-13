@@ -1,0 +1,64 @@
+#include "styles.h"
+digraph table_scan_process_v2 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  process_v2 -> {
+     RowSlice_from_bytes;
+     search_in_non_null_ids;
+     begin_concat_extend;
+     write_v2_as_datum;
+     search_in_null_ids;
+     push_DATUM_DAT_NULL;
+  }[color=red];
+
+  subgraph cluster_foreach {
+    graph[label="foreach col_id, idx\l in column_id_index";fontsize=20;style="rounded,dashed";color="slategrey"]
+     search_in_non_null_ids;
+     begin_concat_extend;
+     write_v2_as_datum;
+     search_in_null_ids;
+     push_DATUM_DAT_NULL;
+  }
+  value[style_var;label="{{
+    value|
+    CODEC_VERSION: u8=128\l|
+    FLAGS: value 大小端？\l|
+    non_null_cnt: read_u16_le\l|
+    null_cnt: read_u16_le\l|
+    <non_null_ids> non_null_ids: read_le_bytes\l|
+    <null_ids> null_ids: read_le_bytes\l|
+    offsets: read_le_bytes\l|
+    <value> values: LEBytes::new(data)\l
+  }}"]
+  RowSlice_from_bytes[style_func;label="{{
+    RowSlice::from_bytes\l
+    根据data[0]的flag解析\l
+  }}"]
+  RowSlice_from_bytes -> RowSlice -> {
+    search_in_non_null_ids;
+    search_in_null_ids;
+  }[style_edge_data];
+
+  value:non_null_ids -> search_in_non_null_ids[color=blue];
+  value:null_ids -> search_in_null_ids[color=blue];
+  value:value -> write_v2_as_datum[color=blue];
+
+  search_in_null_ids -> push_DATUM_DAT_NULL[style_edge_data];
+  search_in_non_null_ids -> {
+    begin_concat_extend;
+    write_v2_as_datum;
+  }
+  begin_concat_extend -> write_v2_as_datum -> columns;
+  push_DATUM_DAT_NULL -> columns;
+
+  columns[style_var;label="{{
+    columns|
+    最后输出结果\l
+    &mut LazyBatchColumnVec\l
+  }}"]
+
+  value -> process_v2[style_edge_data];
+  
+}

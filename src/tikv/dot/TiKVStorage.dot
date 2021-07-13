@@ -1,0 +1,80 @@
+#include "styles.h"
+digraph TiKVStorage {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  TiKVStorage[style_func;label="{{
+    TiKVStorage|
+    store: S,\l|
+    scanner: Option\<S::Scanner\>,\l|
+    cf_stats_backlog: Statistics,\l
+  }}"]
+  TiKVStorage -> {
+    Store;
+    Scanner;
+    Statistics;
+    NewerTsCheckState;
+  }
+  Store[style_blue1;label="{{
+    trait Store|
+    fn get(&self, key: &Key,\l statistics: &mut Statistics)\l|
+    fn incremental_get(&mut self, key: &Key) \l|
+    fn incremental_get_take_statistics(&mut self) \l|
+    fn incremental_get_met_newer_ts_data(&self)\l|
+    fn batch_get(\l|
+    <scanner> fn scanner(\l
+  }}"]
+  Store -> {
+    SnapshotStore;
+  }
+  Store:scanner -> Scanner;
+
+  Scanner[style_blue1;label="{{
+    Scanner|
+    fn next(&mut self)\l 
+    -\> Result\<Option\<(Key, Value)\>\>;\l|
+    fn scan(&mut self, limit: usize, sample_step: usize)\l 
+    -\> Result\<Vec\<Result\<KvPair\>\>\> \l|
+    fn met_newer_ts_data(&self)\l
+    -\> NewerTsCheckState;\l|
+    fn take_statistics(&mut self)\l
+    -\> Statistics;\l
+  }}"]
+
+  SnapshotStore[style_func;label="{{
+    SnapshotStore|
+    snapshot: S,\l|
+    start_ts: TimeStamp,\l|
+    isolation_level: IsolationLevel,\l|
+    fill_cache: bool,\l|
+    bypass_locks: TsSet,\l|
+    check_has_newer_ts_data: bool,\l|
+    point_getter_cache: Option\<PointGetter\<S\>\>,\l
+  }}"]
+
+  SnapshotStore -> {
+     Snapshot;
+     IsolationLevel;
+     TsSet;
+     PointGetter;
+  }
+  PointGetter -> Snapshot;
+
+  Scanner[style_func;label="{{
+    Scanner|
+    Forward(ForwardKvScanner\<S\>),\l|
+    Backward(BackwardKvScanner\<S\>),\l
+  }}"]
+  Scanner -> {
+    ForwardKvScanner;
+    BackwardKvScanner;
+  }
+  {ForwardKvScanner;BackwardKvScanner} -> Snapshot;
+  Snapshot[style_blue1;label="{{
+    trait Snapshot|
+      A Snapshot is a consistent\l
+      view of the underlying engine\l 
+      at a given point in time.\l|
+  }}"]
+}

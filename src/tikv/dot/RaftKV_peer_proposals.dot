@@ -1,0 +1,70 @@
+#include "styles.h"
+digraph peer_proposals {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    propose -> {
+       propose_normal;
+       cb_invoke_proposed;
+       post_propose;
+    }
+    propose_normal -> {
+       pre_propose;
+       raft_group_propose;
+    }
+    post_propose -> proposals;
+    post_propose[style_func;label="{{
+      post_propose|
+      将Proposal加入
+      proposals等待队列
+    }}"]
+    proposals[style_var;label="{{
+      proposals|
+    proposals: ProposalQueue\<EK::Snapshot\>,\l
+    }}"]
+    proposals -> Proposal;
+    Proposal[style_func;label="{{
+      Proposal|
+      pub is_conf_change: bool,\l|
+      pub index: u64,\l|
+      pub term: u64,\l|
+      pub cb: Callback\<S\>,\l
+    }}"]
+    handle_raft_committed_entries -> {
+       find_propose_time;
+       find_proposal;
+    }
+    find_proposal -> proposals;
+    find_propose_time -> proposals;
+    collect_ready -> handle_raft_ready_append;
+    handle_raft_ready_append -> {
+       raft_group_ready;
+       handle_raft_committed_entries;
+       Apply;
+       apply_router_schedul_task;
+    }
+    Apply[style_func;label="{{
+      Apply|
+      将cb放入apply中\l
+      由ApplyFsm将write保存到下来\l
+      保存后调用cb\l
+    }}"]
+    find_proposal -> Apply[style_edge_data];
+    Apply -> apply_router_schedule_task;
+    apply_router_schedul_task[style_func;label="{{
+      apply_router.schedul_task|
+      将Apply任务转发至ApplyFsm\l
+    }}"]
+
+    {rank=same;propose;collect_ready}
+    subgraph cluster_raft {
+      graph[label="raft";fontsize=20;style="rounded,dashed";color="slategrey"]
+      raft_group_propose -> raft_group_ready[style_edge_data];
+    }
+
+  }
+  
+}

@@ -2,41 +2,91 @@
 
 <!-- toc -->
 
-## Scan executor
+## Executor proto
 
-Scan executor负责从Storage中扫描读数据，最底层的是RangesScanner，它使用Storage
-的point_get 或者scan, 从storage iter数据。
+tipb proto中定义的Executor 关系如下
 
-`ScanExecutor`封装了一些公用代码，`TableScanExectuorImpl`和`IndexScanExecutorImpl`
-分别用来做扫表和扫index.
+其中TableScan和IndexScan是最底层的Executor, 从Storage can key range的数据，供上层(Selection等）其他Executor使用。
 
-![](./dot/batch_executor_scan.svg)
+![](./dot/tipb_executor.svg)
 
-### ScanExecutor::next_batch
+## build_executors
 
-迭代读取`scan_rows`行数据，每次调用`RangesScanner::next`从
-`Storage`中读取kv数据, 然后调用impl的`process_kv_pair`处理kv数据.
-并放入`LazyBatchColumnVec`中，最后返回给上层调用者。
+build_executors 根据tipb中定义的Executor 创建对应的BatchExecutor
+```rust
+#[allow(clippy::explicit_counter_loop)]
+pub fn build_executors<S: Storage + 'static>(
+    executor_descriptors: Vec<tipb::Executor>,
+    storage: S,
+    ranges: Vec<KeyRange>,
+    config: Arc<EvalConfig>,
+    is_scanned_range_aware: bool,
+) -> Result<Box<dyn BatchExecutor<StorageStats = S::Statistics>>> {
 
-![](./dot/ScanExecutor_next_batch.svg)
+    match first_ed.get_tp() {
 
-### RangesScanner::next
+        ExecType::TypeTableScan => {
+        //...
+```
 
-从storage中读取数据
+参数中的`executor_descriptors`数组，第i个是第i+1个的child Executor, 
+且第一个为TableScan或者IndexScan。
 
-## Selection
 
-调用Src BatchExecutor的next_batch, 获取数据，然后对于自己的每个condition
-调用 RpnExpression::eval, 计算condition的结果，然后只保留condition为true的
-logical rows.
+![](./dot/build_executors.svg)
 
-![](./dot/batch_executor_selection.svg)
 
-### next_batch
+## BatchExecutor Trait
 
-![](./dot/batch_executor_selection_next_batch.svg)
+BatchExecutor定义了Executor的基本接口, 其中的`next_batch`用来
+从child Executor中获取数据。
 
-## Agg executor
+数据格式为`LazyBatchColumnVec`
 
-![](./dot/batch_executor_agg.svg)
+
+![](./dot/BatchExecutor_next_batch.svg)
+
+```rust
+impl<C: ExecSummaryCollector + Send, T: BatchExecutor> BatchExecutor
+    for WithSummaryCollector<C, T>
+{
+    type StorageStats = T::StorageStats;
+
+    fn schema(&self) -> &[FieldType] {
+        self.inner.schema()
+    }
+
+    fn next_batch(&mut self, scan_rows: usize) -> BatchExecuteResult {
+        let timer = self.summary_collector.on_start_iterate();
+        let result = self.inner.next_batch(scan_rows);
+        self.summary_collector
+            .on_finish_iterate(timer, result.logical_rows.len());
+        result
+    }
+
+    fn collect_exec_stats(&mut self, dest: &mut ExecuteStats) {
+        self.summary_collector
+            .collect(&mut dest.summary_per_executor);
+        self.inner.collect_exec_stats(dest);
+    }
+
+    fn collect_storage_stats(&mut self, dest: &mut Self::StorageStats) {
+        self.inner.collect_storage_stats(dest);
+    }
+
+    fn take_scanned_range(&mut self) -> IntervalRange {
+        self.inner.take_scanned_range()
+    }
+
+    fn can_be_cached(&self) -> bool {
+        self.inner.can_be_cached()
+    }
+}
+```
+
+## BatchExecutorsRunner
+
+### call next_batch
+
+![](./dot/call_next_batch.svg)
 

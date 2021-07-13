@@ -1,0 +1,125 @@
+#include "styles.h"
+digraph raft_kv {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  TiKVServer -> TiKVEngines;
+  TiKVEngines -> {
+    RaftKv;
+    Engines;
+    RocksEngine;
+    RaftEngine;
+  }[color_red];
+  RaftKv -> {
+    ServerRaftStoreRouter;
+    RocksEngine;
+    RaftEngine;
+  }
+
+  ServerRaftStoreRouter -> {
+     RaftRouter;
+     LocalReader;
+  }
+  RaftRouter -> {
+     BatchRouter;
+  }
+  BatchRouter -> {
+     PeerFsm;
+     StoreFsm;
+  }
+  PeerFsm -> {
+     Peer;
+     PeerMsg;
+  }
+  Peer -> {
+     RawNode;
+     PeerStorage;
+     ReadIndexQueue;
+     ProposalQueue;
+  }
+  StoreFsm -> {
+     Store;
+     StoreMsg;
+  }
+  StoreMsg -> CompactedEvent -> EK_CompactEvent;
+  PeerStorage -> Engines;
+  Engines[style_blue1;label="{{
+    Engines|
+    <ek> pub kv: K,\l|
+    <er> pub raft: R,\l
+  }}"]
+  ProposalQueue -> Proposal ->  Callback -> WriteCallback -> EK_Snapshot;
+  ProposalQueue[style_func;label="{{
+    ProposalQueue|
+    tag: String,\l
+    queue: VecDeque<Proposal<S>>,
+  }}"]
+  ReadIndexQueue  -> {
+    ReadIndexRequest;
+  }
+  ReadIndexRequest -> Callback -> ReadCallback -> EK_Snapshot;
+  Engines:ek -> RocksEngine[style_edge_data];
+  Engines:er -> RaftEngine[style_edge_data];
+  EK_CompactEvent -> RocksEngine;
+  EK_Snapshot -> RocksEngine;
+
+  subgraph cluster_EK {
+    graph[label="EK";fontsize=20;style="rounded,dashed";color="slategrey"]
+    EK_CompactEvent;
+    EK_Snapshot;
+    RocksEngine;
+  }
+  RocksEngine[style_var;label="{{
+    RocksEngine|
+    db: Arc\<DB\>,\l|
+    shared_block_cache: bool,\l|
+    用于raft state\l 
+    machine的存储key,value\l
+  }}"]
+  RaftEngine[style_var;label="{{
+    trait RaftEngine|
+    用于存储raft log\l
+  }}"]
+  RaftEngine -> {
+     RocksEngine2;
+     RaftLogEngine;
+  }
+  RocksEngine2[style_func;label="{{
+    RocksEngine|
+    rocks Engine也实现了\l
+    trait RaftEngine\l
+  }}"]
+  Callback[style_func;label="{{
+    enum Callback|
+    None,\l|
+    Read(ReadCallback\<S\>),\l|
+    Write ...\l
+  }}"]
+  {rank=same;ProposalQueue;ReadIndexQueue}
+  subgraph cluster_raft_rs {
+    graph[label="raft_rs";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RawNode -> Raft -> RaftCore -> RaftLog;
+    RaftLog[style_func;label="{{
+      RaftLog\<T\>|
+      pub store: T\l|
+      存储raft 日志\l
+    }}"]
+      
+  }
+  RaftLog -> PeerStorage;
+  ProposalQueue[style_func;label="{{
+    ProposalQueue|
+    tag: String,\l|
+    queue: VecDeque\<Proposal\<S\>\>,\l
+  }}"]
+  PeerStorage[style_func;label="{{
+    PeerStorage|
+    pub engines: Engines\<EK, ER\>,\l|
+    region: metapb::Region,\l|
+    raft_state: RaftLocalState,\l|
+    apply_state: RaftApplyState,\l|
+    last_term: u64,\l
+  }}"]
+
+}

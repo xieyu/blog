@@ -1,0 +1,83 @@
+#include "styles.h"
+digraph rpn_stack_node {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RpnStackNode -> {
+    Scalar;
+    Vector;
+  }
+  RpnStackNode[style_func;label="{{
+    enum RpnStackNode|
+    Scalar\l|
+    Vector\l
+  }}"]
+  Scalar[style_func;label="{{
+    Scalar|
+        value: \&\'a ScalarValue,\l|
+        field_type: &\'a FieldType,\l
+  }}"]
+
+  Vector[style_func;label="{{
+    Vector|
+        value: RpnStackNodeVectorValue\<'a\>,\l|
+        field_type: &'a FieldType,\l
+  }}"]
+  
+  Scalar -> {
+     ScalarValue;
+     FieldType;
+  }
+
+  Vector -> {
+     RpnStackNodeVectorValue;
+     FieldType;
+  }
+  ScalarValue[style_func;label="{{
+    ScalarValue|
+    Int(Option\<super::Int\>),\l|
+    Real(Option\<super::Real\>),\l|
+    Decimal(Option\<super::Decimal\>),\l|
+    Bytes(Option\<super::Bytes\>),\l|
+    DateTime(Option\<super::DateTime\>),\l|
+    Duration(Option\<super::Duration\>),\l|
+    Json(Option\<super::Json\>),\l|
+    Enum(Option\<super::Enum\>),\l|
+    Set(Option\<super::Set\>),\l
+  }}"]
+  RpnStackNodeVectorValue[style_func;label="{{
+    enum RpnStackNodeVectorValue|
+    Generated\l|
+    Ref\l
+  }}"]
+  Generated[style_func;label="{{
+    Generated|
+    eval时候存放函数执行结果\l|
+      physical_value: VectorValue,\l
+  }}"]
+  Ref[style_func;label="{{
+    Ref|
+      physical_value: &'a VectorValue,\l
+      执行LazyBatchColumn 解码后的VectorValue\l|
+      logical_rows: &'a [usize],\l
+  }}"]
+  RpnStackNodeVectorValue -> {
+     Generated;
+     Ref;
+  } -> VectorValue;
+
+  VectorValue[style_func;label="{{
+    VectorValue|
+    Int(ChunkedVecSized\<Int\>),\l|
+    Real(ChunkedVecSized\<Real\>),\l|
+    Decimal(ChunkedVecSized\<Decimal\>),\l|
+    Bytes(ChunkedVecBytes),\l|
+    DateTime(ChunkedVecSized\<DateTime\>),\l|
+    Duration(ChunkedVecSized\<Duration\>),\l|
+    Json(ChunkedVecJson),\l|
+    Enum(ChunkedVecEnum),\l|
+    Set(ChunkedVecSet),\l
+  }}"]
+  
+}

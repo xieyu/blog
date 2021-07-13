@@ -1,0 +1,107 @@
+#include "styles.h"
+digraph rpn_expression_builder {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RpnExpressionBuilder_build_from_expr_tree -> {
+      append_rpn_nodes_recursively;
+      RpnExpression_from;
+  }
+  RpnExpressionBuilder_build_from_expr_tree[style_func;label="{{
+    RpnExpressionBuilder::\l build_from_expr_tree
+  }}"]
+  append_rpn_nodes_recursively[style_func;label="{{
+    append_rpn_nodes_recursively|
+    后续遍历expr tree\l 
+    转换为RPN nodes\l
+  }}"]
+
+  append_rpn_nodes_recursively -> {
+     handle_node_fn_call;
+     handle_node_constant;
+     handle_node_column_ref;
+  }
+
+  handle_node_fn_call -> {
+     fn_mapper;
+     func_meta_validator_ptr;
+     args_append_rpn_nodes_recursively;
+     rpn_nodes_push;
+  }
+
+  handle_node_column_ref -> {
+     RpnExpressionNode_ColumnRef;
+     rpn_nodes_push;
+  }
+  fn_mapper -> map_expr_node_to_rpn_func;
+  map_expr_node_to_rpn_func[style_red;label="{{
+    map_expr_node_to_rpn_func|
+    将expr node映射为具体的函数
+  }}"]
+  map_expr_node_to_rpn_func -> rpn_fn[style_edge_data];
+  //  map_int_sig;
+  //}
+  //map_int_sig -> {
+  //   plus_mapper;
+  //}
+  //plus_mapper -> arithmetic_fn_meta -> ArithmeticOp;
+  //arithmetic_fn_meta -> rpn_fn;
+  handle_node_constant[style_func;label="{{
+    handle_node_constant|
+    叶子节点\l|
+    抽出相关类型信息数据后\l
+    创建RpnNode\l
+    push 到rpn_node数组\l
+  }}"]
+  handle_node_column_ref[style_func;label="{{
+    handle_node_column_ref|
+    叶子节点\l|
+    创建ColumnRef\l
+  }}"]
+  RpnExpressionNode_ColumnRef[style_func;label="{{
+    RpnExpressionNode\l|
+    ColumnRef\l
+  }}"]
+  RpnExpressionNode_ColumnRef -> rpn_nodes_push[style_edge_data]
+
+  handle_node_constant -> {
+     rpn_nodes_push;
+     RpnExpressionNode_Constant;
+  }
+  handle_node_fn_call[style_func;label="{{
+    handle_node_fn_call|
+    后续遍历\l|
+    先遍历所有的args children节点\l
+    push到rpn nodes中\l
+    然再push一个RpnExpressionNode::FnCall\l
+  }}"]
+  RpnExpressionNode_Constant -> rpn_nodes_push;
+  args_append_rpn_nodes_recursively[style_blue1;label="{{
+    append_rpn_nodes_recursively\l|
+    对于fn的参数, 递归调用\l
+  }}"]
+  args_append_rpn_nodes_recursively -> rpn_nodes_push;
+  rpn_nodes_push[style_func;label="{{
+    rpn_nodes.push|
+    将解析后的节点\l 
+    放入nodes列表
+  }}"]
+  rpn_nodes_push -> rpn_nodes -> RpnExpression_from[style_edge_data];
+  rpn_fn[style_blue1;label="{{
+    rpn_fn|
+    macro fn
+    将函数with_context 生成为\l
+    with_capacity_fn_meta -\> RpnFnMeta\l
+  }}"]
+  
+  subgraph cluster_RpnExpression {
+    graph[label="RpnExpression";fontsize=20;style="rounded,dashed";color="slategrey"]
+    rpn_nodes[style_var;label="{{
+      rpn_nodes
+    }}"];
+    rpn_nodes_push;
+    RpnExpression_from;
+  }
+}

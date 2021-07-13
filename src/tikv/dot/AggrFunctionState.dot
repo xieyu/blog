@@ -1,0 +1,118 @@
+#include "styles.h"
+digraph aggr_function_state {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  AggrFunctionState[style_func;label="{{
+    AggrFunctionState|
+    fn push_result(...\l|
+    + AggrFunctionStateUpdatePartial接口\l
+  }}"]
+  AggrFunctionState -> AggrFunctionStateUpdatePartial;
+  AggrFunctionStateUpdatePartial[style_func;label="{{
+    AggrFunctionStateUpdatePartial|
+    unsafe fn update_unsafe(...\l |
+    unsafe fn update_repeat_unsafe(...\l|
+    unsafe fn update_vector_unsafe(...\l
+  }}"]
+
+  AggrFunctionState -> {
+     ConcreteAggrFunctionState;
+     AggrFnStateCount;
+  }
+
+  ConcreteAggrFunctionState -> {
+     AggrFnStateAvg;
+     AggrFnStateAvgForSet;
+     AggrFnStateAvgForEnum;
+     AggrFnStateSum;
+     AggrFnStateSumForEnum;
+     AggrFnStateSumForSet;
+     AggrFnStateVariance;
+     AggrFnStateVarianceForEnum;
+     AggrFnStateVarianceForSet;
+     AggrFnStateExtremumForEnum;
+     AggrFnStateExtremumForSet;
+     AggrFnStateExtremum4Bytes;
+     AggrFnStateExtremum;
+  }
+  AggrFnStateCount[style_func;label="{{
+    AggrFnStateCount|
+    count: usize\l
+  }}"]
+  subgraph cluster_Extremum {
+    graph[label="Extremum";fontsize=20;style="rounded,dashed";color="slategrey"]
+     AggrFnStateExtremumForEnum;
+     AggrFnStateExtremumForSet;
+     AggrFnStateExtremum4Bytes;
+     AggrFnStateExtremum;
+  }
+  subgraph cluster_Variance {
+    graph[label="Variance";fontsize=20;style="rounded,dashed";color="slategrey"]
+     AggrFnStateVariance;
+     AggrFnStateVarianceForEnum;
+     AggrFnStateVarianceForSet;
+  }
+
+  subgraph cluster_Avg {
+    graph[label="Avg";fontsize=20;style="rounded,dashed";color="slategrey"]
+     AggrFnStateAvg[style_func;label="{{
+       AggrFnStateAvg|
+       sum: T,\l|
+       count: usize,\l
+     }}"]
+     AggrFnStateAvgForEnum[style_func;label="{{
+       AggrFnStateAvgForEnum|
+       sum: Decimal,\l|
+       count: usize,\l
+     }}"]
+     AggrFnStateAvgForSet[style_func;label="{{
+       AggrFnStateAvgForSet|
+       sum: Decimal,\l|
+       count: usize,\l
+     }}"]
+  }
+
+  {
+    AggrFnStateAvgForEnum;
+    AggrFnStateAvgForSet;
+  } -> Decimal;
+  ConcreteAggrFunctionState[style_func;label="{{
+    ConcreteAggrFunctionState|
+    unsafe fn update_concrete_unsafe(...)\l -\> Result\<()\>\l
+    fn push_result(...)  -\> Result\<()\>;\l|
+    helper trait for single parameter\l
+    aggregate function states that\l
+    only work ver concrete eval types\l
+  }}"]
+
+  subgraph cluster_Sum {
+    graph[label="Sum";fontsize=20;style="rounded,dashed";color="slategrey"]
+     AggrFnStateSum[style_func;label="{{
+       AggrFnStateSum|
+       sum: T,\l|
+       has_value: bool,\l
+     }}"]
+     AggrFnStateSumForEnum[style_func;label="{{
+       AggrFnStateSumForEnum|
+       sum: Decimal,\l|
+       has_value: bool,\l
+     }}"]
+     AggrFnStateSumForSet[style_func;label="{{
+       AggrFnStateExtremumForSet|
+       _phantom: std::marker::PhantomData\<Decimal\>,\l
+     }}"]
+  }
+
+
+  Decimal[style_func;label="{{
+    Decimal|
+    int_cnt: u8,\l|
+    frac_cnt: u8,\l|
+    result_frac_cnt: u8,\l|
+    negative: bool,\l|
+    word_buf: [u32; 9],\l
+  }}"]
+
+}

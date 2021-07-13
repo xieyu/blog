@@ -1,0 +1,76 @@
+#include "styles.h"
+digraph slow_hash_map {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  //rows -> group_key_buffer -> groups -> states_offset_each_logical_row -> states;
+  rows[style_red;label="{{
+    rows|
+    {i|ai, bi, ci, di}|
+    {j|aj, bj, cj, dj}|
+    {k|ak, bk, ck, dk}|
+    ...
+  }}"]
+  group_key_buffer[style_blue1;label="{{
+    group_key_buffer|
+    {<ri> i|<i>group_exp_eval(ai), group_exp_eval(bi)}|
+    {<rj> j|<j>group_exp_eval(aj), group_exp_eval(bj)}|
+    ...|
+    {<rk> k|<k>group_exp_eval(ak), group_exp_eval(bk)}|
+    ...
+  }}"]
+
+  rows:i -> group_key_buffer:ri;
+  rows:j -> group_key_buffer:rj;
+  rows:k -> group_key_buffer:rk;
+  group_key_buffer:i -> group_key_ref_i;
+  group_key_buffer:j -> group_key_ref_j;
+  group_key_buffer:k -> group_key_ref_k;
+  {group_key_ref_i;group_key_ref_j;}-> groups:1
+  {group_key_ref_k;}-> groups:2
+  groups[style_var;label="{{
+    groups|
+    <1> group hash key -\> 0\l|
+    <2> group hash key -\> 2\l|
+    ...
+  }}"]
+
+  group_key_ref_i[style_func;label="{{
+    group_key_ref_i|
+    buf, start, end\l|
+    记录了第i行的group eval结果\l
+    在group_key_buffer中的位置\l|
+    计算buf[start:end]的hash值\l
+    得到groups中的key\l
+  }}"]
+
+  group_key_ref_j[style_func;label="{{
+    group_key_ref_j
+  }}"]
+
+  group_key_ref_k[style_func;label="{{
+    group_key_ref_k
+  }}"]
+  states[style_blue1;label="{{
+    states|
+    {<0> 0| avg(c)\l}|
+    {1|sum(d)}|
+    {2|avg(c)}|
+    {3|sum(d)}|
+    ...
+  }}"]
+  groups:1 -> states:1;
+  groups:2 -> states:2;
+  states_offset_each_logical_row[style_red;label="{{
+    states_offset_each_logical_row|
+    {i|<i> 0}|
+    {j|<j> 0}|
+    {k|<k> 2}|
+    ...
+  }}"]
+  states_offset_each_logical_row:i -> states:0;
+  states_offset_each_logical_row:j -> states:0;
+  states_offset_each_logical_row:k -> states:2;
+  
+}

@@ -1,0 +1,82 @@
+#include "styles.h"
+digraph rangeScanner_snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Snapshot[style_blue1;label="{{
+    trait Snapshot|
+      A Snapshot is a consistent\l
+      view of the underlying engine\l 
+      at a given point in time.\l
+  }}"]
+
+  Snapshot -> {
+     RegionSnapshot;
+     BTreeEngineSnapshot;
+     RocksSnapshot;
+  }
+  RegionSnapshot[style_func;label="{{
+    RegionSnapshot|
+    snap: Arc\<S\>,\l|
+    region: Arc\<Region\>,\l|
+    apply_index: Arc\<AtomicU64\>,\l|
+    pub max_ts_sync_status: Option\<Arc\<AtomicU64\>\>,\l
+  }}"]
+
+  RegionSnapshot -> {
+     Region;
+     EngineTraitSnapshot;
+  }
+  EngineTraitSnapshot[style_func;label="{{
+    EngineTraitSnapshot|
+    A consistent read-only\l
+    view of database\l
+    cf_names(&self) \l 
+    -\> Vec\<&str\>
+  }}"]
+  Region[style_func;label="{{
+    Region|
+    pub id: u64,\l|
+    pub region_epoch: RegionEpoch,\l
+  }}"]
+
+  Region -> {
+    RegionEpoch;
+  }
+  RegionEpoch[style_func;label="{{
+    RegionEpoch|
+    pub conf_ver: u64,\l|
+    pub version: u64,\l
+  }}"]
+  RegionSnapshot -> RegionIterator;
+  RegionIterator[style_func;label="{{
+    RegionIterator|
+    iter: \<S as Iterable\>::Iterator,\l|
+    region: Arc\<Region\>,\l
+  }}"]
+  EngineTraitSnapshot -> {
+     RocksSnapshot;
+  }
+  RocksSnapshot[style_func;label="{{
+    RocksSnapshot|
+    <db>db: Arc\<DB\>,\l|
+    <snap> snap: UnsafeSnap,\l
+  }}"]
+
+  RocksSnapshot -> {DB; UnsafeSnap}
+  UnsafeSnap -> DBSnapshot;
+  subgraph cluster_rocksdb {
+    graph[label="rocksdb";fontsize=20;style="rounded,dashed";color="slategrey"]
+    UnsafeSnap[style_func;label="{{
+      UnsafeSnap|
+        inner: *const DBSnapshot,\l
+    }}"]
+    UnsafeSnap;
+    DB;
+    DBSnapshot;
+      
+  }
+  
+}

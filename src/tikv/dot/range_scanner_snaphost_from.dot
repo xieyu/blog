@@ -1,0 +1,63 @@
+#include "styles.h"
+digraph range_scanner_snapshot_from {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Endpoint_handle_unary_request_impl -> {
+     with_tls_engine;
+     Endpoint_async_snapshot_await;
+  }
+  Endpoint_async_snapshot_await -> {
+     need_check_locks_in_replica_read;
+     kv_snapshot;
+  }
+  kv_snapshot -> {
+    tikv_Engine_async_snapshot;
+  }
+  SnapContext[style_func;label="{{
+    SnapContext|
+    pub pb_ctx: &'a Context,\l|
+    pub read_id: Option\<ThreadReadId\>,\l|
+    pub start_ts: TimeStamp,\l|
+    pub key_ranges: Vec\<KeyRange\>,\l
+  }}"]
+  SnapContext -> tikv_Engine_async_snapshot;
+  SnapContext -> {
+    ThreadReadId;
+  }
+  ThreadReadId[style_func;label="{{
+    ThreadReadId|
+    whether the read request come\l
+    from  the same GRPC stream\l|
+    sequence: u64\l|
+    pub create_time: Timespec,\l
+  }}"]
+  tikv_Engine_async_snapshot -> RocksEngine_async_snapshot;
+
+/*
+  RocksEngine_async_snapshot -> {
+    sched_scheduler;
+  }
+
+  rocksdb_engine_Runner[style_func;label="{{
+    
+  rocksdb_engine_Runner|
+      struct Runner(Engines\<BaseRocksEngine,\l 
+      BaseRocksEngine\>);\l
+  }}"]
+  worker_engine_rockesdb -> rocksdb_engine_Runner;
+  rocksdb_engine_Runner -> Runner_0_kv_snapshot -> KvEngine_snapshot -> RocksSnapshot_new;
+  RocksSnapshot_new -> RocksSnapshot;
+  sched_scheduler -> worker_engine_rockesdb;
+  */
+  tikv_Engine_async_snapshot -> RaftKV_async_snapshot;
+  with_tls_engine[style_func;label="{{
+    with_tls_engine|
+    Execute the closure on\l 
+    the thread local engine\l
+  }}"]
+  with_tls_engine -> tikv_Engine_async_snapshot[style_edge_data];
+}
+

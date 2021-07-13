@@ -1,0 +1,129 @@
+#include "styles.h"
+digraph async_snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    propose[style_func;label="{{
+      propose|
+      发起ReadIndex请求\l 
+      并带上了cb 回调函数\l
+    }}"]
+    propose -> {
+       read_index;
+       read_local;
+    }
+    read_index -> {
+      pending_reads;
+      Uuid_new_v4;
+      raft_group_read_index;
+    }
+
+    collect_ready -> handle_raft_ready_append -> apply_reads;
+    raft_group_ready -> apply_reads[style_edge_data];
+    handle_raft_ready_append -> {
+       raft_group_ready;
+       raft_group_has_ready;
+    }
+    subgraph cluster_raft_group {
+      graph[label="raft_group";fontsize=20;style="rounded,dashed";color="slategrey"]
+      raft_group_has_ready;
+      raft_group_read_index -> raft_group_ready[style_edge_data];
+      raft_group_ready;
+    }
+
+    apply_reads -> {
+       //advance_replica_reads;
+       //advance_leader_reads;
+       //clear_uncommitted_on_role_change;
+       post_pending_read_index_on_replica;
+       pending_reads;
+       ready_to_handle_read;
+       response_read;
+       advance_leader_reads;
+       advance_replica_reads;
+       leader_reponse_read;
+    }
+    advance_leader_reads[style_blue1;label="{{
+      advance_leader_reads|
+      pending_reads
+    }}"]
+    advance_replica_reads[style_blue1;label="{{
+      advance_replica_reads|
+      pending_reads
+    }}"]
+    {
+      advance_replica_reads;
+      advance_leader_reads;
+    } -> pending_reads;
+
+    pending_reads[style_blue1;label="{{
+      pending_reads|
+      ReadIndexQueue\<EK::Snapshot\>\l|
+      reads等待队列\l
+    }}"]
+
+    post_pending_read_index_on_replica -> {
+       pending_reads;
+       follower_response_read;
+       ready_to_handle_unsafe_replica_read;
+    }
+    response_read;
+    response_read[style_func;label="{{
+      response_read|
+      生成ReadResponse\l
+      调用cb回调函数\l
+    }}"]
+    Uuid_new_v4[style_func;label="{{
+      Uuid::new_v4|
+      生成唯一的id\l
+      传递给raft\l
+    }}"]
+    ready_to_handle_read[style_func;label="{{
+      ready_to_handle_read|
+      leader\l
+    }}"]
+    ready_to_handle_unsafe_replica_read[style_func;label="{{
+      ready_to_handle_unsafe_replica_read|
+      follower read
+    }}"]
+    subgraph cluster_follower {
+      graph[label="follower";fontsize=20;style="rounded,dashed";color="slategrey"]
+      post_pending_read_index_on_replica;
+      ready_to_handle_unsafe_replica_read;
+      advance_replica_reads;
+      follower_response_read[style_func;label="{{
+        response_read
+      }}"]
+    }
+    ready_to_handle_unsafe_replica_read -> follower_response_read[style_edge_data];
+    subgraph cluster_leader {
+      graph[label="leader";fontsize=20;style="rounded,dashed";color="slategrey"]
+      ready_to_handle_read;
+      advance_leader_reads;
+      leader_reponse_read;
+      leader_reponse_read[style_func;label="{{
+        reponse_read
+      }}"]
+      ready_to_handle_read -> leader_reponse_read;
+    }
+    {leader_reponse_read;follower_response_read} -> response_read[style_edge_data];
+  }
+  {rank=same;collect_ready;propose;}
+  {rank=same;apply_reads;read_index;read_local}
+  raft_group_read_index[style_func;label="{{
+    raft_group.read_index|
+    ReadIndex request a read state\l
+    will be set in ready\l
+  }}"]
+  read_index[style_func;label="{{
+    read_index|
+    调用底层的raft_group的read_index\l
+    等底层OK了，在collect_ready时\l
+    会收到对应的ready\l
+  }}"]
+  
+}

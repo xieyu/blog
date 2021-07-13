@@ -1,0 +1,13 @@
+#include "styles.h"
+digraph index_column_vec {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  columns[style_func;label="{{
+    columns: LazyBatchColumnVec|
+    {column1|column2|...|[intHandleColumn]\ldecoded int LazyBatchColumn|[commonHandle]|[pidColumn\ldecode int LazyBatchColumn]}
+  }}"]
+
+}

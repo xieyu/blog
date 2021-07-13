@@ -1,0 +1,91 @@
+#include "styles.h"
+digraph rpn_expression_eval {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RpnExpression_ensure_columns_decoded -> LazyBatchColumn_ensure_columns_decoded;
+
+  RpnExpression_eval -> {
+       RpnExpression_ensure_columns_decoded;
+       RpnExpression_eval_decoded;
+  }
+  RpnExpression_eval_decoded -> {
+     RpnExpressionNode_Constant;
+     RpnExpressionNode_ColumnRef;
+     RpnExpressionNode_FnCall;
+  }
+  RpnExpressionNode_Constant -> stack_push_scalar -> stack;
+  RpnExpressionNode_ColumnRef -> stack_push_vector -> stack;
+  RpnExpressionNode_FnCall -> {
+     stack_slice;
+     stack_trancate;
+     stack_push_result;
+     func_meta_fn_ptr;
+  } -> stack;
+  stack_slice -> func_meta_fn_ptr  -> stack_push_result[style_edge_data];
+
+  stack[style_var;label="{{
+    stack|
+    元素为RpnStackNode的stack
+  }}"]
+  RpnExpression_eval[style_func;label="{{
+    RpnExpression\l|
+    eval\l
+  }}"]
+  RpnExpression_eval_decoded[style_func;label="{{
+    RpnExpression\l|
+    eval_decoded\l|
+    遍历node数组\l
+    针对不同的node \l 
+    执行不同的动作\l
+  }}"]
+  RpnExpressionNode_FnCall[style_var;label="{{
+    RpnExpressionNode\l|FnCall\l
+  }}"]
+  RpnExpressionNode_ColumnRef[style_func;label="{{
+    RpnExpressionNode\l|ColumnRef\l
+  }}"]
+  RpnExpressionNode_Constant[style_func;label="{{
+    RpnExpressionNode\l|Constant\l
+  }}"]
+  stack_slice[style_func;label="{{
+    stack.slice|
+    取stack上顶上args\l 
+    个数的参数\l
+  }}"]
+  func_meta_fn_ptr[style_func;label="{{
+    func_meta_fn_ptr|
+    将参数传给Rpnfunction\l
+    然后将结果push到stack上\l
+  }}"]
+  stack_push_result[style_func;label="{{
+    stack.push(result)|
+    将函数return 结果push回stack\l
+  }}"]
+  stack_trancate[style_func;label="{{
+    stack.trancate|
+    pop出func用掉的args
+  }}"]
+  stack_slice -> stack_trancate[style_edge_data];
+  stack_push_vector[style_func;label="{{
+    stack.push(RpnStackNode::Vector)
+  }}"]
+  stack_push_scalar[style_func;label="{{
+    stack.push(RpnStackNode::Scalar)
+  }}"]
+
+  RpnExpression_ensure_columns_decoded[style_func;label="{{
+    RpnExpression\l |
+    ensure_columns_decoded\l
+    遍历nodes vec\l
+    对于每个类型为ColumnRef的node\l
+    调用ensure_decoded\l
+  }}"]
+  LazyBatchColumn_ensure_columns_decoded[style_func;label="{{
+    LazyBatchColumn\l|
+    ensure_columns_decoded\l
+    根据给的LogicalRows \l 
+    decode Column\l
+  }}"]
+}

@@ -1,0 +1,127 @@
+#include "styles.h"
+digraph index_value_layout {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  key_layout[style_var;label="{{
+    key_layout|
+    {prefix|{tablePrefix:t\l|tableID:\l|SEP: _i\l|indexID\l}}|
+    columnValues\l|
+    {[handle]\l|{<intHandle> intHandle\l|<commonHandle> CommonHandle\l}}
+  }}"]
+  key_value_pair -> {
+    key_layout;
+    ValueLayout;
+  }
+
+  IndexValueVersion0[style_func;label="{{
+    IndexValueVersion0|
+    with restore data \l 
+    or common handle \l 
+    or index is Global\l|
+    TailLen: 1\l|
+    Options: len(options)\l|
+    Padding: len(Padding)\l|
+    [IntHandle]: 8\l|
+    [UntouchedFlag]: 1\l
+  }}"]
+  OldEncoding[style_func;label="{{
+    OldEncoding|
+    without restore data\l 
+    integer handle, local\l|
+    [Handle]: 8\l|
+    [UntouchedFlag]: 1\l
+  }}"]
+  IndexValueForClusteredIndexVersion1[style_func;label="{{
+    IndexValueForClusteredIndexVersion1|
+    TailLen: 1\l|
+    VersionFlag: 1\l|
+    VersioN: 1\l|
+    Options: len(options)\l|
+    [UntouchedFlag]\l
+  }}"]
+  Options[style_func;label="{{
+    Options|
+    {CommonHandle|{CHandle Flag: 1\l|CHandle len: 2\l|CHandle: len(CHandle)\l}}|
+    {Global Index|{PidFlag: 1\l|PartitionID: 8\l|<restoreData> restoreData: len(restoreData)\l}}
+  }}"]
+  Options:restoreData -> restoreData;
+  UntouchedFlag[style_func;label="{{
+    UntouchedFlag|
+    only exists when index is untouched
+  }}"]
+
+  IntHandle[style_func;label="{{
+    IntHandle|
+    Only exists when table use int\l 
+    handles and index is unique\l
+  }}"]
+  Padding[style_func;label="{{
+    Padding|
+    Ensure length of value always >=10\l
+    >=1 if UntouchedFlag exists\l
+  }}"]
+  Version0TailLen[style_func;label="{{
+    TailLen|
+      len(padding) \l 
+      + len(IntHandle)\l 
+      + len(UntouchedFlag)\l
+  }}"]
+  Version1TailLen[style_func;label="{{
+    TailLen\l|
+    len(UntouchedFlag)\l
+  }}"]
+  Handle[style_func;label="{{
+    Handle|
+    only exists in unique index\l
+  }}"]
+  ValueLayout -> {
+    IndexValueForClusteredIndexVersion1;
+    IndexValueVersion0;
+    OldEncoding;
+  }
+
+  IndexValueForClusteredIndexVersion1 -> {
+     Version1TailLen;
+     Options;
+     UntouchedFlag;
+  }[color=blue];
+  OldEncoding -> {
+     Handle;
+     UntouchedFlag;
+  }
+  //{IndexValueVersion0; IndexValueForClusteredIndexVersion1} -> Options;
+  //{IndexValueVersion0;IndexValueForClusteredIndexVersion1;OldEncoding} -> UntouchedFlag; 
+
+  IndexValueVersion0 -> {
+     UntouchedFlag;
+     Options;
+     IntHandle;
+     Version0TailLen;
+     Padding;
+  }[color=red];
+  {key_layout;ValueLayout} -> columns[style_edge_data];
+
+  columns[style_var;label="{{
+    columns: LazyBatchColumnVec|
+    {coumns values|{column1|column2|...}}|
+    {可选：int handle\l| 解码为int的handle}|
+    {可选：commonHandle\l|未解码 commonHandle}|
+    {可选: pid column\l| 解码为int的 pid column}
+  }}"]
+
+  restoreData[style_func;label="{{
+    restoreData|
+    CODEC_VERSION: u8=128\l|
+    FLAGS: value 大小端？\l|
+    non_null_cnt: read_u16_le\l|
+    null_cnt: read_u16_le\l|
+    <non_null_ids> non_null_ids: read_le_bytes\l|
+    <null_ids> null_ids: read_le_bytes\l|
+    offsets: read_le_bytes\l|
+    <value> values: LEBytes::new(data)\l
+  }}"]
+
+}

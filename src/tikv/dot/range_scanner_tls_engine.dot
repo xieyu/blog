@@ -1,0 +1,66 @@
+#include "styles.h"
+digraph range_scanner_tls_engine {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  init_servers -> build_read_pool;
+
+  build_read_pool -> {
+     set_tls_engine;
+  }
+  set_tls_engine -> with_tls_engine[style_edge_data];
+  build_read_pool[style_func;label="{{
+    build_read_pool|
+    BUild respective thread pools\l
+    to handle read commands of different\l
+    priority levels;\l
+  }}"]
+  run_tikv ->{ 
+    init_engines;
+    init_raw_engines;
+    init_servers;
+  }
+  with_tls_engine -> tikv_Engine_async_snapshot;
+  init_raw_engines -> {
+    engine_rocks_new_engine_opt;
+  }
+  init_engines -> {
+    RaftKV_new;
+    StoreMeta_new;
+    ServerRaftStoreRouter_new;
+    TiKVEngines;
+  }
+  TiKVEngines[style_func;label="{{
+    TiKVEngines|
+    engines: Engines\<RocksEngine, ER\>,\l|
+    store_meta: Arc\<Mutex\<StoreMeta\>\>,\l|
+    engine: RaftKv\<ServerRaftStoreRouter\<RocksEngine, ER\>\>,\l
+  }}"]
+  TiKVEngines -> {
+    RaftKv;
+    ServerRaftStoreRouter;
+    StoreMeta;
+  }
+  RaftKV_new -> RaftKv[style_edge_data];
+  StoreMeta_new -> StoreMeta[style_edge_data];
+  ServerRaftStoreRouter_new -> ServerRaftStoreRouter[style_edge_data];
+  RaftKv -> {
+    ServerRaftStoreRouter;
+  }
+  ServerRaftStoreRouter[style_func;label="{{
+    ServerRaftStoreRouter|
+    router: RaftRouter\<EK, ER\>,\l|
+    local_reader: RefCell\<LocalReader\l 
+    \<RaftRouter\<EK, ER\>, EK\>\>,\l
+  }}"]
+  ServerRaftStoreRouter -> RaftRouter -> {PeerFsm;StoreFsm};
+  PeerFsm -> Peer -> PeerStorage -> Engines;
+  Engines[style_func;label="{{
+    Engines|
+    pub kv: K,\l|
+    pub raft: R,\l
+  }}"]
+  
+}

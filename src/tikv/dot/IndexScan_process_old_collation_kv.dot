@@ -1,0 +1,94 @@
+#include "styles.h"
+digraph process_old_collation_kv {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  process_kv_pair -> process_old_collation_kv;
+
+  DecodeHandleStrategy -> {
+     NoDecode;
+     DecodeIntHandle;
+     DecodeCommonHandle;
+  }
+  DecodeHandleStrategy[style_func;label="{{
+    DecodeHandleStrategy|
+    NoDecode,\l|
+    DecodeIntHandle,\l|
+    DecodeCommonHandle,\l
+  }}"]
+  extract_columns_from_datum_format1[style_func;label="{{
+    extract_columns_from_datum_format|
+    先解析key_payload 的columnValues部分到\l
+    columns[..self.columns_id_without_handle.len()]\l
+  }}"]
+  DecodeIntHandle -> {
+    decode_int_handle_from_value;
+    decode_int_handle_from_key;
+  }
+  decode_int_handle_from_value[style_func;label="{{
+    decode_int_handle_from_value|
+    如果key_payload已经为空，则从\l
+    value中decode出IntHandle\l
+  }}"]
+  key_layout[style_var;label="{{
+    key_layout|
+    {prefix|{tablePrefix:t\l|tableID:\l|SEP: _i\l|indexID\l}}|
+    columnValues\l|
+    {[handle]\l|{<intHandle> intHandle\l|<commonHandle> CommonHandle\l}}
+  }}"]
+    //{handle|{[intHandle]|[CommonHandle]}}\l|
+    //<columnValues> columnValues \l|
+  key_layout:columnValues -> extract_columns_from_datum_format1[style_edge_data];
+  key_layout:intHandle -> decode_int_handle_from_key[style_edge_data];
+  key_layout:commonHandle -> extract_columns_from_datum_format2[style_edge_data];
+  //key_layout:intHandle -> decode_int_handle_from_key;
+  extract_columns_from_datum_format2[style_func;label="{{
+    extract_columns_from_datum_format|
+    extract commmon handle from key\l
+    到columns中\l
+    columns[self.columns_id_without_handle.len()..]\l
+  }}"]
+
+  process_old_collation_kv -> {
+     extract_columns_from_datum_format1;
+     extract_columns_from_datum_format2;
+     DecodeHandleStrategy;
+     columns_id_without_handle;
+     decode_int_handle_from_value;
+     decode_int_handle_from_key;
+  }
+  value -> decode_int_handle_from_value;
+
+  {
+     extract_columns_from_datum_format1;
+     extract_columns_from_datum_format2;
+     decode_int_handle_from_key;
+     decode_int_handle_from_value;
+  } -> columns[style_edge_data];
+  key_layout -> process_kv_pair[style_edge_data];
+  process_kv_pair[style_func;label="{{
+    process_kv_pair|
+    去掉key的prefix部分，\l|
+    key = &key[table::PREFIX_LEN \l + table::ID_LEN..];\l|
+    如果value.len() \<=MAX_OLD_ENCODED_VALUE_LEN \l;
+    就调用process_old_collation_kv\l
+  }}"]
+  columns[style_var;label="{{
+    columns: LazyBatchColumnVec|
+    {coumns values|{column1|column2|...}}|
+    {可选：int handle\l| 解码为int的handle}|
+    {可选：commonHandle\l|未解码 commonHandle}|
+    {可选: pid column\l| 解码为int的 pid column}
+  }}"]
+
+  value[style_func;label="{{
+    OldEncoding|
+    without restore data\l 
+    integer handle, local\l|
+    [Handle]: 8\l|
+    [UntouchedFlag]: 1\l
+  }}"]
+  DecodeCommonHandle -> extract_columns_from_datum_format2;
+  {rank=same;key_layout;value}
+}

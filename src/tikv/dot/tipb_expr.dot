@@ -1,0 +1,177 @@
+#include "styles.h"
+digraph Expr {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Expr[style_func;label="{{
+    Expr|
+	optional ExprType tp = 1\l|
+	optional bytes val = 2;\l|
+	repeated Expr children = 3;\l|
+	optional uint32 rpn_args_len = 6;\l|
+	optional ScalarFuncSig sig = 4\l|
+	optional FieldType field_type = 5;\l|
+	optional bool has_distinct = 7\l
+  }}"]
+
+  Expr -> {
+     ExprType;
+     ScalarFuncSig;
+     FieldType;
+     Expr_children;
+  }
+  ScalarFuncSig[style_blue1;label="{{
+    enum ScalarFuncSig|
+    ScalarFuncSig
+  }}"]
+
+  ScalarFuncSig -> {
+    Casting;
+    Compare;
+    arithmetic;
+    math;
+    LogicalOp;
+    Other;
+    unimplemented_in_tidb;
+    json;
+    encryption;
+    control;
+    info;
+    miscellaneous;
+    like;
+  }
+
+  FieldType[style_func;label="{{
+    FieldType|
+	optional int32 tp = 1;\l|
+	optional uint32 flag = 2;\l|
+	optional int32 flen = 3;\l|
+	optional int32 decimal = 4\l|
+	optional int32 collate = 5\l|
+	optional string charset = 6\l|
+	repeated string elems = 7\l
+  }}"]
+
+  ExprType[style_blue1;label="{{
+    enum ExprType
+  }}"]
+  ExprType -> {
+     ValuesAreEncodedBytes;
+     MysqlSpecialTypes;
+     AggregateFunctions;
+     ScalarFunc;
+     ValueList;
+     ColumnRef;
+  }
+  MysqlSpecialTypes[style_func;label="{{
+    MysqlSpecialTypes|
+	   MysqlBit = 101;\l|
+	   MysqlDecimal = 102;\l|
+	   MysqlDuration = 103;\l|
+	   MysqlEnum = 104;\l|
+	   MysqlHex = 105;\l|
+	   MysqlSet = 106;\l|
+	   MysqlTime = 107;\l|
+	   MysqlJson = 108;\l
+  }}"]
+  ValuesAreEncodedBytes[style_func;label="{{
+   Values are encoded bytes\l|
+   Null;\l|
+   Int64\l|
+   Uint64\l|
+   Float32;\l|
+   Float64;\l|
+   String;\l|
+   Bytes;\l
+  }}"]
+  AggregateFunctions[style_func;label="{{
+    AggregateFunctions|
+	Count = 3001;\l|
+	Sum = 3002;\l|
+	Avg = 3003;\l|
+	Min = 3004;\l|
+	Max = 3005;\l|
+	First = 3006;\l|
+	GroupConcat = 3007;\l|
+	Agg_BitAnd = 3008;\l|
+	Agg_BitOr = 3009;\l|
+	Agg_BitXor = 3010;\l|
+	Std = 3011;\l|
+	Stddev = 3012;\l|
+	StddevPop = 3013;\l|
+	StddevSamp = 3014;\l|
+	VarPop = 3015;\l|
+	VarSamp = 3016;\l|
+	Variance = 3017;\l|
+	JsonArrayAgg = 3018;\l|
+	JsonObjectAgg = 3019;\l|
+	ApproxCountDistinct = 3020;\l
+  }}"]
+  ValueList[style_func;label="{{
+    ValueList|
+    Encoded value list\l
+  }}"]
+  ColumnRef[style_func;label="{{
+    ColumnRef|
+    column reference\l
+    value is int64 columnID\l
+  }}"]
+  Expr_children[style_var;label="{{
+    Expr_children|
+    子表达式列表
+  }}"]
+
+  ScalarFunc -> ScalarFuncSig[style_edge_data];
+  {rank=same; ScalarFuncSig;AggregateFunctions}
+
+  Casting[style_func;label="{{
+    Casting|
+    类型转换函数\l|
+    CastIntAsString\l|
+    ...\l|
+    CastStringAsInt\l|
+    CastStringAsJson\l|
+    CastStringAsTime\l|
+    ...\l
+  }}"]
+  control[style_func;label="{{
+    control|
+    IfNullInt\l|
+    ...\l|
+    CaseWhenInt\l|
+    ...\l
+  }}"]
+  like[style_func;label="{{
+    like|
+    likeSig\l|
+    RegexpSig\l|
+    ...\l|
+    RegexpSubstrSig\l|
+  }}"]
+  json[style_func;label="{{
+    json|
+    JsonExtractSig\l|
+    JsonInsertSig\l|
+    ...\l
+  }}"]
+  encryption[style_func;label="{{
+    encryption|
+    AesDecrypt\l|
+    AesEncrypt\l|
+    MD5\l
+  }}"]
+  Compare[style_func;label="{{
+    Compare|
+    CoalesceString\l|
+    ...\l
+  }}"]
+  arithmetic[style_func;label="{{
+    arithmetic|
+    加减乘除等\l
+  }}"]
+  math[style_func;label="{{
+    math|
+    Abs, Ceil, Floor等\l
+  }}"]
+}

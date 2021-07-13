@@ -1,0 +1,113 @@
+#include "styles.h"
+digraph rpn_expression {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RpnExpression[style_func;label="{{
+    RpnExpression|
+    Vec\<RpnExpressionNode\>\l
+  }}"]
+  RpnExpression -> RpnExpressionNode;
+
+  RpnExpressionNode[style_func;label="{{
+    enum RpnExpressionNode|
+    FnCall\l|
+    Constant \l|
+    ColumnRef\l
+  }}"]
+
+  RpnExpressionNode-> {
+    FnCall;
+    Constant;
+    ColumnRef;
+  }
+  FnCall[style_func;label="{{
+    FnCall|
+        func_meta: RpnFnMeta,\l|
+        args_len: usize,\l|
+        field_type: FieldType,\l|
+        metadata: Box\<dyn Any + Send\>,\l
+  }}"]
+  Constant[style_func;label="{{
+    Constant|
+      value: ScalarValue,\l|
+      field_type: FieldType,\l
+  }}"]
+  ColumnRef[style_func;label="{{
+    ColumnRef|
+    offset: usize\l
+  }}"]
+  RpnFnMeta[style_func;label="{{
+    RpnFnMeta|
+    pub name: &'static str,\l|
+    pub validator_ptr: fn(expr: &Expr) -\> Result\<()\>,\l|
+    pub metadata_expr_ptr: fn(expr: &mut Expr) \l 
+    -\> Result\<Box\<dyn Any + Send\>\>,\l|
+    pub fn_ptr: fn(ctx ...)\l
+  }}"]
+  FnCall -> {
+     RpnFnMeta;
+     FieldType;
+  }
+  RpnFnMeta -> {
+     RpnStackNode;
+     RpnFnCallExtra;
+     EvalContext;
+     VectorValue;
+  }
+  RpnFnCallExtra[style_func;label="{{
+    RpnFnCallExtra|
+    pub ret_field_type: &'a FieldType,\l
+  }}"]
+  RpnFnCallExtra -> {
+     FieldType;
+  }
+  subgraph cluster_tipd {
+    graph[label="tipd";fontsize=20;style="rounded,dashed";color="slategrey"]
+    FieldType;
+  }
+  ScalarValue[style_func;label="{{
+    ScalarValue|
+    Int(Option\<super::Int\>),\l|
+    Real(Option\<super::Real\>),\l|
+    Decimal(Option\<super::Decimal\>),\l|
+    Bytes(Option\<super::Bytes\>),\l|
+    DateTime(Option\<super::DateTime\>),\l|
+    Duration(Option\<super::Duration\>),\l|
+    Json(Option\<super::Json\>),\l|
+    Enum(Option\<super::Enum\>),\l|
+    Set(Option\<super::Set\>),\l
+  }}"];
+  Constant -> {
+     ScalarValue;
+     FieldType;
+  }
+  EvalContext -> {
+     EvalConfig;
+     EvalWarnings;
+  }
+  EvalConfig[style_func;label="{{
+    EvalConfig|
+    pub tz: Tz,\l|
+    pub flag: Flag,\l|
+    pub max_warning_cnt: usize,\l|
+    pub sql_mode: SqlMode,\l
+  }}"]
+  EvalConfig -> Tz;
+  Tz[style_func;label="{{
+    Tz|
+    Offset(FixedOffset),\l|
+    Name(chrono_tz::Tz),\l|
+    Local(Local),\l
+  }}"]
+
+  LazyBatchColumnVec[style_func;label="{{
+    LazyBatchColumnVec|
+    eval时候的输入\l
+    columns: Vec\<LazyBatchColumn\>,\l
+  }}"]
+
+  ColumnRef -> LazyBatchColumnVec;
+}

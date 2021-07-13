@@ -1,0 +1,113 @@
+#include "styles.h"
+digraph agg_impl {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  AggregationExecutorImpl[style_func;label="{{
+    AggregationExecutorImpl|
+    fn prepare_entities(&mut self, entities: &mut Entities\<Src\>);\l|
+    fn process_batch_input(...) -\> Result\<()\>\l|
+    fn groups_len(&self) -\> usize;\l|
+    fn iterate_available_groups(...) -\> Result\<Vec\<LazyBatchColumn\>\>\l|
+    fn is_partial_results_ready(&self) -\> bool;\l
+  }}"]
+
+  AggregationExecutorImpl -> {
+     SimpleAggregationImpl;
+     BatchStreamAggregationImpl;
+     SlowHashAggregationImpl;
+     FastHashAggregationImpl;
+  }
+
+  SimpleAggregationImpl[style_func;label="{{
+    SimpleAggregationImpl|
+    states: Vec\<Box\<dyn AggrFunctionState\>\>,\l
+  }}"]
+
+  SimpleAggregationImpl -> {
+    AggrFunctionState;
+  }
+
+  BatchStreamAggregationImpl[style_func;label="{{
+    BatchStreamAggregationImpl|
+    group_by_exps: Vec\<RpnExpression\>,\l|
+    group_by_exps_types: Vec\<EvalType\>,\l|
+    group_by_field_type: Vec\<FieldType\>,\l|
+    keys: Vec\<ScalarValue\>,\l|
+    states: Vec\<Box\<dyn AggrFunctionState\>\>,\l|
+    group_by_results_unsafe: Vec\<RpnStackNode\<'static\>\>,\l|
+    aggr_expr_results_unsafe: Vec\<RpnStackNode\<'static\>\>,\l
+  }}"]
+
+  BatchStreamAggregationImpl -> {
+    RpnExpression;
+    EvalType;
+    FieldType;
+    AggrFunctionState;
+    RpnStackNode;
+  }
+
+  FastHashAggregationImpl[style_func;label="{{
+    FastHashAggregationImpl|
+    states: Vec\<Box\<dyn AggrFunctionState\>\>,\l|
+    groups: Groups,\l|
+    group_by_exp: RpnExpression,\l|
+    group_by_field_type: FieldType,\l|
+    states_offset_each_logical_row: Vec\<usize\>,\l
+  }}"]
+
+
+  FastHashAggregationImpl -> {
+     AggrFunctionState;
+     RpnExpression;
+     Groups;
+  }
+
+  SlowHashAggregationImpl[style_func;label="{{
+    SlowHashAggregationImpl|
+    states: Vec\<Box\<dyn AggrFunctionState\>\>,\l|
+    groups: HashMap\<GroupKeyRefUnsafe, usize\>,\l|
+    group_by_exps: Vec\<RpnExpression\>,\l|
+    extra_group_by_col_index: Vec\<usize\>,\l|
+    original_group_by_col_index: Vec\<usize\>,\l|
+    group_key_buffer: Box\<Vec\<u8\>\>,\l|
+    group_key_offsets: Vec\<usize\>,\l|
+    states_offset_each_logical_row: Vec\<usize\>,\l|
+    group_by_results_unsafe: Vec\<RpnStackNode\<'static\>\>,\l|
+    cached_encoded_result: Vec\<Option\<Vec\<u8\>\>\>,\l
+  }}"]
+  SlowHashAggregationImpl -> {
+    AggrFunctionState;
+    RpnStackNode;
+    RpnExpression;
+    GroupKeyRefUnsafe;
+  }
+  Groups[style_func;label="{{
+    Groups|
+    value is start index in FastHashAggregationImpl::states\l|
+    Int(HashMap\<Option\<Int\>, usize\>),\l|
+    Real(HashMap\<Option\<Real\>, usize\>),\l|
+    Bytes(HashMap\<Option\<Bytes\>, usize\>),\l|
+    Duration(HashMap\<Option\<Duration\>, usize\>),\l|
+    Decimal(HashMap\<Option\<Decimal\>, usize\>),\l|
+    DateTime(HashMap\<Option\<DateTime\>, usize\>),\l
+  }}"]
+  GroupKeyRefUnsafe[style_func;label="{{
+    GroupKeyRefUnsafe|
+    buffer_ptr: NonNull\<Vec\<u8\>\>,\l|
+    begin: usize,\l|
+    end: usize,\l
+  }}"]
+  RpnExpression[style_func;label="{{
+    RpnExpression|
+      Vec\<RpnExpressionNode\>\l
+  }}"]
+  RpnExpression -> RpnExpressionNode;
+  RpnStackNode[style_func;label="{{
+    enum RpnStackNode|
+    Scalar\l
+    Vector\l
+  }}"]
+}

@@ -1,0 +1,93 @@
+#include "styles.h"
+digraph fast_hash_aggr {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  process_batch_input[style_func;label="{{
+    process_batch_input|
+    处理一批batch数据
+  }}"]
+  handle_scalar_group_each_row[style_func;label="{{
+    handle_scalar_group_each_row|
+    所有数据都在一个分组内\l
+  }}"]
+  calc_groups_each_row[style_func;label="{{
+    calc_groups_each_row|
+    有多个分组\l
+  }}"]
+
+  process_batch_input -> {
+    group_by_exp_eval;
+    match_template;
+    handle_scalar_group_each_row;
+    calc_groups_each_row;
+    update_each_row_states_by_offset;
+  }
+  handle_scalar_group_each_row -> {
+     states_offset_each_logical_row_push_0;
+     states_push_aggr_fn_create_state;
+  }
+  calc_groups_each_row -> {
+     map_to_sort_key;
+     states_offset_each_logical_row_push;
+     states_push_aggr_fn_create_state;
+     group_insert_value_offset;
+  }
+
+  states_offset_each_logical_row -> update_each_row_states_by_offset;
+
+  update_each_row_states_by_offset -> {
+     macro_update;
+     macro_match_template_evaluate;
+     aggr_exp_eval;
+     aggr_fn_state;
+  }
+  states_offset_each_logical_row -> aggr_fn_state -> macro_update;
+  subgraph cluster_states_offset_each_logical_row {
+    graph[label="states_offset_each_logical_row";fontsize=20;style="rounded,dashed";color="slategrey"]
+    {
+       states_offset_each_logical_row_push_0;
+       states_offset_each_logical_row_push;
+    } -> states_offset_each_logical_row;
+    states_offset_each_logical_row_push_0[style_func;label="{{
+      push(0)
+    }}"]
+    states_offset_each_logical_row_push[style_func;label="{{
+      push(offset)|
+      push该row对应states的offset
+    }}"]
+    states_offset_each_logical_row[style_var;label="{{
+      states_offset_each_logical_row|
+      Vec\<usize\>\l
+    }}"]
+  }
+  subgraph cluster_states {
+    graph[label="states";fontsize=20;style="rounded,dashed";color="slategrey"]
+      
+      states_push_aggr_fn_create_state -> states;
+      states_push_aggr_fn_create_state[style_func;label="{{
+        states.push(aggr_fn.create_state())\l|
+        创建新的aggr fn state\l
+      }}"]
+      states[style_var;label="{{
+        states|
+          Vec\<Box\<dyn AggrFunctionState\>\>,\l
+      }}"]
+  }
+  groups[style_var;label="{{
+    groups|
+    HashMap\<Option\<T\>, uszie)\l|
+    key为group key\l
+    value为在states vec中的idx\l
+  }}"]
+  group_insert_value_offset;
+  group_by_exp_eval[style_func;label="{{
+    group_by_exp.eval|
+    在batch上执行\l 
+    group_by_exp\l
+  }}"]
+
+  states -> aggr_fn_state;
+  {handle_scalar_group_each_row;calc_groups_each_row} -> groups;
+}

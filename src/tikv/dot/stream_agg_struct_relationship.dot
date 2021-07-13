@@ -1,0 +1,13 @@
+#include "styles.h"
+digraph stream_agg_struct_relationship {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  group_by_results_unsafe[style_blue1;label="{{
+    Vec\<RpnStackNode\<\'static\>\>\l|
+  }}"]
+  group_by_results_unsafe:0 -> ScalarValueRef;
+  group_by_results_unsafe:1 -> ScalarValueRef;
+  
+}

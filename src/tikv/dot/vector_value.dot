@@ -1,0 +1,121 @@
+#include "styles.h"
+digraph vector_value {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  VectorValue[style_blue1;label="{{
+    enum VectorValue|
+    Int(ChunkedVecSized\<Int\>),\l|
+    Real(ChunkedVecSized\<Real\>),\l|
+    Decimal(ChunkedVecSized\<Decimal\>),\l|
+    Bytes(ChunkedVecBytes),\l|
+    DateTime(ChunkedVecSized\<DateTime\>),\l|
+    Duration(ChunkedVecSized\<Duration\>),\l|
+    Json(ChunkedVecJson),\l|
+    Enum(ChunkedVecEnum),\l|
+    Set(ChunkedVecSet),\l
+  }}"]
+  VectorValue -> {
+     ChunkedVecSet;
+     ChunkedVecEnum;
+     ChunkedVecBytes;
+     ChunkedVecSized;
+     ChunkedVecJson;
+  }
+
+  ChunkedVecSized[style_func;label="{{
+    ChunkedVecSized|
+    data: Vec\<T\>,\l|
+    bitmap: BitVec,\l|
+    phantom: std::marker::PhantomData\<T\>,\l
+  }}"]
+  ChunkedVecBytes[style_func;label="{{
+    ChunkedVecBytes|
+    data: Vec\<u8\>,\l|
+    bitmap: BitVec,\l|
+    length: usize,\l|
+    var_offset: Vec\<usize\>,\l
+  }}"]
+  ChunkedVecJson[style_func;label="{{
+    ChunkedVecJson|
+    data: Vec\<u8\>,\l|
+    bitmap: BitVec,\l|
+    length: usize,\l|
+    var_offset: Vec\<usize\>,\l
+  }}"];
+  ChunkedVecEnum[style_func;label="{{
+    ChunkedVecEnum|
+    data: Arc\<BufferVec\>,\l|
+    bitmap: BitVec,\l|
+    value: Vec\<usize\>,\l
+  }}"];
+  ChunkedVecSet[style_func;label="{{
+    ChunkedVecSet|
+    data: Arc\<BufferVec\>,\l|
+    bitmap: BitVec,\l|
+    value: Vec\<u64\>,\l
+  }}"];
+  ChunkedVecSet -> {
+    BufferVec;
+    BitVec;
+    Vec;
+  }
+  ChunkedVecEnum -> {
+    BufferVec;
+    BitVec;
+    Vec;
+  }
+  ChunkedVecBytes -> {
+    BitVec;
+    Vec;
+  }
+  ChunkedVecSized -> {
+    Vec;
+    BitVec;
+  }
+  ChunkedVecJson -> {
+    Vec;
+    BitVec;
+  }
+  BufferVec[style_func;label="{{
+    BufferVec|
+    data: Vec\<u8\>,\l|
+    offsets: Vec\<usize\>,\l
+  }}"]
+  BitVec[style_func;label="{{
+    BitVec|
+    data: Vec\<u64\>,\l|
+    length: usize,\l
+  }}"]
+
+  subgraph cluster_BufferVec {
+    graph[label="BufferVec";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BufferVec -> {
+      data;
+      offsets;
+    }
+    data[style_var;label="{{
+      data|
+      {<0> 0|elem 1}|
+      {<1> 8|elem 2}|
+      {<2> 16|elem 3}|
+      ...|
+      {<i> x|elem i}|
+    }}"]
+    offsets[style_blue1;label="{{
+      offsets|
+      {0|<0> 0}|
+      {1|<1> 8}|
+      {2|<2> 16}|
+      ...|
+      {<si> i|<i>}|
+    }}"]
+    offsets:0 -> data:0;
+    offsets:1 -> data:1;
+    offsets:2 -> data:2;
+    offsets:i -> data:i;
+  }
+  
+}

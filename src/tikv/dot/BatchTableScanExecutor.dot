@@ -1,0 +1,84 @@
+#include "styles.h"
+digraph batch_table_scan_executor {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  TableScanExectuorImpl[style_func;label="{{
+    TableScanExectuorImpl|
+    context: EvalContext,\l|
+    <schema> schema: Vec\<FieldType\>,\l|
+    <default_value> columns_default_value: Vec\<Vec\<u8\>\>,\l|
+    column_id_index: HashMap\<i64, usize\>,\l|
+    <handle_indices> handle_indices: HandleIndicesVec,\l|
+    <primary_column_ids> primary_column_ids: Vec\<i64\>,\l|
+    is_column_filled: Vec\<bool\>,\l
+  }}"]
+  TableScanExectuorImpl -> FieldType;
+  BatchTableScanExecutor_new -> column_id_index -> TableScanExectuorImpl;
+  column_id_index[style_var;label="{{
+    column_id_index|
+    从column_id到输出的\l 
+    columns index的映射\l
+  }}"]
+  schema[style_var;label="{{
+    schema|
+    Vec\<FieldType\>\l
+  }}"]
+
+  build_executors -> BatchTableScanExecutor_new;
+  Executor -> ColumnInfo;
+  subgraph cluster_tipb {
+    graph[label="tipb";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Executor -> TableScan -> ColumnInfo;
+    ColumnInfo[style_func;label="{{
+      ColumnInfo|
+	optional int64 column_id = 1\l|
+	optional int32 tp = 2 \l|
+	optional int32 collation = 3\l|
+	optional int32 columnLen = 4\l|
+	optional int32 decimal = 5\l|
+	optional int32 flag = 6\l|
+	repeated string elems = 7;\l|
+	optional bytes default_val = 8;\l|
+	<pk_handle> optional bool pk_handle = 21\l
+    }}"]
+    TableScan[style_func;label="{{
+      TableScan|
+	optional int64 table_id = 1;\l|
+	repeated ColumnInfo columns = 2;\l|
+	optional bool desc = 3;\l|
+	repeated int64 primary_column_ids = 4;\l|
+	optional EngineType next_read_engine = 5\l|
+	repeated KeyRange ranges = 6\l|
+	<primary_column_ids> repeated int64 primary_prefix_column_ids = 7;\l
+    }}"]
+  }
+
+  BatchTableScanExecutor_new -> field_type_from_column_info;
+  ColumnInfo -> field_type_from_column_info -> schema-> TableScanExectuorImpl[style_edge_data];
+  TableScanExectuorImpl -> HandleIndicesVec -> SmallVec;
+  ColumnInfo:pk_handle -> get_pk_handle -> handle_indices -> TableScanExectuorImpl:handle_indices;
+  handle_indices[style_func;label="{{
+    handle_indices|
+    store the index of\l
+    the PK handles\l
+  }}"]
+  TableScan:primary_column_ids -> primary_column_ids -> TableScanExectuorImpl:primary_column_ids;
+  SmallVec[style_func;label="{{
+    SmallVec|
+    store a small number of\l 
+    elements inline\l
+  }}"]
+  get_pk_handle -> column_id_index;
+  get_pk_handle[style_func;label="{{
+    get_pk_handle|
+    如果column是pk，就放入handle_indices\l
+    否则就放入column_id_index hashmap中\l
+  }}"]
+  field_type_from_column_info[style_func;label="{{
+    field_type_from_column_info|
+    将columnInfo中的FieldType\l
+    转成成schema中的FieldType\l
+  }}"]
+}
