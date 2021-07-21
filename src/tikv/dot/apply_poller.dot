@@ -1,0 +1,118 @@
+#include "styles.h"
+digraph apply_poller {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  poll -> {
+    begin;
+    handle_control;
+    handle_normal;
+    end;
+  }
+  handle_control[style_func;label="{{
+    handle_control|
+    unimplemented!()\l
+    ApplyPoller没有实现\l
+    handle control\l
+  }}"]
+
+  ApplyFsm_reciver_try_recv[style_blue1;label="{{
+    ApplyFsm\l
+    reciver.try_recv()\l|
+    non block的从ApplyFsm\l
+    读取消息最多读取\l
+    messages_per_tick\l
+  }}"]
+
+  ApplyFsm_reciver_try_recv -> ApplyFsm_handle_tasks[style_edge_data];
+  ApplyFsm_handle_tasks[style_blue1;label="{{
+    ApplyFsm\l
+    handle_tasks\l|
+    处理kv(包括snapshot)\l
+    的写入和 apply state更新\l|
+    更改会先写入kv_wb\l
+  }}"]
+
+  handle_normal -> {
+     ApplyFsm_reciver_try_recv;
+     ApplyFsm_handle_tasks;
+  }
+
+  end -> {
+    ApplyContext_flush;
+  //  ApplyFsmDelegate_apply_state_get_applied_index;
+   // ApplyFsmDelegate_last_sync_apply_index;
+  }
+  end[style_func;label="{{
+    end|
+    将kv write batch写入磁盘\l
+  }}"]
+
+  handle_normal[style_func;label="{{
+    handle_normal|
+    将更改写入write batch\l
+  }}"]
+
+  ApplyFsm_handle_tasks ->  {
+     ApplyFsmDelegate_apply_raft_cmd
+     ApplyFsmDelegate_write_apply_state;
+  }[style_edge_data];
+
+  ApplyFsmDelegate_apply_raft_cmd[style_func;label="{{
+    ApplyFsmDelegate\n
+    apply_raft_cmd|
+    将raftcmd 更改\l
+    写入kv write batch\l
+  }}"]
+  ApplyFsmDelegate_write_apply_state[style_func;label="{{
+    ApplyFsmDelegate\n
+    write_apply_state|
+    将applyState写入kv write batch\l
+    写入的CF Family 为CF_RAFT\l
+  }}"]
+
+  {
+     rank=same;
+     ApplyFsmDelegate_apply_raft_cmd;
+     //ApplyFsmDelegate_apply_state_get_applied_index;
+     //ApplyFsmDelegate_last_sync_apply_index;
+     ApplyFsmDelegate_write_apply_state;
+  }
+  ApplyFsmDelegate_apply_raft_cmd -> ApplyContext_kv_wb_mut;
+  ApplyFsmDelegate_write_apply_state -> ApplyContext_kv_wb_mut;
+  ApplyContext_kv_wb_mut[style_var;label="{{
+    ApplyContext\n
+    kv_wb_mut
+  }}"]
+  ApplyContext_flush[style_var;label="{{
+    ApplyContext\nflush|
+    将kv write batch\l
+    写入磁盘\l
+  }}"]
+  ApplyContext_write_to_db[style_var;label="{{
+    ApplyContext\nwrite_to_db|
+    将kv write batch\l
+    更改写入磁盘\l
+  }}"]
+
+  ApplyContext_flush -> {
+     ApplyContext_write_to_db;
+     ApplyContext_notifier_notify_apply_res;
+  }
+  ApplyContext_notifier_notify_apply_res[style_red;label="{{
+    ApplyContext\n
+    notifier.notify(apply_res)|
+    遍历apply_res\l
+    发送ApplyRes给RaftPoller\l
+  }}"]
+
+  ApplyContext_kv_wb_mut -> ApplyContext_write_to_db[style_edge_data];
+  {
+    rank=same;
+    ApplyContext_kv_wb_mut;
+    ApplyContext_flush;
+  }
+  {rank=same;begin;end;handle_normal;}
+}

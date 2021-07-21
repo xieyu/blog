@@ -1,0 +1,55 @@
+#include "styles.h"
+digraph batch_system2 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Poller;
+  NormalChannel[style_func;label="{{
+    NormalChannel|
+    <head>|
+    {<rx1> rx|{region1|PeerFsm}}|
+    {<rx2> rx|{region2|PeerFsm}}|
+    {<rx3> rx|{region3|PeerFsm}}|
+    <tail>|
+    ...
+  }}"]
+  RaftRouter_normals[style_blue1;label="{{
+    RaftRouter::normals|
+    {region1|{BasicMailbox|{FsmState\l标记Fsm是否已发送到\l NormalChannel\l|<tx1> tx}}}|
+    {region2|{BasicMailbox|{FsmState|<tx2> tx}}}|
+    {region3|{BasicMailbox|{FsmState|<tx3> tx}}}|
+    ...
+  }}"]
+  Poller[style_func;label="{{
+    Poller 线程池|
+    {rx|fsm_receiver}|
+    从NormalChannel取fsm\l
+    然后从每个Fsm的rx中\l
+    取N个消息, 批量处理\l
+  }}"]
+  RaftRouter_normalScheduler[style_blue1;label="{{
+    RaftRouter::normalScheduler|
+    <tx> tx
+  }}"]
+  PeerMsgChannel[style_var;label="{
+    PeerMsg\lChannel|
+    RaftMessage|
+    RaftCommand|
+    Tick|
+    Heartbeatpd|
+    ...
+  }"]
+  RaftRouter_normals:tx1 -> PeerMsgChannel -> NormalChannel:rx1;
+  RaftRouter_normals:tx2 -> PeerMsgChannel2 -> NormalChannel:rx2;
+  RaftRouter_normals:tx3 -> PeerMsgChannel3 -> NormalChannel:rx3;
+  RaftRouter_normalScheduler -> NormalChannel:tail;
+  NormalChannel:head -> Poller;
+  {rank=same;RaftRouter_normals;RaftRouter_normalScheduler}
+  Poller -> {
+     begin;
+     handle_normals;
+     handle_control;
+     end;
+  }
+}

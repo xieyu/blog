@@ -1,0 +1,78 @@
+#include "styles.h"
+digraph create_resolver {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  //main -> run_tikv -> TiKVEngines_init;
+  TiKVEngines_init -> {
+     WorkerBuilder_new_create;
+     resolve_new_resolver;
+  }
+  WorkerBuilder_new_create[style_func;label="{{
+    WorkerBuilder::new(\"backgroud\")\l
+    .create()|
+    创建后台worker pool\l
+  }}"]
+  WorkerBuilder_new_create -> {
+    YatpPoolBuilder_new;
+    Worker;
+  }
+  YatpPoolBuilder_new[style_func;label="{{
+    YatpPoolBuilder_new|
+    创建YatpPool\l
+    线程数为config.server\l
+    .background_thread_count\l
+  }}"]
+  Worker -> resolve_new_resolver[style_edge_data];
+  Worker[style_func;label="{{
+    Worker|
+    <pool> pool: Arc\<Mutex\<Option\<ThreadPool\l
+    \<yatp::task::future::TaskCell\>\>\>\>,\l|
+    remote: Remote\<yatp::task::future::TaskCell\>,\l|
+    pending_capacity: usize,\l|
+    counter: Arc\<AtomicUsize\>,\l|
+    stop: Arc\<AtomicBool\>,\l|
+    thread_count: usize,\l
+  }}"]
+  YatpPoolBuilder_new -> Worker:pool;
+  resolve_new_resolver -> {
+     Worker_start;
+     PdStoreAddrResolver_new;
+     Runner;
+  }
+  Worker_start -> scheduler -> PdStoreAddrResolver_new[style_edge_data];
+  Worker_start[style_func;label="{{
+    Worker_start|
+    start(addr-resolver, runner)\l|
+    创建一个channel\l
+    从channel中Poll task\l
+    调用Runner.run(task)\l
+    处理task\l|
+    返回一个scheduler\l
+    用于向该channel\l
+    发送task\l
+  }}"]
+  scheduler[style_func;label="{{
+    scheduler|
+    用于向worker发送task\l
+  }}"]
+  Runner[style_func;label="{{
+    Runner|
+    pd_client: Arc\<T\>,\l|
+    store_addrs: HashMap\<u64, StoreAddr\>,\l|
+    state: Arc\<Mutex\<GlobalReplicationState\>\>,\l|
+    router: RR,\l|
+    使用pd_server\l
+    获取store的addr\l
+    中间加了一道缓存\l
+  }}"]
+  resolve_new_resolver[style_func;label="{{
+    resolve::new_resolver|
+    创建PdStoreAddrResolver\l
+    backgroup worker 启动\l
+    add-resolver runner\l
+    并将scheduler放到\l
+    PdStoreAddrResolver\l
+  }}"]
+}

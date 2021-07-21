@@ -16,6 +16,22 @@ digraph raft_kv {
     RocksEngine;
     RaftEngine;
   }
+  Peer[style_func;label="{{
+    Peer|
+    对上层接口为propose\l|
+    处理RaftCmdRequest\l|
+    处理完毕后，调用callback\l|
+    包含读队列ReadIndexQueue\l
+    和写队列ProposalQueue\l
+    以及和raft-rs相关的raft_group\l
+  }}"]
+
+  RaftRouter[style_func;label="{{
+    RaftRouter|
+    根据region_id\l
+    将raft请求发送给\l
+    对应的PeerFsm\l
+  }}"]
 
   ServerRaftStoreRouter -> {
      RaftRouter;
@@ -121,5 +137,6 @@ digraph raft_kv {
     apply_state: RaftApplyState,\l|
     last_term: u64,\l
   }}"]
+
 
 }

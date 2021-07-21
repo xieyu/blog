@@ -9,7 +9,7 @@ digraph raft_client_send {
     graph[label="Queue";fontsize=20;style="rounded,dashed";color="slategrey"]
     push[style_func;label="{{
       push|
-      向消息队列中push\l 
+      向消息队列中push\l
       RaftMessage\l
     }}"]
     notify[style_func;label="{{

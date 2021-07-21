@@ -6,8 +6,11 @@ digraph raft_client_start {
   rankdir=LR;
   subgraph cluster_PdStoreAddrResolver {
     graph[label="PdStoreAddrResolver";fontsize=20;style="rounded,dashed";color="slategrey"]
-    PdStoreAddrResolver_resolve[style_func;label="{{
-      resolve
+    PdStoreAddrResolver_resolve[style_red;label="{{
+      resolve\l
+      发消息给resolver \l
+      runner channel\l
+      并等待callback\l
     }}"]
     PdStoreAddrResolver_resolve;
   }
@@ -15,7 +18,7 @@ digraph raft_client_start {
     graph[label="RaftCall";fontsize=20;style="rounded,dashed";color="slategrey"]
     RaftCall[style_func;label="{{
       RaftCall|
-      sender/receive为\l 
+      sender/receive为\l
       grpc stream的输入输出\l
       RaftCall会不断的去Queue中pop消息\l
       使用sender发送出去\l
@@ -36,7 +39,7 @@ digraph raft_client_start {
       receiver_poll;
       buffer_flush;
     };
-    fill_msg[style_func;label="{{
+    fill_msg[style_struct;label="{{
       fill_msg|
       从queue中pop消息\l
       放入buffer中\l
@@ -61,7 +64,7 @@ digraph raft_client_start {
       sender.poll_ready(ctx)|
       等待sender ready\l
     }}"]
-    send_snapshot_sock[style_func;label="{{
+    send_snapshot_sock[style_red;label="{{
       send_snapshot_sock|
       使用scheduler 由snap handler\l
       处理包含snapshot 的message

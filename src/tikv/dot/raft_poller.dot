@@ -1,0 +1,204 @@
+#include "styles.h"
+digraph raftPoller {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  {rank=same;begin;end;handle_normal;handle_control}
+  poll -> {
+    begin;
+    handle_control;
+    handle_normal;
+    end;
+  }
+  handle_control -> {
+     store_reciver_try_recv;
+     StoreFsmDelegate_handle_msgs;
+  }
+  store_reciver_try_recv[style_func;label="{{
+    StoreFsm::reciver.try_recv()\l
+    尝试从StoreFsm.reciver中取消息\l
+    存到store_msg_buf\l|
+    最多去message_per_tick个消息\l
+  }}"]
+  StoreFsmDelegate_handle_msgs[style_func;label="{{
+    StoreFsmDelegate::handle_msgs|
+    处理msg buf中消息\l
+  }}"]
+  store_reciver_try_recv -> StoreFsmDelegate_handle_msgs[style_edge_data];
+
+
+  handle_normal -> {
+     PeerFsm_reciver_try_recv;
+     PeerFsmDelegate_handle_msgs;
+     PeerFsmDelegate_collect_ready;
+  }
+  PeerFsm_reciver_try_recv[style_func;label="{{
+    PeerFsm::reciver.try_recv|
+    非block的从PeerFsm.reciver读取消息\l
+    最多读取message_per_tick消息\l
+  }}"]
+  PeerFsm_reciver_try_recv -> {
+    PeerFsmDelegate_handle_msgs;
+    PeerFsmDelegate_collect_ready;
+  }[style_edge_data];
+
+  PeerFsmDelegate_handle_msgs[style_func;label="{{
+    PeerFsmDelegate::handle_msgs|
+    处理消息\l
+  }}"]
+  PeerFsmDelegate_collect_ready[style_func;label="{{
+    PeerFsmDelegate::collect_ready|
+    处理raft中已经\l
+    ready的消息\l
+  }}"]
+  PeerFsmDelegate_handle_msgs -> {
+     Peer_step;
+     Peer_post_apply;
+     Peer_propose;
+     RawNode_tick;
+  }
+  Peer_handle_raft_ready_append[style_blue1;label="{{
+    Peer::handle_raft_ready_append
+  }}"]
+
+  Peer_step[style_blue1;label="{{
+    Peer::step
+  }}"]
+  Peer_post_apply[style_blue1;label="{{
+    Peer::post_apply
+  }}"]
+  Peer_propose[style_blue1;label="{{
+    Peer::propose
+  }}"]
+
+  Peer_handle_raft_ready_advance[style_blue1;label="{{
+    Peer\l|
+    handle_raft_ready_advance\l
+  }}"]
+  Peer_post_raft_ready_append[style_blue1;label="{{
+    Peer\l|
+    post_raft_ready_append\l
+  }}"]
+  PeerStorage_post_ready[style_struct;label="{{
+    PeerStorage\l|
+    post_ready\l|
+    raft log, state已写入磁盘\l
+    更新内存中的一些状态\l
+  }}"]
+
+
+
+  RawNode_ready[style_var;label="{{
+    RawNode::ready
+  }}"]
+  RawNode_tick[style_var;label="{{
+    RawNode::tick
+  }}"]
+  RawNode_step[style_var;label="{{
+    RawNode::step
+  }}"]
+  RawNode_advance_apply_to[style_var;label="{{
+    RawNode::advance_apply_to
+  }}"]
+  RawNode_propose[style_var;label="{{
+    RawNode::propose
+  }}"]
+  RawNode_on_persist_ready[style_var;label="{{
+    RawNode\l|on_persist_ready\l
+  }}"]
+
+
+  Peer_step -> RawNode_step;
+  Peer_post_apply -> RawNode_advance_apply_to;
+  Peer_propose -> RawNode_propose;
+  PeerFsmDelegate_collect_ready -> {
+    Peer_handle_raft_ready_append;
+  }
+  Peer_handle_raft_ready_append -> {
+     RawNode_ready;
+     PeerStorage_handle_raft_ready;
+     ApplyRouter_schedule_task_apply;
+  }
+  ApplyRouter_schedule_task_apply[style_red;label="{{
+    ApplyRouter\nschedule_task(Task::apply(...))|
+    向apply router发送\l
+    apply task消息\l
+  }}"]
+  PeerStorage_handle_raft_ready -> {
+     PollContext_raft_wb;
+     PollContext_kv_wb;
+  }[style_edge_data];
+  PeerStorage_handle_raft_ready[style_struct;label="{{
+    PeerStorage\l|
+    handle_raft_ready\l|
+    将raft日志，状态等\l
+    写入write batch\l
+  }}"]
+
+  end -> {
+     flush_ticks;
+     handle_raft_ready;
+  }
+  handle_raft_ready[style_func;label="{{
+    handle_raft_ready|
+    将write_batch写入磁盘
+  }}"]
+  handle_raft_ready -> {
+     PollContext_kv_wb_write_opt;
+     PollContext_engines_raft_consume_and_shrink;
+     PeerFsmDelegate_post_raft_ready_append;
+  }
+  PollContext_raft_wb -> PollContext_engines_raft_consume_and_shrink[style_edge_data];
+  PollContext_kv_wb -> PollContext_kv_wb_write_opt[style_edge_data];
+  PollContext_kv_wb_write_opt[style_func;label="{{
+    PollContext\l|
+    kv_wb.write_opt|
+    将kv_wb写入磁盘
+  }}"]
+  PollContext_engines_raft_consume_and_shrink[style_func;label="{{
+    PollContext\l|
+    raft_consume_and_shrink\l|
+    将raftlog写入磁盘
+  }}"]
+  {rank=same;RawNode_tick;RawNode_step};
+  {rank=same;handle_raft_ready;store_reciver_try_recv;}
+  PeerFsmDelegate_post_raft_ready_append[style_func;label="{{
+    PeerFsmDelegate\l|
+    post_raft_ready_append\l|
+    raft消息写完磁盘后\l
+    做一些更新操作\l
+  }}"]
+
+  PeerFsmDelegate_post_raft_ready_append -> {
+     Peer_post_raft_ready_append;
+     Peer_handle_raft_ready_advance;
+  }
+  Peer_handle_raft_ready_advance -> {
+     RawNode_on_persist_ready;
+     RawNode_advance_append;
+     Peer_send;
+  }
+  Peer_send[style_blue1;label="{{
+    Peer::send|
+    发送raft消息
+  }}"]
+  RawNode_advance_append[style_var;label="{{
+    RawNode::advance_append
+  }}"]
+  Peer_post_raft_ready_append -> PeerStorage_post_ready;
+  flush_ticks[style_func;label="{{
+    flush_ticks|
+    触发pollContext.timer\l
+    delay
+  }}"]
+  flush_ticks -> {
+     PollContext_tick_batch;
+  }
+  Peer_schedule_ticks[style_blue1;label="{{
+    Peer::schedule_ticks
+  }}"]
+  Peer_schedule_ticks -> PollContext_tick_batch;
+  {rank=same;Peer_schedule_ticks;Peer_handle_raft_ready_advance};
+  {rank=same;PollContext_tick_batch;PollContext_kv_wb;}
+}

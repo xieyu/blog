@@ -1,0 +1,44 @@
+#include "styles.h"
+digraph kv_raft {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  kv_Service_batch_raft[style_func;label="{{
+    kv/Service\n
+    batch_raft|
+    GRPC 接口\l
+  }}"]
+  kv_Service_raft[style_func;label="{{
+    kv/Service\n
+    raft|
+    GRPC 接口\l
+  }}"]
+  RaftStoreRouter_send_raft_msg[style_func;label="{{
+    RaftStoreRouter\n
+    send_raft_msg\n
+  }}"]
+  ServerRaftStoreRouter_send_raft_msg[style_func;label="{{
+    ServerRaftStoreRouter\n
+    send_raft_msg\l
+  }}"]
+  RaftRouter_send_raft_msg[style_func;label="{{
+    RaftRouter\n
+    send_raft_msg\n
+  }}"]
+  RaftRouter_try_send[style_func;label="{{
+    RaftRouter\n
+    try_send\n|
+    根据normals中的map\l
+    找到region_id对应的PeerFsm的\l
+    Mailbox, 使用它发送消息\l
+  }}"]
+
+  {
+    kv_Service_batch_raft;
+    kv_Service_raft;
+  } -> RaftStoreRouter_send_raft_msg;
+  RaftStoreRouter_send_raft_msg -> ServerRaftStoreRouter_send_raft_msg;
+  ServerRaftStoreRouter_send_raft_msg -> RaftRouter_send_raft_msg;
+  RaftRouter_send_raft_msg -> RaftRouter_try_send;
+}

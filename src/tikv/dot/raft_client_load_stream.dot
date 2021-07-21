@@ -1,0 +1,81 @@
+#include "styles.h"
+digraph load_stream {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  tombstone_stores_contains[style_func;label="{{
+    self.tombstone_stores.contains(&store_id)|
+    如果已经store_id已经在\l
+    tombstone_stores中\l
+    返回false\l
+  }}"]
+  pool_connections_entry_or_insert_with[style_func;label="{{
+    pool.connections\l
+    .entry(store_id, conn_id)\l
+    .or_insert_with(\l
+    创建StreamBackEnd的闭包函数)\l|
+    从connections_map中获取\l
+    或者从创建一个\l
+  }}"]
+  pool_connections_entry_or_insert_with -> lambda;
+  lambda[style_func;label="{{
+  创建StreamBackEnd\l
+  和启动异任务\l
+  }}"]
+  start[style_func;label="{{
+    start|
+    async 函数\l
+    1.解析store的addr\l
+    2.创建和addr的conn\l
+    3.创建batch_call异步任务\l
+    4.await batch_call\l
+  }}"]
+  RaftCall[style_func;label="{{
+    RaftCall|
+    sender: ClientCStreamSender\<M\>,\l|
+    receiver: ClientCStreamReceiver\<Done\>,\l|
+    <queue> queue: Arc\<Queue\>,\l|
+    buffer: B,\l|
+    router: R,\l|
+    snap_scheduler: Scheduler\<SnapTask\>,\l|
+    lifetime: Option\<oneshot::Sender\<()\>\>,\l|
+    store_id: u64,\l|
+    addr: String,\l
+  }}"]
+  start -> RaftCall -> future_pool_spawn[style_edge_data];
+  future_pool_spawn[style_func;label="{{
+    future_pool.spawn|
+    在future_pool中执行\l
+    异步任务\l
+  }}"]
+
+  lambda -> {
+    StreamBackEnd;
+    future_pool_spawn;
+    start;
+    queue_new;
+  }
+  queue_new[style_blue1;label="{{
+    Queue::with_capacity|
+    新创建的queue\l
+    会插到LRUCache和pool中\l
+  }}"]
+
+  queue_new -> {
+    LRUCache_insert
+  }[style_edge_data]
+
+  queue_new -> RaftCall:queue;
+
+  load_stream -> {
+     pool_lock;
+     tombstone_stores_contains;
+     pool_connections_entry_or_insert_with;
+     StreamBackEnd;
+     future_pool_spawn;
+     start;
+     LRUCache_insert;
+     LRUCache_resize;
+  }
+}

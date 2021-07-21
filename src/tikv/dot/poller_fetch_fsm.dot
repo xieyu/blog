@@ -1,0 +1,91 @@
+#include "styles.h"
+digraph poller_fetch_fsm {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  NormalChannel[style_func;label="{{
+    NormalChannel|
+    <head>|
+    {<rx1> rx|{region1|PeerFsm}}|
+    {<rx2> rx|{region2|PeerFsm}}|
+    {<rx3> rx|{region3|PeerFsm}}|
+    <tail>|
+    ...
+  }}"]
+
+  Batch[style_func;label="{{
+    Batch|
+    <normals> normals: Vec\<Box\<N\>\>,\l|
+    timers: Vec\<Instant\>,\l|
+    <control> control: Option\<Box\<C\>\>,\l
+  }}"]
+
+
+  NormalChannel -> fetch_fsm[style_edge_data];
+  poll[style_func;label="{{
+    poll|
+    从channel中读取fsm\l
+    然后调用PollHandler的\l
+    handle_control\l
+    handle_normal\l
+  }}"]
+  poll -> fetch_fsm;
+  fetch_fsm -> {
+     fsm_receiver_try_recv;
+     fsm_receiver_recv;
+     handler_pause;
+  }
+  fsm_receiver_try_recv[style_func;label="{{
+    fsm_receiver.try_recv|
+    尝试nonblock地获取fsm\l
+    然后push到Batch；
+  }}"]
+  fsm_receiver_try_recv -> Batch;
+  fsm_receiver_recv -> Batch;
+  fsm_receiver_recv[style_func;label="{{
+    fsm_receiver.recv|
+    try_recv读取fsm为空\l
+    则blocked去获取fsm\l
+  }}"]
+  handler_pause[style_blue1;label="{{
+    pause|
+    在block之前先调用poller\l
+    pause, 通知poller要block了\l
+  }}"]
+  poll -> {
+     handle_control;
+     handle_normal;
+     handler_end;
+  }
+  Batch:normals -> handle_normal[style_edge_data];
+  Batch:control -> handle_control[style_edge_data];
+
+  handle_normal[style_blue1;label="{{
+    handle_normal|
+    处理batch中的normals\l
+    foreach normals\l
+    调用handle_normal\l
+  }}"]
+  handle_control[style_blue1;label="{{
+    handle_control|
+    处理batch中的control
+  }}"]
+  handler_end[style_blue1;label="{{
+    end|
+    整个batch处理完毕\l
+    调用handle_end\l
+  }}"]
+
+  subgraph cluster_PollHandler {
+    graph[label="PollHandler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    {
+       rank=same;
+       handle_control;
+       handle_normal;
+       handler_end;
+       handler_pause;
+    }
+  }
+
+}

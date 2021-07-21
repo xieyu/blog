@@ -4,35 +4,35 @@ digraph poller_poll {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
-  subgraph cluster_handler {
-    graph[label="handler";fontsize=20;style="rounded,dashed";color="slategrey"]
+  //subgraph cluster_handler {
+  //  graph[label="handler";fontsize=20;style="rounded,dashed";color="slategrey"]
     handle_control;
     handle_normal;
     begin;
-    end[style_func;label="{{
-      end|
+    end[style_blue1;label="{{
+      Handler::end|
       做数据清理，落盘等操作
     }}"]
-    handle_pause[style_func;label="{{
-      pause|
+    handle_pause[style_blue1;label="{{
+      Handler::pause|
       在batch system sleep 之前\l
       做一些清理buffeer之类操作\l
     }}"]
-    handle_normal[style_func;label="{{
-      handle_normal|
+    handle_normal[style_blue1;label="{{
+      Handler::handle_normal|
       对于batch.normals中每个fsm \l
       调用handle_normal\l|
       每次handle_normal会从fsm中最多取出\l
       messages_per_tick个消息处理\l
     }}"]
-    handle_control[style_func;label="{{
-      handle_control|
+    handle_control[style_blue1;label="{{
+      Hanlder::handle_control|
       对batch.control的fsm调用\l
       handle_control方法\l|
       每次handle_control会从fsm中最多取出\l
       messages_per_tick个消息处理\l
     }}"]
-  }
+  //}
   reschedule_fsms[style_var;label="{{
     reschedule_fsms|
     Vec\<(u64, ReschedulePolicy)\>|
@@ -116,4 +116,15 @@ digraph poller_poll {
     batch_remove_control;
     batch_release_control;
   } -> batch2;
+
+  NormalChannel[style_func;label="{{
+    NormalChannel|
+    <head>|
+    {<rx1> rx|{region1|PeerFsm}}|
+    {<rx2> rx|{region2|PeerFsm}}|
+    {<rx3> rx|{region3|PeerFsm}}|
+    <tail>|
+    ...
+  }}"]
+  NormalChannel -> fetch_fsm[style_edge_data];
 }

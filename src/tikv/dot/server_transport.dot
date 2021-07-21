@@ -1,0 +1,62 @@
+#include "styles.h"
+digraph server_transport {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ServerTransport[style_func;label="{{
+    ServerTransport|
+    raft_client: RaftClient\<S, T\>\l
+  }}"]
+
+  Server -> ServerTransport;
+  Server[style_func;label="{{
+    Server|
+    env: Arc\<Environment\>,\l|
+    builder_or_server: Option\<Either\<ServerBuilder, GrpcServer\>\>,\l|
+    local_addr: SocketAddr,\l|
+    trans: ServerTransport\<T, S\>,\l|
+    raft_router: T,\l|
+    snap_mgr: SnapManager,\l|
+    snap_worker: LazyWorker\<SnapTask\>,\l|
+    stats_pool: Option\<Runtime\>,\l|
+    grpc_thread_load: Arc\<ThreadLoad\>,\l|
+    yatp_read_pool: Option\<ReadPool\>,\l|
+    readpool_normal_thread_load: Arc\<ThreadLoad\>,\l|
+    debug_thread_pool: Arc\<Runtime\>,\l|
+    health_service: HealthService,\l|
+    timer: Handle,\l
+  }}"]
+
+  ServerTransport -> {
+    RaftStoreRouter;
+    RaftClient;
+    StoreAddrResolver;
+  }
+  RaftClient[style_func;label="{{
+    RaftClient|
+    pool: Arc\<Mutex\<ConnectionPool\>\>,\l|
+    cache: LruCache\<(u64, usize), CachedQueue\>,\l|
+    need_flush: Vec\<(u64, usize)\>,\l|
+    full_stores: Vec\<(u64, usize)\>,\l|
+    future_pool: Arc\<ThreadPool\<TaskCell\>\>,\l|
+    builder: ConnectionBuilder\<S, R\>,\l
+  }}"]
+  TiKVServer -> Servers -> Server;
+  TiKVServer[style_func;label="{{
+    TiKVServer|
+    resolver: resolve::PdStoreAddrResolver,\l|
+    servers: Option\<Servers\<ER\>\>,\l|
+    router: RaftRouter\<RocksEngine, ER\>,\l|
+    ...
+  }}"]
+  Servers[style_func;label="{{
+    Servers|
+    lock_mgr: LockManager,\l|
+    <server> server: Server\<RaftRouter\<RocksEngine, ER\>, resolve::PdStoreAddrResolver\>,\l|
+    node: Node\<RpcClient, ER\>,\l|
+    importer: Arc\<SSTImporter\>,\l|
+    cdc_scheduler: tikv_util::worker::Scheduler\<cdc::Task\>,\l
+  }}"]
+  StoreAddrResolver -> PdStoreAddrResolver;
+}

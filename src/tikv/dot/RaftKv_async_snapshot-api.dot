@@ -1,0 +1,16 @@
+#include "styles.h"
+digraph async_snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  async_snapshot -> exec_snapshot
+  exec_snapshot -> {
+    router_send_command;
+  }
+  router_send_command[style_func;label="{{
+    router.send_command|
+    Sends RaftCmdRequest to local store\l
+  }}"]
+  router_send_command -> ProposalRouter_send;
+}

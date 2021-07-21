@@ -1,0 +1,156 @@
+#include "styles.h"
+digraph batch_system_create {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  create_raft_batch_system -> {
+     create_apply_batch_system;
+     create_system_1;
+  }
+  create_apply_batch_system -> create_system;
+  TiKVServer_init -> {
+     create_raft_batch_system;
+     TiKVServer;
+  }
+  main -> run_tikv -> {
+      TiKVServer_init;
+      TiKVServer_init_servers;
+  }
+
+  TiKVServer_init_servers[style_func;label="{{
+    TiKVServer\n
+    init_servers
+  }}"]
+  TiKVServer_init[style_func;label="{{
+    TiKVServer\n
+    init
+  }}"]
+  //Config -> BatchSystemConfig;
+  //BatchSystemConfig[style_func;label="{{
+  //  BatchSystemConfig|
+  //  pub max_batch_size: Option\<usize\>,\l|
+  //  pub pool_size: usize,\l|
+  //  pub reschedule_duration: ReadableDuration,\l
+  //}}"]
+  TiKVServer[style_func;label="{{
+    TiKVServer|
+    config: TiKVConfig\l|
+    <router> router: RaftRouter\<RocksEngine, ER\>,\l|
+    <system> system: Option\<RaftBatchSystem\<RocksEngine, ER\>\>,\l
+    ...\l
+  }}"]
+  run_tikv[style_func;label="{{
+    run_tikv|
+    主循环
+  }}"]
+  TiKVServer:system-> RaftBatchSystem;
+  RaftBatchSystem[style_func;label="{{
+    RaftBatchSystem|
+    <system> system: BatchSystem\<PeerFsm\<EK, ER\>, StoreFsm\<EK\>\>,\l|
+    apply_router: ApplyRouter\<EK\>,\l|
+    <apply_system> apply_system: ApplyBatchSystem\<EK\>,\l|
+    router: RaftRouter\<EK, ER\>,\l|
+    workers: Option\<Workers\<EK\>\>,\l
+  }}"]
+  create_system_1 -> RaftBatchSystem:system;
+  create_system -> RaftBatchSystem:apply_system;
+  create_system_1[style_func;label="{{
+    create_system|
+    创建PeerFsm的BatchSystem\l
+  }}"]
+  create_system[style_func;label="{{
+    create_system|
+    创建apply Batchsystem\l
+  }}"]
+  create_raft_batch_system[style_func;label="{{
+    create_raft_batch_system|
+    创建PeerFsm BatchSystem\l
+    和ApplyBatchSystem\l
+  }}"]
+
+
+  TiKVServer_init_servers -> {
+    Node_new;
+    Node_try_bootstrap_store;
+    Node_start;
+  }
+  Node_start -> Node_start_store;
+  Node_start_store -> {
+    RaftBatchSystem_spawn;
+  }
+  RaftBatchSystem_spawn -> {
+     RaftPollerBuilder_init;
+     RaftBatchSystem_start_system;
+     snapshot_worker;
+     raft_gc_worker;
+     cleanup_worker;
+     consistency_check_worker;
+  }
+  RaftBatchSystem_start_system -> {
+     ApplyPollerBuilder_new;
+     BatchSystem_spawn;
+     ApplyBatchSystem_spawn;
+  }
+  RaftPollerBuilder_init[style_func;label="{{
+    RaftPollerBuilder\n
+    init|
+    扫描kv engine\l
+    创建PeerFsm\l
+    初始化RaftRouter\l
+    normals\l
+  }}"]
+  BatchSystem_spawn[style_blue1;label="{{
+    BatchSystem\n
+    spawn|
+    启动RaftPoller线程池\l
+    开始poll PeerFsm\l
+  }}"]
+  ApplyBatchSystem_spawn[style_blue1;label="{{
+    ApplyBatchSystem\n
+    spawn\n
+    启动ApplyPoller线程池\l
+    开始poll ApplyFsm\l
+  }}"]
+  Node_new[style_func;label="{{
+    Node_new|
+    Node包含了对RaftBatchSystem的clone\l|
+    <system> system: RaftBatchSystem\<RocksEngine, ER\>,\l
+  }}"]
+  Node_new:system -> RaftBatchSystem;
+  Node_try_bootstrap_store[style_func;label="{{
+    Node\n
+    try_bootstrap_store|
+    从kv engine读取\l
+    STORE_IDENT_KEY\l
+    获取store_id\l
+  }}"]
+  Node_start[style_func;label="{{
+    Node_start|
+      扫描KVEngine的CRAFT familly\l
+      创建初始化PeerFsm/ApplyFsm\l
+    开启RaftPoller\l
+    和ApplyPoller线程池\l
+  }}"]
+  Node_start_store[style_func;label="{{
+    Node\n
+    start_store
+  }}"]
+
+  RaftBatchSystem_spawn[style_func;label="{{
+    RaftBatchSystem\n
+    spawn\l
+    启动RaftPoller\l
+    ApplyPoller线程池\l
+    启动一些worker\l
+  }}"]
+  RaftBatchSystem_start_system[style_func;label="{{
+    RaftBatchSystem\n
+    start_system
+  }}"]
+  ApplyPollerBuilder_new[style_func;label="{{
+    ApplyPollerBuilder\n
+    new
+  }}"]
+}

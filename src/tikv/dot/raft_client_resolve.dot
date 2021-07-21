@@ -5,28 +5,21 @@ digraph reaft_client_resolve {
   newrank=true;
   rankdir=LR;
 
-  subgraph cluster_PdClient {
-    graph[label="PdClient";fontsize=20;style="rounded,dashed";color="slategrey"]
-    get_store;
-  }
   subgraph cluster_PeerFsmDelegate {
     graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
-    on_significant_msg -> {
-      global_replication_state;
-      assign_commit_groups;
-    };
+    on_significant_msg;
   }
 
   subgraph cluster_RaftStoreRouter {
     graph[label="RaftStoreRouter";fontsize=20;style="rounded,dashed";color="slategrey"]
 
     //>router.rs:87 fn report_resolved(&self, store_id: u64, group_id: u64) {#F/opt/github/tikv/components/raftstore/src/router.rs#L87
-    report_resolved[style_func;label="{{
+    RaftStoreRouter_report_resolved[style_func;label="{{
       report_resolved|
       Report a StoreResolved event\l
       to all raft groups\l
     }}"]
-    report_resolved -> {
+    RaftStoreRouter_report_resolved -> {
       broadcast_normal;
     }
     broadcast_normal[style_func;label="{{
@@ -53,18 +46,11 @@ digraph reaft_client_resolve {
       获取addr地址，然后保存到cache中\l
     }}"]
 
-    start  -> start_impl -> run -> resolve;
-    start -> {
-      unbounded;
+    start_impl -> run;
+    run -> {
+      task_cb;
+      resolve;
     }
-    unbounded -> {rx;tx};
-    rx -> start_impl[style_edge_data];
-    unbounded[style_func;label="{{
-      unbounded|
-      创建unbounded channel \l
-      tx放入Scheduler\l
-      rx 传给start_impl\l
-    }}"]
     start_impl[style_func;label="{{
       start_impl|
       spawn线程\l
@@ -72,10 +58,9 @@ digraph reaft_client_resolve {
       从rx中获取task\l
       然后调用run 执行task.cb
     }}"]
-    run -> task_cb;
     task_cb[style_func;label="{{
       task_cb|
-      解析完毕后调用\l 
+      解析完毕后调用\l
       task的回调\l
     }}"]
 
@@ -84,20 +69,40 @@ digraph reaft_client_resolve {
       store_addrs_get;
       store_addrs_insert;
     }
+    store_addrs_get[style_func;label="{{
+      store_addrs.get|
+      从缓存中获取store addr\l
+      如果超过了refresh 时间\l
+      就是用pd_client去pd server\l
+      重新解析store addr\l
+    }}"]
+    store_addrs_insert[style_func;label="{{
+      store_addrs.insert|
+      将store地址和当前时间\l
+      戳插入缓存中\l
+    }}"]
     {store_addrs_get;store_addrs_insert;} -> Runner:store_addrs[style_edge_data];
 
     get_address -> {
-      get_store;
+      PDClient_get_store;
+      RaftStoreRouter_report_resolved;
       state_status_get_mode;
-      register_store;
-      take_peer_address;
-      report_resolved;
+      StoreGroup_register_store;
       group_id
+      take_peer_address;
     }
+    StoreGroup_register_store[style_func;label="{{
+      StoreGroup\n
+      register_store|
+      Registers the store \l
+      with given label\l
+      value
+    }}"]
     get_store -> {
       take_peer_address;
       register_store
     }[style_edge_data];
+
     take_peer_address[style_func;label="{{
       take_peer_address|
       返回peer addr
@@ -114,28 +119,24 @@ digraph reaft_client_resolve {
       sched: Scheduler\<Task\>\l|
       使用tx发消息给runner\l
     }}"]
-    PdStoreAddrResolver -> tx;
+    PdStoreAddrResolver -> tx -> start_impl[style_edge_data];
     PdStoreAddrResolver_resolve -> tx;
     PdStoreAddrResolver_resolve[style_func;label="{{
       resolve|
       将Task\{store_id, cb\}发送给tx\l
     }}"]
   }
-  subgraph cluster_StreamBackEnd {
-    graph[label="StreamBackEnd";fontsize=20;style="rounded,dashed";color="slategrey"]
-    StreamBackEnd_resolve -> PdStoreAddrResolver_resolve;
-    StreamBackEnd_resolve[style_func;label="{{
-      resolve
-    }}"]
-    task_cb -> oneshot_channel;
-    oneshot_channel[style_func;label="{{
-      oneshot::channel|
-      回调中使用\l 
-      oneshot::channel的tx\l
-      触发rx.await\l
-    }}"]
-      
-  }
-
-
+  StreamBackEnd_resolve -> PdStoreAddrResolver_resolve;
+  StreamBackEnd_resolve[style_func;label="{{
+    StreamBackEnd\n
+    resolve
+  }}"]
+  task_cb -> oneshot_channel;
+  oneshot_channel[style_blue1;label="{{
+    oneshot::channel|
+    store addr解析完毕\l
+    回调中使用\l
+    oneshot::channel的tx\
+    触发rx.await\l
+  }}"]
 }

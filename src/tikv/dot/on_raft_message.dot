@@ -1,0 +1,135 @@
+#include "styles.h"
+digraph on_raft_message {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate_on_raft_msg[style_func;label="{{
+    PeerFsmDelegate\n
+    on_raft_msg
+  }}"]
+
+  PeerFsmDelegate_on_raft_msg -> {
+    Peer_step;
+    Peer_heartbeat_pd;
+    Peer_any_new_per_catch_up;
+    PeerFsmDelegate_handle_gc_peer_msg;
+    PeerFsmDelegate_check_msg;
+    PeerFsmDelegate_on_extra_msg;
+  }
+  PeerFsmDelegate_handle_gc_peer_msg[style_func;label="{{
+    PeerFsmDelegate\n
+    handle_gc_peer_msg|
+    处理tombstone消息
+  }}"]
+  PeerFsmDelegate_check_msg[style_func;label="{{
+    PeerFsmDelegate\n
+    check_msg|
+    检查消息是否发送\l
+    给正确的peer了\l
+  }}"]
+  PeerFsmDelegate_on_extra_msg[style_func;label="{{
+    PeerFsmDelegate\n
+    on_extra_msg|
+    处理ExtraMessage
+  }}"]
+  PeerFsmDelegate_on_extra_msg -> {
+    RawNode_Raft_ping;
+    Peer_maybe_add_want_rollback_merge_peer;
+    Peer_on_check_stale_peer_response;
+    PeerFsmDelegate_on_hibernate_request;
+    PeerFsmDelegate_on_hibernate_response;
+  }
+  PeerFsmDelegate_handle_gc_peer_msg -> {
+     Peer_maybe_destroy;
+     PeerFsmDelegate_handle_destroy_peer;
+  }
+  Peer_maybe_destroy[style_func;label="{{
+    Peer\n
+    maybe_destroy|
+    将pending_remove\l
+    设置为true
+  }}"]
+  Peer_pending_remove[style_var;label="{{
+    Peer\n
+    pending_remove
+  }}"]
+  Peer_step[style_func;label="{{
+    Peer\n
+    step|
+    Steps the raft message\l
+  }}"]
+  Peer_heartbeat_pd[style_func;label="{{
+    Peer\n
+    heartbeat_pd|
+    通过Pd_scheduler\l
+    让pd worker发送\l
+    Hearbeat消息\l
+  }}"]
+  Peer_peer_heartbeats[style_var;label="{{
+    Peer\n
+    peer_heartbeats
+  }}"]
+  RawNode_step[style_blue1;label="{{
+    RawNode\n
+    step|
+    step raf状态机\l
+  }}"]
+  RawNode_Raft_ping[style_blue1;label="{{
+    RawNode\n
+    Raft.ping
+  }}"]
+
+  Peer_maybe_destroy -> {
+    Peer_pending_remove;
+  }
+
+  Peer_step -> {
+     RawNode_step;
+     Peer_peer_heartbeats;
+  }
+  Peer_maybe_add_want_rollback_merge_peer[style_func;label="{{
+    Peer\n
+    maybe_add_want_rollback_merge_peer
+  }}"]
+  Peer_on_check_stale_peer_response[style_func;label="{{
+    Peer\n
+    on_check_stale_peer_response
+  }}"]
+  PeerFsmDelegate_on_hibernate_request[style_func;label="{{
+    PeerFsmDelegate\n
+    on_hibernate_request
+  }}"]
+  PeerFsmDelegate_on_hibernate_response[style_func;label="{{
+    PeerFsmDelegate\n
+    on_hibernate_response
+  }}"]
+  PeerFsmDelegate_handle_destroy_peer[style_func;label="{{
+    PeerFsmDelegate\n
+    handle_destroy_peer
+  }}"]
+  Peer_any_new_per_catch_up[style_func;label="{{
+    Peer\n
+    any_new_per_catch_up
+  }}"]
+  PeerFsmDelegate_handle_destroy_peer -> {
+     PeerFsmDelegate_destroy_peer;
+     ApplyRouter_schedule_task_ApplyTask_destroy;
+  }
+  ApplyRouter_schedule_task_ApplyTask_destroy[style_func;label="{{
+    ApplyRouter\n
+    schedule_task(ApplyTask::destroy)|
+    如果有apply fsm，\l
+    先发消息给AppyFsm\l
+    destory apply fsm\l
+  }}"]
+  PeerFsmDelegate_destroy_peer[style_func;label="{{
+    PeerFsmDelegate\n
+    destroy_peer|
+    向pd发送DestoryPeer消息\l
+    触发on_region_changed\l
+    关闭该region_id对应的router\l
+    停止peerFsm\l
+  }}"]
+}
