@@ -1,0 +1,68 @@
+#include "styles.h"
+digraph on_apply_res {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_msgs -> on_apply_res -> on_ready_result;
+    on_ready_result -> {
+      on_ready_change_peer;
+      on_ready_compact_log;
+      on_ready_split_region;
+      on_ready_prepare_merge;
+      on_ready_rollback_merge;
+      on_ready_compute_hash;
+      on_ready_commit_merge;
+    }
+
+    on_ready_change_peer -> update_region;
+  }
+
+  on_ready_prepare_merge -> StoreMeta_set_region;
+  on_ready_commit_merge -> StoreMeta_set_region;
+  on_ready_rollback_merge -> StoreMeta_set_region;
+  on_ready_split_region -> StoreMeta_set_region;
+
+  StoreMeta_set_region -> Peer_set_region;
+  StoreMeta_set_region[style_blue1;label="{{
+    StoreMeta\l
+    set_region\l|
+    更新self.regions信息\l
+    更新peer的region信息\l
+  }}"]
+  Peer_set_region[style_func;label="{{
+    Peer\l
+    set_region\l|
+    更新PeerStorage的region信息
+  }}"]
+  Peer_set_region -> {
+    PeerStorage_set_region;
+  }
+  PeerStorage_set_region[style_blue1;label="{{
+    PeerStorage\l
+    set_region\l|
+    更新PeerStorage的region信息
+  }}"]
+  update_region -> StoreMeta_set_region;
+  {
+    rank=same;
+    heartbeat_pd;
+    StoreMeta_set_region;
+  }
+
+  {
+    on_ready_rollback_merge;
+    on_ready_split_region;
+    on_ready_change_peer;
+    on_ready_commit_merge;
+  } -> heartbeat_pd;
+  heartbeat_pd[style_func;label="{{
+    heartbeat_pd|
+    如果peer是leader\l
+    则向pd server发送心跳信息\l
+  }}"]
+
+
+}

@@ -1,0 +1,140 @@
+#include "styles.h"
+digraph send_snap {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  send_snap[style_func;label="{{
+    send_snap|
+    生成发送snap的\l
+    async task\l
+  }}"]
+  send_snap -> {
+    RaftMessage_get_message_get_snapshot;
+    SnapKey_from_snap;
+    SnapManager_register_SnapEntry_Sending;
+    SnapManager_get_snapshot_for_sending;
+    SecurityManager_connect;
+    TikvClient_snapshot;
+    Sink_send_all_await;
+    Sink_close_await;
+    receiver_await;
+    drop_TikVClient;
+    SnapChunk_Snapshot_delete;
+    drop_deregister;
+  }
+  RaftMessage_get_message_get_snapshot[style_func;label="{{
+    RaftMessage\l
+    .get_message\l
+    .get_snapshot\l
+  }}"]
+  RaftSnapshot[style_func;label="{{
+    RaftSnapshot|
+    只包含一些元信息\l
+    数据由snapshot mgr管理\l
+  }}"]
+  SecurityManager_connect[style_func;label="{{
+    1. SecurityManager::connect|
+    建立和store addr\l
+    的Gpc连接\l
+  }}"]
+  TikvClient_snapshot[style_func;label="{{
+    2. TikvClient\l
+    snapshot\l|
+    调用grpc的snapshot接口\l
+    获取接口的sink和reciver\l
+  }}"]
+  Sink_send_all_await[style_func;label="{{
+    3. Sink.send_all.await?|
+    使用sink发送snap数据
+  }}"]
+  Sink_close_await[style_func;label="{{
+    4.Sink.close.await|
+    snap数据发送完毕\l
+    关闭sink\l
+  }}"]
+  SnapChunk[style_func;label="{{
+    SnapChunk|
+    实现了stream接口\l
+    sink.send_all\l
+    会调用它的poll_next方法\l
+    读取要发送snap数据\l
+  }}"]
+  receiver_await[style_func;label="{{
+    5. receiver.await|
+    等待grpc服务返回结果
+  }}"]
+  drop_TikVClient[style_func;label="{{
+    drop(TikVClient)|
+    释放TikvClient
+  }}"]
+  SnapChunk_Snapshot_delete[style_func;label="{{
+    SnapChunk.Snapshot.delete|
+    删除已发送的snapshot\l
+    本地数据\l
+  }}"]
+  SnapKey[style_var;label="{{
+    SnapKey|
+    pub region_id: u64,\l|
+    pub term: u64,\l|
+    pub idx: u64,\l
+  }}"]
+
+
+  SecurityManager_connect -> TikvClient_snapshot -> {
+    Sink_send_all_await;
+    Sink_close_await;
+    receiver_await;
+  }[style_edge_data];
+
+  RaftMessage_get_message_get_snapshot -> RaftSnapshot -> SnapKey_from_snap -> SnapKey[style_edge_data];
+  SnapKey_from_snap[style_func;label="{{
+    SnapKey\l
+    ::from_snap\l|
+      使用region_id\l
+      term, index\l
+      作为key\l
+  }}"]
+
+  SnapKey -> {
+    SnapManager_register_SnapEntry_Sending;
+    SnapManager_get_snapshot_for_sending;
+  }
+  SnapManager_get_snapshot_for_sending -> Snap -> SnapChunk[style_edge_data];
+  SnapChunk -> Sink_send_all_await[style_edge_data];
+  receiver_await -> {
+    SnapChunk_Snapshot_delete;
+    drop_TikVClient;
+    drop_deregister;
+  }
+  drop_deregister-> SnapManager_deregister;
+  SnapManager_get_snapshot_for_sending[style_func;label="{{
+    SnapManager\l
+    get_snapshot_for_sending|
+    根据SnapKey\l
+    获取要发送的snapshot\l
+  }}"]
+  SnapManager_register_SnapEntry_Sending[style_func;label="{{
+    SnapManager\l
+    register(&key, SnapEntry::Sending)\l|
+    注册Snapkey对应状态为Sending\l
+  }}"]
+  SnapManager_deregister[style_func;label="{{
+    SnapManager\l
+    deregister\l|
+    去掉注册SnapKey对应的状态\l
+  }}"]
+
+  //Sink_send_all_await -> Sink_close_await -> receiver_await[style_edge_data];
+  Snap[style_blue1;label="{{
+    Snap|
+    key: SnapKey,\l|
+    display_path: String,\l|
+    dir_path: PathBuf,\l|
+    cf_files: Vec\<CfFile\>,\l|
+    cf_index: usize,\l|
+    meta_file: MetaFile,\l|
+    hold_tmp_files: bool,\l|
+    mgr: SnapManagerCore,\l
+  }}"]
+}

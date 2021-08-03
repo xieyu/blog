@@ -1,0 +1,18 @@
+#include "styles.h"
+digraph snap_runner {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  Server_new -> {
+     Worker_new_snap_handler;
+     Worker_lazy_build;
+  }
+  Worker_lazy_build -> snap_worker;
+  Server_start -> {
+     SnapHandler_new;
+     snap_worker_start;
+  }
+}

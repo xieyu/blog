@@ -1,0 +1,99 @@
+#include "styles.h"
+digraph region2 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Region[style_func;label="{{
+    Region|
+    uint64 id = 1;\l|
+    bytes start_key = 2;\l|
+    bytes end_key = 3;\l|
+    RegionEpoch region_epoch = 4;\l|
+    repeated Peer peers = 5;\l|
+    encryptionpb.EncryptionMeta encryption_meta = 6;\l
+  }}"]
+  RegionEpoch[style_func;label="{{
+    RegionEpoch|
+    uint64 conf_ver = 1;\l|
+    uint64 version = 2;\l
+  }}"]
+  Peer[style_func;label="{{
+    Peer|
+    uint64 id = 1;\l|
+    uint64 store_id = 2;\l|
+    PeerRole role = 3;\l
+  }}"]
+  Peer -> PeerRole;
+
+
+  Region -> {
+    RegionEpoch;
+    Peer;
+  }
+  PeerRole[style_blue1;label="{{
+    PeerRole|
+    Voter = 0;\l|
+    Learner = 1;\l|
+    IncomingVoter = 2;\l|
+    DemotingVoter = 3;\l
+  }}"]
+
+  RaftLocalState[style_func;label="{{
+    RaftLocalState|
+    eraftpb.HardState hard_state = 1;\l|
+    uint64 last_index = 2;\l
+  }}"]
+
+  RaftLocalState -> {
+    HardState;
+  }
+  RegionLocalState[style_func;label="{{
+    RegionLocalState|
+    PeerState state = 1;\l|
+    metapb.Region region = 2;\l|
+    MergeState merge_state = 3;\l
+  }}"]
+  RegionLocalState ->{
+    Region;
+    PeerState;
+    MergeState;
+  }
+  PeerState[style_blue1;label="{{
+    PeerState|
+    Normal = 0;\l|
+    Applying = 1;\l|
+    Tombstone = 2;\l|
+    Merging = 3;\l
+  }}"]
+  MergeState[style_func;label="{{
+    MergeState|
+    uint64 min_index = 1;\l|
+    metapb.Region target = 2;\l|
+    uint64 commit = 3;\l
+  }}"]
+
+  MergeState -> {
+    Region;
+  }
+  HardState[style_func;label="{{
+    HardState|
+    uint64 term = 1;\l|
+    uint64 vote = 2;\l|
+    uint64 commit = 3;\l
+  }}"]
+  RaftApplyState[style_func;label="{{
+    RaftApplyState|
+    uint64 applied_index = 1;\l|
+    uint64 last_commit_index = 3;\l|
+    uint64 commit_index = 4;\l|
+    uint64 commit_term = 5;\l
+    RaftTruncatedState truncated_state = 2;\l
+  }}"]
+  RaftTruncatedState[style_func;label="{{
+    RaftTruncatedState|
+    uint64 index = 1;\l|
+    uint64 term = 2;\l
+  }}"]
+  RaftApplyState -> RaftTruncatedState;
+}

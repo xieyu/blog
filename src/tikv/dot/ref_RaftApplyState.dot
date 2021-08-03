@@ -1,0 +1,80 @@
+#include "styles.h"
+digraph raft_apply_state {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RaftApplyState[style_func;label="{{
+    RaftApplyState|
+    pub applied_index: u64,\l|
+    pub commit_index: u64,\l|
+    pub commit_term: u64,\l|
+    pub truncated_state: RaftTruncatedState,\l
+  }}"]
+  ApplyRes -> RaftApplyState;
+  RaftApplyState -> RaftTruncatedState;
+
+  {ApplyFsmDelegate;PeerStorage;} -> RaftApplyState;
+  InvokeContext -> RaftApplyState;
+
+  ApplyFsmDelegate -> ApplyRes[style_edge_data];
+  PeerStorage -> InvokeContext[style_edge_data];
+  PeerStorage[style_blue1;label="{{
+    PeerStorage|
+  }}"]
+  ApplyFsmDelegate[style_blue1;label="{{
+    ApplyFsmDelegate|
+    1.将commited entries写入write batch\l
+    2.更新磁盘kv中的apply_state\l
+    3.更新内存中的apply_state\l
+    4.将apply_state放入ApplyRes传递给RaftPoller\l
+    在apply_raft_cmd\l
+  }}"]
+  ApplyPoller -> ApplyFsmDelegate;
+  ApplyPoller[style_func;label="{{
+    ApplyPoller\l
+    处理完Apply task后\l
+    发送ApplyRes回给RaftPoller\l
+  }}"]
+  RaftPoller -> ApplyTask;
+  ApplyTask -> ApplyPoller;
+  {rank=same;ApplyRes;ApplyTask};
+
+  ApplyFsmDelegate -> kv_wb;
+  kv_wb[style_func;label="{{
+    kv_wb|
+    将数据写入kv write batch\l
+    在apply poller end时\l
+    会将write batch写入\l
+    rocks engine\l
+  }}"]
+  RaftPoller -> PeerStorage;
+  ApplyRes -> RaftPoller;
+  {rank=same;RaftPoller;ApplyPoller}
+  ApplyTask[style_func;label="{{
+    Apply|
+    pub peer_id: u64,\l|
+    pub region_id: u64,\l|
+    pub term: u64,\l|
+    pub entries: Vec\<Entry\>,\l|
+    pub cbs: Vec\<Proposal\<S\>\>,\l|
+    entries_mem_size: i64,\l|
+    entries_count: i64,\l
+  }}"]
+  ApplyRes[style_func;label="{{
+    ApplyRes|
+    pub region_id: u64,\l|
+    pub apply_state: RaftApplyState,\l|
+    pub applied_index_term: u64,\l|
+    pub exec_res: VecDeque\<ExecResult\<S\>\>,\l|
+    pub metrics: ApplyMetrics,\l
+  }}"]
+  RaftPoller[style_func;label="{{
+    RaftPoller|
+    发送ApplyMsg给ApplyPoller\l
+    然后等待处理它发ApplyRes过来\l
+  }}"]
+
+  //ApplyPoller_handle_normal -> ApplyFsmDelegate_handle_raft_committed_entries -> ApplyFsmDelegate_apply_raft_cmd
+  //ApplyFsmDelegate_apply_raft_cmd -> ApplyFsmDelegate[style_edge_data];
+}

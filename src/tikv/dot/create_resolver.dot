@@ -5,12 +5,21 @@ digraph create_resolver {
   newrank=true;
   rankdir=LR;
   //main -> run_tikv -> TiKVEngines_init;
-  TiKVEngines_init -> {
+  TiKVServer_init-> {
      WorkerBuilder_new_create;
      resolve_new_resolver;
+     TiKVServer_connect_to_pd_cluster;
   }
+  TiKVServer_connect_to_pd_cluster[style_func;label="{{
+    TiKVServer\l
+    connect_to_pd_cluster|
+    创建pd-client\l
+    传给resolver\l
+  }}"]
+  TiKVServer_connect_to_pd_cluster -> resolve_new_resolver[style_edge_data];
   WorkerBuilder_new_create[style_func;label="{{
-    WorkerBuilder::new(\"backgroud\")\l
+    WorkerBuilder\l
+    ::new(\"backgroud\")\l
     .create()|
     创建后台worker pool\l
   }}"]

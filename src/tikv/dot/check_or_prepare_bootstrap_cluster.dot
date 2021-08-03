@@ -1,0 +1,238 @@
+#include "styles.h"
+digraph check_or_prepare_bootstrap_cluster {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  TiKVServer_init_servers -> {
+    Node_try_bootstrap_store;
+    Node_start;
+    Node_new;
+  }
+  Node_new[style_func;label="{{
+    Node::new|
+    根据cfg中信息，设置store\l
+    的addr, labels等信息\l
+  }}"]
+  Node_start[style_func;label="{{
+    Node\l
+    start\l
+  }}"]
+  Node_start -> {
+    Node_check_or_prepare_bootstrap_cluster;
+    bootstrap_cluster;
+    PdClient_put_store;
+  }
+  bootstrap_cluster[style_func;label="{{
+    Node\l
+    bootstrap_cluster\l
+  }}"]
+  Node_prepare_bootstrap_cluster[style_func;label="{{
+    Node\l
+    prepare_bootstrap_cluster\l
+  }}"]
+
+  Node_check_or_prepare_bootstrap_cluster[style_func;label="{{
+    Node\l
+    check_or_prepare_bootstrap_cluster\l|
+    1.从engine kv中读取PREPARE_BOOTSTRAP_KEY\l
+    如果存在key，则返回first region\l|
+    2.然后询问pd server cluster是否已bootstrapped\l|
+    3.准备bootstrap cluster,创建第一个region\l
+  }}"]
+  Node_check_cluster_bootstrapped[style_func;label="{{
+    Node\l
+    check_cluster_bootstrapped\l|
+    调用pd_client的is_cluster_bootstrapped\l
+    rpc接口, 会尝试60次，每次sleep 3s\l
+  }}"]
+  PdClient_alloc_id[style_blue1;label="{{
+    PdClient\l
+    alloc_id\l|
+    分配唯一ID\l
+  }}"]
+  alloc_id -> PdClient_alloc_id;
+  alloc_id[style_func;label="{{
+    Node\l
+    alloc_id\l|
+    分配唯一ID\l
+  }}"]
+  PdClient_put_store[style_blue1;label="{{
+    PdClient_put_store|
+    在region bootstrap之后\l
+    将store信息(store_id, store_addr)\l
+    等同步给pd server\l
+  }}"]
+
+  Node_check_or_prepare_bootstrap_cluster -> {
+     Engines_kv_get_msg_PREPARE_BOOTSTRAP_KEY;
+     Node_check_cluster_bootstrapped;
+     Node_prepare_bootstrap_cluster;
+  }
+  Node_check_cluster_bootstrapped -> {
+    PdClient_is_cluster_bootstrapped;
+  }
+
+  Node_prepare_bootstrap_cluster -> {
+     alloc_id;
+     initial_region;
+     store_prepare_bootstrap_cluster;
+  }
+  initial_region[style_func;label="{{
+    initial_region|
+    设置region的初始值\l
+    start_key,end_key为EMPTY_KEY\l
+    region_epoch为 INIT_EPOCH_CONF_VER\l
+    INIT_EPOCH_VER\l
+    初始化peers: store_id, peer_id\l
+  }}"]
+  store_prepare_bootstrap_cluster[style_func;label="{{
+    store\l
+    prepare_bootstrap_cluster\l|
+    the first phase of bootstrap clsuter\l
+    write first region meta\l
+    and prepase state\l|
+    将first region信息写入raft kv\l
+    和kv engine\l
+  }}"]
+
+  bootstrap_cluster -> {
+     PdClient_bootstrap_cluster;
+     store_clear_prepare_bootstrap_key;
+     store_clear_prepare_bootstrap_cluster;
+  }
+  store_clear_prepare_bootstrap_key[style_func;label="{{
+    store\l
+    clear_prepare_bootstrap_key\l|
+    PdSever返回 ok\l|
+    从engine.kv中删除key\l
+    删除PREPARE_BOOTSTRAP_KEY\l
+  }}"]
+
+  PdClient_bootstrap_cluster[style_blue1;label="{{
+    PdClient\l
+    bootstrap_cluster\l
+  }}"]
+  PdClient_is_cluster_bootstrapped[style_blue1;label="{{
+    PdClient\l
+    is_cluster_bootstrapped\l
+  }}"]
+  Engines_kv_get_msg_PREPARE_BOOTSTRAP_KEY[style_func;label="{{
+    Engines_kv.get_msg(\l
+    PREPARE_BOOTSTRAP_KEY)\l|
+    从kv engine中读取first region\l
+    信息\l
+  }}"]
+  store_clear_prepare_bootstrap_cluster[style_func;label="{{
+    store\l
+    clear_prepare_bootstrap_cluster\l|
+    PdSever返回 Error ClusterBootstrapped\l|
+    1.从raft engine 清除region_id对应的信息\l
+    1.从kv engine中删除\l
+    PREPARE_BOOTSTRAP_KEY\l|
+    2. 删除CF_RAFT family 的regoin state\l
+  }}"]
+  Node_try_bootstrap_store[style_func;label="{{
+    Node\l
+    try_bootstrap_store\l|
+    设置store id和cluster_id\l
+  }}"]
+  Node_try_bootstrap_store ->{
+    check_store;
+    store_bootstrap_store;
+    alloc_id;
+  }
+  store_bootstrap_store[style_func;label="{{
+    store\l
+    bootstrap_store\l|
+    1. 检查确保engine.kv的\l
+    CF_DEFAULT是空的\l|
+    2.kv engine中写入
+    STORE_IDENT_KEY, StoreIdent\l
+  }}"]
+  check_store[style_func;label="{{
+    check_store|
+    检查kv engine的STORE_IDENT_KEY
+  }}"]
+
+
+  {
+    rank=same;
+    store_clear_prepare_bootstrap_cluster;
+    store_prepare_bootstrap_cluster;
+    store_clear_prepare_bootstrap_cluster;
+    store_clear_prepare_bootstrap_key;
+    store_bootstrap_store;
+  }
+  {
+    rank=same;
+    PdClient_put_store;
+    PdClient_alloc_id;
+    PdClient_is_cluster_bootstrapped;
+    PdClient_bootstrap_cluster;
+  }
+
+
+/*
+  RegionLocalState_default[style_func;label="{{
+    RegionLocalState::default|
+    创建一个默认的RegionLocalState\l
+  }}"]
+  initial_region -> {
+     RegionLocalState_set_region;
+     wb_put_msg_PREPARE_BOOTSTRAPKEY;
+  }[style_edge_data];
+  //RegionLocalState_default -> RegionLocalState_set_region[style_edge_data];
+  region_state_key[style_func;label="{{
+    region_state_key|
+    生成region_id的region_state key\l
+    REGION_META_PREFIX_KEY \l|
+    region_id\l|
+    REGION_STATE_SUFFIX\l
+  }}"]
+  //PREPARE_BOOTSTRAP_KEY ->wb_put_msg_PREPARE_BOOTSTRAPKEY;
+  wb_put_msg_PREPARE_BOOTSTRAPKEY[style_func;label="{{
+    wb_put_msg(\l
+    keys::PREPARE_BOOTSTRAPKEY\l
+    region))\l
+  }}"]
+  //RegionLocalState_set_region-> wb_put_msg_cf_CF_RAFT;
+  //{
+  //wb_put_msg_cf_CF_RAFT;
+  //wb_put_msg_PREPARE_BOOTSTRAPKEY;
+  //} -> wb_write -> Engines_sync_kv[style_edge_data];
+  write_init_raft_state[style_func;label="{{
+    write_init_raft_state|
+     写入regoin_id\l
+     RaftLocalState\l
+     到Raft write batch\l
+     RaftLocalState的\l|
+    last_index: RAFT_INIT_LOG_INDEX\l
+    term: RAFT_INIT_LOG_TERM\l
+    commit: RAFT_INIT_LOG_INDEX\l
+  }}"]
+  RaftLocalState[style_func;label="{{
+    RaftLocalState|
+    last_index: RAFT_INIT_LOG_INDEX,\l
+  }}"]
+  write_init_raft_state -> {
+    RaftLocalState;
+  }
+
+  //store_prepare_bootstrap_cluster -> {
+  //   //RegionLocalState_default;
+  //   //RegionLocalState_set_region;
+  //   region_state_key;
+  //   //Engines_kv_write_batch;
+  //   wb_put_msg_PREPARE_BOOTSTRAPKEY;
+  //   wb_put_msg_cf_CF_RAFT;
+  //   write_initial_apply_state;
+  //   wb_write;
+  //   Engines_sync_kv;
+  //   write_init_raft_state;
+  //   Engines_raft_consume;
+  //}
+  */
+
+}

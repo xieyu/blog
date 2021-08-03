@@ -1,0 +1,105 @@
+#include "styles.h"
+digraph create_snap_hanlder {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  run_tikv -> {
+     TiKVServer_init_servers;
+     TiKVServer_run_server;
+  }
+  TiKVServer_run_server[style_func;label="{{
+    TiKVServer\l
+    run_server\l
+  }}"]
+
+  TiKVServer_init_servers[style_func;label="{{
+    TiKVServer\l
+    init_servers\l
+  }}"]
+  TiKVServer_run_server -> Server_start;
+
+  TiKVServer_init_servers -> {
+    SnapManagerBuilder_build;
+    Server_new;
+  }
+
+  Server_new -> {
+    Worker_new_snap_handler;
+    Worker_lazy_build;
+    LazyWorker_scheduler;
+    KvService_new;
+    RaftClient_new;
+    ConnectionBuilder_new;
+  }
+  Worker_new_snap_handler -> Worker_lazy_build -> snap_worker_start[style_edge_data];
+  Worker_new_snap_handler[style_func;label="{{
+    Worker::new(\"snap_handler\")\l|
+    创建新的worker\l
+  }}"]
+
+  Worker_lazy_build[style_func;label="{{
+    Worker::lazy_build|
+    创建和lazyworker\l
+    通信的channel\l
+    返回LazyWorker\l
+  }}"]
+  LazyWorker_scheduler[style_func;label="{{
+    LazyWorker\l
+    scheduler\l|
+    包含了向channel发送消息的tx\l
+    将放到ConnectionBuilder\l
+    和KvService\l
+  }}"]
+  SnapManagerBuilder_build[style_func;label="{{
+    SnapManagerBuilder::build|
+    创建SnapManager\l
+    用来管理snap\l
+    snap存放路径为\l
+    store_path/snap\l
+  }}"]
+  KvService_new[style_func;label="{{
+    KvService::new
+  }}"]
+  ConnectionBuilder_new[style_func;label="{{
+    ConnectionBuilder::new
+  }}"]
+  LazyWorker_scheduler -> {
+    KvService_new;
+    ConnectionBuilder_new;
+  }[style_edge_data];
+  ConnectionBuilder_new -> RaftClient_new[style_edge_data];
+  Server_start[style_func;label="{{
+    Server_start|
+    Server the TiKVServer
+  }}"]
+  Server_start -> {
+    snap_worker_start;
+    SnapHandler_new;
+  }
+  snap_worker_start[style_func;label="{{
+    snap_worker::start|
+    从channel中取消息\l
+    然后由sanp.rs/Runner来处理\l
+  }}"]
+  SnapManagerBuilder_build -> SnapHandler_new:snap_mgr[style_edge_data];
+  SnapHandler_new[style_func;label="{{
+    snap.rs/Runner::new
+    env: Arc\<Environment\>,\l|
+    <snap_mgr> snap_mgr: SnapManager,\l|
+    pool: Runtime,\l|
+    raft_router: R,\l|
+    security_mgr: Arc\<SecurityManager\>,\l|
+    cfg: Arc\<Config\>,\l|
+    sending_count: Arc\<AtomicUsize\>,\l|
+    recving_count: Arc\<AtomicUsize\>,\l|
+    engine: PhantomData\<E\>,\l
+  }}"]
+  snap_worker_start -> SnapHandler_new[style_edge_data];
+  SnapHandler_new -> RuntimeBuilder_new;
+  RuntimeBuilder_new[style_func;label="{{
+    RuntimeBuilder::new()..build()|
+    创建tokio 线程池runtime\l
+    线程个数为DEFAULT_POOL_SIZE, 4\l
+  }}"]
+}

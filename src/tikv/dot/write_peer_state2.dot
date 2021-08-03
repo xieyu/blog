@@ -1,0 +1,28 @@
+#include "styles.h"
+digraph write_peer_state2 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  write_peer_state -> {
+     RaftLocalState;
+     region_state_key;
+     kv_wb_put_msg_cf;
+  }
+  region_state_key[style_func;label="{{
+    region_state_key|
+    REGION_META_PREFIX_KEY: 0x01x03\l|
+    region_id\l|
+    REGION_STATE_SUFFIX: 0x01\l|
+  }}"]
+  {
+    RaftLocalState;
+    region_state_key
+  } -> kv_wb_put_msg_cf[style_edge_data];
+  kv_wb_put_msg_cf[style_func;label="{{
+    kv_wb.put_msg_cf|
+    将RaftLocalState 写入\l
+    CF_RAFT\l
+  }}"]
+}

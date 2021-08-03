@@ -5,14 +5,24 @@ digraph kv_raft {
   newrank=true;
   rankdir=LR;
   kv_Service_batch_raft[style_func;label="{{
-    kv/Service\n
-    batch_raft|
-    GRPC 接口\l
+    GRPC 接口\l|
+    kv/Service\l
+    batch_raft
   }}"]
   kv_Service_raft[style_func;label="{{
-    kv/Service\n
-    raft|
-    GRPC 接口\l
+    GRPC 接口\l|
+    kv/Service\l
+    raft
+  }}"]
+  kv_Service_snapshot[style_func;label="{{
+    GRPC接口\l|
+    kv/Service\l
+    snapshot
+  }}"]
+  kv_Service_snapshot -> snap_scheduler -> snap_handler -> RaftStoreRouter_send_raft_msg;
+  snap_scheduler[style_func;label="{{
+    snap_scheduler|
+    接收snap数据，保存到对应文件中
   }}"]
   RaftStoreRouter_send_raft_msg[style_func;label="{{
     RaftStoreRouter\n
@@ -32,6 +42,11 @@ digraph kv_raft {
     根据normals中的map\l
     找到region_id对应的PeerFsm的\l
     Mailbox, 使用它发送消息\l
+  }}"]
+  snap_handler[style_func;label="{{
+    snap_handler|
+    snap handler线程接受完数据后\l
+    send_raft_msg\l
   }}"]
 
   {

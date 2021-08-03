@@ -1,0 +1,37 @@
+#include "styles.h"
+digraph load_region {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RaftBatchSystem_spawn -> RaftPollerBuilder_init;
+  RaftPollerBuilder_init[style_func;label="{{
+    RaftPollerBuilder::init
+  }}"]
+
+  RaftPollerBuilder_init -> {
+    KvEngine_scan_cf;
+  }
+  KvEngine_scan_cf[style_func;label="{{
+    KvEngine_scan_cf|
+      扫描0x010x03到0x010x04\l
+      之间的key,value\l
+  }}"]
+
+  KvEngine_scan_cf -> {
+    RegionLocalState;
+    PeerFsm_create;
+    StoreMeta_region_ranges;
+    StoreMeta_regions_insert;
+  }
+  PeerFsm_create -> Peer_new -> PeerStorage_new;
+  PeerStorage_new[style_blue1;label="{{
+    PeerStorage::new
+  }}"]
+  StoreMeta_region_ranges[style_blue1;label="{{
+    StoreMeta.region_ranges
+  }}"]
+  StoreMeta_regions_insert[style_blue1;label="{{
+    StoreMeta.regions.insert
+  }}"]
+}
