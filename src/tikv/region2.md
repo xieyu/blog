@@ -122,3 +122,5 @@ PeerStorage中RaftApplyState更新流程如下:
 
 ## RaftLocalState
 
+
+![](./dot/raft_local_state.svg)
