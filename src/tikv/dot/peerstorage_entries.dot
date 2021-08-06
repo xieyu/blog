@@ -1,0 +1,86 @@
+#include "styles.h"
+digraph PeerStorage_Entries {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerStorage_entries -> {
+    check_range;
+    RaftEngine_fetch_entries_to;
+    EntryCache_fetch_entries_to;
+  }
+  RaftEngine_fetch_entries_to[style_func;label="{{
+    RaftEngine::fetch_entries_to|
+    从raft engine中取\l
+    [begin,end)的log entry\l
+  }}"]
+  PeerStorage_append -> EntryCache_append;
+  EntryCache_append[style_func;label="{{
+    EntryCache::append
+  }}"]
+  RaftEngine_has_builtin_entry_cache -> EntryCache[style_edge_data];
+  RaftEngine_has_builtin_entry_cache[style_func;label="{{
+    RaftEngine::has_builtin_entry_cache\l|
+    如果raft engin自己有\l
+    entry cache就不用PeerStorage\l
+    的entry cache了\l
+  }}"]
+  PeerStorage_new -> RaftEngine_has_builtin_entry_cache;
+
+  {EntryCache_append;EntryCache_fetch_entries_to} -> EntryCache;
+
+  PeerStorage_new[style_func;label="{{
+    PeerStorage::new|
+    创建时候，根据has_builtin_entry_cache\l
+    来决定要不要使用EntryCache\l
+  }}"]
+  PeerStorage_append[style_func;label="{{
+    PeerStorage::append|
+    将raft ready log entries\l
+    写到raftengine 的write batch\l
+  }}"]
+  EntryCache_fetch_entries_to[style_func;label="{{
+    EntryCache::fetch_entries_to
+  }}"]
+  PeerStorage_append -> Raft_wb_mut_append;
+  Raft_wb_mut_append[style_func;label="{{
+    Raft_wb_mut_append|
+    将raft日志append\l
+    到write batch中\l
+  }}"]
+  PeerStorage_entries[style_blue1;label="{{
+    PeerStorage::entries|
+    取low,high范围内的log entries\l
+  }}"]
+  check_range[style_func;label="{{
+    PeerStorage::check_range|
+    检查low,high 是否在\l
+    truncated_index, last_index\l
+    范围内\l
+  }}"]
+
+  Raft_wb_mut_append -> RaftEngine_fetch_entries_to[style_edge_data];
+  EntryCache[style_func;label="{{
+    EntryCache|
+    cache: VecDeque\<Entry\>,\l|
+    hit: Cell\<i64\>,\l|
+    miss: Cell\<i64\>,\l|
+    mem_size_change: i64,\l
+  }}"]
+  {rank=same;PeerStorage_entries;PeerStorage_append}
+  PeerStorage_term[style_func;label="{{
+    PeerStorage::term
+  }}"]
+  PeerStorage_term[style_blue1;label="{{
+    PeerStorage::term|
+    如果idx == truncated_index\l
+    直接返回truncated_term\l
+    否则读取idx对应的entry\l
+    然后返回entry对应的term\l
+  }}"]
+
+  PeerStorage_term -> {
+    PeerStorage_entries;
+  }
+}

@@ -96,8 +96,8 @@ digraph raft_local_state {
     PeerStorage\l
     post_ready\l|
     使用InvokeContext的\l
-    raft state\l
-    更新PeerStorage的raft state\l
+    raft_state, apply_state, last_term\l
+    更新PeerStorage的成员变量\l
   }}"]
   PeerStorage_raft_state[style_var;label="{{
     PeerStorage\l
