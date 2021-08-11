@@ -66,12 +66,85 @@ Region, RaftLocalState, RaftApplyState之间的关系如下图:
 
 ### entries 和term
 
-entries和term接口实现逻辑如下图所示，
+entries和term接口实现逻辑如下图所示，主要是调用
+RaftEngine的`fetch_entries_to` 获取`[low,high)`
+范围内的log entries.
+
+如果RaftEngine没有`builtin_entry_cache`, 则中间加一层EntryCache
+
+在`PeerStorage`append raft log entry时，会同时append 到EntryCach
+和raft write batch中,而 write batch最终会写到raft engine。
 
 ![](./dot/peerstorage_entries.svg)
 
 ## raft snapshot
 
+raft snapshot相关proto 如下，其中Snapshot是leader 发送给
+follower的snapshot数据结构。 SnapshotMetadata则包含了confState
+以及当前的index和term。
+
+![](./dot/raft_snapshot.svg)
+
 ### 生成 snapshot
 
+snapshot 生成流程如下:
+
+1. PeerStorage::snapshot函数生成GenSnapTask, 然后`Peer::handle_raft_ready_append`将task发送给ApplyFsm
+2. ApplyFsm将GenSnapTask转为`RegionTask::Gen`, 发送给snap-generator worker线程。
+3. snap-generator worker 线程调用`peer_storage::do_snapshot`生成snapshot, 然后
+使用notifier(对应GenSnapTask rx的tx),通知GenSnapTask已OK。
+4. 下次PeerStorage::snapshot被调用时，会从GenSnapTask::Receiver中`try_recv` snapshot, 如果未准备好会返回SnapshotTemporarilyUnavailable，后面会再重试。
+
+#### GenSnapTask
+
+![](./dot/PeerStorage_snapshot.svg)
+
+#### `ApplyFsm::handle_snapshot`
+
+`ApplyFsm::handle_snapshot`, 此处主要处理`need_sync`的状况，
+将write batch数据和apply sate flush写入rocksdb后，
+再获取rocksdb 的snapshot. 最包装成`RegionTask::Gen`
+由snap-generator worker线程池来执行。
+
+![](./dot/ApplyFsm_handle_snapshot.svg)
+
+#### snap-generator 线程池执行`handle_gen`
+
+在worker/region 的`snap-generator`线程池中执行生成snapshot的任务,线程池大小为`GENERATE_POOL_SIZE` 2
+该线程池还负责apply snapshot.
+
+![](./dot/worker_region_handle_gen.svg)
+
+
+#### 生成SnapshotMetadata: `peer_storage::do_snapshot`
+
+`do_snapshot`负责生成SnapshotMetadata, 而store/snap.rs中的build函数则负责生成snapshot的数据部分。
+
+![](./dot/peer_storage_do_snapshot.svg)
+
+#### 生成Snapshot 数据: `Snap::build`
+
+将region的default, lock, write 几个column family 数据分别写入对应的`cf_file`
+先写入到`cf.tmp_file`,写入成功后再rename.
+
+```rust
+pub const SNAPSHOT_CFS_ENUM_PAIR: &[(CfNames, CfName)] = &[
+    (CfNames::default, CF_DEFAULT),
+    (CfNames::lock, CF_LOCK),
+    (CfNames::write, CF_WRITE),
+];
+
+pub const CF_DEFAULT: CfName = "default";
+pub const CF_LOCK: CfName = "lock";
+pub const CF_WRITE: CfName = "write";
+```
+
+![](./dot/snapshot_data_build.svg)
+
 ### apply snapshot
+
+![](./dot/apply_snap.svg)
+
+### send snapshot
+
+### recv snapshot

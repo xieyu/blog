@@ -13,7 +13,8 @@ digraph worker_region_handle_gen {
     Runner:pool -> spawn;
     spawn[style_func;label="{{
       spawn|
-      在线程池中执行handle_gen\l
+      在线程池中执行async 任务\l
+      handle_gen\l
     }}"]
     run -> {
       spawn;
@@ -24,6 +25,13 @@ digraph worker_region_handle_gen {
       generate_snap;
       WithIOType;
     }
+    generate_snap[style_func;label="{{
+      generate_snap|
+      调用do_snapshot\l
+      生成snapshot\l|
+      然后将结果发送给\l
+      GenSnapTask的rx\l
+    }}"]
     generate_snap -> {
       do_snapshot;
       try_send;
@@ -41,13 +49,11 @@ digraph worker_region_handle_gen {
       snap|
       Result\<Snapshot\>\l
     }}"]
-    snap -> try_send;
+    snap -> try_send[style_edge_data];
     try_send[style_func;label="{{
       try_send|
-      向tx发生成好的\l 
+      向tx发生成好的\l
       Result\<Snapshot\>\l\l
     }}"]
-      
   }
-  
 }

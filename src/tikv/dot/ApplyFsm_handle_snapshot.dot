@@ -1,0 +1,96 @@
+#include "styles.h"
+digraph ApplyFsm_handle_snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ApplyFsm_handle_snapshot -> {
+    ApplyFsmDelegate_apply_state_get_applied_index;
+    ApplyContext_apply_res_iter_any;
+    ApplyFsmDelegate_write_apply_state;
+    ApplyContext_flush;
+    ApplyFsmDelegate_last_sync_apply_index;
+    GenSnapTask_generate_and_schedule_snapshot;
+    ApplyContext_engine_snapshot;
+  }
+
+  GenSnapTask_generate_and_schedule_snapshot -> {
+    RegionTask_Gen;
+  }
+  GenSnapTask_generate_and_schedule_snapshot[style_func;label="{{
+    GenSnapTask\l
+    generate_and_schedule_snapshot\l|
+    创建RegionTask::Gen\l
+    并且发送给snap-gen worker 线程\l
+  }}"]
+
+  ApplyContext_apply_res_iter_any[style_func;label="{{
+    ApplyContext.apply_res.res_iter|
+    region_id == self.delegate.region_id &&\l
+    self.delegate.last_sync_apply_index != applied_index\l|
+    遍历apply_res\l
+    检查是否需要sync,将write\l
+    batch中数据写入rocksdb\l
+  }}"]
+
+  ApplyContext_apply_res_iter_any -> {
+    ApplyFsmDelegate_write_apply_state;
+    ApplyContext_flush;
+    ApplyFsmDelegate_last_sync_apply_index;
+  }[style_edge_data];
+  ApplyContext_engine_snapshot -> RegionTask_Gen[style_edge_data];
+
+  GenSnapTask_generate_and_schedule_snapshot -> {
+    Scheduler_schedule;
+  }
+  Scheduler_schedule[style_func;label="{{
+    Scheduler::schedule|
+    将RegionTask::Gen 发送给\l
+    snap-generator worker线程\l
+  }}"]
+
+  RegionTask_Gen -> Scheduler_schedule;
+  {
+    ApplyFsmDelegate_write_apply_state;
+    ApplyFsmDelegate_last_sync_apply_index;
+  } -> ApplyContext_flush -> ApplyContext_engine_snapshot[style_edge_data];
+
+  ApplyFsm_handle_snapshot[style_func;label="{{
+    ApplyFsm\l
+    handle_snapshot\l|
+    1.检查是否需要将write batch\l
+    中数据sync到rocksdb\l
+    2.调用rocksdb的snapshot获取kv_snap\l
+    3.将RegionTask发送给\l
+    snap-generator worker线程池\l
+  }}"]
+
+  ApplyFsmDelegate_last_sync_apply_index[style_func;label="{{
+    ApplyFsmDelegate\l
+    last_sync_apply_index\l
+  }}"]
+  ApplyFsmDelegate_write_apply_state[style_func;label="{{
+    ApplyFsmDelegate\l
+    write_apply_state\l|
+    将apply state写入write batch\l
+  }}"]
+  ApplyFsmDelegate_apply_state_get_applied_index[style_func;label="{{
+    ApplyFsmDelegate\l
+    apply_state\l
+    get_applied_index\l
+  }}"]
+
+  ApplyContext_flush[style_func;label="{{
+    ApplyContext\l
+    flush\l|
+    将write batch写入rocksdb\l
+  }}"]
+
+  ApplyContext_engine_snapshot[style_func;label="{{
+    ApplyContext\l
+    engine\l
+    snapshot\l|
+    调用rocksdb的snapshot接口\l
+  }}"]
+}

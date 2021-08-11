@@ -1,0 +1,120 @@
+#include "styles.h"
+digraph apply_snap {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  SnapContext_apply_snap -> {
+    enc_start_key;
+    enc_end_key;
+    SnapContext_cleanup_overlap_ranges;
+    SnapContext_delete_all_in_range;
+    check_abort;
+    SnapContext_EK_get_msg_cf_CF_RAFT_region_key;
+    SnapContext_EK_get_msg_cf_CF_RAFT_state_key;
+    SnapManager_get_snapshot_for_applying_to_engine;
+    Snap_apply;
+    region_state_set_state_PeerState_Normal;
+    write_batch_delete_cf_CF_RAFT_snapshot_raft_state_key;
+  }
+
+  Snap_apply -> {
+    validate;
+    plain_file_used;
+    apply_plain_cf_file;
+    apply_sst_cf_file;
+    post_apply_plain_kvs_from_snapshot;
+  }
+
+  plain_file_used -> {
+    apply_plain_cf_file;
+    apply_sst_cf_file;
+  }[style_edge_data];
+
+  apply_plain_cf_file -> post_apply_plain_kvs_from_snapshot[style_edge_data];
+  apply_sst_cf_file -> post_apply_sst_from_snapshot[style_edge_data];
+
+  SnapContext_EK_get_msg_cf_CF_RAFT_region_key[style_func;label="{{
+    SnapContext\l
+    EK\l
+    get_msg_cf(CF_RAFT,region_key)\l|
+    获取RegionLocalState\l
+  }}"]
+  SnapContext_EK_get_msg_cf_CF_RAFT_state_key[style_func;label="{{
+    SnapContext\l
+    EK\l
+    get_msg_cf(CF_RAFT,state_key)\l
+    获取RaftApplyState\l
+  }}"]
+  SnapContext_EK_get_msg_cf_CF_RAFT_region_key -> {enc_start_key;enc_end_key}[style_edge_data];
+
+  {
+    SnapContext_EK_get_msg_cf_CF_RAFT_region_key;
+    SnapContext_EK_get_msg_cf_CF_RAFT_state_key;
+  } -> SnapKey[style_edge_data];
+  SnapKey -> SnapManager_get_snapshot_for_applying_to_engine;
+  SnapManager_get_snapshot_for_applying_to_engine -> Snap -> Snap_apply[style_edge_data];
+  SnapManager_get_snapshot_for_applying_to_engine[style_func;label="{{
+    SnapManager\l
+    get_snapshot_for_applying_to_engine\l
+  }}"]
+
+  SnapKey[style_blue1;label="{{
+    SnapKey|
+    pub region_id: u64,\l|
+    pub term: u64,\l|
+    pub idx: u64,\l
+  }}"]
+
+  {enc_start_key;enc_end_key} -> {
+     SnapContext_delete_all_in_range;
+     SnapContext_cleanup_overlap_ranges;
+  }[style_edge_data];
+
+  SnapContext_cleanup_overlap_ranges[style_func;label="{{
+    SnapContext\l
+    cleanup_overlap_ranges\l|
+    Gets the overlapping \l
+    ranges and cleans them up.\l
+  }}"]
+
+  SnapContext_cleanup_overlap_ranges -> {
+     SnapContext_delete_all_in_range;
+     SnapContext_EK_delete_all_in_range
+  }
+  SnapContext_delete_all_in_range -> {
+     SnapContext_EK_delete_ranges_cf;
+  }
+
+  SnapContext_delete_all_in_range[style_func;label="{{
+    SnapContext\l
+    delete_all_in_range\l
+  }}"]
+  SnapContext_EK_delete_ranges_cf[style_func;label="{{
+    SnapContext\l
+    EK\l
+    delete_ranges_cf\l
+  }}"]
+  SnapContext_EK_delete_all_in_range[style_func;label="{{
+    SnapContext\l
+    EK\l
+    delete_all_in_range\l
+  }}"]
+
+  SnapContext_apply_snap[style_func;label="{{
+    SnapContext\l
+    apply_snap\l
+  }}"]
+  Snap[style_blue1;label="{{
+    Snap|
+    key: SnapKey,\l|
+    display_path: String,\l|
+    dir_path: PathBuf,\l|
+    cf_files: Vec\<CfFile\>,\l|
+    cf_index: usize,\l|
+    meta_file: MetaFile,\l|
+    hold_tmp_files: bool,\l|
+    mgr: SnapManagerCore,\l
+  }}"]
+}

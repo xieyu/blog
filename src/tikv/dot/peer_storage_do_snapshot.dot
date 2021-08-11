@@ -4,6 +4,11 @@ digraph peer_storage_do_snapshot {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
+  do_snapshot[style_func;label="{{
+    do_snapshot|
+    生成snapshot metadata部分\l
+    调动build 生成数据部分\l
+  }}"]
 
   subgraph cluster_SnapManager {
     graph[label="SnapManager";fontsize=20;style="rounded,dashed";color="slategrey"]
@@ -33,11 +38,13 @@ digraph peer_storage_do_snapshot {
   }
   conf_state_from_region[style_func;label="{{
     conf_state_from_region|
-    从region的peers信息中\l 
+    从region的peers信息中\l
     创建ConfState\l
   }}"]
   kv_snap_get_msg_cf_CF_RAFT[style_func;label="{{
-    kv_snap.get_msg_cf(CF_RAFT, ...)
+    kv_snap.get_msg_cf(CF_RAFT, ...)\l
+    从kv_snap中读取\l
+    RaftApplyState\l
   }}"]
 
   get_snapshot_for_building -> build -> snap_data;
@@ -101,6 +108,18 @@ digraph peer_storage_do_snapshot {
     SnapshotMeta -> SnapshotCfFile;
     snap_data -> SnapshotMeta
   }
+  metadata[style_blue1;label="{{
+    metadata|
+      SnapshotMetadata\l|
+      ConfState conf_state = 1;\l|
+      uint64 index = 2;\l|
+      uint64 term = 3;\l
+  }}"]
+  snapshot[style_blue1;label="{{
+    Snapshot\l|
+    bytes data = 1;\l|
+    SnapshotMetadata metadata = 2;\l
+  }}"]
 
   build[style_func;label="{{
     build|
