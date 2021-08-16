@@ -1,0 +1,83 @@
+#include "styles.h"
+digraph follower_step_msgs {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftCore__step_candidate-> {
+    RaftCore__handle_append_entries;
+    RaftCore__handle_heartbeat;
+    RaftCore__handle_snapshot;
+    RaftCore__become_follower;
+    RaftCore__poll;
+  }
+  RaftCore__poll[style_func;label="{{
+    RaftCore__poll|
+    查看投票结果\l
+    如果赢得了选票
+    如过stateRole是PreCandidate 就继续发起\l
+    campaign(CAMPAIGN_ELECTION)\l
+    如果stateRole是Candidate就成为leader\l
+  }}"]
+  RaftCore__poll -> {
+    RaftCore__campaign;
+    RaftCore__become_leader;
+    RaftCore__bcast_append;
+  }
+  RaftCore__campaign[style_func;label="{{
+    RaftCore__campaign|
+    向pr中的所有voters\l
+    发送MsgRequestPreVote\l
+    MsgRequestVote\l
+    消息\l
+  }}"]
+  RaftCore__campaign -> {
+    RaftCore__send
+  }
+  {
+    rank=same;
+    RaftCore__handle_append_entries;
+    RaftCore__handle_heartbeat;
+    RaftCore__handle_snapshot;
+  }
+
+  RaftCore__handle_append_entries -> {
+     RaftCore__send_request_snapshot;
+     RaftCore__send;
+     RaftLog__maybe_append;
+  }
+  RaftLog__maybe_append[style_func;label="{{
+    RaftLog__maybe_append|
+    append leade发来的log entry\l
+    如果不能append\l
+    就handle_append_entries\l
+    就会发送reject消息\l
+  }}"]
+
+  RaftCore__send_request_snapshot[style_func;label="{{
+    RaftCore__send_request_snapshot|
+    follower日志落后太多了\l
+    让leader发送snapshot过来\l
+  }}"]
+
+  RaftCore__handle_heartbeat -> {
+    RaftCore__send;
+    RaftCore__send_request_snapshot;
+  }
+  RaftCore__handle_snapshot -> {
+     RaftCore__send;
+  }
+  RaftCore__send_request_snapshot -> {
+     RaftCore__send;
+  }
+  RaftCore__send -> Raft__msgs;
+
+  RaftCore__bcast_append -> RaftCore__append;
+  RaftCore__bcast_append[style_func;label="{{
+    RaftCore__bcast_append|
+    赢得了Election\l
+    成为了新的leader\l
+    发送Append消息给所有的peers\l
+  }}"]
+}

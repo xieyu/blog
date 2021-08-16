@@ -1,0 +1,245 @@
+#include "styles.h"
+digraph raft_storage {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftLog_term -> {
+    Storage_term;
+  }
+
+  RaftLog_last_term[style_func;label="{{
+    RaftLog_last_term|
+    自己最后一个log entry的term\l
+  }}"]
+  RaftLog_last_term -> {
+    RaftLog_term;
+  }
+
+  RaftLog_commit_info -> RaftLog_term;
+  RaftLog_maybe_persist -> RaftLog_term;
+  RaftLog_maybe_commit -> RaftLog_term;
+
+  RaftLog_maybe_append[style_func;label="{{
+    RaftLog_maybe_append|
+    找到conflict index\l
+    start = (conflic_idx - (idx +1))\l
+    将start之后的log entries \l
+    用新的覆盖掉\l
+  }}"]
+  RaftLog_find_conflict[style_func;label="{{
+    RaftLog_find_conflict|
+    寻找第一个和leader的log entries\l
+    conflict的log\l
+    比较每个log entrie的term\l
+  }}"]
+
+  RaftLog_maybe_append -> {
+    RaftLog_find_conflict;
+  }
+  RaftLog_find_conflict -> RaftLog_match_term;
+  RaftLog_match_term -> RaftLog_term;
+  RaftLog_match_term[style_func;label="{{
+    RaftLog_match_term|
+    比较term(idx)时候是否和\l
+    给定的值match\l
+  }}"]
+  RaftLog_term[style_func;label="{{
+    RaftLog_term|
+    获取给定idx log\l
+    entry的term\l
+  }}"]
+
+
+
+  RaftLog_is_up_to_date[style_func;label="{{
+    RaftLog_is_up_to_date|
+    收到投票消息\l
+    检查发起投票的candidate\l
+    和自己的last term和last index比\l
+    是否足够新\l
+  }}"]
+
+  RaftLog_is_up_to_date -> {
+    RaftLog_last_term;
+  }
+
+  RaftCore_handle_append_entries -> RaftLog_maybe_append;
+
+  //last index
+  RaftCore_campaign -> {
+     RaftLog_last_term;
+     RaftLog_commit_info;
+  }[color=green];
+
+  RaftCore_commit_to_current_term[style_func;label="{{
+    RaftCore_commit_to_current_term|
+    checks if logs are committed to its term
+  }}"]
+  RaftCore_commit_to_current_term -> RaftLog_term;
+
+  RaftCore_hup -> {
+     RaftCore_campaign;
+  }
+  RaftCore_maybe_commit_by_vote -> {
+     RaftLog_maybe_commit;
+  }
+
+  RaftCore_step[style_blue1;label="{{
+    RaftCore_step|
+    raft along via a message\l
+    处理raft从peer收到的消息\l
+  }}"]
+  RaftCore_step -> {
+     RaftCore_maybe_commit_by_vote;
+     RaftCore_step_leader;
+     RaftCore_step_candidate;
+     RaftCore_step_follower;
+     RaftCore_hup;
+     RaftLog_is_up_to_date;
+  }[color=red];
+  RaftCore_step_leader[style_func;label="{{
+    RaftCore_step_leader|
+    Raft role为leader\l
+  }}"]
+  RaftLog_commit_info[style_func;label="{{
+    RaftLog_commit_info|
+    返回committed和它的term\l
+  }}"]
+
+  RaftCore_step_leader -> {
+     RaftCore_handle_append_response;
+     RaftCore_commit_to_current_term;
+  };
+  RaftCore_handle_append_response[style_func;label="{{
+    RaftCore_handle_append_response|
+    处理follower返回的append resp\l
+    1.更新peer的ProcessTracker\l
+    2.更新完follower的控制信息后\l
+    发送多个append给follower\l
+  }}"]
+
+  RaftCore_step_follower[style_func;label="{{
+    RaftCore_step_follower|
+     Raft role为follower
+  }}"]
+  RaftCore_maybe_send_append[style_blue1;label="{{
+    RaftCore_maybe_send_append|
+    Sends an append RPC with new\l
+    entries to the given peer\l|
+    根据follower落后的情况\l
+    可能发送entries\l
+    也可能发送snapshot\l
+  }}"]
+  RaftCore_prepare_send_snapshot[style_func;label="{{
+    RaftCore_prepare_send_snapshot|
+    准备发送snapshot\l
+    创建snapshot\l
+    然后更新follower的\l
+    progressTracker\l
+  }}"]
+  RaftLog_entries[style_func;label="{{
+    RaftLog_entries|
+    准备要发送给follower的\l
+    entries\l
+  }}"]
+
+  RaftCore_step_follower -> {
+    RaftCore_hup;
+    RaftCore_handle_snapshot;
+    RaftCore_handle_append_entries;
+  }
+  RaftCore_hup[style_func;label="{{
+    RaftCore_hup|
+    收到MsgTimeoutNow\l
+    或者MsgHup\l
+    发起竞选\l
+  }}"]
+
+  RaftCore_handle_append_entries[style_func;label="{{
+    RaftCore_handle_append_entries|
+    处理leader发送的\l
+    MsgAppend消息\l
+  }}"]
+  RaftCore_handle_snapshot[style_func;label="{{
+    RaftCore_handle_snapshot|
+    处理leader发送的snapshot消息\l
+  }}"]
+  RaftCore_step_candidate[style_func;label="{{
+    RaftCore_step_candidate|
+    Raft role 为candiate\l
+  }}"]
+  RaftCore_step_candidate -> {
+     RaftCore_maybe_commit_by_vote;
+  }[color=blue];
+
+  RaftCore_campaign[style_blue1;label="{{
+    RaftCore_campaign|
+    发起投票，会带上自己的\l
+    last index 和last_term\l
+    committed 和committed term\l
+    如果state为CAMPAIGN_PRE_ELECTION\l
+    则become_pre_candidate\l
+    否则become candidate\l
+  }}"]
+
+
+  RaftCore_maybe_send_append -> {
+     RaftCore_prepare_send_snapshot;
+     RaftLog_entries;
+     RaftLog_term;
+  }
+  RaftCore_handle_append_response -> {
+    RaftCore_maybe_send_append;
+  }
+
+  RaftCore_maybe_commit_by_vote[style_func;label="{{
+    RaftCore_maybe_commit_by_vote|
+    Commits the logs using\l
+    commit info in vote message\l
+  }}"]
+  RaftLog_maybe_commit[style_func;label="{{
+    RaftLog_maybe_commit|
+    Attempts to commit the idx\l
+    and term and returns whether it did\l
+  }}"]
+
+  RaftCore_maybe_commit_by_vote -> {
+  }
+  RaftCore_handle_snapshot -> RaftCore_restore;
+
+
+  RaftCore_on_persist_entries -> RaftLog_maybe_persist;
+  //RawNode_on_persist_ready -> RaftCore_on_persist_entries;
+  RaftCore_on_persist_entries[style_func;label="{{
+    RaftCore_on_persist_entries|
+    Notifies that the raft logs\l
+    or the snapshot have been persisted\l
+  }}"]
+  RaftLog_maybe_persist[style_var;label="{{
+    RaftLog_maybe_persist|
+    更新RaftLog的persisted\l
+  }}"]
+
+  {
+    rank=same;
+    Storage_term;
+  }
+  {
+    rank=same;
+    RaftCore_step_candidate;
+    RaftCore_step_follower;
+    RaftCore_step_leader;
+  }
+  {
+    rank=same;
+    RaftCore_step;
+    RaftCore_on_persist_entries;
+  }
+  {
+    rank=same;
+    RaftLog_is_up_to_date;
+    RaftLog_entries;
+  }
+}

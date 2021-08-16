@@ -1,0 +1,25 @@
+#include "styles.h"
+digraph raft_index {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  Config__applied;
+  RawNode__commit_since_index;
+  RaftLog__comitted;
+  RaftLog__persisted;
+  RaftLog__applied;
+  RaftLog__Unstable__offset;
+  Storage__first_index;
+  Storage__last_index;
+
+  RaftLog__persisted -> RaftLog__Unstable__offset;
+  RaftLog__applied -> {
+     RaftLog__persisted;
+     RaftLog__comitted;
+     RawNode__commit_since_index;
+  }
+
+}

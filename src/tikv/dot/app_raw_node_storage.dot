@@ -1,0 +1,113 @@
+#include "styles.h"
+digraph AppRawNode {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Client_write[style_func;label="{{
+    Client_write|
+    client 发起write 请求\l
+  }}"]
+
+
+  App ->  { RawNode_tick; }
+  Client_write -> App_Write_API -> RawNode_propose;
+  App_Raft_API -> RawNode_step;
+  Client_write_resp[style_func;label="{{
+    Client_write_resp|
+    等client的log entry\l
+    在raft log group中\l
+    达到commit状态时\l
+    API返回write resp\l
+  }}"]
+
+  RawNode_propose[style_func;label="{{
+    RawNode_propose|
+    append log entry to\l
+    raft log\l
+    step的Message类型为\l
+    MessageType::MsgPropose\l
+  }}"]
+  RawNode_tick[style_func;label="{{
+    RawNode_tick|
+    定时调用RawNode_tick\l
+    leader向follower发送心跳\l|
+    follwer/candidate在leader\l
+    心跳超时时发起campaign\l
+  }}"]
+  RawNode_step[style_func;label="{{
+    RawNode_step|
+    处理其他peer发送来的\l
+    raft message\l
+  }}"]
+
+  {rank=same;Client_read;Client_read_resp;Client_write;Client_write_resp};
+  Client_read -> App_Read_API -> Client_read_resp;
+  App_Read_API -> RawNode_read_index -> RawNode_ready[style_edge_data];
+  App_handle_ready -> App_Read_API;
+  {rank=same;App_Write_API;App_Read_API;}
+
+
+  RawNode_read_index[style_func;label="{{
+    RawNode_read_index|
+    request a read state\l
+    The read state will be set in ready\l
+    MessageType::MsgReadIndex\l
+  }}"]
+  {
+    RawNode_tick;
+    RawNode_step;
+    RawNode_propose
+  } -> RawNode_ready[style_edge_data];
+  RawNode_advance[style_func;label="{{
+    RawNode_advance|
+    通知RawNode，Ready中的\l
+    信息已处理完毕\l
+  }}"]
+
+  App -> {
+    RawNode_ready;
+  }
+  Ready[style_blue1;label="{{
+    Ready|
+    包含了需要 App\l
+    发送的message\l
+    要保存的log entry\l
+    要apply 到state machine\l
+    的log entry等\l
+  }}"]
+  LightReady[style_blue1;label="{{
+    LightReady|
+    LightReady encapsulates the \l
+    commit index, committed entries and\l
+    messages that are ready to be\l
+    applied or be sent to other peers.\l
+  }}"]
+  Ready -> LightReady;
+  RawNode_ready -> Ready -> App_handle_ready;
+  App_handle_ready -> RawNode_advance;
+  App_handle_ready[style_func;label="{{
+    App_handle_ready|
+    1.保存raftlog\l
+    2.发送raft message给peer\l
+    3.apply committed log entry\l
+    4.apply snapshot\l
+  }}"]
+  App_handle_ready -> {App_Write_API; App_Raft_API}[color=red];
+  RawNode_advance -> LightReady;
+  App_Write_API -> Client_write_resp;
+  App_Raft_API[style_func;label="{{
+    App_Raft_API|
+    接受其他Peer发来的\l
+    Raft Message\l
+  }}"]
+  {rank=same;Client_write;Client_write_resp};
+  {
+  rank=same;
+  RawNode_tick;
+  RawNode_propose;
+  RawNode_step;
+  }
+  {rank=same;App_Write_API;App_Raft_API};
+
+}

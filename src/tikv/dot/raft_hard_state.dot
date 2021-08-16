@@ -1,0 +1,108 @@
+#include "styles.h"
+digraph raft_hard_state {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  {
+    RaftCore__term;
+    RaftCore__vote;
+  } -> HardState;
+
+  RaftCore__reset -> {
+    RaftCore__term;
+    RaftCore__vote;
+  }
+
+  {RaftCore__leader_id;RaftCore__state} -> SoftState;
+
+  RaftCore__become_leader -> RaftCore__reset;
+  RaftCore__become_candidate -> RaftCore__reset;
+  RaftCore__become_candidate[style_blue1;label="{{
+    RaftCore__become_candidate|
+    self.term = term +1\l
+    elf.vote = id\l
+    self.state = StateRole::Candidate;\l|
+    将term +1并且给自己投一票\l
+    将StateRole设置为Candidate\l
+  }}"]
+  RaftCore__become_follower[style_func;label="{{
+    RaftCore__become_follower|
+    self.reset(term);\l|
+    self.leader_id = leader_id;\l|
+    self.state = StateRole::Follower;\l
+  }}"]
+  RaftCore__become_follower -> {
+    RaftCore__reset;
+  }
+  RaftCore__poll[style_func;label="{{
+    RaftCore__poll|
+    如果赢得了PreCandidate\l
+    就再次发起campaign\l
+    开始ELECTION\l|
+    如果赢得了ELECTION\l
+    就become leader\l
+  }}"]
+
+  RaftCore__poll -> {
+    RaftCore__become_leader;
+    RaftCore__campaign;
+  }
+  RaftCore__step_candidate -> {
+    RaftCore__poll;
+  }
+
+  RaftCore__campaign -> {
+    RaftCore__become_pre_candidate;
+    RaftCore__become_candidate;
+    RaftCore__poll;
+  }
+  RaftCore__become_pre_candidate[style_func;label="{{
+    RaftCore__become_pre_candidate|
+      角色设置为PreCandidate\l
+        self.state = StateRole::PreCandidate;\l
+        self.leader_id = INVALID_ID;\l
+        self.prs.reset_votes();\l
+  }}"]
+  SoftState[style_func;label="{{
+    SoftState|
+      self.leader_id: u64;\l
+      pub raft_state: StateRole,\l
+  }}"]
+
+  RaftCore__step -> {
+    RaftCore__become_follower;
+    RaftCore__step_candidate;
+  }
+
+RaftCore__step[style_func;label="{{
+  RaftCore__step|
+    收到的msg(MsgAppend, \l
+    MsgHeartbeat, MsgSnapshot)\l
+    term比自己大,成为它的follower\l|
+    收到MsgRequestVote\l
+    且经过检查, is_up_to_date且\l
+    m.index \> self.raft_log.last_index
+    则给它投一票\l
+    self.election_elapsed = 0;\l
+    self.vote = m.from;\l
+}}"]
+RaftCore__become_leader[style_func;label="{{
+  RaftCore__become_leader|
+        self.leader_id = self.id;\l|
+        self.state = StateRole::Leader;\l
+}}"]
+RaftCore__step -> RaftCore__vote[color=red];
+
+RaftCore__become_candidate -> RaftCore__vote[color=red];
+  {
+    RaftCore__become_candidate;
+    RaftCore__become_pre_candidate;
+    RaftCore__become_follower;
+    RaftCore__become_leader
+  } -> {
+    RaftCore__leader_id;
+    RaftCore__state;
+  }
+}

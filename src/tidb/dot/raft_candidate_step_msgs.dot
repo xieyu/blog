@@ -1,0 +1,52 @@
+#include "styles.h"
+digraph follower_step_msgs {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftCore__step_candidate-> {
+    RaftCore__handle_append_entries;
+    RaftCore__handle_heartbeat;
+    RaftCore__handle_snapshot;
+    RaftCore__poll;
+    RaftCore__hup;
+  }
+  {
+    rank=same;
+    RaftCore__handle_append_entries;
+    RaftCore__handle_heartbeat;
+    RaftCore__handle_snapshot;
+  }
+
+  RaftCore__handle_append_entries -> {
+     RaftCore__send_request_snapshot;
+     RaftCore__send;
+     RaftLog__maybe_append;
+  }
+  RaftLog__maybe_append[style_func;label="{{
+    RaftLog__maybe_append|
+    append leade发来的log entry\l
+    如果不能append\l
+    就handle_append_entries\l
+    就会发送reject消息\l
+  }}"]
+
+  RaftCore__send_request_snapshot[style_func;label="{{
+    RaftCore__send_request_snapshot|
+    follower日志落后太多了\l
+    让leader发送snapshot过来\l
+  }}"]
+
+  RaftCore__handle_heartbeat -> {
+    RaftCore__send;
+    RaftCore__send_request_snapshot;
+  }
+  RaftCore__handle_snapshot -> {
+     RaftCore__send;
+  }
+  RaftCore__send_request_snapshot -> {
+     RaftCore__send;
+  }
+  RaftCore__send -> Raft__msgs;
+}

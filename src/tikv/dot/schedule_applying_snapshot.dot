@@ -1,0 +1,111 @@
+#include "styles.h"
+digraph schedule_applying_snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerStorage_handle_raft_ready[style_func;label="{{
+    PeerStorage\l
+    handle_raft_ready\l|
+    将raft ready中的snapshot信息\l
+    放到InvokeContext中，\l
+    然后写入write batch\l
+  }}"]
+
+  PeerStorage_handle_raft_ready -> {
+    PeerStorage_apply_snapshot;
+    InvokeContext_save_apply_state_to;
+    InvokeContext_save_raft_state_to;
+  }
+
+  PeerStorage_apply_snapshot -> {
+     InvokeContext_snap_region;
+     write_peer_state_Applying;
+     InvokeContext_apply_state;
+     InvokeContext_raft_state;
+  }
+
+  PeerStorage_apply_snapshot[style_func;label="{{
+    PeerStorage\l
+    apply_snapshot\l|
+    将snapshot的last_index, term\l
+    等信息放到InvokeContext中\l
+  }}"]
+
+  InvokeContext_apply_state -> InvokeContext_save_apply_state_to[style_edge_data];
+  InvokeContext_raft_state -> InvokeContext_save_raft_state_to[style_edge_data];
+
+  write_peer_state_Applying[style_blue1;label="{{
+    write_peer_state|
+    将peer状态设置为\l
+    PeerState::Applying\l
+  }}"]
+  PeerStorage_post_ready[style_func;label="{{
+    PeerStorage\l
+    post_ready\l|
+    write batch中数据\l
+    已写入磁盘中\l
+  }}"]
+
+  PeerStorage_post_ready -> {
+    PeerStorage_schedule_applying_snapshot;
+    InvokeContext_snap_region;
+  }
+  {
+    rank=same;
+    PeerStorage_handle_raft_ready;
+    PeerStorage_post_ready;
+  }
+  PeerStorage_schedule_applying_snapshot[style_func;label="{{
+    PeerStorage\l
+    schedule_applying_snapshot\l|
+    发送RegionTask::Apply 任务给\l
+    snap generator线程池\l
+  }}"]
+  InvokeContext_save_apply_state_to[style_func;label="{{
+    InvokeContext\l
+    save_apply_state_to\l|
+    保存RaftApplyState到\l
+    write batch\l
+  }}"]
+  InvokeContext_save_raft_state_to[style_func;label="{{
+    InvokeContext\l
+    save_raft_state_to\l|
+    保存RaftLocalState到\l
+    write batch\l
+  }}"]
+  InvokeContext_raft_state[style_func;label="{{
+    InvokeContext\l
+    raft_state\l|
+    使用snapshot meta信息\l
+    更新raft state\l
+  }}"]
+  InvokeContext_apply_state[style_func;label="{{
+    InvokeContext\l
+    apply_state\l|
+    使用snapshot meta信息\l
+    更新apply state\l
+  }}"]
+  InvokeContext_snap_region[style_func;label="{{
+    InvokeContext\l
+    snap_region\l|
+    snap信息保存在InvokeContext中\l
+    post_ready会使用该snap_region\l
+    信息\l
+  }}"]
+  InvokeContext_snap_region -> {
+    PeerStorage_schedule_applying_snapshot;
+  }[style_edge_data];
+
+  PeerStorage_schedule_applying_snapshot -> {
+     PeerStorage_set_snap_state;
+  }
+  PeerStorage_set_snap_state[style_blue1;label="{{
+    PeerStorage\l
+    set_snap_state\l|
+    设置status为\l
+    SnapState::Applying(\l
+    JOB_STATUS_PENDING)\l
+  }}"]
+}

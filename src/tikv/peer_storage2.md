@@ -108,7 +108,7 @@ snapshot 生成流程如下:
 
 ![](./dot/ApplyFsm_handle_snapshot.svg)
 
-#### snap-generator 线程池执行`handle_gen`
+#### snap-generator线程池执行`handle_gen`
 
 在worker/region 的`snap-generator`线程池中执行生成snapshot的任务,线程池大小为`GENERATE_POOL_SIZE` 2
 该线程池还负责apply snapshot.
@@ -141,10 +141,24 @@ pub const CF_WRITE: CfName = "write";
 
 ![](./dot/snapshot_data_build.svg)
 
-### apply snapshot
-
-![](./dot/apply_snap.svg)
 
 ### send snapshot
 
 ### recv snapshot
+
+### apply snapshot
+
+#### `schedule_applying_snapshot`
+
+PeerStorage在处理raft的ready中的snapshot时，先将
+snapshot metadata一些信息放入InvokeContext，写入write batch，
+
+在write batch写完磁盘后，在`PeerStorage::post_ready`中，
+将`snap_state` 设置为`SnapState::Applying`, 然后发送RegionTask::Apply给
+snap generator worker线程池。
+
+![](./dot/schedule_applying_snapshot.svg)
+
+#### snap generator 线程池执行`handle_apply`
+
+![](./dot/apply_snap.svg)

@@ -1,0 +1,140 @@
+#include "styles.h"
+digraph raft_storage {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftCore__commit_apply[style_var;label="{{
+    RaftCore__commit_apply|
+    Commit that the Raft peer\l
+    has applied up to the given index\l|
+    影响pending_conf_index\l
+  }}"]
+
+  RaftCore__append_entry[style_func;label="{{
+    RaftCore__append_entry|
+    Appends a slice of entries\l
+    to the log\l
+    only called by leader currently\l
+  }}"]
+
+  RawNode__recods -> RawNode__messages[style_edge_data];
+
+  RawNode__on_persist_ready[style_func;label="{{
+    RawNode__on_persist_ready|
+    entries已保存好，可以把raft message\l
+    发出去了\l|
+    将records中的messages放到\l
+    RawNode.messages中\l
+    这样下次调用ready时候\l
+    就能获取这些message了\l
+  }}"]
+  RawNode__on_persist_ready -> {
+    RaftCore__on_persist_entries;
+    RawNode__recods;
+    RawNode__messages;
+  }
+  ProgressTracker_maximal_committed_index[style_blue1;label="{{
+    ProgressTracker_maximal_committed_index|
+    获取voters的committed_index\l
+  }}"]
+ProgressTracker_maximal_committed_index -> RaftLog__committed;
+
+  ProgressTracker_maximal_committed_index -> {
+    incoming_committed_index;
+    outgoing_committed_index;
+  }
+  RaftCore__on_persist_entries[style_func;label="{{
+    RaftCore__on_persist_entries|
+    Notifies that the raft logs\l
+    or the snapshot have been persisted\l
+  }}"]
+  RaftCore__on_persist_entries -> {
+    RaftLog__maybe_persist;
+    RaftCore__maybe_commit;
+  }
+  RaftCore__maybe_commit -> {
+    RaftLog__maybe_commit;
+    ProgressTracker_maximal_committed_index;
+  }
+  RaftLog__maybe_commit -> {
+    RaftLog__comit_to;
+  }
+  RaftLog__comit_to -> RaftLog__committed;
+
+  RaftLog__maybe_persist[style_var;label="{{
+    RaftLog__maybe_persist|
+    更新RaftLog的persisted\l
+  }}"]
+  RaftLog__maybe_persist -> {
+    RaftLog__psersisted;
+  }
+
+  RawNode__advance_append -> {
+    RawNode__on_persist_ready;
+    RawNode__gen_light_ready;
+  }
+
+  RawNode__advance[style_func;label="{{
+    RawNode__advance(Ready)|
+    advance the ready \l
+    after full procssing it\l
+    applied = commit_since_index\l
+  }}"]
+  RawNode__advance_apply_to[style_func;label="{{
+    RawNode__advance_apply_to|
+    apply_to到\l
+    commit_since_index\l
+  }}"]
+  RawNode__advance_append[style_func;label="{{
+    RawNode__advance_append|
+    Returns LightReady that\l
+    contains commit index\l
+    committed entries and messages\l
+  }}"]
+
+  RawNode__advance -> {
+    RawNode__advance_append;
+    RawNode__advance_apply_to;
+    RawNode__commit_ready;
+    RawNode__on_persist_ready;
+  }
+
+  RawNode__commit_ready[style_func;label="{{
+    RawNode__commit_ready|
+    1.清理掉raftlog的snap和unstable entries\l
+    2.更新prev_ss和prev_hs\l
+  }}"]
+  RawNode__commit_ready -> {
+    RaftLog__stable_snap;
+    RaftLog__stable_entries;
+  }
+
+  RawNode__commit_apply -> RaftCore__commit_apply;
+  RaftCore__commit_apply -> {
+     RaftLog__applied_to;
+     RaftCore__append_entry;
+  }
+  RaftLog__applied_to -> RaftLog__applied;
+  RawNode__advance_apply_to -> RawNode__commit_apply;
+
+  RaftLog__applied[style_var;label="{{
+    RaftLog__applied
+  }}"]
+  RaftLog__committed[style_var;label="{{
+    RaftLog__committed
+  }}"]
+  RaftLog__psersisted[style_var;label="{{
+    RaftLog__psersisted
+  }}"]
+
+  RaftLog__stable_entries[style_func;label="{{
+    RaftLog__stable_entries|
+    清理掉unstable的log entries
+  }}"]
+  RaftLog__stable_snap[style_func;label="{{
+    RaftLog__stable_snap|
+    清理掉snapshot\l
+  }}"]
+}

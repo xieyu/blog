@@ -1,0 +1,101 @@
+#include "styles.h"
+digraph raft_read_states {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RaftCore__read_states -> ReadState;
+  RaftCore__read_states[style_blue1;label="{{
+    RaftCore__read_states|
+    Vec\<ReadState\>,\l
+  }}"]
+  ReadState[style_func;label="{{
+    ReadState|
+    pub index: u64,\l|
+    pub request_ctx: Vec\<u8\>,\l
+  }}"]
+
+  RaftCore__read_states;
+  RaftCore__handle_ready_read_index -> RaftCore__read_states;
+  RaftCore__step_follower -> RaftCore__read_states;
+
+  RaftCore__step_leader -> RaftCore__handle_ready_read_index;
+  RaftCore__step_leader -> RaftCore__handle_heartbeat_response;
+  RaftCore__step_leader[style_func;label="{{
+  RaftCore__step_leader|
+    如果ReadOnlyOption::LeaseBased\l
+    就直接hanlde_ready_read_index\l|
+    否则就加到队列中\l
+    并广播发送一次心跳\l
+    确认自己是leader\l
+  }}"]
+
+  RaftCore__handle_heartbeat_response -> {
+    RaftCore__handle_ready_read_index;
+  }
+  RaftCore__handle_ready_read_index[style_func;label="{{
+    RaftCore__handle_ready_read_index|
+    发送MsgReadIndexResp\l
+      to_send.set_msg_type(MessageType::MsgReadIndexResp);\l|
+      to_send.to = req.from;\l|
+      to_send.index = index;\l
+  }}"]
+  RaftCore__step_follower[style_func;label="{{
+    RaftCore__step_follower|
+    将MsgReadIndex请求转发给leader\l
+    然后等待处理leader发来的\l
+    MsgReadIndexResp\l
+  }}"]
+  RaftCore__step_leader -> RaftCore__bcast_hearbeat_with_ctx;
+  RaftCore__bcast_hearbeat_with_ctx[style_func;label="{{
+    RaftCore__bcast_hearbeat_with_ctx|
+    如果ReadOnlyOption::Safe\l
+    就发送广播发送一次心跳\l
+  }}"]
+  ReadOnly__advance[style_func;label="{{
+    ReadOnly__advance|
+    It dequeues the requests until\l
+    it finds the read only request that has\l
+    the same context as the given `ctx`.\l
+  }}"]
+  ReadOnly__add_request[style_func;label="{{
+    ReadOnly__add_request|
+    使用raft_log.committed作为\l
+    read_index\l|
+    创建ReadIndexStatus\l
+    插入到pending_read_index队列中\l
+  }}"]
+
+  RaftCore__handle_heartbeat_response -> {
+    ReadOnly__advance;
+    ReadOnly__recv_ack;
+    ProgressTracker__hash_quorum;
+  }
+  ReadOnly__advance -> RaftCore__handle_ready_read_index[style_edge_data]
+  {ReadOnly__recv_ack; ProgressTracker__hash_quorum} -> ReadOnly__advance[style_edge_data];
+  RaftCore__handle_heartbeat_response[style_func;label="{{
+    RaftCore__handle_heartbeat_response|
+    如果收到了大多数voters的acks\l
+    确认了自己还是leader\l
+  }}"]
+
+  ReadOnly__read_index_queue;
+  ReadOnly__advance -> ReadOnly__read_index_queue;
+
+  ReadOnly__add_request -> ReadOnly__read_index_queue;
+  RaftCore__step_leader -> ReadOnly__add_request;
+
+  RawNode__read_index -> RaftCore__step;
+  RaftCore__step -> {
+  RaftCore__step_leader;
+  RaftCore__step_follower;
+  }
+  RaftCore__step[style_func;label="{{
+    RaftCore__step|
+    处理MsgReadIndex\l
+    follower将该请求\l
+    转发给leader来处理\l
+  }}"]
+
+  {rank=same; RaftCore__step_leader;RaftCore__step_follower}
+}

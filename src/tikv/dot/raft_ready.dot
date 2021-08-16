@@ -1,0 +1,123 @@
+#include "styles.h"
+digraph raft_storage {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftLog_slice -> {
+    Storage_entries;
+  }
+  RaftLog_term -> {
+    Storage_term;
+    RaftLog_first_index;
+  }
+  RaftLog_next_entries_since -> RaftLog_slice;
+
+  RaftLog_has_next_entries_since -> RaftLog_first_index;
+  RaftLog_next_entries_since -> RaftLog_first_index;
+
+
+/*
+  RaftLog_maybe_persist -> RaftLog_term;
+  RaftCore_commit_apply[style_var;label="{{
+    RaftCore_commit_apply|
+    Commit that the Raft peer\l
+    has applied up to the given index\l|
+    影响pending_conf_index\l
+  }}"]
+
+  RaftCore_append_entry[style_func;label="{{
+    RaftCore_append_entry|
+    Appends a slice of entries\l
+    to the log\l
+    only called by leader currently\l
+  }}"]
+  RaftCore_commit_apply -> {
+    RaftLog_last_index;
+    RaftCore_append_entry;
+  }
+  RaftCore_append_entry -> RaftLog_last_index;
+
+  RaftCore_on_persist_entries -> RaftLog_maybe_persist;
+  RawNode_on_persist_ready -> RaftCore_on_persist_entries;
+  RaftCore_on_persist_entries[style_func;label="{{
+    RaftCore_on_persist_entries|
+    Notifies that the raft logs\l
+    or the snapshot have been persisted\l
+  }}"]
+  RaftLog_maybe_persist[style_var;label="{{
+    RaftLog_maybe_persist|
+    更新RaftLog的persisted\l
+  }}"]
+
+  RawNode_advance_append -> {
+    RawNode_on_persist_ready;
+    RawNode_gen_light_ready;
+  }
+
+  RawNode_advance[style_func;label="{{
+    RawNode_advance(Ready)|
+    advance the ready \l
+    after full procssing it\l
+    applied = commit_since_index\l
+  }}"]
+  RawNode_advance_apply_to[style_func;label="{{
+    RawNode_advance_apply_to|
+    apply_to到\l
+    commit_since_index\l
+  }}"]
+  RawNode_advance_append[style_func;label="{{
+    RawNode_advance_append|
+    Returns LightReady that\l
+    contains commit index\l
+    committed entries and messages\l
+  }}"]
+
+  RawNode_advance -> {
+    RawNode_advance_append;
+    RawNode_advance_apply_to;
+  }
+  RawNode_commit_apply -> RaftCore_commit_apply;
+  RawNode_advance_apply_to -> RawNode_commit_apply;
+  */
+  RawNode_has_ready[style_func;label="{{
+    RawNode_has_ready|
+    检查是否\l
+    需要调用ready\l
+  }}"]
+  RawNode_has_ready -> RaftLog_has_next_entries_since;
+
+  RawNode_ready[style_func;label="{{
+    RawNode_ready|
+    Returns the outstanding worker\l
+    that application needs to handle\l|
+    返回Ready\l|
+    1.需要发送的Raft Message\l
+    2.需要持久化的log entries\l
+    3.需要apply 的snapshot\l
+    4.需要保存的hardstate\l
+  }}"]
+  RawNode_ready -> {
+     RaftLog_has_next_entries_since;
+     RawNode_gen_light_ready;
+  }
+  RawNode_gen_light_ready[style_var;label="{{
+    RawNode_gen_light_ready|
+    Generates a LightReady\l
+    that has the committed entries \l
+    and messages but no commit index\l
+    获取从commit_since_index后的log entries\l|
+    更新RawNode的commit_since_index变量\l
+  }}"]
+  RawNode_gen_light_ready -> {
+    RaftLog_next_entries_since;
+  }
+
+  {
+    rank=same;
+    RawNode_has_ready;
+    RawNode_ready;
+  }
+
+}

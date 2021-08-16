@@ -1,0 +1,254 @@
+#include "styles.h"
+digraph raft_storage_entries {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftLog_entries -> RaftLog_slice -> Storage_entries;
+
+  RaftLog_maybe_append[style_func;label="{{
+    RaftLog_maybe_append|
+    找到conflict index\l
+    start = (conflic_idx - (idx +1))\l
+    将start之后的log entries \l
+    用新的覆盖掉\l
+  }}"]
+
+  RaftLog_maybe_append -> {
+    RaftLog_find_conflict;
+  }
+
+  RaftCore_handle_append_entries -> RaftLog_maybe_append;
+
+  RaftLog_next_entries_since -> RaftLog_slice;
+
+  //last index
+  RaftCore_hup -> {
+     RaftLog_slice;
+  }
+  RaftCore_maybe_commit_by_vote -> {
+     RaftLog_slice;
+  }
+
+  RaftCore_step[style_blue1;label="{{
+    RaftCore_step|
+    raft along via a message\l
+    处理raft从peer收到的消息\l
+  }}"]
+  RaftCore_step -> {
+     RaftCore_maybe_commit_by_vote;
+     RaftCore_step_leader;
+     RaftCore_step_candidate;
+     RaftCore_step_follower;
+     RaftCore_hup;
+  }[color=red];
+  RaftCore_step_leader[style_func;label="{{
+    RaftCore_step_leader|
+    Raft role为leader\l
+  }}"]
+
+  RaftCore_step_leader -> {
+     RaftCore_handle_append_response;
+  };
+  RaftCore_handle_append_response[style_func;label="{{
+    RaftCore_handle_append_response|
+    处理follower返回的append resp\l
+    1.更新peer的ProcessTracker\l
+    2.更新完follower的控制信息后\l
+    发送多个append给follower\l
+  }}"]
+
+  RaftCore_step_follower[style_func;label="{{
+    RaftCore_step_follower|
+     Raft role为follower
+  }}"]
+  RaftCore_maybe_send_append[style_blue1;label="{{
+    RaftCore_maybe_send_append|
+    Sends an append RPC with new\l
+    entries to the given peer\l|
+    根据follower落后的情况\l
+    可能发送entries\l
+    也可能发送snapshot\l
+  }}"]
+  RaftCore_prepare_send_snapshot[style_func;label="{{
+    RaftCore_prepare_send_snapshot|
+    准备发送snapshot\l
+    创建snapshot\l
+    然后更新follower的\l
+    progressTracker\l
+  }}"]
+  RaftLog_entries[style_func;label="{{
+    RaftLog_entries|
+    准备要发送给follower的\l
+    entries\l
+  }}"]
+
+  RaftCore_step_follower -> {
+    RaftCore_hup;
+    RaftCore_handle_snapshot;
+    RaftCore_handle_append_entries;
+  }
+  RaftCore_hup[style_func;label="{{
+    RaftCore_hup|
+    收到MsgTimeoutNow\l
+    或者MsgHup\l
+    发起竞选\l
+  }}"]
+
+  RaftCore_handle_append_entries[style_func;label="{{
+    RaftCore_handle_append_entries|
+    处理leader发送的\l
+    MsgAppend消息\l
+  }}"]
+  RaftCore_handle_snapshot[style_func;label="{{
+    RaftCore_handle_snapshot|
+    处理leader发送的snapshot消息\l
+  }}"]
+  RaftCore_step_candidate[style_func;label="{{
+    RaftCore_step_candidate|
+    Raft role 为candiate\l
+  }}"]
+  RaftCore_step_candidate -> {
+     RaftCore_maybe_commit_by_vote;
+  }[color=blue];
+
+
+  RaftLog_snapshot -> Storage_snapshot;
+  RaftCore_prepare_send_snapshot -> RaftLog_snapshot;
+
+  RaftCore_maybe_send_append -> {
+     RaftCore_prepare_send_snapshot;
+     RaftLog_entries;
+  }
+  RaftCore_handle_append_response -> {
+    RaftCore_maybe_send_append;
+  }
+
+
+  RaftCore_maybe_commit_by_vote[style_func;label="{{
+    RaftCore_maybe_commit_by_vote|
+    Commits the logs using\l
+    commit info in vote message\l
+  }}"]
+
+  RaftCore_handle_snapshot -> RaftCore_restore;
+
+
+  //RaftCore_on_persist_entries -> RaftLog_maybe_persist;
+  //RawNode_on_persist_ready -> RaftCore_on_persist_entries;
+  //RaftCore_on_persist_entries[style_func;label="{{
+  //  RaftCore_on_persist_entries|
+  //  Notifies that the raft logs\l
+  //  or the snapshot have been persisted\l
+  //}}"]
+  //RaftLog_maybe_persist[style_var;label="{{
+  //  RaftLog_maybe_persist|
+  //  更新RaftLog的persisted\l
+  //}}"]
+  RawNode_advance_append -> {
+    RawNode_gen_light_ready;
+  }
+
+  RawNode_advance[style_func;label="{{
+    RawNode_advance(Ready)|
+    advance the ready \l
+    after full procssing it\l
+    applied = commit_since_index\l
+  }}"]
+  RawNode_advance_append[style_func;label="{{
+    RawNode_advance_append|
+    Returns LightReady that\l
+    contains commit index\l
+    committed entries and messages\l
+  }}"]
+
+  RawNode_advance -> {
+    RawNode_advance_append;
+  }
+
+  RawNode_ready[style_func;label="{{
+    RawNode_ready|
+    Returns the outstanding worker\l
+    that application needs to handle\l|
+    返回Ready\l|
+    1.需要发送的Raft Message\l
+    2.需要持久化的log entries\l
+    3.需要apply 的snapshot\l
+    4.需要保存的hardstate\l
+  }}"]
+  RawNode_ready -> {
+     RawNode_gen_light_ready;
+  }
+  RawNode_gen_light_ready[style_var;label="{{
+    RawNode_gen_light_ready|
+    Generates a LightReady\l
+    that has the committed entries \l
+    and messages but no commit index\l
+    获取从commit_since_index后的log entries\l|
+    更新RawNode的commit_since_index变量\l
+  }}"]
+  RawNode_gen_light_ready -> {
+    RaftLog_next_entries_since;
+  }
+/*
+  RawNode_tick[style_func;label="{{
+    RawNode_tick|
+    Tick advance the internal logical\l
+    clock by a single tick\l
+  }}"]
+  RaftCore_tick[style_func;label="{{
+    RaftCore_tick|
+    如果是leader就调用
+    tick_heartbeat\l|
+    如果是Follower,PreCandidate,\l
+    Candidate,就调用\l
+    tick_election\l
+  }}"]
+  RaftCore_tick_election[style_func;label="{{
+    RaftCore_tick_election|
+    Follower, PreCandidate\l
+    Candidate 角色\l|
+    Run by follwers and cndidates\l
+    after self.election_timeout\l
+  }}"]
+  RawNode_propose[style_func;label="{{
+    RawNode_propose|
+    应用propose data to the raft log\l
+  }}"]
+  RawNode_step[style_func;label="{{
+    RawNode_step|
+    处理其他peer发来的消息\l
+  }}"]
+
+  RawNode_step -> RaftCore_step;
+
+  RawNode_tick -> RaftCore_tick;
+  RaftCore_tick -> RaftCore_tick_election;
+  RaftCore_tick_election -> RaftCore_step;
+  RawNode_propose -> RaftCore_step;
+  */
+
+
+
+  {
+    rank=same;
+    Storage_entries;
+    Storage_snapshot;
+  }
+  {
+    rank=same;
+    RaftCore_step_candidate;
+    RaftCore_step_follower;
+    RaftCore_step_leader;
+  }
+  {
+    rank=same;
+    RaftLog_entries;
+  }
+  {
+    rank=same;
+    RawNode_advance_append;
+  }
+}
+}
