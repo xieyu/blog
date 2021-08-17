@@ -1,0 +1,61 @@
+#include "styles.h"
+digraph raft_handle_hearbeat_response {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RaftCore__step_leader -> {
+    RaftCore__handle_hearbeat_response;
+  };
+
+  RaftCore__handle_hearbeat_response -> {
+     Progress__update_comitted;
+     Progress__recent_active;
+     Progress__resume;
+     RaftCore__send_append;
+     ReadOnly__recv_ack;
+     ReadOnly__advance;
+     RaftCore__handle_ready_read_index;
+     RaftCore__send;
+     ProgressTracker__has_quorum;
+  }
+  ReadOnly__recv_ack -> ProgressTracker__has_quorum -> ReadOnly__advance -> RaftCore__handle_ready_read_index -> RaftCore__send[style_edge_data];
+  RaftCore__handle_ready_read_index[style_func;label="{{
+    RaftCore__handle_ready_read_index|
+    MsgReadIndexResp\l
+    to_send.index= index;\l
+    发送read index给req.ReadIndex\l
+  }}"]
+  RaftCore__handle_ready_read_index -> RaftCore__read_states;
+  RaftCore__read_states[style_var;label="{{
+    RaftCore__read_states|
+    如果req.from为INVALID_ID或者是自己\l
+    就将readstate放入RaftCore__read_states中\l
+    等Ready时候，返回给上层应用\l
+  }}"]
+
+  RaftCore__send_append -> {
+    RaftCore__maybe_send_append;
+  }
+  RaftCore__maybe_send_append -> {
+     RaftCore__prepare_send_entries;
+     RaftCore__prepare_send_snapsot;
+     RaftCore__try_batching;
+     RaftCore__send;
+  }
+  RaftCore__prepare_send_entries[style_func;label="{{
+    RaftCore__prepare_send_entries|
+    发送raft_log.entries(\l
+    pr.next_id, self.max_msg_size)\l
+    这些log entries\l
+  }}"]
+
+  Progress__update_comitted[style_func;label="{{
+    Progress__update_comitted|
+    更新comitted_index
+  }}"]
+  Progress__update_comitted -> Progress__committed_index;
+  Progress__committed_index[style_var;label="{{
+    Progress__committed_index|
+  }}"]
+}

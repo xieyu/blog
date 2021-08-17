@@ -36,5 +36,17 @@ digraph maximal_committed_index {
   RaftCore__maybe_commit -> {
      ProgressTracker__maximal_committed_index;
   }
+  Progress__maybe_update -> {
+    Progress__matched;
+  }
+  RaftCore__step_leader -> RaftCore__handle_append_response;
+  RaftCore__handle_append_response -> {
+    Progress__maybe_update;
+    RaftCore__maybe_commit;
+    Progress__update_committed;
+  }
+  RaftCore__restore -> Progress__maybe_update;
+
+  RaftCore__post_conf_change -> RaftCore__maybe_commit;
 
 }

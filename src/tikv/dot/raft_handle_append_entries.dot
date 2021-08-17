@@ -1,0 +1,49 @@
+#include "styles.h"
+digraph follower_handle_append_entries {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftCore__step -> {
+    RaftCore__step_follower;
+    RaftCore__step_candidate;
+  }
+
+  RaftCore__step_follower -> {
+    RaftCore__handle_append_entries;
+    RaftCore__election_elapsed;
+  }
+
+  RaftCore__step_candidate -> {
+    RaftCore__handle_append_entries;
+    RaftCore__become_follower;
+  }
+
+  RaftCore__handle_append_entries -> {
+     RaftLog__committed;
+     RaftLog__maybe_append;
+     RaftLog__last_index;
+     RaftCore__send;
+  }
+  RaftLog__maybe_append[style_blue1;label="{{
+    RaftLog__maybe_append|
+    如果idx的term和自己的term匹配\l
+    就append，否则就reject\l
+    让leader重新发送AppendMsg\l
+  }}"]
+
+  RaftLog__maybe_append -> {
+    RaftLog__mach_term;
+    RaftLog__find_conflict;
+    RaftLog__append;
+    RaftLog__commit_to;
+  }
+  RaftLog__find_conflict[style_blue1;label="{{
+    RaftLog__find_conflict
+  }}"]
+
+  RaftLog__find_conflict -> {
+    RafftLog__match_term;
+  }
+}
