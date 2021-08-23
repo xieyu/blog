@@ -12,7 +12,7 @@ digraph raft_handle_append_response{
     Progress__maybe_update;
     RaftCore__maybe_commit;
     RaftCore__should_bcast_commit;
-    RraftCore__maybe_send_append;
+    RaftCore__maybe_send_append;
     RaftCore__send_timeout_now;
   }
   RaftCore__maybe_commit[style_func;label="{{
@@ -69,7 +69,7 @@ digraph raft_handle_append_response{
   }}"]
   RaftCore__maybe_send_append[style_func;label="{{
     RaftCore__maybe_send_append|
-    发送多个inflight msg给follwer\l
+    发送多个inflight appendmsg给follwer\l
   }}"]
 
 }

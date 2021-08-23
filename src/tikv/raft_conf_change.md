@@ -1,18 +1,31 @@
 # ConfChange
 
-在leader节点， 通过`RawNode.propose_conf_change` 使用上述Log Append机制，
-发送ConfChange日志给raft cluster中其他节点。
+<!-- toc -->
 
-在`ConfChange` Log Entry committed之后，集成raft-rs的服务，在处理committed Log Entry时, 会调用`RawNode.apply_conf_change` 更改conf配置，最终这些修改会更改
-ProgressTracker中的progress和conf， 并进入JointConsensus，同时使用新老配置来计算committed index和统计vote result。
+## joint consensus
 
-leader节点在`commit_apply`时，如果发现applied 的Log Entry中有ConfChange entry(还有其他一些条件)
-会再发一个空的`ConfChange` Log Entry，在该日志被`apply_conf_change`时，会清空JointConfig的outgoing，
-结束JointConseus状态。
+raft中的决策(投票和计算commit index)，基础是集群中的majority， 由于无法同时原子性的将集群中所有成员配置都修改了，如果一次加入集群节点比较多，
+就可能造成集群中使用新配置和使用旧配置的节点形成两个分裂的majority.
 
-### Joint Consensus
+![](./dot/two_disjoint_majority.png)
 
-此处贴上论文中的那张图。
+因此需要加入一个过渡期的概念，在过渡期的节点同时使用新老配置，保证新老conf change可以正常交接。
+
+在conf change期间, 由于各个节点apply conf change的时间点不同，不同节点的配置也会不同。
+有的会用conf old, 有的节点开始使用conf new.
+有的节点还处于过渡期，投票和计算commit index需要同时使用新老配置来做决策。
+
+![](./dot/joint-conf.png)
+
+### ProgressTracker
+
+`ProgressTracker::Configuration` 存放着raft集群配置。
+
+![](./dot/raft_progresstracker.svg)
+
+### 使用新老配置做决策
+
+在Joint consensus期间，ProgressTracker同时使用新老配置来计算commit index和vote result
 
 ```rust
 //JointConfig
@@ -28,7 +41,9 @@ pub struct Configuration {
     voters: HashSet<u64>,
 }
 ```
+
 #### 计算committed index
+
 ```rust
     //同时统计新老配置中的committed index
     // JointConfig
@@ -36,16 +51,6 @@ pub struct Configuration {
         let (i_idx, i_use_gc) = self.incoming.committed_index(use_group_commit, l);
         let (o_idx, o_use_gc) = self.outgoing.committed_index(use_group_commit, l);
         (cmp::min(i_idx, o_idx), i_use_gc && o_use_gc)
-    }
-
-    //MajorityConfig
-    pub fn committed_index(&self, use_group_commit: bool, l: &impl AckedIndexer) -> (u64, bool) {
-        if self.voters.is_empty() {
-            // This plays well with joint quorums which, when one half is the zero
-            // MajorityConfig, should behave like the other half.
-            return (u64::MAX, true);
-        }
-        // other codes
     }
 ```
 
@@ -64,78 +69,109 @@ pub struct Configuration {
             _ => VoteResult::Pending,
         }
     }
-
-    // majority config
-    pub fn vote_result(&self, check: impl Fn(u64) -> Option<bool>) -> VoteResult {
-        if self.voters.is_empty() {
-            // By convention, the elections on an empty config win. This comes in
-            // handy with joint quorums because it'll make a half-populated joint
-            // quorum behave like a majority quorum.
-            return VoteResult::Won;
-        }
-    }
 ```
 
-### ConfChange Log Entry 数据结构
+### conf change流程
 
-![](./dot/conf_change.svg)
+raft-rs中的conf change流程下图所示，比较关键的是，leader节点在conf change被applied后，
+会自动append一个空的conf change，开始leave joint流程。空的conf change被app applied之后
+该节点就使用新的配置。
 
-### propose conf change
-
-![](./dot/conf_propose_change.svg)
-
-### apply conf
-
-#### enter joint 
-
-leader节点的ConfChange日志被commit后，节点在apply该日志时，开始使用JointConseus，
-同时使用新(incoming)老(outgoing)配置来做统计vote和计算committed index
+![](./dot/conf_change_flow.svg)
 
 
-![](./dot/conf_enter_joint.svg)
 
-#### leave joint
+## propose conf change
 
-leader 在`commit_apply`时, 如果发现pending_conf_index 的日志被
-commit了，且`prs.conf().auto_leave`会发送空的EntryConfChangeV2消息。
+raft-rs中，conf change先像正常的log entry 那样append 到leader的log中，然后由leader，分发给其他
+follower.
 
-节点在处理(`apply_conf_change`)该空消息时, 会进入leave joint，清空outgoing的配置，
-使用incoming新的配置。
+`RaftCore::pending_conf_index`指向了该log entry的index，该index可用于防止在这个conf change 被apply完之前，
+app 又propose conf change。
 
-![](./dot/conf_leave_joint.svg)
+
+![](./dot/raft_conf_change.svg)
+
+AppPropose的ConfChange如下, ConfChange 会被转换为ConfChangeV2
+
+这里面的context的作用是什么？
+
+![](./dot/message_confchange.svg)
+
+## enter joint consensus
+
+conf change被app保存后，应用调用`RawNode::apply_conf_change`，
+来修改`ProgressTracker`的conf和progress。
+在更改配置时，先clone一份`ProgressTracker`, 然后修改他的conf,
+最后在`ProgressTracker::apply_conf`中实用新的conf。
+
+另外这个地方还会设置conf的`auto_leave`字段，如果该字段为true, 在后面的`RaftCore::commit_apply`
+会自动的apply 一个空的EntryConfChangeV2消息，开始leave joint.
+
+
+修改完毕后，就开始了joint consensus，同时会使用新老配置(incoming/outging)。
+来统计投票 `ProgressTracker::tall_votes`和 计算commit index.
+`ProgressTracker::maximal_committed_index`。
+
+
+
+![](./dot/raft_apply_conf_change.svg)
+
+
+## leave joint consensus
+
+在conf change 被commit时，说明集群<b>老配置</b>中的大部分节点，都收到了该conf change, 并且会
+apply 这它， 这时候集群开始准备leave joint.
+
+leader会append一个空的confchange 给集群中新老配置。当这个空的conf change达到commit 状态时，集群开始
+leave joint, 开逐步切换到新的配置。
+
+### auto leave
+
+在log entry被applied到state machine时候，raft-rs可以根据`applied_index`和`pending_conf_index` 
+来判断pending conf change是否已被applied到state machine上。
+
+leader 节点在conf change log entry 被applied之后, 会自动(根据`conf.auto_leave`)
+append一个空的EntryConfChangeV2消息，开始leave joint.
+
+![](./dot/raft_leader_empty_conf_change.svg)
 
 ```rust
-    pub fn commit_apply(&mut self, applied: u64) {
-        let old_applied = self.raft_log.applied;
-        #[allow(deprecated)]
-        self.raft_log.applied_to(applied);
+pub fn commit_apply(&mut self, applied: u64) {
+    let old_applied = self.raft_log.applied;
+    #[allow(deprecated)]
+    self.raft_log.applied_to(applied);
 
-        // TODO: it may never auto_leave if leader steps down before enter joint is applied.
-        if self.prs.conf().auto_leave
-            && old_applied <= self.pending_conf_index
-            && applied >= self.pending_conf_index
-            && self.state == StateRole::Leader
-        {
-            // If the current (and most recent, at least for this leader's term)
-            // configuration should be auto-left, initiate that now. We use a
-            // nil Data which unmarshals into an empty ConfChangeV2 and has the
-            // benefit that appendEntry can never refuse it based on its size
-            // (which registers as zero).
-            let mut entry = Entry::default();
-            entry.set_entry_type(EntryType::EntryConfChangeV2);
+    // TODO: it may never auto_leave if leader steps down before enter joint is applied.
+    if self.prs.conf().auto_leave
+        && old_applied <= self.pending_conf_index
+        && applied >= self.pending_conf_index
+        && self.state == StateRole::Leader
+    {
+        // If the current (and most recent, at least for this leader's term)
+        // configuration should be auto-left, initiate that now. We use a
+        // nil Data which unmarshals into an empty ConfChangeV2 and has the
+        // benefit that appendEntry can never refuse it based on its size
+        // (which registers as zero).
+        let mut entry = Entry::default();
+        entry.set_entry_type(EntryType::EntryConfChangeV2);
 
-            // append_entry will never refuse an empty
-            if !self.append_entry(&mut [entry]) {
-                panic!("appending an empty EntryConfChangeV2 should never be dropped")
-            }
-            self.pending_conf_index = self.raft_log.last_index();
-            info!(self.logger, "initiating automatic transition out of joint configuration"; "config" => ?self.prs.conf());
+        // append_entry will never refuse an empty
+        if !self.append_entry(&mut [entry]) {
+            panic!("appending an empty EntryConfChangeV2 should never be dropped")
         }
+        self.pending_conf_index = self.raft_log.last_index();
+        info!(self.logger, "initiating automatic transition out of joint configuration"; "config" => ?self.prs.conf());
     }
+}
 ```
 
-#### post conf change
+### leave joint
 
-暂时还不太清楚post conf change的作用是什么
+第二次自动append空的ConfChange 达到commit 状态，App在处理该log entry时，调用
 
-![](./dot/post_conf_change.svg)
+`RawNode::apply_conf_change`开始leave joint, 使用新配置(ProgressTracker.conf.incoming).
+
+在`RaftCore::apply_conf_change` 的change 为空时候，开始leave joint
+
+![](./dot/conf_leave_joint.svg)

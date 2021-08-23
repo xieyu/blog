@@ -14,23 +14,23 @@ raft对外暴露的接口为RawNode，它和App关系如下图所示:
 App在处理client write操作时候，调用Raft Propose 将writes数据作为log entry写入
 到raft log。 等该log entry在raft group中达到commit状态时，Client write操作就可以返回了。
 
-App通过RawNode的tick 来驱动raft的logical时钟，调用RawNode::step将message发给
-raft处理。
+App通过RawNode的tick 来驱动raft的logical时钟(驱动leader节点发送hearbeat, follower节点累计触发election timeout)
+
+调用RawNode::step将其他节点发来的raft message发给raft处理。
 
 然后调用RawNode Ready获取需要发送给raft peer的Message, 需要持久化保存的log 
 entries, 以及需要apply 到state machine的log entries.
 
-最后app将Ready中信息处理完毕后，调用RawNode的advance，在更新完raft一些状态后，
-准备处理App下一次调用。
+最后App调用RawNode的advance，Raft更新完一些状态后，准备处理App下一次调用。
 
 
 ![](./dot/raft_rawnode_tick.svg)
 
-## tick, step
+## tick
 
 `RawNode::tick` 定时时钟，用来驱动leader的定期的向follower/candidate 发送
-heartbeat, 而follower/candidate 如果发现heartbeat timeout了，则会发起
-campaign.
+heartbeat, 而follower则在累积election timoout, 如果follower如果发现超过election timeout没收到
+leader的心跳包，则会成为candidate发起campaign.
 
 ```rust
 /// Tick advances the internal logical clock by a single tick.
@@ -40,23 +40,35 @@ campaign.
 pub fn tick(&mut self) -> bool
 ```
 
-App会调用RawNode::step来处理它收到的其他peer发来的Message(比如Leader的heartbeat)
+## step
+App会调用RawNode::step来处理集群其他peer发来的Message。
+
+比如Leader的heartbeat, leader的AppendMsg, candidate的vote request,
+follower节点的heartbeat resp, append resp, vote resp等消息。
 
 ```rust
 /// Step advances the state machine using the given message.
 pub fn step(&mut self, m: Message) -> Result<()>
 ```
 
-## propose, `propose_conf_change`, `read_index`
+## propose
 
-App 通过`RawNode::propose`来write data到raft log.
+App 通过`RawNode::propose`来write data到raft log，当这个log entry被
+复制到集群大部分节点，并且可以被安全提交时候，App调用 `RawNode::ready`
+获取可以被安全的applied到state machine上的log entries，
+把它们apply到state machine上。
 
 ```rust
 /// Propose proposes data be appended to the raft log.
 pub fn propose(&mut self, context: Vec<u8>, data: Vec<u8>) -> Result<()> 
 ```
+## `propose_conf_change`
 
-App调用`RawNode::propose_conf_change`来修改raft集群的conf
+App调用`RawNode::propose_conf_change`来提交对raft 集群成员的配置修改，
+等该提交committed, 并且App把集群配置信息保存好后，
+App调用`RawNode::apply_conf_change` 真正的去修改
+Raft的集群配置(对应于Raft的`ProgressTracker`)
+
 ```rust
 /// ProposeConfChange proposes a config change.
 ///
@@ -67,11 +79,14 @@ App调用`RawNode::propose_conf_change`来修改raft集群的conf
 pub fn propose_conf_change(&mut self, context: Vec<u8>, cc: impl ConfChangeI) -> Result<()> {
 ```
 
+## `read_index`
+
 App调用`RawNode::read_index` 来获取`read_index`
 
 > 对于读请求，我们只需要确认此时 leader 是否真的是 leader 即可，一个较为轻量的方法是发送一次心跳，再检查是否收到了过半的响应，这在 raft-rs 中被称为 ReadIndex
 
-TODO: 想下这块该怎么描述才能更清楚。
+除此之外raft中还有一个lease read.
+
 
 ```rust
 /// ReadIndex requests a read state. The read state will be set in ready.
@@ -81,10 +96,9 @@ TODO: 想下这块该怎么描述才能更清楚。
 pub fn read_index(&mut self, rctx: Vec<u8>) {
 ```
 
-
-
-
 ## 从step 到Ready
+
+App先将hardstate, log entries等保存下来，再将raft message 发出去。
 
 ### Raft::msgs
 

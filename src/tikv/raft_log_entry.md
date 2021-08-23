@@ -1,18 +1,18 @@
 # LogEntry
 
+> * 只要term ,index相同，则log entry内容一定相同
+> * 当log entry被复制到大多节点时，log entry才能被commit.
+> * leader只能commit <b>包含当前term的</b>log entry.
+> * 只有raft log (拥有最大term, 最长Log index)的最新的candidate 才能当选leader.
+> * 当follower log entry和leader冲突时，以leader为准,清理掉和leader log不一致的log。
+
 <!-- toc -->
+## Raft log 处理过程
 
-![](./dot/raft_log2.webp)
+在raft中，一条日志从propose到最后apply到sate machine流程如下
 
-日志复制要点：
+![](./dot/raft_log_entry_flow.svg)
 
-1. 不同的服务器上面的提交的相同的索引和任期的日志项的command一定相同，而且这个日志项之前的所有日志项都相同。
-2. 如果一个日志项被提交，则它之前索引的所有日志项也肯定已经提交。
-3. Leader从来都不覆盖自己的日志。其他状态节点如果出现与当前Leader日志不一致，则需要更新日志，包括写入新的日志和删除不一致的日志。
-4. Leader提交过的日志一定会出现将来新的Leader中。
-5. Leader要保证安全的提交日志，必须满足这两个提交规则(见4.3中不安全的情况和4.4安全的情况)：
-  1. 日志条目已经复制到大多数Follower节点。
-  2. Leader当前任期的新日志条目至少有一个复制到了大多数Follower节点。
 
 ## propose
 
@@ -41,14 +41,24 @@ leader`Progress::maybe_decr_to`重新调整发送的`next_idx`，然后重新发
 
 ## leader: `handle_append_response`
 
-如果`Progress::next_idx`不对，follower在AppendRespMsg中会reject,然后leader会尝减小`Progress::next_idx`，重新
-发送log entries给follower。
+![](./dot/raft_handle_append_response.svg)
+
+如果`Progress::next_idx`不对，follower在AppendRespMsg中会reject，然后leader调用`Progress::maybe_decr_to`来尝试减小`Progress::next_idx`，然后重新
+发送log entries给follower
 
 ![](./dot/raft_log_next_idx.webp)
 
-`RaftLog::maybe_commit`
+另外收到follower的append resp之后，leader会计算committed index。由函数`ProgressTracker::maximal_comitted_index`来根据incoming votes和outging votes中，
+已经复制到大部分节点的log entry 最大index，作为`maximal_commit_index`。
 
-leader 只能提交自己任期内的Log entry.
+
+为了安全提交old leader的Log entry.  leader只能commit当前任期Log entry，`RaftLog::maybe_commit` 会检查计算出来的`max_index`的term
+是否是当前leader的。
+
+如果不是，则不能提交commit index.  所以leader一当选，就会发送一个空的NoOp AppendMsg给所有的follower，
+尽快使自己term内log entry达到commit 状态。
+
+
 ```rust
 /// Attempts to commit the index and term and returns whether it did.
 pub fn maybe_commit(&mut self, max_index: u64, term: u64) -> bool {
@@ -66,9 +76,16 @@ pub fn maybe_commit(&mut self, max_index: u64, term: u64) -> bool {
 }
 ```
 
-TODO: 这个地方贴一个如果leader 提交了非自己任期内的log entry的问题图
+比如在下图<b>c</b>中，重新当选的s1 commit了日志`(term=2,idx=2)`, 然后此时它挂了的话，
+出现情况<b>d</b>中 S5重新被选为leader
+会出现该被commit的日志被覆盖掉的情况, 此时就出现了不一致情况。
 
-![](./dot/raft_handle_append_response.svg)
+因此要达到图<b>e</b>, 重新当选的s1,在term 4中已经由log entry达到了commit状态，它才能将之前的
+日志`(term=2,idx=2)` commit.
+
+![](./dot/leader_commit_current_term.awebp)
+
+
 
 
 ## 参考资料
