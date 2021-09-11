@@ -1,0 +1,51 @@
+#include "styles.h"
+digraph is_splitting {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Peer__is_splitting -> {
+    Peer__last_comitted_split_idx;
+    Peer__storage__applied_index;
+  }
+  Peer__on_leader_commit_idx_changed -> {
+     Peer__last_comitted_split_idx;
+     CmdEpochChecker__last_cmd_index;
+  }
+  CmdEpochChecker__last_cmd_index -> {
+    CmdEpochChecker__proposed_admin_cmd;
+  }
+  CmdEpochChecker__advance_apply -> {
+    CmdEpochChecker__proposed_admin_cmd__pop_front;
+  }
+
+  CmdEpochChecker__post_propose -> {
+    CmdEpochChecker__proposed_admin_cmd_push;
+    CmdEpochChecker__maybe_update_term;
+  }
+  Peer__propose -> CmdEpochChecker__post_propose;
+
+  Peer__ready_to_handle_read -> {
+    Peer__is_splitting;
+  }
+  Peer__ready_to_handle_request_snapshot -> {
+    Peer__is_splitting;
+  };
+  Peer__maybe_renew_lease -> {
+    Peer__is_splitting;
+  }
+  Peer__pre_read_index -> {
+    Peer__is_splitting;
+  }
+  Peer__propose -> Peer__read_index;
+  Peer__read_index -> Peer__pre_read_index;
+  Peer__retry_pending_reads -> Peer__pre_read_index;
+  Peer__post_apply -> {
+    CmdEpochChecker__advance_apply;
+  }
+  Peer__handle_raft_ready_append -> {
+    CmdEpochChecker__advance_apply;
+  }
+
+}

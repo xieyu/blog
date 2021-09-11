@@ -1,0 +1,116 @@
+#include "styles.h"
+digraph ApplyDelegate__exec_split {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ApplyDelegate__exec_batch_split[style_func;label="{{
+    ApplyDelegate\l
+    exec_batch_split\l|
+    将原region根据split key\l
+    划分为多个region\l
+  }}"]
+
+  ApplyDelegate__exec_batch_split -> {
+    check_key_in_region;
+    write_peer_state;
+    ApplyDelegate__region_clone;
+    derived;
+    derived__mut_region_epoch__set_version;
+    derived__get_region_epoch__get_version
+    derived__set_end_key;
+    Region__default;
+    new_region__set_region_epoch;
+    new_region__set_start_key;
+    new_region__set_end_key;
+    new_region__set_peers;
+    ExecResult__SplitRegion;
+    ApplyContext__pending_create_peers;
+  }
+  ApplyDelegate__region_clone -> derived;
+  ApplyDelegate__region_clone[style_func;label="{{
+    ApplyDelegate\l
+    region.clone\l|
+    clone原有的region\l
+    作为derived\l
+  }}"]
+  Region__default[style_func;label="{{
+    Region::default|
+    给每个新的region\l
+    new_region创建\l
+    一个新的Region\l|
+    然后设置它的属性\l
+    会复用原有region的\l
+    store_id\l
+  }}"]
+  derived__get_region_epoch__get_version
+    -> derived__mut_region_epoch__set_version
+    -> new_region__set_region_epoch[style_edge_data];
+  derived -> {
+    new_region__set_region_epoch;
+    new_region__set_peers;
+    derived__set_end_key;
+  }
+  new_region__set_peers[style_func;label="{{
+    new_region\l
+    set_peers\l|
+    复用region peers\l
+    包括store_id，peer_role等\l|
+    但每个peer_id会用\l
+    SplitRequest中的\l
+    new_peer_ids\l
+  }}"]
+
+  Region__default -> {
+    new_region__set_id;
+    new_region__set_region_epoch;
+    new_region__set_start_key;
+    new_region__set_end_key;
+    new_region__set_peers;
+  } -> new_region[style_edge_data];
+  new_region -> write_peer_state[style_edge_data];
+  derived -> write_peer_state[style_edge_data];
+
+  ExecResult__SplitRegion[style_func;label="{{
+    ExecResult__SplitRegion|
+        <regions> regions: Vec\<Region\>,\l|
+        derived: Region,\l|
+        new_split_regions: HashMap\<u64, NewSplitPeer\>,\l
+  }}"]
+  NewSplitPeer[style_func;label="{{
+    NewSplitPeer|
+    pub peer_id: u64,\l|
+    pub result: Option\<String\>,\l
+  }}"]
+  ExecResult__SplitRegion -> NewSplitPeer;
+  new_region -> ExecResult__SplitRegion:regions;
+
+  new_region__set_id[style_func;label="{{
+    new_region\l
+    set_id\l
+    设置region_id\l
+  }}"]
+  new_region__set_start_key[style_func;label="{{
+    new_region\l
+    set_start_key\l|
+    设置region的start_key\l
+  }}"]
+  new_region__set_end_key[style_func;label="{{
+    new_region\l
+    set_end_key\l|
+    设置region end_key\l
+  }}"]
+  derived__get_region_epoch__get_version[style_func;label="{{
+    derived\l
+    get_region_epoch\l
+    get_version|
+    获取region epoch version\l
+  }}"]
+  derived__mut_region_epoch__set_version[style_func;label="{{
+    derived\l
+    mut_region_epoch\l
+    set_version\l|
+    += split change num\l
+  }}"]
+}

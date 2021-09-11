@@ -1,0 +1,80 @@
+#include "styles.h"
+digraph raftkv_async_snapshot2 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  with_tls_engine[style_func;label="{{
+    with_tls_engine|
+    使用线程自己clone的\l
+    tls RaftKv\l
+  }}"]
+
+  with_tls_engine -> RaftKv__async_snapshot[style_edge_data];
+  RaftKv__async_snapshot[style_func;label="{{
+    RaftKv\l
+    async_snapshot\l
+    设置req类型为\l
+    CmdType::Snap\l
+  }}"]
+  RaftKv__exec_snapshot[style_func;label="{{
+    RaftKv\l
+    exec_snapshot\l|
+  }}"]
+  Box_new_cb[style_func;label="{{
+    Box\lnew_cb\l|
+    处理exec_snapshot的callback\l
+    处理Cmd::Resp(mut r)\l
+    转换为对应的error\l
+  }}"]
+  SnapContext__read_id[style_func;label="{{
+    SnapContext\l
+    read_id\l|
+    SnapContext 会往下传\l
+    主要变量为read_id\l
+    标识是否是从同一个\l
+    grpc stream中读的请求\l
+  }}"]
+  ServerRaftStoreRouter__read[style_func;label="{{
+    ServerRaftStoreRouter\l
+    read\l
+  }}"]
+  LocalReader__read[style_func;label="{{
+    LocalReader\l
+    read\l
+  }}"]
+
+  RaftKv__async_snapshot -> {
+    RaftKv__exec_snapshot;
+    Box_new_cb;
+  }
+
+  RaftKv__exec_snapshot -> {
+    ServerRaftStoreRouter__read;
+    SnapContext__read_id;
+  }
+
+  ServerRaftStoreRouter__read -> LocalReader__read;
+
+  LocalReader__get_snapshot[style_func;label="{{
+    LocalReader\l
+    get_snapshot\l|
+    可以直接读leader的local\l
+    直接调用kv engine\l
+    的snapshot\l
+  }}"]
+  LocalReader__redirect[style_func;label="{{
+    LocalReader__redirect|
+    需要走一次readindex\l
+    使用router将请求propose给\l
+    region对应的peer\l
+  }}"]
+
+
+  LocalReader__read -> {
+    LocalReader__get_snapshot;
+    LocalReader__redirect;
+  }
+
+}

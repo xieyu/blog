@@ -1,0 +1,112 @@
+#include "styles.h"
+digraph ApplyDelegate__exec_commit_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ApplyDelegate__handle_normal[style_func;label="{{
+    ApplyDelegate\l
+    handle_normal\l|
+    处理normal Raft cmd\l
+  }}"]
+
+  ApplyDelegate__handle_normal -> {
+    ApplyDelegate__resume_pending;
+    ApplyDelegate__wait_merge_state;
+    ApplyDelegate__exec_commit_merge;
+  }
+
+  ApplyDelegate__handle_raft_committed_entries -> {
+    ApplyDelegate__handle_normal;
+  }
+
+  ApplyDelegate__exec_commit_merge[style_func;label="{{
+    ApplyDelegate\l
+    exec_commit_merge\l|
+    发送CatchUpLogs给Source region\l
+  }}"]
+
+  ApplyDelegate__exec_commit_merge -> {
+    ApplyDelegate__ready_source_region_id;
+    region__mut_region_epoch__set_version;
+    region__set_start_key;
+    region__set_end_key;
+    write_peer_state;
+    ExecResult__CommitMerge;
+  }
+  region__mut_region_epoch__set_version[style_blue1;label="{{
+    region\l
+    mut_region_epoch\l
+    set_version\l|
+    取source region和\l
+    target region的最大值\l
+  }}"]
+  region__set_end_key[style_func;label="{{
+    region\l
+    set_end_key
+  }}"]
+  region__set_start_key[style_func;label="{{
+    region\l
+    set_start_key\l
+  }}"]
+
+  {
+    region__mut_region_epoch__set_version;
+    region__set_start_key;
+    region__set_end_key;
+  } -> region -> {
+    ExecResult__CommitMerge;
+    write_peer_state;
+  }[style_edge_data];
+
+  ApplyDelegate__wait_merge_state ->  ApplyDelegate__ready_source_region_id[style_edge_data];
+  ApplyDelegate__wait_merge_state[style_var;label="{{
+    ApplyDelegate\l
+    wait_merge_state\l|
+    logs_up_to_date: Arc\<AtomicU64\>,\l
+  }}"]
+
+  ApplyDelegate__resume_pending -> {
+    ApplyDelegate__ready_source_region_id;
+    ApplyDelegate__wait_merge_state;
+    ApplyDelegate__yield_state;
+    ApplyDelegate__handle_raft_committed_entries;
+  }
+
+  ApplyDelegate__yield_state[style_var;label="{{
+    ApplyDelegate\l
+    yield_state\l
+    pending_entries,\l|
+    将本次CommitMergeEntry\l
+    放入yield state等待下次再\l
+    执行\l
+  }}"]
+
+  ApplyDelegate__ready_source_region_id[style_var;label="{{
+    ApplyDelegate\l
+    ready_source_region_id\l
+  }}"]
+
+  ApplyDelegate__yield_state -> ApplyDelegate__handle_raft_committed_entries[style_edge_data];
+  ApplyDelegate__handle_raft_committed_entries[style_func;label="{{
+    ApplyDelegate\l
+    handle_raft_committed_entries\l
+  }}"]
+
+  ApplyDelegate__resume_pending[style_func;label="{{
+    ApplyDelegate\l
+    resume_pending\l|
+    检查wait_merge_state\l
+    重新执行exec_commit_merge\l
+  }}"]
+  write_peer_state[style_blue1;label="{{
+    write_peer_state|
+    将region写入kv\l
+  }}"]
+  ExecResult__CommitMerge[style_blue1;label="{{
+    ExecResult\l
+    CommitMerge\l
+  }}"]
+
+}

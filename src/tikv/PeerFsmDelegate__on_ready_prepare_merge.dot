@@ -1,0 +1,42 @@
+#include "styles.h"
+digraph peer__on_ready_prepare_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate__on_ready_prepare_merge -> {
+    StoreMeta__set_region;
+    PeerFsmDelegate__on_check_merge;
+  }
+
+  PeerFsmDelegate__on_check_merge -> {
+    PeerFsmDelegate__register_merge_check_tick;
+    PeerFsmDelegate__schedule_merge;
+    Peer__add_want_rollback_merge_peer;
+    ProgressTracker__has_quorum;
+    PeerFsmDelegate__rollback_merge;
+    Peer__want_rollback_merge_peers;
+    Peer__send_want_rollback_merge;
+  }
+
+  PeerFsmDelegate__rollback_merge -> {
+    PeerFsmDelegate__propose_raft_command;
+    AdminCmdType__RollbackMerge;
+  }
+  PeerFsmDelegate__register_merge_check_tick -> {
+    PeerFsmDelegate__schedule_tick__PeerTicks__CHECK_MERGE;
+  }
+
+  PeerFsmDelegate__schedule_merge -> {
+     Peer__pending_merge_state;
+     Peer__validate_merge_peer;
+     Peer__get_min_progress;
+     MergeState__get_min_index;
+     AdminCmdType__CommitMerge;
+     RaftRouter__force_send__target_id;
+  }
+  Peer__pending_merge_state -> CommitMerge;
+  AdminCmdType__CommitMerge -> CommitMerge;
+  CommitMerge -> RaftRouter__force_send__target_id[style_edge_data];
+}

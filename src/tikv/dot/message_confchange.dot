@@ -1,0 +1,50 @@
+#include "styles.h"
+digraph conf_change {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ConfChange[style_func;label="{{
+    ConfChange|
+    ConfChangeType change_type = 2;\l|
+    uint64 node_id = 3;\l|
+    bytes context = 4;\l|
+    uint64 id = 1;\l
+  }}"]
+
+  ConfChange -> ConfChangeType;
+  ConfChangeType[style_blue1;label="{{
+    ConfChangeType|
+    AddNode    = 0;\l|
+    RemoveNode = 1;\l|
+    AddLearnerNode = 2;\l
+  }}"]
+  ConfChangeSingle[style_func;label="{{
+    ConfChangeSingle|
+    ConfChangeType change_type = 1;\l|
+    uint64 node_id = 2;\l
+  }}"]
+  ConfChangeSingle -> ConfChangeType;
+  ConfChangeV2[style_func;label="{{
+    ConfChangeV2|
+    ConfChangeTransition transition = 1;\l|
+    repeated ConfChangeSingle changes = 2;\l|
+    bytes context = 3;\l
+  }}"]
+  ConfChangeV2 -> {
+    ConfChangeTransition;
+    ConfChangeSingle;
+  }
+  ConfChangeTransition[style_blue1;label="{{
+    ConfChangeTransition|
+    Auto = 0;\l|
+    Implicit = 1;\l|
+    Explicit = 2;\l
+  }}"]
+  {
+    rank=same;
+    ConfChangeV2;
+    ConfChange;
+  }
+}

@@ -1,0 +1,138 @@
+#include "styles.h"
+digraph RaftApplyState {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ApplyDelegate__handle_committed_entries -> {
+    ApplyDelegate__handle_raft_entry_normal;
+    ApplyContext__finish_for;
+  }
+
+  ApplyDelegate__handle_raft_entry_normal -> {
+     ApplyDelegate__RaftApplyState__set_applied_index;
+     ApplyDelegate__applied_index_term;
+  }
+
+
+  ApplyDelegate__RaftApplyState__set_applied_index -> ApplyDelegate__RaftApplyState;
+
+  ApplyFsm__handle_snapshot -> {
+    ApplyDelegate__RaftApplyState;
+    ApplyDelegate__applied_index_term;
+    GenSnapTask__generate_and_schedule_snapshot;
+  }
+
+  ApplyContext__finish_for -> {
+    ApplyRes;
+    ApplyContext__apply_res;
+  }
+
+  {
+    ApplyDelegate__RaftApplyState;
+    ApplyDelegate__applied_index_term;
+  } -> {GenSnapTask__generate_and_schedule_snapshot;ApplyRes}[style_edge_data];
+  ApplyRes[style_blue1;label="{{
+    ApplyRes|
+    pub region_id: u64,\l|
+    pub apply_state: RaftApplyState,\l|
+    pub applied_index_term: u64,\l|
+    pub exec_res: VecDeque\<ExecResult\<S\>\>,\l|
+    pub metrics: ApplyMetrics,\l
+  }}"]
+
+  ApplyDelegate__RaftApplyState[style_var;label="{{
+    ApplyDelegate\l
+    RaftApplyState\l
+    记录了applied_index\l
+  }}"]
+  ApplyDelegate__applied_index_term[style_var;label="{{
+    ApplyDelegate\l
+    applied_index_term\l|
+    记录了applied index term\l
+  }}"]
+
+  ApplyRes -> {
+    Peer__post_apply;
+  }[style_edge_data];
+
+  Peer__post_apply -> {
+     PeerStorage__apply_state
+     PeerStorage__applied_index_term
+  }[style_edge_data];
+
+  PeerStorage__apply_state[style_var;label="{{
+    PeerStorage\l
+    apply_state\l
+  }}"]
+  PeerStorage__applied_index_term[style_var;label="{{
+    PeerStorage\l
+    applied_index_term\l
+  }}"]
+
+  ApplyDelegate__RaftApplyState -> PeerStorage__apply_state[style_edge_data];
+  ApplyDelegate__applied_index_term -> PeerStorage__applied_index_term[style_edge_data];
+  ApplyDelegate__handle_committed_entries[style_func;label="{{
+    ApplyDelegate\l
+    handle_committed_entries\l|
+    遍历循环处理\l
+    comitted entries\l
+  }}"]
+
+  ApplyDelegate__handle_raft_entry_normal[style_func;label="{{
+    ApplyDelegate\l
+    handle_raft_entry_normal\l|
+    处理一条log entries\l
+    然后更新applied index\l
+    和applied_index_term\l
+  }}"]
+  ApplyDelegate__RaftApplyState__set_applied_index[style_func;label="{{
+    ApplyDelegate\l
+    RaftApplyState\l
+    set_applied_index\l|
+    更新applied_index\l
+  }}"]
+
+  ApplyContext__finish_for[style_func;label="{{
+    ApplyContext\l
+    finish_for\l|
+    将ApplyRes放入\l
+    ApplyContext::apply_res\l
+    中，ApplyRes包含了\l
+    apply_state和\l
+    applied_index_term\l
+    会发给PeerFsm\l
+  }}"]
+
+  ApplyContext__apply_res[style_func;label="{{
+    ApplyContext\l
+    apply_res\l|
+    apply_res:\l
+    Vec\<ApplyRes\<EK::Snapshot\>\>,\l
+  }}"]
+  ApplyFsm__handle_tasks -> ApplyDelegate__handle_committed_entries[style_edge_data];
+  ApplyFsm__handle_tasks -> ApplyFsm__handle_snapshot;
+  ApplyFsm__handle_tasks[style_func;label="{{
+    ApplyFsm\l
+    handle_tasks\l|
+    处理ApplyFsm收到的task\l
+  }}"]
+  ApplyFsm__handle_snapshot[style_func;label="{{
+    ApplyFsm\l
+    handle_snapshot|
+    生成snapshot task\l
+    然后由snap 线程完成该task\l
+  }}"]
+  GenSnapTask__generate_and_schedule_snapshot[style_func;label="{{
+    GenSnapTask\l
+    generate_and_schedule_snapshot\l|
+    snaptask中用到了applied_index_term\l
+    和apply_state.clone\l
+  }}"]
+  Peer__post_apply[style_func;label="{{
+    Peer\l
+    post_apply\l
+  }}"]
+
+}

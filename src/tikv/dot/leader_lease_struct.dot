@@ -1,0 +1,56 @@
+#include "styles.h"
+digraph leader_lease_struct {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Lease[style_func;label="{{
+    Lease|
+    bound: Option\<Either\<Timespec, Timespec\>\>,\l|
+    max_lease: Duration,\l|
+    max_drift: Duration,\l|
+    last_update: Timespec,\l|
+    remote: Option\<RemoteLease\>,\l
+  }}"]
+  Peer -> Lease;
+  Peer[style_func;label="{{
+    Peer|
+    leader_lease: Lease,\l
+    ...\l
+  }}"]
+
+  Lease -> {
+    RemoteLease;
+  }
+  RemoteLease[style_func;label="{{
+    RemoteLease|
+    expired_time: Arc\<AtomicU64\>,\l|
+    term: u64,\l
+  }}"]
+  ReadDelegate[style_func;label="{{
+    ReadDelegate|
+    leader_lease: Option\<RemoteLease\>,\l|
+    ...
+  }}"]
+
+  ReadDelegate -> {
+    RemoteLease;
+  }
+  StoreMeta[style_func;label="{{
+    StoreMeta|
+    pub readers:\l
+    HashMap\<u64, ReadDelegate\>,\l
+  }}"]
+  LocalReader[style_func;label="{{
+    LocalReader|
+    store_meta: \l
+    Arc\<Mutex\<StoreMeta\>\>,\l|
+    delegates: \l
+    LruCache\<u64, Arc\<ReadDelegate\>\>,\l
+  }}"]
+
+  LocalReader -> ReadDelegate;
+  StoreMeta -> ReadDelegate;
+  LocalReader -> StoreMeta;
+
+}

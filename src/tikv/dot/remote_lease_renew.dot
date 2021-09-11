@@ -1,0 +1,19 @@
+#include "styles.h"
+digraph lease_renew {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Peer__maybe_renew_leader_lease -> RemoteLease__renew;
+  Peer__apply_reads -> Peer__maybe_renew_leader_lease;
+  Peer__handle_raft_comitted_entries -> Peer__maybe_renew_leader_lease;
+  Peer__on_role_changed -> Peer__maybe_renew_leader_lease;
+  Peer__handle_raft_ready_append -> {
+    Peer__on_role_changed;
+    Peer__handle_raft_comitted_entries;
+    Peer__apply_reads;
+  }
+  PeerFsmDelegate__collect_ready -> Peer__handle_raft_ready_append;
+
+}

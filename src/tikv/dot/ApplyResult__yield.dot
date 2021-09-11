@@ -1,0 +1,122 @@
+#include "styles.h"
+digraph ApplyResult__yield {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ApplyDelegate__handle_raft_entry_normal -> {
+    ApplyContext__yield_duration;
+    ApplyDelegate__handle_start;
+    ApplyResult__yield;
+    ApplyDelegate__yield_state;
+    WriteBatch__should_write_to_engine;
+    ApplyContext__commit;
+  };
+
+  ApplyPoller__handle_normal -> {
+    ApplyDelegate__handle_start;
+    ApplyFsm__handle_tasks;
+  }
+  ApplyFsm__handle_tasks -> ApplyFsm__handle_apply;
+  ApplyFsm__handle_apply -> {
+    ApplyDelegate__handle_raft_committed_entries;
+  }
+  ApplyDelegate__handle_raft_committed_entries[style_blue1;label="{{
+    ApplyDelegate\l
+    handle_raft_committed_entries\l|
+    遍历所有的committed entries\l
+    对于每个entry 调用\l
+    handle_raft_entry_normal\l
+    来处理\l|
+    如果返回的是yield\l
+    则将剩余的committed_entries\l
+    放入yield_state中\l
+  }}"]
+  ApplyDelegate__handle_raft_committed_entries -> {
+    ApplyDelegate__handle_raft_entry_normal;
+    ApplyDelegate__yield_state;
+  };
+  ApplyDelegate__yield_state[style_var;label="{{
+    ApplyDelegate::yield_state|
+    struct YieldState\l|
+    pending_entries: Vec\<Entry\>,\l|
+    pending_msgs: Vec\<Msg\<EK\>\>,\l
+  }}"]
+
+  ApplyFsm__resume_pending -> {
+    ApplyDelegate__yield_state;
+    ApplyDelegate__handle_raft_committed_entries;
+    ApplyFsm__handle_tasks;
+  }
+  ApplyPoller__handle_normal -> ApplyFsm__resume_pending;
+  ApplyPoller__handle_normal[style_func;label="{{
+    ApplyPoller\l
+    handle_normal\l|
+    首先处理上次yield state\l
+    遗留的pending msgs\l
+    和entries\l|
+    然后再从reciver中取msg\l
+    来处理\l
+  }}"]
+  ApplyFsm__resume_pending[style_blue1;label="{{
+    ApplyFsm\l |
+    resume_pending\l|
+    处理上次未处理\l
+    完的yield state\l
+  }}"]
+  ApplyFsm__handle_tasks[style_func;label="{{
+    ApplyFsm\l
+    handle_tasks\l
+  }}"]
+  ApplyFsm__handle_apply[style_func;label="{{
+    ApplyFsm\l
+    handle_apply\l
+  }}"]
+  ApplyDelegate__handle_raft_entry_normal[style_func;label="{{
+    ApplyDelegate\l
+    handle_raft_entry_normal\l
+    如果需要写入write batch\l
+    然后commit\l
+    如果处理时间超过了yield_duration\l
+    则返回ApplyResult::yield\l
+  }}"]
+  ApplyContext__yield_duration[style_func;label="{{
+    ApplyContext\l
+    yield_duration\l|
+    cfg.apply_yield_duration\l
+    默认值为500ms\l
+  }}"]
+  ApplyResult__yield[style_func;label="{{
+    ApplyResult::yield|
+    返回状态为yield\l
+  }}"]
+  ApplyDelegate__handle_start[style_var;label="{{
+    ApplyDelegate\l
+    handle_start\l|
+    记录开始处理时间\l
+  }}"]
+
+  {
+    ApplyContext__yield_duration;
+    ApplyDelegate__handle_start
+  } -> ApplyResult__yield[style_edge_data];
+  WriteBatch__should_write_to_engine[style_func;label="{{
+    WriteBatch\l
+    should_write_to_engine\l|
+    查过阈值，需要先\l
+    写到engine中\l
+  }}"]
+  ApplyContext__commit[style_func;label="{{
+    ApplyContext\l
+    commit\l|
+    将write batch写入engine\l
+    然后调用write callback\l
+    然后发通知给PeerFsm\l
+  }}"]
+  WriteBatch__should_write_to_engine-> {
+   ApplyContext__commit
+  }[style_edge_data];
+  ApplyResult__yield -> ApplyDelegate__yield_state[style_edge_data];
+
+}

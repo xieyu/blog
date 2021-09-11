@@ -1,0 +1,73 @@
+#include "styles.h"
+digraph apply__handle_raft_entry_conf_change {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ApplyDelegate__handle_raft_committed_entries -> {
+    ApplyDelegate__handle_raft_entry_conf_change;
+  }
+  ApplyDelegate__handle_raft_entry_conf_change -> {
+     ApplyDelegate__process_raft_cmd;
+  }
+
+  ApplyDelegate__process_raft_cmd -> {
+     ApplyDelegate__apply_raft_cmd;
+  }
+  ApplyDelegate__apply_raft_cmd -> ApplyDelegate__exec_raft_cmd;
+  ApplyDelegate__exec_raft_cmd -> {
+    ApplyDelegate__exec_admin_cmd;
+  }
+
+  ApplyDelegate__exec_admin_cmd2 -> {
+    ApplyDelegate__exec_change_peer;
+    ApplyDelegate__exec_change_peer2;
+  }
+
+  ApplyDelegate__exec_change_peer -> {
+    Region__get_region_epoch__get_conf_ver;
+    Region__mut_region_epoch__set_conf_ver;
+    Region__mut_peers__push;
+
+    ApplyDelegate__stopped;
+    ApplyDelegate__pending_remove;
+    remove_peer;
+    find_peer;
+    PeerState__TombStone;
+    PeerState__Normal;
+    write_peer_state;
+    ApplyRes;
+  }
+
+  {
+    Region__mut_region_epoch__set_conf_ver;
+    Region__mut_peers__push;
+    Region__mut_peers_remove;
+  } -> Region[style_edge_data];
+
+  {
+    PeerState__TombStone;
+    PeerState__Normal;
+  } -> PeerState[style_edge_data];
+
+  {PeerState;Region} -> RaftLocalState -> write_peer_state[style_edge_data];
+  write_peer_state -> {
+     region_state_key;
+  }
+  write_peer_state[style_func;label="{{
+    write_peer_state|
+    将RaftLocalState写入kv_wb\l
+    cf为CF_RAFT\l
+    key为:region_state_key\l
+  }}"]
+
+
+  remove_peer -> {
+    Region__mut_peers_remove;
+  }
+
+  ApplyDelegate__pending_remove -> PeerState__TombStone[style_edge_data];
+
+
+}

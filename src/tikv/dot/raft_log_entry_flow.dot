@@ -1,0 +1,43 @@
+#include "styles.h"
+digraph raft_log_entry_flow {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  App_propose -> append_to_leader_log_entry -> send_to_followers -> save_in_follower_log -> commit -> app_apply_to_log_entry;
+  App_propose[style_func;label="{{
+    在leader节点\l
+    应用propose log\l
+    entry\l
+  }}"]
+
+  append_to_leader_log_entry[style_func;label="{{
+  leader节点将log entry\l
+  保存到磁盘\l
+  }}"]
+  send_to_followers[style_func;label="{{
+    send_to_followers|
+    leader节点将日志复制给\l
+    集群中的follower\l
+  }}"]
+  save_in_follower_log[style_func;label="{{
+  follower保存好日志\l
+  然后回复leader\l
+  自己last index和term\l
+  }}"]
+  commit[style_blue1;label="{{
+    commit|
+    leader根据follower的resp\l
+    计算commit index\l
+    并且commit当前term的\l
+    log entry\l|
+    被commit的log entry是安全的\l
+    已经被复制到集群大部分节点\l
+    不会丢失\l
+  }}"]
+  app_apply_to_log_entry[style_func;label="{{
+    应用将commit log entry\l
+    apply 到state machine上\l
+  }}"]
+}

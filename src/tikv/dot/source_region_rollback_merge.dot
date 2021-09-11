@@ -1,0 +1,87 @@
+#include "styles.h"
+digraph source_region_rollback_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ApplyDelegate__exec_rollback_merge[style_func;label="{{
+    ApplyDelegate\l
+    exec_rollback_merge\l|
+    将状态修改为PeerState::Normal\l
+    region epoch version +1\l
+  }}"]
+  region__mut_region_epoch__set_version[style_var;label="{{
+    region\l
+    mut_region_epoch\l
+    set_version\l|
+    version +1\l
+  }}"]
+
+  ApplyDelegate__exec_rollback_merge -> {
+    PeerState__Normal;
+    region__mut_region_epoch__set_version;
+    write_peer_state;
+    ExecResult__RollbackMerge;
+  }
+
+  //ApplyDelegate__exec_rollback_merge -> PeerFsmDelegate__on_ready_rollback_merge[style_edge_data];
+  PeerFsmDelegate__on_ready_rollback_merge -> {
+    StoreMeta__set_region;
+    Peer__pending_merge_state;
+    Peer__want_rollback_merge_peers__clear;
+    Peer__heartbeat_pd;
+  }
+  Peer__heartbeat_pd[style_blue1;label="{{
+    Peer\l
+    heartbeat_pd\l|
+    如果是leader节点\l
+    向pd上报当前信息\l
+  }}"]
+  Peer__want_rollback_merge_peers__clear[style_func;label="{{
+    Peer\l
+    want_rollback_merge_peers\l
+    clear\l|
+    清空want_rollback_merge_peers\l
+  }}"]
+  Peer__pending_merge_state[style_var;label="{{
+    Peer\l
+    pending_merge_state\l|
+    将该state设置为None\l
+  }}"]
+  PeerState__Normal -> write_peer_state[style_edge_data];
+  region__mut_region_epoch__set_version -> write_peer_state[style_edge_data];
+  region__mut_region_epoch__set_version -> ExecResult__RollbackMerge[style_edge_data];
+  region__mut_region_epoch__set_version -> StoreMeta__set_region[style_edge_data];
+  PeerState__Normal[style_func;label="{{
+    PeerState::Normal
+  }}"]
+  PeerFsmDelegate__on_ready_rollback_merge[style_func;label="{{
+    PeerFsmDelegate\l
+    on_ready_rollback_merge\l
+  }}"]
+  Peer__pending_merge_state -> {
+    PeerFsmDelegate__on_check_merge
+    Peer__propose_normal;
+  }[style_edge_data];
+  PeerFsmDelegate__on_check_merge[style_func;label="{{
+    PeerFsmDelegate\l
+    on_check_merge\l|
+    停止注册merge check tick\l
+  }}"]
+  StoreMeta__set_region[style_func;label="{{
+    StoreMeta\l
+    set_region\l|
+    更新StoreMeta\l
+    和peer的region信息\l
+  }}"]
+  ExecResult__RollbackMerge[style_func;label="{{
+    ExecResult\l
+    RollbackMerge\l
+  }}"]
+  ExecResult__RollbackMerge -> PeerFsmDelegate__on_ready_rollback_merge[style_edge_data];
+  Peer__propose_normal[style_func;label="{{
+    Peer\l
+    propose_normal\l|
+    可以正常propose了\l
+  }}"]
+}

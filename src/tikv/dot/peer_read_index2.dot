@@ -1,0 +1,162 @@
+#include "styles.h"
+digraph peer_read_index2 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Peer__propose -> {
+    Peer__inspect;
+    Peer__read_index;
+  }
+  Peer__read_index -> {
+     Peer__pre_read_index;
+     monotonic_raw_now;
+     Peer__inspect_lease;
+     ReadIndexRequest__push_command;
+     Peer__bcast_wakeup_message;
+     Uuid__new_v4;
+     RawNode__read_index;
+     Lease__inspect__Suspect;
+     Peer__post_propose;
+     Peer__propose_normal;
+     Peer__pending_reads__push_back;
+     ReadIndexRequest__with_command;
+  }
+
+  {
+    monotonic_raw_now;
+    Uuid__new_v4;
+  }->
+  {
+    ReadIndexRequest__with_command
+  } -> {
+    Peer__pending_reads__push_back;
+  }[style_edge_data];
+
+  Peer__pending_reads[style_var;label="{{
+    Peer\l
+    pending_reads\l|
+    ReadIndexQueue\<EK::Snapshot\>,\l
+  }}"]
+
+  Peer__pending_reads__push_back -> {
+     Peer__pending_reads;
+  }
+
+  RawNode__read_index[style_blue1;label="{{
+    RawNode__read_index|
+  }}"]
+  Peer__inspect_lease -> ReadIndexRequest__push_command[style_edge_data];
+
+  Lease__inspect__Suspect -> {
+     Peer__post_propose;
+     Peer__propose_normal;
+  }[style_edge_data];
+
+  Peer__bcast_wakeup_message[style_func;label="{{
+    Peer__bcast_wakeup_message|
+    如果自己不是leader，并且\l
+    leader节点为invalid\l
+    leader可能hibernated了\l
+    向region中所有peer\l
+    发送MsgRegionWakeUp\l
+  }}"]
+
+  Uuid__new_v4 -> RawNode__read_index[style_edge_data];
+  ReadIndexRequest__push_command -> Peer__pending_reads;
+  Peer__pre_read_index[style_func;label="{{
+    Peer__pre_read_index|
+    如果正在splitting\l
+    或者merging返回\l
+    ReadIndexNotReady\l
+    错误\l
+  }}"]
+
+  Peer__pre_read_index -> {
+    Peer__is_splitting;
+    Peer__is_merging;
+  }
+  Peer__is_splitting[style_func;label="{{
+    Peer\l
+    is_splitting\l|
+    根据last_committed_split_idx
+  }}"]
+  Peer__is_merging[style_func;label="{{
+    Peer\l
+    is_merging\l|
+    根据last_committed_prepare_merge_idx\l
+    pending_merge_state\l
+    来判断\l
+  }}"]
+
+  monotonic_raw_now -> ReadIndexRequest__push_command[style_edge_data];
+
+  ReadIndexRequest__push_command[style_func;label="{{
+    ReadIndexRequest\l
+    push_command\l|
+    如果pending_reads队列中\l
+    最后一个read的renew_lease_time\l
+    + max_lease \> renew_lease_time\l
+    则直接把它放到该reads的commands数组中\l
+  }}"]
+  Peer__inspect_lease[style_func;label="{{
+    Peer::inspect_lease|
+    如果当前节点为leader\l
+    并且lease为Valid或者Expired\l
+    不是suspect\l
+  }}"]
+
+  Uuid__new_v4[style_blue1;label="{{
+    Uuid\l
+    new_v4\l|
+    使用Uuid作为唯一标识\l
+    传给下面的raft\l
+  }}"]
+
+  ReadIndexRequest__with_command[style_func;label="{{
+    ReadIndexRequest\l
+    with_command\l|
+    使用uuid,callback\l
+    还有monotonic_raw_now\l
+    创建一个ReadIndexRequest\l
+    然后放到pending_reads\l
+    队列中\l|
+    这个地方的monotonic_raw_now\l
+    后面会用来renew lease\l
+  }}"]
+  Peer__pending_reads__push_back[style_func;label="{{
+    Peer\l
+    pending_reads\l
+    push_back\l|
+    将ReadIndexRequest\l
+    放入pending_reads等待队列\l
+  }}"]
+  monotonic_raw_now[style_blue1;label="{{
+    monotonic_raw_now|
+    获取当前时间戳\l
+    作为后续renew_lease_time\l
+  }}"]
+
+  Lease__inspect__Suspect[style_func;label="{{
+    如果lease::inspect\l
+    结果为Suspect\l
+    说明TimeoutNow已经发出去了\l
+    propose一个空消息\l
+    用来update leader lease\l|
+    空消息上带了renew_lease_time\l
+  }}"]
+  monotonic_raw_now -> Peer__propose_normal[style_edge_data];
+  Peer__propose_normal[style_func;label="{{
+    Peer\l
+    propose_normal\l|
+    propose一个空消息\l
+    带了renew_lease_time\l
+  }}"]
+  Peer__post_propose[style_func;label="{{
+    Peer\l
+    post_propose\l|
+    将propose放入proposals\l
+    队列中\l
+  }}"]
+
+}

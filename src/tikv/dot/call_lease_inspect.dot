@@ -1,0 +1,168 @@
+#include "styles.h"
+digraph call_lease_inspect {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Lease__inspect -> LeaseState;
+  Peer__apply_reads -> Lease__inspect;
+  Peer__read_index -> Lease__inspect;
+
+  RequestInspector__inspect_lease -> {
+    Inspector__inspect_lease;
+    Peer__inspect_lease;
+  }
+
+  RequestInspector__inspect -> {
+    RaftCmdRequest__get_header__get_read_quorum;
+    RequestInspector__has_applied_to_current_term;
+    RequestInspector__inspect_lease;
+  }
+  RequestInspector__inspect_lease[style_func;label="{{
+    trait RequestInspector\l
+    inspect_lease\l|
+    有两种实现\l
+  }}"]
+
+  LocalReader__pre_propose_raft_command -> {
+    RequestInspector__inspect;
+    Inspector__inspect_lease;
+  }
+  Peer__propose -> {
+    RequestInspector__inspect;
+    Peer__inspect_lease;
+  }
+  Peer__inspect_lease -> {
+    Lease__inspect;
+    Raft__in_lease;
+  }
+  Raft__in_lease[style_func;label="{{
+    Raft\l
+    in_lease\l|
+    self.sate == StateRole::Leader\l
+    check_quorum\l
+  }}"]
+
+  RequestInspector__inspect[style_blue1;label="{{
+    RequestInspector\l
+    inspect\l|
+    Inspect a RaftCmdRequest\l
+    return RequestPolicy that\l
+    tell us how to handle\l
+    the request\l|
+    对于read request\l
+    返回是RequestPolicy::ReadIndex\l
+    还是RequestPolicy::ReadLocal\l
+  }}"]
+
+  ReadDelegate__is_in_leader_lease -> {
+    RemoteLease__inspect;
+  }
+  RemoteLease__inspect -> RemoteLease__expired_time;
+  LocalReader__read -> LocalReader__propose_raft_command;
+  LocalReader__propose_raft_command -> {
+    ReadDelegate__is_in_leader_lease;
+    LocalReader__pre_propose_raft_command;
+    LocalReader__redirect;
+  }
+  LocalReader__redirect -> {
+    RaftRouter__send;
+  }
+  RaftRouter__send -> Peer__propose[style_edge_data];
+
+  LocalReader__read[style_func;label="{{
+    LocalReader\l
+    read\|
+    read入口
+  }}"]
+  LocalReader__redirect[style_func;label="{{
+    LocalReader\l
+    redirect\l|
+    将请求route 到对应的peer\l
+    然后调用PeerFsm的propose方法\l
+  }}"]
+  LocalReader__propose_raft_command[style_func;label="{{
+    LocalReader\l
+    propose_raft_command\l|
+    处理raft read command\l
+  }}"]
+  LocalReader__pre_propose_raft_command[style_func;label="{{
+    LocalReader\l
+    pre_propose_raft_command\l|
+    先获取regionId的\l
+    ReadDelegate\l
+    然后验证他是否在lease内\l
+  }}"]
+
+  LocalReader__pre_propose_raft_command -> ReadDelegate__is_in_leader_lease[style_edge_data];
+  Inspector__inspect_lease[style_func;label="{{
+    Inspector\l
+    inspect_lease\l|
+    如果ReadDelegate的\l
+    RemoteLease不为None\l
+    就返回Valid\l
+    在后面还会检查\l
+    remoteLease的有效性\l
+  }}"]
+  Inspector__inspect_lease -> RemoteLease__inspect[style_edge_data];
+  ReadDelegate__is_in_leader_lease[style_func;label="{{
+    ReadDelegate\l
+    is_in_leader_lease\l|
+    调用RemoteLease\l
+    看是否在在leader lease内\l
+  }}"]
+  RemoteLease__expired_time[style_var;label="{{
+    RemoteLease\l
+    expired_time\l|
+    expired_time: \l
+    Arc\<AtomicU64\>,\l|
+    为Arc atomic 变量\l
+    在多个线程间共享\l
+  }}"]
+
+  Peer__inspect_lease[style_func;label="{{
+    Peer\l
+    inspect_lease\l
+  }}"]
+  Peer__propose[style_func;label="{{
+    Peer\l
+    propose\l
+  }}"]
+  RaftCmdRequest__get_header__get_read_quorum[style_func;label="{{
+    RaftCmdRequest\l
+    get_header\l
+    get_read_quorum\l|
+    Request明确要求要走readindex\l
+  }}"]
+  RequestInspector__has_applied_to_current_term[style_func;label="{{
+    RequestInspector\l
+    has_applied_to_current_term\l|
+    Peer和Inspector有不同的实现\l
+  }}"]
+  Lease__inspect[style_func;label="{{
+    Lease\l
+    inspect\l|
+    Lease为Peer的成员变量\l
+    leader_lease\l
+  }}"]
+
+  Lease__inspect -> {
+     Lease__expire;
+  }
+  Lease__expire -> {
+    RemoteLease__expired_time
+  }[style_edge_data]
+  Lease__expire[style_func;label="{{
+    Lease\l
+    expire\l|
+    如果Peer的lease expire了\l
+    把remoteLease的也expire了\l
+  }}"]
+
+  RemoteLease__inspect[style_func;label="{{
+    RemoteLease\l
+    inspect\l|
+    时间戳和expire_time做比较\l
+  }}"]
+}

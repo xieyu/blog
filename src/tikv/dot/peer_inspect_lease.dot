@@ -1,0 +1,91 @@
+#include "styles.h"
+digraph lease_expire {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Peer__inspect_lease -> {
+    Lease__expire;
+    Lease__inspect;
+  }
+  Peer__read_index -> {
+    Peer__inspect_lease;
+  }
+  Peer__step__MsgReadIndex -> {
+    Peer__inspect_lease;
+  }
+  RequestInspector__inspect -> {
+    Peer__inspect_lease;
+  }
+  Peer__inspect_lease[style_func;label="{{
+    Peer\l
+    inspect_lease\l|
+    当lease返回的state\l
+    为Expired时\l
+    调用lease.expire\l
+  }}"]
+  Peer__propose -> RequestInspector__inspect;
+  Lease__expire[style_func;label="{{
+    Lease\l
+    expire\l|
+    将bound设置为None\l
+    将RemoteLease也清理掉\l
+  }}"]
+  Peer__read_index[style_func;label="{{
+    Peer\l
+    read_index\l|
+    对于Valid和Expired的\l
+    LeaseState做了特殊处理\l
+    使用pending_reads 最后一个read\l
+    的renew_lease_time\l
+  }}"]
+  Peer__read_index -> ReadIndexRequest__renew_lease_time;
+  Peer__propose -> Peer__read_index;
+  ReadIndexRequest__renew_lease_time[style_var;label="{{
+    ReadIndexRequest\l
+    renew_lease_time\l
+  }}"]
+  Peer__propose[style_func;label="{{
+    Peer\l
+    propose\l|
+    propose raft cmd\l
+    到raft group\l
+  }}"]
+  RequestInspector__inspect[style_func;label="{{
+    RequestInspector\l
+    inspect\l|
+    inspect raft cmd\l
+    的处理policy\l
+  }}"]
+  Lease__inspect[style_func;label="{{
+    Lease\l |
+    inspect\l
+  }}"]
+  Peer__step__MsgReadIndex[style_func;label="{{
+    Peer\l
+    step\l
+    MsgReadIndex\l|
+    对于MsgReadIndex消息\l
+    如果当前leader在lease内\l
+    不用再调底层的raft_group.step了\l
+    直接返回了当前store的commit_index\l
+  }}"]
+  Peer__on_raft_message -> Peer__step__MsgReadIndex;
+  PeerFsmDelegate__handle_msgs -> {
+     Peer__on_raft_message;
+  }
+  PeerFsmDelegate__handle_msgs -> Peer__propose[style_edge_data];
+  Peer__on_raft_message[style_func;label="{{
+    Peer\l
+    on_raft_message\l|
+    处理其他节发来的\l
+    raft message\l
+  }}"]
+  PeerFsmDelegate__handle_msgs[style_func;label="{{
+    PeerFsmDelegate\l
+    handle_msgs\l
+  }}"]
+  Lease__inspect -> Lease__expire[style_edge_data];
+
+}

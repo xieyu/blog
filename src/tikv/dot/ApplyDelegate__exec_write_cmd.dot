@@ -1,0 +1,35 @@
+#include "styles.h"
+digraph exec_write_cmd {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ApplyDelegate__exec_raft_cmd -> {
+    ApplyDelegate__exec_write_cmd;
+  }
+
+  ApplyDelegate__exec_write_cmd -> {
+    ApplyDelegate__handle_put;
+    ApplyDelegate__handle_delete;
+    ApplyDelegate__handle_delete_range;
+    ApplyDelegate__handle_ingest_sst;
+  }
+
+  ApplyDelegate__handle_put -> {
+    WriteBatch__put_cf;
+    WriteBatch__put;
+  }
+  ApplyDelegate__handle_delete -> {
+    WriteBatch__delete_cf;
+    WriteBatch__delete;
+  }
+
+  ApplyDelegate__handle_delete_range -> {
+    EK__delete_ranges_cf;
+  }
+
+  ApplyDelegate__handle_ingest_sst -> {
+    SSTImporter__ingest;
+  }
+}

@@ -1,0 +1,52 @@
+#include "styles.h"
+digraph on_ready_split_region {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate__on_ready_split_region -> {
+    Peer__approximate_size;
+    StoreMeta__set_region;
+    Peer__heartbeat_pd;
+    pd_scheduler__ReportBatchSplit;
+    enc_end_key;
+    StoreMeta__region_ranges__remove;
+    StoreMeta__region__ranges__insert;
+    PeerStorage__clear_extra_split_data;
+    PollContext__pending_create_peers;
+    RaftRouter__colose;
+    new_region;
+    PeerFsm__create;
+    Peer__init_replication_mode;
+    PollContext__global_replication_state__lock;
+    Peer__insert_peer_cache;
+    new_peer__Peer_hearbeat_pd;
+    StoreMeta__regions__insert;
+    StoreMeta__reads__insert;
+    ReadDelegate__from_peer;
+    BasicMailbox__new;
+    RaftRouter__register;
+    SplitCheckTask__schedule;
+    Peer__post_split;
+    new_peer__maybe_campaign;
+  }
+  Peer__post_split -> {
+    Peer__delete_keys_hint;
+    peer__size_diff_hint;
+  }
+
+  new_region -> PeerFsm__create[style_edge_data];
+  PeerFsm__create -> Peer__init_replication_mode[style_edge_data];
+  PeerFsm__create -> new_peer;
+  new_peer -> {
+    Peer__insert_peer_cache;
+    new_peer__maybe_campaign;
+    ReadDelegate__from_peer;
+    BasicMailbox__new;
+    new_peer__Peer_hearbeat_pd;
+  }[style_edge_data];
+  ReadDelegate__from_peer -> StoreMeta__reads__insert;
+  BasicMailbox__new -> RaftRouter__register[style_edge_data];
+  RaftRouter__force_send__PeerMsg__Start;
+}

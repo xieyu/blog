@@ -86,7 +86,5 @@ pub fn maybe_commit(&mut self, max_index: u64, term: u64) -> bool {
 ![](./dot/leader_commit_current_term.awebp)
 
 
-
-
 ## 参考资料
 1. [Raft算法分析与实现](https://www.jianshu.com/p/1f5cb602dc71)

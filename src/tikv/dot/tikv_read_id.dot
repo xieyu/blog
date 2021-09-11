@@ -1,0 +1,50 @@
+#include "styles.h"
+digraph read_id {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  KvService__batch_commands[style_func;label="{{
+    KvService\l
+    batch_commands\l|
+    GRPC stream batch commands接口
+  }}"]
+
+  KvService__batch_commands -> {
+    ReqBatcher__commit;
+    handle_batch_commands_request;
+  }
+  handle_batch_commands_request -> ReqBatcher__maybe_commit;
+
+  ReqBatcher__commit -> {
+    future_batch_get_command;
+    future_batch_raw_get_command;
+  }
+  ReqBatcher__maybe_commit -> {
+    future_batch_get_command;
+    future_batch_raw_get_command;
+  }
+
+  future_batch_raw_get_command -> Storage__raw_batch_get_command;
+
+  Storage__raw_batch_get_command -> {
+    ThreadReadId__new;
+    SnapContext;
+    kv__snapshot;
+  }
+  ThreadReadId__new[style_blue1;label="{{
+    ThreadReadId::new|
+    新生成一个ThreadReadId
+  }}"]
+  ThreadReadId__new -> SnapContext -> kv__snapshot[style_edge_data];
+
+
+  future_batch_get_command -> Storage__batch_get_command;
+
+  Storage__batch_get_command -> {
+    ThreadReadId__new;
+    SnapContext;
+    kv__snapshot;
+  }
+  kv__snapshot -> RaftKV_async_snapshot;
+}

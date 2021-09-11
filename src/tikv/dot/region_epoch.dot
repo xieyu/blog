@@ -1,0 +1,169 @@
+#include "styles.h"
+digraph region_epoch{
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate__handle_msgs -> {
+    PeerFsmDelegate__propose_raft_command;
+    PeerFsmDelegate__on_raft_message;
+  }
+  PeerFsmDelegate__propose_raft_command -> {
+    PeerFsmDelegate__pre_prose_raft_command;
+    Callback__invoke_with_response_Err;
+    bind_term;
+    Peer__propose;
+    PeerFsmDelegate__check_merge_proposal;
+    Peer__pending_remove;
+    notify_req_region_removed;
+  }
+  PeerFsmDelegate__pre_prose_raft_command -> {
+    Error__RegionNotIntialized;
+    Error__Other;
+    check_term;
+    check_region_epoch;
+  }
+  check_region_epoch -> Error__EpochNotMatch;
+  PeerFsmDelegate__on_raft_message -> {
+    PeerFsmDelegate__check_msg;
+    Peer__step;
+  }
+
+  PeerFsmDelegate__check_msg -> {
+    is_epoch_stale;
+    PollContext__handle_stale_msg;
+    need_gc_msg;
+    is_vote_msg;
+  }
+  need_gc_msg -> PollContext__trans__send;
+  PollContext__handle_stale_msg -> PollContext__trans__send;
+  Peer__send_raft_message -> {
+    Peer__prepare_raft_message;
+  }
+  Peer__prepare_raft_message -> {
+    set_region_epoch;
+    Peer__region__get_region_epoch;
+  }
+  PeerFsmDelegate__collect_ready -> {
+    Peer__send_raft_message;
+  }[style_edge_data];
+  PeerFsmDelegate__collect_ready[style_func;label="{{
+    PeerFsmDelegate\l
+    collect_ready\l|
+    收集raft ready\l
+  }}"]
+  Peer__send_raft_message[style_func;label="{{
+    Peer\l
+    send_raft_message\l|
+    发送ready中要发\l
+    送的raft message\l|
+    会将region epoch信息带上\l
+  }}"]
+  Peer__prepare_raft_message[style_func;label="{{
+    Peer\l
+    prepare_raft_message\l|
+    设置raft message的\l
+    region epoch\l
+  }}"]
+  Peer__region__get_region_epoch[style_func;label="{{
+    Peer\l
+    region\l
+    get_region_epoch\l|
+    获取region epoch\l
+  }}"]
+  set_region_epoch[style_func;label="{{
+    set_region_epoch|
+    设置message的\l
+    region epoch\l
+  }}"]
+  Peer__region__get_region_epoch -> set_region_epoch[style_edge_data];
+
+  PeerFsmDelegate__handle_msgs[style_func;label="{{
+    PeerFsmDelegate\l
+    handle_msgs\l|
+    处理PeerFsm\l
+    收到的消息\l
+  }}"]
+  PeerFsmDelegate__on_raft_message[style_func;label="{{
+    PeerFsmDelegate\l
+    on_raft_message\l|
+    处理raft group中\l
+    其他peer发来的message\l
+  }}"]
+  PeerFsmDelegate__propose_raft_command[style_func;label="{{
+    PeerFsmDelegate\l
+    propose_raft_command\l|
+    处理上层应用通过raftrouter\l
+    发来的RaftCmdRequest\l
+  }}"]
+  PeerFsmDelegate__check_msg[style_func;label="{{
+    PeerFsmDelegate\l
+    check_msg\l|
+    检查消息的region\l
+    epoch\l
+  }}"]
+  is_epoch_stale[style_func;label="{{
+    is_epoch_stale|
+    如果version 或者\l
+    conf_ver有一个小的话\l
+    就算是stale msg\l
+  }}"]
+  is_vote_msg -> need_gc_msg -> PollContext__trans__send;
+  is_vote_msg[style_func;label="{{
+    is_vote_msg|
+    如果是投票request\l
+  }}"]
+  PollContext__handle_stale_msg[style_func;label="{{
+    PollContext\l
+    handle_stale_msg\l|
+    一般是ignore it\l
+    如果是neet_gc\l
+    会发送个消息回去\l
+    带上当前的epoch\
+  }}"]
+  PollContext__trans__send[style_func;label="{{
+    PollContext\l
+    trans\l
+    send\l|
+    发送消息回去\l
+  }}"]
+
+  ApplyDelegate__exec_raft_cmd -> {
+     check_region_epoch;
+  }
+
+  ApplyFsm__handle_apply -> ApplyDelegate__exec_raft_cmd[style_edge_data];
+  ApplyFsm__handle_apply[style_func;label="{{
+    ApplyFsm__handle_apply|
+    处理peerFsm发来的\l
+    committed log entry\l
+  }}"]
+  ApplyDelegate__exec_raft_cmd[style_func;label="{{
+    ApplyDelegate\l
+    exec_raft_cmd\l|
+    执行raft cmd\l
+  }}"]
+  PeerFsmDelegate__pre_prose_raft_command[style_func;label="{{
+    PeerFsmDelegate\l
+    pre_prose_raft_command\l|
+    对raftcmd 做一些检查\l
+  }}"]
+  Peer__propose[style_func;label="{{
+    Peer\l
+    propose\l|
+    将RaftCmdRequest propose\l
+    到raft group\l
+  }}"]
+  check_region_epoch[style_blue1;label="{{
+    check_region_epoch|
+    检查region epoch\l
+    是否match\l
+  }}"]
+  Error__EpochNotMatch[style_func;label="{{
+    Error::EpochNotMatch|
+    如果不match\l
+    返回错误\l
+  }}"]
+
+}

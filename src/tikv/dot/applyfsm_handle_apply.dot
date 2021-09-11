@@ -1,0 +1,228 @@
+#include "styles.h"
+digraph ApplyFsm__handle_apply {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ApplyFsm__handle_apply[style_func;label="{{
+    ApplyFsm\l
+    handle_apply\l|
+    处理apply tasks\l
+  }}"]
+  ApplyFsm__handle_apply -> {
+     ApplyFsm__append_proposal;
+     ApplyDelegate__handle_raft_comitted_entries;
+  }
+  ApplyFsm__append_proposal[style_func;label="{{
+    ApplyFsm\l
+    append_proposal\l|
+    将proposal加入\l
+    ApplyDelegate.pending_cmds\l
+    队列中\l
+  }}"]
+  ApplyFsm__append_proposal -> {
+    ApplyDelegate__PendingCmdQueue__append_normal;
+  }
+  ApplyDelegate__PendingCmdQueue__append_normal[style_func;label="{{
+    ApplyDelegate\l
+    PendingCmdQueue\l
+    append_normal\l|
+    加入到normals vec中\l
+  }}"]
+  ApplyDelegate__PendingCmdQueue__append_normal -> {
+    PendingCmdQueue;
+  }
+  PendingCmdQueue[style_var;label="{{
+    PendingCmdQueue|
+    normals: VecDeque\<PendingCmd\<S\>\>,\l|
+    conf_change: Option\<PendingCmd\<S\>\>,\l
+  }}"]
+  PendingCmdQueue -> PendingCmd;
+  PendingCmd[style_func;label="{{
+    PendingCmd|
+    pub index: u64,\l|
+    pub term: u64,\l|
+    pub cb: Option\<Callback\<S\>\>,\l
+  }}"]
+
+  ApplyDelegate__handle_raft_comitted_entries[style_func;label="{{
+    ApplyDelegate\l
+    handle_raft_comitted_entries\l|
+    将comitted entries\l
+    apply到kv 的\l
+    write batch中\l
+  }}"]
+
+  ApplyDelegate__handle_raft_comitted_entries -> {
+    ApplyDelegate__handle_raft_entry_normal;
+    ApplyContext__finish_for;
+    ApplyContext__prepare_for;
+  }
+  ApplyDelegate__handle_raft_entry_normal[style_func;label="{{
+    ApplyDelegate\l
+    handle_raft_entry_normal\l
+  }}"]
+  ApplyDelegate__handle_raft_entry_normal -> {
+     ApplyDelegate__process_raft_cmd;
+     //RaftApplyState__set_applied_index;
+     //ApplyDelegate__applied_index_term;
+     should_write_to_engine;
+     ApplyContext__commit;
+  }
+  should_write_to_engine -> ApplyContext__commit[style_edge_data];
+
+  ApplyDelegate__process_raft_cmd[style_func;label="{{
+    ApplyDelegate\l
+    process_raft_cmd\l|
+    处理完raft cmd\l
+    将callback\l
+    放入ApplyContext::cbs中\l
+  }}"]
+  ApplyDelegate__process_raft_cmd -> {
+    //CoprocessorHost__pre_apply;
+    //CoprocessorHost__on_apply_cmd;
+    ApplyDelegate__apply_raft_cmd;
+    ApplyContext__cbs;
+    ApplyDelegate__find_pending;
+  }
+
+  ApplyDelegate__find_pending -> PendingCmdQueue;
+
+  ApplyDelegate__apply_raft_cmd[style_blue1;label="{{
+    ApplyDelegate\l
+    apply_raft_cmd\l|
+    执行raft cmd\l
+    将修改写入write batch\l
+  }}"]
+
+  ApplyDelegate__apply_raft_cmd -> {
+    ApplyDelegate__exec_raft_cmd;
+  }
+  ApplyDelegate__exec_raft_cmd[style_func;label="{{
+    ApplyDelegate\l
+    exec_raft_cmd\l|
+    执行raft cmd\l
+    写入write batch\l
+  }}"]
+  ApplyDelegate__exec_raft_cmd -> ApplyResult[style_edge_data];
+  ApplyResult -> ApplyContext__finish_for[style_edge_data];
+  ApplyResult[style_blue1;label="{{
+    ApplyResult|
+    None,\l|
+    Yield,\l|
+    Res(ExecResult\<S\>),\l|
+    WaitMergeSource(Arc\<AtomicU64\>),\l
+  }}"]
+  ApplyContext__commit[style_func;label="{{
+    ApplyContext\l
+    commit\l
+  }}"]
+  ApplyContext__commit_opt__persistent[style_func;label="{{
+    ApplyContext\l
+    commit_opt(..,persistent)
+  }}"]
+  /*
+  ApplyDelegate__exec_raft_cmd -> {
+    ApplyDelegate__handle_put;
+    ApplyDelegate__handle_delete;
+    ApplyDelegate__handle_delete_range;
+    ApplyDelegate__handle_inject_sst;
+  }
+  ApplyDelegate__exec_raft_cmd -> ApplyResult;
+  */
+
+  ApplyContext__prepare_for -> {
+    ApplyContext__cbs;
+    //CoprocessorHost__prepare_for_apply;
+    //ApplyContext__last_applied_index;
+  }
+  ApplyContext__finish_for[style_func;label="{{
+    ApplyContext\l
+    finish_for\l|
+    将Results放入\l
+    ApplyContext::apply_res\l
+  }}"]
+  ApplyContext__prepare_for[style_func;label="{{
+    ApplyContext\l
+    prepare_for\l
+  }}"]
+
+  ApplyContext__finish_for -> {
+     //ApplyContext__commit_opt;
+     ApplyContext__apply_res;
+  }
+  ApplyContext__write_to_db[style_func;label="{{
+    ApplyContext\l
+    write_to_db\l|
+    将kv write batch\l
+    写入kv engine\l
+    调用callabck回调\l
+  }}"]
+  ApplyContext__write_to_db -> {
+    ApplyContext__cbs;
+    ApplyCallback__invoke_all;
+  }
+  ApplyCallback__invoke_all[style_blue1;label="{{
+    ApplyCallback\l
+    invoke_all\l|
+    调用write callback\l
+    通知write已经完成\l
+  }}"]
+  ApplyContext__cbs[style_var;label="{{
+    ApplyContext\l
+    cbs: MustConsumeVec\l
+    \<ApplyCallback\<EK\>\>,\l
+  }}"]
+
+  ApplyContext__flush -> {
+    ApplyContext__write_to_db;
+    ApplyContext__Notifier__notify;
+  }
+  ApplyContext__Notifier__notify -> ApplyContext__apply_res;
+  ApplyContext__apply_res[style_var;label="{{
+    ApplyContext\l
+    apply_res\l
+  }}"]
+
+  ApplyContext__commit -> ApplyContext__commit_opt__persistent;
+  ApplyContext__commit_opt__persistent -> ApplyContext__write_to_db;
+  ApplyPoller__end[style_func;label="{{
+    ApplyPoller\l
+    end\l|
+    Apply Poller\l
+    处理完一批ApplyFsm\l
+    消息后\l
+  }}"]
+  ApplyPoller__end -> ApplyContext__flush;
+  ApplyFsm__destroy -> ApplyContext__flush;
+  {
+    rank=same;
+    ApplyFsm__handle_apply;
+    ApplyPoller__end;
+  }
+
+  {
+    rank=same;
+    PendingCmdQueue;
+    ApplyContext__cbs;
+  }
+  ApplyDelegate__find_pending[style_func;label="{{
+    ApplyDelegate\l
+    find_pending\l|
+    处理完raft cmd后\l
+    写到write batch后\l
+    在pending_cmds队列中\l
+    找到它对应的cmds\l|
+    然后放到cbs\l
+    后面数据写入kv engine\l
+    会回调这些cbs\l
+  }}"]
+  ApplyDelegate__find_pending -> ApplyContext__cbs[style_edge_data];
+  ApplyContext__Notifier__notify[style_blue1;label="{{
+    ApplyContext\l
+    Notifier\l
+    notify\l|
+    将执行结果发给PeerFsm\l
+  }}"]
+
+}

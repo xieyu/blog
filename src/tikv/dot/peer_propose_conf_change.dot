@@ -1,0 +1,36 @@
+#include "styles.h"
+digraph Peer__propose_conf_change {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  Peer__propose_conf_change -> {
+     Peer__pending_merge_state;
+     PeerStorage__applied_index_term;
+     CmdEpochChecker__propose_check_epoch;
+     Peer__propose_conf_change_inernal;
+  }
+  Peer__propose_conf_change_inernal -> {
+     Peer__check_conf_change;
+     RawNode__propose_conf_change;
+     Peer__next_proposal_index;
+  }
+
+  Peer__check_conf_change -> {
+    Peer__check_joint_state;
+  }
+
+  CmdEpochChecker__propose_check_epoch -> {
+     CmdEpochChecker__maybe_update_term;
+     CmdEpochChecker__last_conflict_index;
+  }
+
+
+  RawNode__propose_conf_change[style_blue1;label="{{
+    RawNode\l
+    propose_conf_change\l
+  }}"]
+
+}

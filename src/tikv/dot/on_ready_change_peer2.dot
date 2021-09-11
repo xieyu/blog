@@ -1,0 +1,106 @@
+#include "styles.h"
+digraph on_ready_change_peer {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate__on_ready_change_peer -> {
+    PeerFsmDelegate__update_region;
+    Peer__peer_heartbeats__insert;
+    Peer__peer_heartbeats__remove;
+    Peer__remove_peer_from_cache;
+    Peer__heartbeat_pd;
+    Raft__become_follower;
+    PeerFsmDelegate__register_raft_base_tick;
+    remove_self;
+    PeerFsmDelegate__destory_peer;
+    Peer__peers_start_pending_time;
+    Raft__assign_commit_groups;
+  }
+  PeerFsmDelegate__destory_peer -> {
+    StoreMeta__readers__remove;
+    Storemeta__pending_snapshot_regions;
+    PollContext__pd_scheduler__schedule__DestoryPeer;
+    Peer__destory;
+    StoreMeta__destroyed_region_for_snap;
+    StoreMeta__pending_merge_targets__remove;
+    StoreMeta__leaders__remove;
+  }
+  PeerFsmDelegate__update_region ->{
+    StoreMeta__set_region;
+    Peer__insert_peer_cache;
+  }
+  Peer__heartbeat_pd -> {
+    Peer__collect_down_peers;
+    Peer__collect_pending_peers;
+    Peer__term;
+    Peer__region;
+    Peer__region_replication_status;
+  }
+  Peer__insert_peer_cache -> {
+    Peer__peer_cache;
+  }
+  Peer__remove_peer_from_cache -> {
+     Peer__peer_cache;
+  }
+  Peer__destory -> {
+    write_peer_state;
+    Peer__pending_reads__clear_all;
+    notify_req_region_removed;
+    PeerStorage__clear_meta;
+  }
+  Peer__pending_reads__clear_all -> {
+    notify_req_region_removed;
+  }
+  PeerStorage__clear_meta -> {
+    WriteBatch__delete_cf__CF_RAFT;
+    engines__raft__clean;
+  }
+
+  StoreMeta__set_region -> {
+     Peer__set_region;
+     StoreMeta__regions
+  }
+  StoreMeta__regions[style_var;label="{{
+    StoreMeta\l
+    regions\l|
+    pub regions: \l
+    HashMap\<u64, Region\>,\l
+  }}"]
+  Peer__set_region -> Peer__region;
+  Peer__peer_cache[style_var;label="{{
+    Peer\l
+    peer_cache\l|
+    peer_cache: \l
+    RefCell\<HashMap\<u64, metapb::Peer\>\>,\l|
+    the cache of meta information\l
+    for Regions other peers\l
+  }}"]
+
+  Peer__collect_down_peers -> {
+    Peer__peer_heartbeats;
+  }
+  Peer__peer_heartbeats__insert -> Peer__peer_heartbeats;
+  Peer__collect_pending_peers -> {
+    Peer__peers_start_pending_time;
+    Peer__get_peer_from_cache;
+    RaftGroup__status;
+  }
+  Peer__get_peer_from_cache -> {
+    Peer__peer_cache;
+    Region__get_peers;
+  }
+  Region__get_peers -> Peer__region;
+
+  {
+    Peer__peer_heartbeats__insert;
+    Peer__peer_heartbeats__remove;
+  } -> Peer__peer_heartbeats;
+  Peer__check_peers -> Peer__peer_heartbeats;
+  PeerFsmDelegate__on_pd_hearbeat_tick -> {
+    Peer__check_peers;
+    Peer__heartbeat_pd;
+  }
+
+}

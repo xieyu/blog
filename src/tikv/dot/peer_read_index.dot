@@ -1,0 +1,91 @@
+#include "styles.h"
+digraph peer_read_index {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate__on_raft_base_tick -> Peer__retry_pending_reads;
+  Peer__retry_pending_reads[style_func;label="{{
+    Peer__retry_pending_reads|
+    周期性的尝试重新\l
+    去read_index\l
+  }}"]
+
+  Peer__retry_pending_reads -> {
+    Peer__is_leader;
+    ReadIndexQueue__check_needs_retry;
+    Peer__pre_read_index_is_err;
+    RawNode__read_index;
+  }
+  ReadIndexQueue__check_needs_retry[style_func;label="{{
+    ReadIndexQueue__check_needs_retry|
+    1. more than an election timeout \l
+    elapsed from the last request push;\l|
+    2. more than an election timeout \l
+    elapsed from the last retry;\l|
+    3. there are still unresolved \l
+    requests in the queue.\l
+  }}"]
+
+  Peer__read_index -> {
+    Uuid__new_v4;
+  }
+  Peer__propose -> {
+    Peer__read_index;
+    Peer__inspect;
+  }
+  Peer__inspect[style_func;label="{{
+    Peer__inspect|
+    检查RaftCmdRequest\l
+    类型\l
+  }}"]
+  Peer__propose[style_func;label="{{
+    Peer__propose|
+    RaftCmdRequest的\l
+    RequestPolicy为ReadIndex\l
+  }}"]
+  Uuid__new_v4[style_func;label="{{
+    Uuid__new_v4|
+    使用uuid::new_v4为ctx\l
+    传给rawNode::read_index\l
+  }}"]
+  ReadIndexQueue__push_back[style_func;label="{{
+    ReadIndexQueue__push_back|
+    将ReadIndexRequest放入reads队列中\l
+    并重置retry coutdown 为int64::MAX\l
+  }}"]
+
+  Peer__read_index -> {
+    RawNode__read_index;
+    ReadIndexQueue__push_back;
+  }
+  ReadIndexQueue__push_back -> {
+    ReadIndexQueue__reads;
+    ReadIndexQueue__retry_countdown;
+  }
+
+  ReadIndexQueue__reads[style_var;label="{{
+    ReadIndexQueue__reads|
+    reads: VecDeque\<ReadIndexRequest\<S\>\>,\l
+  }}"]
+  ReadIndexQueue__reads -> ReadIndexRequest;
+  ReadIndexRequest[style_func;label="{{
+    ReadIndexRequest|
+    pub id: Uuid,\l|
+    pub cmds: MustConsumeVec\l
+    \<(RaftCmdRequest, Callback\<S\>, Option\<u64\>)\>,\l|
+    pub renew_lease_time: Timespec,\l|
+    pub read_index: Option\<u64\>,\l|
+    pub addition_request: \l
+    Option\<Box\<raft_cmdpb::ReadIndexRequest\>\>,\l|
+    pub locked: Option\<Box\<LockInfo\>\>,\l
+  }}"]
+  ReadIndexQueue__check_needs_retry -> {
+     ReadIndexQueue__reads;
+     ReadIndexQueue__ready_cnt;
+     ReadIndexQueue__retry_countdown;
+     Config__raft_election_timout_ticks;
+  }
+
+}

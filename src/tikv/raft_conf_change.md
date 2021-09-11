@@ -19,7 +19,8 @@ raft中的决策(投票和计算commit index)，基础是集群中的majority，
 
 ### ProgressTracker
 
-`ProgressTracker::Configuration` 存放着raft集群配置。
+`ProgressTracker::Configuration` 存放着raft集群配置。更改raft 集群配置，主要就是更改
+ProgressTracker的`conf`和`ProgressMap`。
 
 ![](./dot/raft_progresstracker.svg)
 
@@ -174,4 +175,5 @@ pub fn commit_apply(&mut self, applied: u64) {
 
 在`RaftCore::apply_conf_change` 的change 为空时候，开始leave joint
 
-![](./dot/conf_leave_joint.svg)
+
+![](./dot/raft_conf_change_leave_joint.svg)

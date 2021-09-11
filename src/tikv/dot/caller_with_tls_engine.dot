@@ -1,0 +1,111 @@
+#include "styles.h"
+digraph call_with_tls_engine {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Scheduler__process_by_worker -> {
+    with_tls_engine;
+    get_sched_pool;
+    process_write;
+    process_read;
+  }
+
+  get_sched_pool -> {
+    process_read;
+    process_write;
+    with_tls_engine;
+  }[style_edge_data];
+
+  Scheduler__execute -> {
+    with_tls_engine;
+    Scheduler__process_by_worker;
+  }
+  //must_call -> {
+  //  Scheduler__process_by_worker;
+  //}
+  //with_tls_engine -> must_call[style_edge_data];
+
+  {
+  Storage__batch_get_command;
+  Storage__raw_get_key_ttl;
+  }-> {
+    Storage__with_tls_engine;
+    Storage__read_pool;
+  }
+  Storage__read_pool -> Storage__with_tls_engine[style_edge_data];
+
+  Storage__with_tls_engine -> {
+    with_tls_engine;
+  }
+
+  Endpoint__read_pool -> coprocessor__Endpoint__handle_unary_request_impl;
+  coprocessor__Endpoint__handle_unary_request_impl-> {
+    with_tls_engine;
+  };
+  with_tls_engine[style_blue1;label="{{
+    with_tls_engine|
+    使用线程local storage\l
+    TLS_ENGINE_ANY指向的\l
+    RaftKv Engine\l
+  }}"]
+  Endpoint__read_pool[style_func;label="{{
+    EndPoint::readpool\l|
+    Coprocessor的\l
+    Read Pool\l
+  }}"]
+  coprocessor__Endpoint__handle_unary_request_impl[style_func;label="{{
+    Endpoint\l
+    handle_unary_request_impl\l|
+    coprocessor 处理读请求\l
+  }}"]
+  Storage__read_pool[style_func;label="{{
+    Storage::read_pool
+  }}"]
+  Storage__batch_get_command[style_func;label="{{
+    Storage\l
+    batch_get_command\l|
+    Storage读操作\l
+  }}"]
+  Storage__with_tls_engine[style_func;label="{{
+    Storage::with_tls_engine|
+    使用unsafe包了一下\l
+  }}"]
+  Scheduler__execute[style_func;label="{{
+    Scheduler::execute|
+    Txn事务调度
+  }}"]
+  Scheduler__process_by_worker[style_func;label="{{
+    Scheduler\l
+    process_by_worker\l|
+    在worker线程池中执行\l
+    事务命令
+  }}"]
+  process_write[style_func;label="{{
+    Scheduler\l
+    process_write\l|
+    处理Write命令\l
+  }}"]
+  get_sched_pool[style_func;label="{{
+    Scheduler\l
+    get_sched_pool\l|
+    根据优先级\l
+    选用不同的pool\l
+    CommandPri::High\l
+    在high_priority_pool中执行\l
+    其他的在worker_pool中执行\l
+  }}"]
+  process_read[style_func;label="{{
+    Scheduler\l
+    process_read\l|
+    是只读的cmd\l
+  }}"]
+
+  Storage__scan -> {
+    Storage__read_pool;
+  }
+  Storage__scan_lock -> {
+    Storage__read_pool;
+  }
+}

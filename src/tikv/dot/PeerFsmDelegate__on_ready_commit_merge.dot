@@ -1,0 +1,20 @@
+#include "styles.h"
+digraph on_ready_commit_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate__on_ready_commit_merge -> {
+    PeerFsmDelegate__register_split_region_check_tick;
+    StoreMeta__region_ranges__remove__source;
+    StoreMeta__region_ranges__remove__region;
+    StoreMeta__region_ranges__insert;
+    StoreMeta__readers_remove_source;
+    Peer__require_updating_max_ts;
+    Peer__is_leader;
+    Peer_heartbeat_pd;
+    RaftRouter__force_send__SignificantMsg__MergeResult;
+  }
+
+}

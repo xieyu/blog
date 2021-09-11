@@ -1,0 +1,191 @@
+#include "styles.h"
+digraph Peer__apply_reads {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Peer__apply_reads[style_func;label="{{
+    Peer\l
+    apply_reads\l
+  }}"]
+  Peer__apply_reads -> {
+     ReadIndexQueue__advance_leader_reads;
+     ReadIndexQueue__clear_uncomitted_on_role_change;
+     Peer__maybe_renew_leader_lease;
+     Peer__pending_reads__last_ready;
+     Lease__inspect;
+     Peer__ready_to_handle_read;
+     Peer__response_read;
+     ReadIndexQueue__pop_front;
+  }
+  Peer__pending_reads__last_ready[style_func;label="{{
+    Peer\l
+    pending_reads\l
+    last_ready\l|
+    使用last ready\l
+    的renew_lease_time\l
+    更新leader lease\l
+  }}"]
+  Peer__pending_reads__last_ready -> Peer__maybe_renew_leader_lease[style_edge_data];
+  Peer__pending_reads__last_ready -> {
+    ReadIndexQueue__reads;
+  }[style_edge_data];
+  Peer__maybe_renew_leader_lease[style_func;label="{{
+    Peer\l
+    maybe_renew_leader_lease\l|
+    更新leader lease\l
+  }}"]
+
+  ReadIndexQueue__reads_pop_front -> ReadIndexQueue__reads[style_edge_data];
+
+  Peer__ready_to_handle_read[style_func;label="{{
+    Peer\l
+    ready_to_handle_read\l|
+    如果没有在spitting\l
+    或者merging\l
+    并且leader当前的term 的\l
+    log entry 已经被applied\l
+  }}"]
+  Peer__ready_to_handle_read -> {
+    Peer__response_read
+    ReadIndexQueue__pop_front;
+  }[style_edge_data];
+
+
+  ReadIndexQueue__pop_front[style_func;label="{{
+    ReadIndexQueue\l
+    pop_front\l|
+    pop出ready的\l
+    ReadIndexRequest\l
+    调用read callback\l
+  }}"]
+
+
+  ReadIndexQueue__pop_front -> {
+    Peer__response_read;
+  }[style_edge_data];
+
+  ReadIndexQueue__pop_front -> {
+    ReadIndexQueue__ready_cnt;
+    ReadIndexQueue__reads_pop_front;
+    ReadIndexQueue__handled_cnt;
+  }
+  ReadIndexQueue__reads_pop_front[style_func;label="{{
+    ReadIndexQueue\l
+    reads\l
+    pop_front\l|
+    从reads 数组中pop\l
+  }}"]
+  ReadIndexQueue__ready_cnt[style_var;label="{{
+    ReadIndexQueue\l
+    ready_cnt\l
+    当前队列中ready\l
+    的个数\l
+  }}"]
+  ReadIndexQueue__handled_cnt[style_var;label="{{
+    ReadIndexQueue\l
+    handled_cnt\l|
+    已处理的个数
+  }}"]
+
+  ReadIndexQueue__advance_leader_reads -> {
+    ReadIndexQueue__ready_cnt;
+    ReadIndexQueue__reads;
+  }
+  ReadIndexQueue__advance_leader_reads[style_func;label="{{
+    ReadIndexQueue\l
+    advance_leader_reads\l|
+    遍历read states\l
+    对于每个read state\l
+    设置reads的read_index\l
+    增加ready_cnt\l
+  }}"]
+  ReadIndexQueue__reads[style_var;label="{{
+    ReadIndexQueue\l
+    reads\l|
+    VecDeque\<ReadIndexRequest\<S\>\>,\l
+  }}"]
+
+  Peer__response_read[style_func;label="{{
+    Peer\l
+    response_read\l|
+    调用cb
+  }}"]
+
+  Peer__response_read -> {
+    Callback__invoke_read;
+    Peer__handle_read;
+  }
+  Peer__handle_read[style_func;label="{{
+    Peer\l
+    handle_read\l|
+    处理ready request\l
+  }}"]
+  Peer__handle_read -> ReadExecutor__execute;
+  ReadExecutor__execute -> {
+     PollContext__get_engine;
+     PollContext__get_snapshot;
+  }
+  Peer__handle_read -> Callback__invoke_read[style_edge_data];
+
+  ReadIndexQueue__clear_uncomitted_on_role_change[style_func;label="{{
+    ReadIndexQueue\l
+    clear_uncomitted_on_role_change\l|
+    如果ready.ss.is_some()\l
+    通知回调stale_req;\l
+  }}"]
+
+
+  ReadIndexQueue__clear_uncomitted_on_role_change -> {
+    notify_stale_req;
+  }
+  notify_stale_req[style_func;label="{{
+    notify_stale_req|
+    调用回调\l
+    Error::StaleCommand\l
+  }}"]
+  notify_stale_req -> Callback__invoke_with_response;
+  Callback__invoke_read[style_blue1;label="{{
+    Callback\l
+    invoke_read\l
+  }}"]
+  Callback__invoke_with_response[style_blue1;label="{{
+    Callback\l
+    invoke_with_response\l
+  }}"]
+  Lease__inspect[style_func;label="{{
+    Lease\l
+    inspect\l|
+    如果inspect为Lease::Suspect\l
+    则不用renew leader lease\l
+  }}"]
+  Lease__inspect -> Peer__maybe_renew_leader_lease;
+
+  ReadExecutor__execute[style_func;label="{{
+    ReadExecutor\l
+    execute\l
+  }}"]
+
+  PollContext__get_engine[style_func;label="{{
+    PollContext\l
+    get_engine\l
+  }}"]
+
+  PollContext__get_snapshot[style_func;label="{{
+    PollContext\l
+    get_snapshot\l
+  }}"]
+  Peer__post_apply -> {
+    Peer__ready_to_handle_read;
+    Peer__response_read;
+    ReadIndexQueue__pop_front;
+  }
+
+  Peer__post_apply[style_func;label="{{
+    Peer\l
+    post_apply\l|
+    一批committed log entry\l
+    已经被applied到state machine\l
+  }}"]
+}

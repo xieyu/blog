@@ -1,0 +1,48 @@
+#include "styles.h"
+digraph raft_conf_change {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  MsgPropose[style_func;label="{{
+    MsgPropose|
+    像正常的log entry那样\l
+    append日志\l
+  }}"]
+
+  RaftCore__step_leader[style_func;label="{{
+    RaftCore__step_leader|
+    leader节点会检查是否有\l
+    未applied的conf change\l
+  }}"]
+
+  RawNode__propose_conf_change -> {
+    RaftCore__step;
+    MsgPropose;
+    EntryConfChange;
+    EntryConfChangeV2;
+  }
+  {
+    EntryConfChange;
+    EntryConfChangeV2;
+  } -> MsgPropose[style_edge_data];
+  RaftCore__step -> RaftCore__step_leader;
+
+  RaftCore__step_leader -> {
+    RaftCore__has_pending_conf;
+    RaftCore__pending_conf_index;
+  }
+
+  RaftCore__has_pending_conf -> {
+    RaftCore__pending_conf_index;
+    RaftLog__applied;
+  }
+  RaftCore__pending_conf_index[style_var;label="{{
+    RaftCore__pending_conf_index|
+    记录了conf change index\l
+  }}"]
+
+  RaftLog__applied[style_var;label="{{
+    RaftLog__applied
+  }}"]
+}

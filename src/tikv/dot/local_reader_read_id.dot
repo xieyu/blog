@@ -1,0 +1,33 @@
+#include "styles.h"
+digraph local_reader_read_id {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftKV__async_snapshot -> LocalReader__read;
+  LocalReader__read -> LocalReader__propose_raft_command -> LocalReader__execute;
+
+  LocalReader__execute -> LocalReader__get_snapshot;
+
+  LocalReader__get_snapshot -> {
+    LocalReader__cache_read_id;
+    LocalReader__snap_cache;
+    kv_engine__snapshot;
+  }
+  LocalReader__get_snapshot[style_func;label="{{
+    LocalReader__get_snapshot|
+    如果read_id == cache_read_id\l
+    就返回snap_cache\l
+    否则调用kv_engine::snapshot\l
+    然后更新cache_read_id和snap_cache
+  }}"]
+
+  read_id -> {
+    LocalReader__get_snapshot
+  }[style_edge_data];
+  LocalReader__cache_read_id[style_var;label="{{
+    LocalReader__cache_read_id\l|
+    cache_read_id: ThreadReadId\l
+  }}"]
+}

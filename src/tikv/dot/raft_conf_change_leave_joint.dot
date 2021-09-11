@@ -1,0 +1,104 @@
+#include "styles.h"
+digraph conf_change_leave_joint {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftCore__apply_conf_change -> {
+    ConfChangeV2__leave_joint;
+    Changer__leave_joint;
+    ProgressTracker__apply_conf;
+    RaftCore__post_conf_change;
+  }
+
+  Changer__leave_joint[style_func;label="{{
+    Changer__leave_joint|
+    Transitions out of\l
+    joint configuration\l|
+    清空conf.voters.outgoing\l|
+    将auto_leave设置为flase.
+  }}"]
+
+  Changer__leave_joint -> {
+     Changer__check_invariants;
+     Changer__check_and_copy;
+  }
+  Changer__check_and_copy -> {
+     Changer__check_invariants;
+  }
+  Changer__check_and_copy[style_func;label="{{
+    Changer__check_and_copy|
+    clone一份\l
+    ProgressTracker\l
+    后续修改在cloned上面做\l
+  }}"]
+  Changer__check_invariants[style_func;label="{{
+    Changer__check_invariants|
+    Makes sure that the config\l
+    and progress are compatible with\l
+    each other\l
+  }}"]
+  ProgressTracker__apply_conf[style_func;label="{{
+    ProgressTracker__apply_conf|
+    修改ProgressTracker的\l
+    confs和progress\l
+  }}"]
+
+  RaftCore__post_conf_change[style_func;label="{{
+    RaftCore__post_conf_change|
+    如果是voter且是leader\l
+  }}"]
+
+  RaftCore__post_conf_change -> {
+    RaftCore__maybe_commit;
+    RaftCore__bcast_append;
+    ProgressTracker__conf;
+    RaftCore__abort_leader_transfer;
+    RaftCore__handle_ready_ready_index;
+  }
+  RaftCore__maybe_commit[style_func;label="{{
+    RaftCore__maybe_commit|
+    conf change 说明有更多的\l
+    log entries are committed now\l
+    bcast/append to every in the \l
+    updated config\l
+  }}"]
+
+  RaftCore__bcast_append[style_func;label="{{
+    RaftCore__bcast_append|
+    向新配置中的所有成员\l
+    发送append消息\l
+  }}"]
+
+  RaftCore__abort_leader_transfer[style_func;label="{{
+    RaftCore__abort_leader_transfer|
+    新的配置的voters中\l
+    没有当前leader\l
+    leader 准备开始transfer\l
+    leader\l
+  }}"]
+
+  RaftCore__handle_ready_ready_index[style_func;label="{{
+    RaftCore__handle_ready_ready_index|
+    检查Prs__has_quorum\l
+    处理read index\l
+  }}"]
+
+  ProgressTracker__apply_conf -> {
+    ProgressTracker__conf;
+  }
+  Changer__leave_joint -> ProgressTracker__apply_conf[style_edge_data];
+  ConfChangeV2__leave_joint -> Changer__leave_joint[style_edge_data];
+  ConfChangeV2__leave_joint[style_func;label="{{
+    ConfChangeV2__leave_joint|
+    判断conf change是否为\l
+    leave joint类型的\l
+  }}"]
+  ProgressTracker__conf[style_var;label="{{
+    ProgressTracker__conf|
+    conf: Configuration,\l|
+    pub(crate) voters: JointConfig,\l|
+    pub(crate) auto_leave: bool,\l
+  }}"]
+}

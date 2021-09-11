@@ -1,0 +1,175 @@
+#include "styles.h"
+digraph tls_engine {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  TiKVServer__init_servers[style_func;label="{{
+    TiKVServer\l
+    init_servers\l
+  }}"]
+  RaftKv__clone[style_func;label="{{
+    RaftKv\l
+    clone\l|
+    clone后每个线程\l
+    有自己的\l
+    LocalReader\l
+  }}"]
+  SchedPool[style_func;label="{{
+    SchedPool|
+    sched worker pool\l
+    读写事务\l
+  }}"]
+  Storage__from_engine[style_func;label="{{
+    Storage\l
+    from_engine\l
+  }}"]
+  Storage__new[style_func;label="{{
+    Storage\l
+    new\l
+  }}"]
+  Storage__new -> Storage__read_pool[style_edge_data];
+  TxnScheduler__new[style_func;label="{{
+    TxnScheduler\l
+    new\l|
+    创建了两个worker pool\l
+    一个sched-high-pri-pool\l
+    一个是sched-worker-pool\l
+  }}"]
+  TxnScheduler__new -> SchedPool;
+  SchedPool -> {
+    RaftKv__clone;
+    YatpPoolBuilder__after_start;
+    YatpPoolBuilder__before_stop;
+  }
+  build_read_pool[style_func;label="{{
+    build_read_pool|
+    如果没使用unified_read_pool\l
+    storage创建自己的read pool\l
+  }}"]
+
+  TiKVServer__init_servers -> {
+    build_yatp_read_pool;
+    build_read_pool;
+    create_raft_storage;
+  }
+  create_raft_storage -> {
+    Storage__from_engine;
+  }
+  Storage__from_engine -> {
+   Storage__new;
+  }
+  build_read_pool -> {
+    RaftKv__clone;
+    YatpPoolBuilder__before_stop;
+    YatpPoolBuilder__after_start;
+  }
+  build_read_pool -> storage_read_pools;
+  storage_read_pools[style_func;label="{{
+    storage_read_pools
+  }}"]
+  Storage__read_pool[style_var;label="{{
+    Storage__read_pool|
+    handler 指向底层的read pool\l
+    根据是否使用unified pool\l
+  }}"]
+  Storage__scan[style_func;label="{{
+    Storage\l
+    scan\l|
+    RaftStorage读请求
+  }}"]
+
+  Storage__scan -> {
+    Storage__read_pool;
+    with_tls_engine;
+  }
+
+  Storage__read_pool -> {
+    build_yatp_read_pool;
+    build_read_pool;
+  }[style_edge_data];
+
+  Server__yatp_read_pool
+  build_yatp_read_pool -> Server__yatp_read_pool;
+  Server__yatp_read_pool[style_var;label="{{
+    Server\l
+    yatp_read_pool\l
+  }}"]
+
+  build_yatp_read_pool -> {
+   YatpPoolBuilder__after_start;
+   YatpPoolBuilder__before_stop;
+  }
+  YatpPoolBuilder__before_stop[style_func;label="{{
+    YatpPoolBuilder\l
+    before_stop\l|
+    线程停止前\l
+    将thread local engine\l
+    指针设为nullptr\l
+  }}"]
+  YatpPoolBuilder__before_stop -> {
+    destroy_tls_engine;
+  }
+  with_tls_engine[style_func;label="{{
+    with_tls_engine|
+    使用thread local\l
+    engine\l
+  }}"]
+
+  YatpPoolBuilder__after_start -> {
+    RaftKv__clone
+    set_tls_engine;
+    set_io_type;
+  }
+  YatpPoolBuilder__after_start[style_func;label="{{
+    YatpPoolBuilder\l
+    after_start\l|
+    在thread启动后\l
+    clone一份RaftKv engine\l
+    初始化tls engine\l
+  }}"]
+  destroy_tls_engine -> TLS_ENGINE_ANY;
+  set_tls_engine -> TLS_ENGINE_ANY;
+  with_tls_engine -> TLS_ENGINE_ANY;
+  TLS_ENGINE_ANY[style_var;label="{{
+    TLS_ENGINE_ANY|
+    thread local!\l
+    A pointer to thread\l
+    local engine\l
+  }}"]
+
+  Storage__new -> {
+    TxnScheduler__new;
+  }
+
+  coprocessor__readpool_impl__build_read_pool -> {
+    YatpPoolBuilder__after_start;
+    YatpPoolBuilder__before_stop;
+  };
+  coprocessor__readpool_impl__build_read_pool[style_func;label="{{
+    coprocessor\l
+    readpool_impl\l
+    build_read_pool\l|
+    如果没有使用unified pool\l
+    就创建coprocessor自己的readPool\l
+  }}"]
+  build_yatp_read_pool[style_func;label="{{
+    build_yatp_read_pool|
+    创建unified read pool\l
+  }}"]
+
+  TiKVServer__init_servers -> {
+    coprocessor__readpool_impl__build_read_pool;
+  }
+  Endpoint__read_pool[style_var;label="{{
+    Endpoint\l
+    read_pool\l|
+    处理coprocessor请求\l
+    的read pool\l
+  }}"]
+
+  Endpoint__read_pool -> {
+    coprocessor__readpool_impl__build_read_pool;
+    build_yatp_read_pool
+  }[style_edge_data];
+}

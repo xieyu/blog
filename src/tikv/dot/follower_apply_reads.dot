@@ -1,0 +1,165 @@
+#include "styles.h"
+digraph follower_apply_reads {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Peer__apply_reads -> {
+     ReadIndexQueue__advance_replica_reads;
+     Peer__post_pending_read_index_on_replica;
+     ReadIndexQueue__clear_uncommitted_role_change;
+     Ready__ss__is_some;
+  }
+
+  ReadIndexQueue__advance_replica_reads -> {
+    ReadIndexQueue__contexts;
+    ReadIndexQueue__fold;
+    ReadIndexQueue__reads;
+  }
+
+  Peer__post_pending_read_index_on_replica -> {
+    ReadIndexRequest__addtion_request;
+    Peer__send_read_command;
+    Peer__response_read;
+    Peer__response_read__CmdType__ReadIndex;
+    Peer__ready_to_handle_unsafe_replica_read;
+    ReadIndexQueue__push_front;
+    ReadIndexQueue__pop_front;
+  }
+  Peer__ready_to_handle_unsafe_replica_read;
+  Peer__ready_to_handle_unsafe_replica_read[style_blue1;label="{{
+    Peer\l
+    ready_to_handle_unsafe_replica_read\l|
+    applied_index \>= read_index\l|
+    pending_merge_state.is_none\l
+    !is_applying_snapshot\l
+    是否可以读副本\l|
+    如果不可以，需要将read重新push\l
+    到pending_reads队列front\l
+    等待下次read ready\l
+  }}"]
+  Peer__response_read__CmdType__ReadIndex[style_func;label="{{
+    Peer\l
+    response_read\l|
+    CmdType\l
+    ReadIndex\l|
+    如果请求类型\l
+    就是readindex\l
+    调用回调，回传readindex\l
+  }}"]
+  Peer__post_pending_read_index_on_replica[style_func;label="{{
+    Peer\l
+    post_pending_read_index_on_replica\l|
+    看已经ready的reads\l
+    能否调用它的回调函数\l
+  }}"]
+  ReadIndexQueue__advance_replica_reads[style_func;label="{{
+    ReadIndexQueue\l
+    advance_replica_reads\l|
+    根据context使用uuid找到\l
+    对应的ReadIndexRequest\l
+    然后设置它的read_index\l|
+    会将addtion_request设置为None\l
+  }}"]
+  ReadIndexQueue__contexts[style_var;label="{{
+    ReadIndexQueue\l
+    contexts\l|
+    从uuid 到在reads 数组中\l
+    offset的映射\l
+  }}"]
+  ReadIndexQueue__reads[style_var;label="{{
+    ReadIndexQueue\l
+    reads\l
+  }}"]
+  ReadIndexQueue__pop_front -> ReadIndexQueue__reads;
+  ReadIndexQueue__push_front -> ReadIndexQueue__reads;
+  ReadIndexQueue__pop_front[style_func;label="{{
+    ReadIndexQueue\l
+    pop_front\l|
+    取出已经ready的\l
+    ReadIndexRequest\l
+  }}"]
+  ReadIndexQueue__push_front[style_func;label="{{
+    ReadIndexQueue\l
+    push_front\l|
+    如果还不能调用回调\l
+    则将ReadIndexRequest\l
+    放回队列\l
+  }}"]
+
+  Peer__ready_to_handle_unsafe_replica_read-> {
+    ReadIndexQueue__push_front;
+    Peer__response_read;
+  }[style_edge_data];
+  Peer__post_apply -> {
+    Peer__post_pending_read_index_on_replica;
+  }
+  Peer__handle_raft_ready_append -> {
+    Peer__post_pending_read_index_on_replica;
+  }
+  Peer__handle_raft_ready_append[style_func;label="{{
+    Peer\l
+    handle_raft_ready_append\l|
+    snapshot apply 成功了\l
+  }}"]
+  Peer__post_apply[style_func;label="{{
+    Peer\l
+    post_apply\l|
+    ApplyFsm apply 完了\l
+    一批comitted log entry\l
+  }}"]
+  ReadIndexQueue__fold -> ReadIndexQueue__reads;
+  ReadIndexQueue__advance_replica_reads -> ReadIndexRequest__addtion_request;
+  ReadIndexRequest__addtion_request[style_func;label="{{
+    ReadIndexRequest\l
+    addtion_request\l|
+    the response of this\l
+    read index request\l
+    is lost\l
+    but we need it for \l
+    the memory lock checking\l
+    ReSend the request\l
+  }}"]
+  ReadIndexQueue__fold[style_func;label="{{
+    ReadIndexQueue\l
+    fold\l
+  }}"]
+  req__get_header__get_replica_read[style_func;label="{{
+    req\l
+    get_header\l
+    get_replica_read|
+    检查request header\l
+    是否明确需要\l
+    replica read\l
+  }}"]
+  Peer__response_read[style_func;label="{{
+    Peer\l
+    response_read\l|
+    调用callback read回调\l
+  }}"]
+
+
+  Peer__response_read -> {
+    req__get_header__get_replica_read;
+    Peer__handle_read;
+    Callback__invoke_read;
+  }
+  Callback__invoke_read[style_blue1;label="{{
+    Callback\l
+    invoke_read\l|
+    调用回调
+  }}"]
+  ReadIndexRequest__addtion_request -> Peer__send_read_command[style_edge_data];
+  Ready__ss__is_some -> ReadIndexQueue__clear_uncommitted_role_change[style_edge_data];
+  ReadIndexQueue__clear_uncommitted_role_change[style_func;label="{{
+    ReadIndexQueue\l
+    clear_uncommitted_role_change\l
+  }}"]
+  Ready__ss__is_some[style_func;label="{{
+    Ready.ss.is_some()|
+    leader_id\l
+    或者role角色发生了变化\l
+  }}"]
+
+}

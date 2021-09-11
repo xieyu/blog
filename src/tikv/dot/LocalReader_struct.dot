@@ -1,0 +1,72 @@
+#include "styles.h"
+digraph LocalReaderStruct{
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ServerRaftStoreRouter[style_func;label="{{
+    ServerRaftStoreRouter|
+    router: RaftRouter\<EK, ER\>,\l|
+    local_reader: RefCell\<\l
+    LocalReader\<RaftRouter\<EK, ER\>, EK\>\>,\l
+  }}"]
+  TiKVServer -> TiKVEngines -> RaftKv;
+
+  RaftKv -> ServerRaftStoreRouter;
+  ServerRaftStoreRouter -> {
+    LocalReader;
+    RaftRouter;
+  }
+
+  LocalReader -> {
+     StoreMeta;
+     KvEngine;
+     LruCache;
+     ReadDelegate;
+     ThreadReadId;
+     ProposalRouter;
+  }
+
+  ReadDelegate -> {
+    Region;
+    RemoteLease;
+    TxnExtraOp;
+    Timespec;
+    TrackVer;
+  }
+  RemoteLease[style_func;label="{{
+    RemoteLease|
+    expired_time: Arc\<AtomicU64\>,\l|
+    term: u64,\l
+  }}"]
+
+  LruCache -> ReadDelegate[style_edge_data];
+  ThreadReadId[style_func;label="{{
+    ThreadReadId|
+    sequence: u64,\l|
+    pub create_time: Timespec,\l
+  }}"]
+  LocalReader[style_func;label="{{
+    LocalReader|
+    delegates: LruCache\<u64,\l
+    Arc\<ReadDelegate\>\>,\l|
+    snap_cache: Option\<Arc\<E::Snapshot\>\>,\l|
+    cache_read_id: ThreadReadId,\l|
+    ...\l
+  }}"]
+
+  ProposalRouter[style_func;label="{{
+    ProposalRouter|
+    在无法直接local read时\
+    使用该router\l
+    将RaftCmdRequest\l
+    发送给对应的peer\l
+  }}"]
+  StoreMeta[style_func;label="{{
+    StoreMeta|
+    pub readers: HashMap\<u64,\l
+    ReadDelegate\>,\l
+  }}"]
+  StoreMeta -> ReadDelegate;
+  TiKVEngines -> StoreMeta;
+}

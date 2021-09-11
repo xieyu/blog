@@ -1,0 +1,36 @@
+#include "styles.h"
+digraph peer_on_prepare_split_region {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  PeerFsmDelegate__on_casual_msg[style_func;label="{{
+    PeerFsmDelegate\l
+    on_casual_msg\l|
+    处理SplitRegion消息\l
+  }}"]
+
+  PeerFsmDelegate__on_casual_msg -> {
+    PeerFsmDelegate__on_prepare_split_region;
+  }
+
+  PeerFsmDelegate__on_prepare_split_region -> {
+    PeerFsmDelegate__validate_split_region;
+    Callback__invoke_with_response__Err;
+    PdTask__AskBatchSplit;
+    PollContext__pd_scheduler_schedule;
+  }
+
+  PeerFsmDelegate__validate_split_region -> Callback__invoke_with_response__Err[style_edge_data];
+  PdTask__AskBatchSplit -> PollContext__pd_scheduler_schedule[style_edge_data];
+
+  PollContext__pd_scheduler_schedule -> pd__Runnable__handle_ask_batch_split;
+  pd__Runnable__handle_ask_batch_split -> pd_client__ask_batch_split;
+  pd_client__ask_batch_split -> resp_await;
+  resp_await -> {
+    new_batch_split_region_request;
+    send_admin_request;
+  }
+  send_admin_request -> RaftRouter__send_raft_command;
+
+}

@@ -1,0 +1,102 @@
+#include "styles.h"
+digraph region_merge_protps {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  CommitMergeRequest[style_func;label="{{
+    CommitMergeRequest|
+    metapb.Region source = 1;\l|
+    uint64 commit = 2;\l|
+    repeated eraftpb.Entry entries = 3;\l
+  }}"]
+  CommitMergeRequest -> {
+    Region;
+    Entry;
+  }
+
+  MergeState[style_func;label="{{
+    MergeState|
+    uint64 min_index = 1;\l|
+    metapb.Region target = 2;\l|
+    uint64 commit = 3;\l
+  }}"]
+  MergeState -> {
+    Region;
+  }
+  PrepareMergeRequest[style_func;label="{{
+    PerpareMergeRequest|
+    uint64 min_index = 1;\l|
+    metapb.Region target = 2;\l
+  }}"]
+  PrepareMergeRequest -> {
+    Region;
+  }
+  PeerState[style_blue1;label="{{
+    PeerState|
+    Normal = 0;\l|
+    Applying = 1;\l|
+    Tombstone = 2;\l|
+    Merging = 3;\l
+  }}"]
+  RaftLocalState[style_func;label="{{
+    RaftLocalState|
+    PeerState state = 1;\l|
+    metapb.Region region = 2;\l|
+    MergeState merge_state = 3;\l
+  }}"]
+  RaftLocalState -> {
+    PeerState;
+    MergeState;
+  }
+  AdminRequest -> {
+    AdminCmdType;
+    PrepareMergeRequest;
+    CommitMergeRequest;
+    RollbackMergeRequest;
+  }
+  RollbackMergeRequest[style_func;label="{{
+    RollbackMergeRequest|
+    uint64 commit = 1;\l
+  }}"]
+  RaftCmdRequest -> AdminRequest;
+  RaftCmdRequest[style_func;label="{{
+    RaftCmdRequest|
+    RaftRequestHeader header = 1;\l|
+    repeated Request requests = 2;\l|
+    AdminRequest admin_request = 3;\l|
+    StatusRequest status_request = 4;\l
+  }}"]
+  Region[style_func;label="{{
+    Region|
+    要merge的target region\l|
+    uint64 id = 1;\l|
+    bytes start_key = 2;\l|
+    bytes end_key = 3;\l|
+    RegionEpoch region_epoch = 4;\l|
+    repeated Peer peers = 5;\l|
+    encryptionpb.EncryptionMeta encryption_meta = 6;\l
+  }}"]
+  Region -> {
+    RegionEpoch;
+    Peer;
+  }
+  RegionEpoch[style_blue1;label="{{
+    RegionEpoch|
+    uint64 conf_ver = 1;\l|
+    uint64 version = 2;\l
+  }}"]
+  Peer[style_func;label="{{
+    Peer|
+    uint64 id = 1;\l|
+    uint64 store_id = 2;\l|
+    PeerRole role = 3;\l
+  }}"]
+  Entry[style_func;label="{{
+    Entry|
+    source region要补齐的\l
+    log entries\l
+  }}"]
+
+}
