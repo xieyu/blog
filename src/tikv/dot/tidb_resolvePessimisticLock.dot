@@ -1,0 +1,93 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  LockResover__resolvePessimisticLock -> {
+    PessimisticRollbackRequest;
+    tikvrpc__NewRequest;
+    KvStore__SendReq;
+  }
+
+  PessimisticRollbackRequest -> PessimisticRollback__process_write[style_edge_data];
+  PessimisticRollbackRequest -> tikvrpc__NewRequest -> KvStore__SendReq[style_edge_data];
+
+  PessimisticRollback__process_write -> {
+     ReleasedLocks__new;
+     SnapshotReader__load_lock;
+     MvccTxn__unlock_key;
+  }
+  {
+    Lock__ts
+    LockType__Pessimistic;
+    Lock__for_update_ts;
+  } -> MvccTxn__unlock_key;
+
+  MvccTxn__unlock_key -> ReleasedLocks__pushback[style_edge_data];
+
+  SnapshotReader__load_lock -> {
+    Lock__ts;
+    LockType__Pessimistic;
+    Lock__for_update_ts
+  }[style_edge_data];
+
+  tikvrpc__NewRequest -> PessimisticRollback__process_write[style_edge_data];
+  ReleasedLocks__new -> ReleasedLocks__pushback -> ReleasedLocks__wakeup[style_edge_data];
+
+
+  PessimisticRollback__process_write[style_blue1;label="{{
+    PessimisticRollback\l
+    process_write\l|
+    TiKV处理悲观lock\l
+    Rollback\l|
+    遍历keys对应的lock\l
+    删除悲观Lock\l
+  }}"]
+  PessimisticRollbackRequest[style_func;label="{{
+    PessimisticRollbackRequest\l|
+    构造发个TiKV的该请求\l|
+			StartVersion: l.TxnID,\l|
+			ForUpdateTs:  forUpdateTS,\l|
+			Keys:         [][]byte\{l.Key\},\l
+  }}"]
+
+  LockResover__resolvePessimisticLock[style_func;label="{{
+    LockResover\l
+    resolvePessimisticLock\l
+    TiDB在txn ttl =0时\l
+    尝试resolve 悲观事务lock\l
+  }}"]
+  Lock__ts[style_func;label="{{
+    Lock.ts == self.start_ts\l|
+    事务拥有该lock\l
+  }}"]
+  LockType__Pessimistic[style_func;label="{{
+    LockType\l
+    Pessimistic\l|
+    并且是悲观锁\l
+  }}"]
+  Lock__for_update_ts[style_func;label="{{
+    Lock\l
+    for_update_ts\l|
+    lock.for_update_ts \<=\l
+    self.for_update_ts\l
+  }}"]
+  SnapshotReader__load_lock[style_func;label="{{
+    SnapshotReader\l
+    load_lock\l|
+    读取lock\l
+  }}"]
+  MvccTxn__unlock_key[style_blue1;label="{{
+    MvccTxn\l
+    unlock_key\l|
+    释放Lock\l
+  }}"]
+  KvStore__SendReq[style_func;label="{{
+    KvStore\l
+    SendReq\l|
+    发送请求\l
+  }}"]
+
+
+}

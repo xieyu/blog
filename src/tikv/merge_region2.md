@@ -1,4 +1,4 @@
-# Region Merge
+# Merge Region
 
 <!-- toc -->
 
@@ -123,8 +123,8 @@ CommitMerge消息由source region 发给本地的target region后，如果本地
 `ApplyDelegate::wait_merge_state` 也引用了`logs_up_to_date`，每次`resume_pending`
 都会load `logs_up_to_date`，如果有值，则会继续重新执行`exec_commit_merge`.
 
-将target region的key range扩大, 增加target region的version, 最后调用
-`write_peer_state`将target region信息保存起来。
+最后返回结果`ExecResult::CommitMerge`
+
 
 ![](./dot/ApplyDelegate__exec_commit_merge.svg)
 
@@ -134,23 +134,70 @@ CommitMerge消息由source region 发给本地的target region后，如果本地
 
 ![](./dot/AppDelegate__exec_commit_merge2.svg)
 
+这次会将target region的key range扩大, 增加target region的version, 最后调用
+`write_peer_state`将target region信息保存起来。
+
 ### Source Region: `PeerFsmDelegate::on_catch_up_logs_for_merge`
 
 使用CommitMergeRequest中的entries，补齐apply自己本地raft log.
 ，然后发送LogsUpToDate消息个ApplyFsm。
 
-为什么这个地方补齐log就行啦？而不用等到这些log都被apply 到state machine上？
-还是说LogsUpToDate消息被ApplyFsm执行前，这些被补齐的Log一定会被执行？
-这个地方只有当`pending_merge_state`不为空的时候，也就是PrepareMerge被apply后，才会调到
-所以这个地方图要拆成两张来画。
-
 ApplyFsm中设置atomic 变量`CatchUpLogs::logs_up_to_date`值为
-`source_region_id`, 然后发Noop消息给target region.
-
-让target region接着处理自己的`wait_merge_state`
+`source_region_id`, 然后发Noop消息给target region， 让target region接着处理自己的`wait_merge_state`
 
 ![](./dot/catchup_logs.svg)
 
+在执行`on_catch_up_logs_for_merge`时，如果`pending_merge_state`不为None,
+说明source region可能已经过PreapreMerge消息了，直接发送`LogsUpToDate`消息给applyFsm.
+
+```rust
+fn on_catch_up_logs_for_merge(&mut self, mut catch_up_logs: CatchUpLogs) {
+
+if let Some(ref pending_merge_state) = self.fsm.peer.pending_merge_state {
+    if pending_merge_state.get_commit() == catch_up_logs.merge.get_commit() {
+        assert_eq!(
+            pending_merge_state.get_target().get_id(),
+            catch_up_logs.target_region_id
+        );
+        // Indicate that `on_ready_prepare_merge` has already executed.
+        // Mark pending_remove because its apply fsm will be destroyed.
+        self.fsm.peer.pending_remove = true;
+        // Just for saving memory.
+        catch_up_logs.merge.clear_entries();
+        // Send CatchUpLogs back to destroy source apply fsm,
+        // then it will send `Noop` to trigger target apply fsm.
+        self.ctx
+            .apply_router
+            .schedule_task(region_id, ApplyTask::LogsUpToDate(catch_up_logs));
+        return;
+    }
+}
+```
+
+同样在执行`on_ready_prepare_merge`中如果 `Peer.catch_up_logs`不为None，说明`on_catch_up_logs_for_merge`
+这个先执行的，此时执行时的是被补齐的log中的PrepareMerge消息。
+
+这时候Log已经补齐了，可以ApplyFsm发送LogsUpToDate消息了。
+
+```rust
+fn on_ready_prepare_merge(&mut self, region: metapb::Region, state: MergeState) {
+//...
+    if let Some(ref catch_up_logs) = self.fsm.peer.catch_up_logs {
+        if state.get_commit() == catch_up_logs.merge.get_commit() {
+            assert_eq!(state.get_target().get_id(), catch_up_logs.target_region_id);
+            // Indicate that `on_catch_up_logs_for_merge` has already executed.
+            // Mark pending_remove because its apply fsm will be destroyed.
+            self.fsm.peer.pending_remove = true;
+            // Send CatchUpLogs back to destroy source apply fsm,
+            // then it will send `Noop` to trigger target apply fsm.
+            self.ctx.apply_router.schedule_task(
+                self.fsm.region_id(),
+                ApplyTask::LogsUpToDate(self.fsm.peer.catch_up_logs.take().unwrap()),
+            );
+            return;
+        }
+    }
+```
 
 ### Target region: `PeerFsmDelegate::on_ready_commit_merge`
 

@@ -24,8 +24,6 @@ get 一个user_key value过程如下：
 
 ![](./dot/PointGetter_get.svg)
 
-## MvccReader
-
 ## Scanner 主要struct
 
 Scanner主要分为`ForwardScanner `和`BackwardKvScanner`，它们公用信息保存在`ScannerConfig`中，它们使用`Cursor`来遍历CF_LOCK, CF_WRITE, CF_DEFAULT中的数据。

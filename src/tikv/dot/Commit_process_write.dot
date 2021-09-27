@@ -13,7 +13,6 @@ digraph CommitProcessWrite {
     graph[label="ReleaseLocks";fontsize=20;style="rounded,dashed";color="slategrey"]
     ReleaseLocks_new
     wake_up
-      
   }
   subgraph cluster_MvccTxn {
     graph[label="MvccTxn";fontsize=20;style="rounded,dashed";color="slategrey"]

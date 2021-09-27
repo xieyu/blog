@@ -1,0 +1,272 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ResolveLock__process_write -> {
+    TxnStatus__Get;
+    cleanup;
+    commit;
+    ResolveLockReadPhase;
+    ReleasedLocks__wake_up;
+    ErrorInner__InvalidTxnTso;
+    current_lock_ts;
+  }
+  ResolveLock:txn_status -> TxnStatus__Get -> commit_ts[style_edge_data];
+  ResolveLock:key_lock -> current_lock_ts;
+  commit_ts -> {
+    cleanup;
+    commit;
+  }
+  current_lock_ts -> commit;
+  current_lock_ts -> ErrorInner__InvalidTxnTso;
+  current_lock_ts -> TxnStatus__Get[style_edge_data];
+
+  commit_ts -> ErrorInner__InvalidTxnTso;
+
+  ResolveLock -> ResolveLock__process_write[style_edge_data];
+
+  cleanup -> {
+    SnapshotReader__load_lock;
+    rollback_lock;
+    check_txn_status_missing_lock;
+    ErrorInner__KeyIsLocked;
+  }
+
+  commit -> {
+    SnapshotReader__load_lock;
+    Write__has_ovelapped_rollback;
+    Lock__rollback_ts;
+    MvccTxn__put_write;
+    MvccTxn__unlock_key;
+  }
+  commit -> {
+    ErrorInner__TxnLockNotFound;
+  }
+
+  SnapshotReader__get_txn_commit_record -> {
+    WriteType__Rollback;
+    TxnCommitRecord__None;
+  }
+  SnapshotReader__seek_write -> MvccTxn__delete_write[style_edge_data];
+  TxnCommitRecord__None -> {
+    collapse_prev_rollback;
+    MvccTxn__mark_rollback_on_mismatching_lock;
+  }[style_edge_data];
+
+  commit -> ReleasedLocks__wake_up[style_edge_data];
+
+  cleanup -> ReleasedLocks__wake_up[style_edge_data];
+  check_txn_status_missing_lock -> {
+    ErrorInner__Committed;
+    ErrorInner__TxnNotFound;
+  }[style_edge_data];
+
+  check_txn_status_missing_lock -> {
+    collapse_prev_rollback;
+    SnapshotReader__get_txn_commit_record;
+    MvccTxn__mark_rollback_on_mismatching_lock;
+    MvccTxn__put_write;
+  }
+  MvccTxn__mark_rollback_on_mismatching_lock -> MvccTxn__put_write[style_edge_data];
+  MvccTxn__mark_rollback_on_mismatching_lock -> Lock__rollback_ts -> MvccTxn__put_lock[style_edge_data];
+  MvccTxn__mark_rollback_on_mismatching_lock -> {
+    MvccTxn__put_lock;
+  }
+
+  rollback_lock -> {
+    SnapshotReader__get_txn_commit_record;
+    MvccTxn__unlock_key;
+    MvccTxn__delete_value;
+    MvccTxn__put_write;
+    collapse_prev_rollback;
+  }
+
+  collapse_prev_rollback -> {
+    SnapshotReader__seek_write;
+    MvccTxn__delete_write;
+  }
+  SnapshotReader__load_lock -> Lock__rollback_ts[style_edge_data];
+  SnapshotReader__get_txn_commit_record -> MvccTxn__mark_rollback_on_mismatching_lock[style_edge_data];
+  WriteType__Rollback -> ErrorInner__TxnLockNotFound[style_edge_data];
+
+  //rank
+  {rank=same;commit;cleanup};
+  {
+    rank=same;
+    ErrorInner__InvalidTxnTso;
+    ErrorInner__KeyIsLocked;
+    ErrorInner__Committed
+    ErrorInner__TxnLockNotFound;
+    ErrorInner__TxnNotFound;
+  }
+  {
+    rank=same;
+    MvccTxn__put_write;
+    MvccTxn__unlock_key;
+    MvccTxn__delete_value;
+    MvccTxn__put_lock;
+    MvccTxn__delete_write;
+  }
+  {
+    rank=same;
+    check_txn_status_missing_lock;
+    rollback_lock;
+  }
+  {
+    rank=same;
+    SnapshotReader__seek_write;
+    SnapshotReader__get_txn_commit_record;
+    SnapshotReader__load_lock;
+  }
+
+  ErrorInner__TxnLockNotFound[style_green1;label="{{
+    ErrorInner\l
+    TxnLockNotFound\l
+  }}"]
+
+  ErrorInner__InvalidTxnTso[style_green1;label="{{
+    ErrorInner\l
+    InvalidTxnTso\l
+  }}"]
+  ErrorInner__Committed[style_green1;label="{{
+    ErrorInner\l
+    Committed\l
+  }}"]
+  ErrorInner__KeyIsLocked[style_green1;label="{{
+    ErrorInner\l
+    KeyIsLocked\l
+  }}"]
+  ErrorInner__TxnNotFound[style_green1;label="{{
+    ErrorInner\l
+    TxnNotFound\l
+  }}"]
+
+  ResolveLock__process_write[style_func;label="{{
+    ResolveLock\l
+    process_write\l|
+    遍历key_locks数组\l
+  }}"]
+
+  ResolveLock[style_blue1;label="{{
+    ResolveLock\l|
+    <txn_status> txn_status: HashMap\<TimeStamp, TimeStamp\>,\l|
+    scan_key: Option\<Key\>,\l|
+    <key_lock> key_locks: Vec\<(Key, Lock)\>,\l
+  }}"]
+  cleanup[style_func;label="{{
+    cleaup\l|
+    如果commit_ts.is_zero()\l
+    则cleaup txn\l
+  }}"]
+  commit_ts[style_var;label="{{
+    commit_ts\l
+    事务的commit_ts\l
+  }}"]
+  commit[style_blue1;label="{{
+    commit\l|
+    提交事务\l
+    如果事务的commit_ts\l
+    \>0就提交事务\l
+  }}"]
+  rollback_lock[style_blue1;label="{{
+    rollback_lock\l|
+    回滚事务\l
+    如果lock_type为Put\l
+    需要delete_value\l
+  }}"]
+  TxnStatus__Get[style_func;label="{{
+    TxnStatus\l
+    Get\l|
+    使用Lock.ts\l
+    从txn_status map\l
+    获取事务的 commit_ts\l
+  }}"]
+  current_lock_ts[style_var;label="{{
+    current_lock.ts\l|
+    当前遍历lock的ts\l
+  }}"]
+
+  SnapshotReader__load_lock[style_func;label="{{
+    SnapshotReader\l
+    load_lock\l
+  }}"]
+  SnapshotReader__get_txn_commit_record[style_func;label="{{
+    SnapshotReader\l
+    get_txn_commit_record\l
+  }}"]
+  SnapshotReader__seek_write[style_func;label="{{
+    SnapshotReader\l
+    seek_write\l|
+    参数为key, start_ts\l
+    用于清理掉之前的Rollback\l
+    类型的write\l
+  }}"]
+  ReleasedLocks__wake_up[style_func;label="{{
+    ReleasedLocks\l
+    wake_up\l
+  }}"]
+
+  check_txn_status_missing_lock[style_blue1;label="{{
+    check_txn_status_missing_lock\l|
+    lock不存在\l
+    或者Lock已经\l
+    被其他事务所持有\l
+  }}"]
+
+  MvccTxn__mark_rollback_on_mismatching_lock[style_func;label="{{
+    MvccTxn\l
+    mark_rollback_on_mismatching_lock\l
+  }}"]
+
+  MvccTxn__put_write[style_func;label="{{
+    MvccTxn\l
+    put_write\l|
+    rollback 时，write key为\l
+    key start_ts\l|
+    commit时， write key为\l
+    key commit_ts\l
+  }}"]
+
+  MvccTxn__unlock_key[style_func;label="{{
+    MvccTxn\l
+    unlock_key\l|
+    rollback或者commit\l
+    时，会unlock key\l
+  }}"]
+
+  MvccTxn__delete_value[style_func;label="{{
+    MvccTxn\l
+    delete_value\l|
+    删掉lock类型为put\l
+    所写入的value\l
+  }}"]
+  MvccTxn__put_lock[style_func;label="{{
+    MvccTxn\l
+    put_lock\l|
+    更新lock的\l
+    rollback_ts数组\l
+  }}"]
+  MvccTxn__delete_write[style_func;label="{{
+    MvccTxn\l
+    delete_write\l|
+    删掉write column 中\l
+    key, start_ts之前的\l
+    类型为rollback的\l
+    切不被protected write\l
+  }}"]
+
+  Lock__rollback_ts[style_func;label="{{
+    Lock\l
+    rollback_ts\l
+  }}"]
+  collapse_prev_rollback[style_func;label="{{
+    collapse_prev_rollback\l|
+    清理掉之前的\l
+    Rollback类型的\l
+    Write\l
+  }}"]
+
+}

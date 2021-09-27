@@ -1,0 +1,37 @@
+#include "styles.h"
+digraph Prewriter__process_write {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PrewritePessimistic__into_prewriter -> Prewriter;
+  Prewrite__into_prewriter -> Prewriter;
+  Prewriter -> Prewriter__process_write[style_edge_data];
+
+  Prewriter__process_write -> {
+    PreWriteKind__can_skip_constraint_check;
+    Prewriter__check_max_ts_synced;
+    SnapshotReader__new;
+    Prewriter__prewrite;
+    Prewriter__write_result;
+  }
+  Prewriter__prewrite[style_blue1;label="{{
+    Prewriter\l
+    prewrite\l|
+    遍历prewriter \l
+    mutations\l
+    对于每个mutation\l
+    调用prewrite
+  }}"]
+  Prewriter__prewrite -> {
+    prewrite;
+    TransactionProperties;
+    Prewriter__mutations;
+  }
+
+  SnapshotReader__new -> {
+     SnapshotReader__load_lock;
+     SnapshotReader__seek_write;
+  }[style_edge_data];
+}

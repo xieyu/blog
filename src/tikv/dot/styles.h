@@ -20,11 +20,18 @@
 	color="#729c88";\
 	fontcolor="#40575d"\
 
+#define style_green1\
+  shape="record";\
+  style="filled,rounded";\
+	fillcolor="#BCFFB9";\
+  color="#8a8898";\
+	fontcolor="#5d6179"\
+
 #define style_struct\
   shape="record";\
   style="filled,rounded";\
 	fillcolor="#79d8ce";\
-	color="#60b5ac";\
+  color="#8a8898";\
 	fontcolor="#5d6179"\
 
 #define style_blue1\
@@ -37,16 +44,22 @@
 #define style_orange\
   shape="record";\
   style="filled,rounded";\
-  fillcolor="#f89f3e";\
+  fillcolor="#f5b691";\
   color="#d69043";\
-	fontcolor="#ffffff"\
+	fontcolor="#6b6969"\
 
 #define style_red\
   shape="record";\
   style="filled,rounded";\
-  fillcolor="#de3737";\
-  color="##c13434";\
-	fontcolor="#ffffff"\
+  fillcolor="#f5aeae";\
+	fontcolor="#6b6969"\
+
+#define style_black1\
+  shape="record";\
+  style="filled,rounded";\
+  fillcolor="#333333";\
+  color="#292929";\
+	fontcolor="#cecece"\
 
 #define field(name,type,...)\
   <name> name type \l|

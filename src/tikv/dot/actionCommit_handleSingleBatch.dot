@@ -29,15 +29,21 @@ digraph handleSingleBatch {
     重新获取一个commit ts\l
     重新提交\l
   }}"]
-  getTimestampWithRetry[style_func;label="{{
-    getTimestampWithRetry|
+  KVStore__getTimestampWithRetry[style_func;label="{{
+    KVStore::getTimestampWithRetry|
     获取新的commit ts\l
   }}"]
   GetCommitTsExpired -> {
-    getTimestampWithRetry;
-    commitMutations;
+    KVStore__getTimestampWithRetry;
   }
   commitMutations -> doActionOnMutations;
   doActionOnMutations -> handleSingleBatch[style_edge_data];
-  
+  CommitRequest[style_func;label="{{
+    CommitRequest|
+    Context context = 1;\l|
+    uint64 start_version = 2;\l|
+    repeated bytes keys = 3;\l|
+    uint64 commit_version = 4;\l
+  }}"]
+
 }

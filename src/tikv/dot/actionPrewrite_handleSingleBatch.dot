@@ -13,20 +13,21 @@ digraph handleSingleBatch {
   }}"]
   sendTxnHeartBeat -> CmdTxnHeartBeat;
   ttlManager_keepAlive[style_func;label="{{
-    ttlManager| 
+    ttlManager|
     keepAlive|
-    每隔ManagedLockTTL/2\l 
+    每隔ManagedLockTTL/2\l
     发送一次TxnHeartBeat\l
   }}"]
   handleSingleBatch[style_func;label="{{
-    preWriteAction|
+    actionPrewrite|
     handleSingleBatch\l
   }}"]
   buildPrewriteRequest[style_func;label="{{
     buildPrewriteRequest|
-    将batch mutations 复制到request中\l
-    并选择mutations[0]的key\l 
-     作为primary key\l
+    将batch mutations \l
+    复制到request中\l|
+    并选择mutations[0]的key\l
+    作为primary key\l
   }}"]
   buildPrewriteRequest -> Mutation;
   Mutation[style_func;label="{{
@@ -52,10 +53,9 @@ digraph handleSingleBatch {
      SendReq;
      ttlManager_run;
      resolveLocksForWrite;
-     minCommitTS;
   }
 
-  ttlManager_run[style_func;label="{{
+  ttlManager_run[style_blue1;label="{{
     ttlManager|
     run|
     prewrite成功\l
@@ -77,9 +77,9 @@ digraph handleSingleBatch {
   }}"]
 
   resolveLocksForWrite -> resolveLocks -> resolve;
-  resolveLocks[style_func;label="{{
+  resolveLocks[style_blue1;label="{{
     resolveLocks|
-    遍历locks，对于每个Lock\l 
+    遍历locks，对于每个Lock\l
     调用resolve函数\l
   }}"]
 

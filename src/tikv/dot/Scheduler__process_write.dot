@@ -1,0 +1,29 @@
+#include "styles.h"
+digraph Scheduler__process_write {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Scheduler__process_by_worker -> {
+    Scheduler__get_sched_pool;
+    with_tls_engine;
+    Scheduler__process_write;
+  }
+
+  Scheduler__process_write -> {
+    Command__process_write;
+    Engine__async_write_ext;
+  }
+  Engine__async_write_ext -> {
+    engine_cb;
+    proposed_cb;
+    committed_cb;
+  }
+  engine_cb -> {
+    Scheduler__on_write_finished;
+  }
+  proposed_cb -> {
+    Scheduler__early_response;
+  }
+}

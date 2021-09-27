@@ -1,0 +1,154 @@
+#include "styles.h"
+digraph tikv_prewrite2 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  prewrite[style_func;label="{{
+    prewrite|
+    prewrite a single\l
+    mutation\l
+    by create and storing\l
+    a locak and value\l
+  }}"]
+
+  prewrite -> {
+    SnapshotReader__load_lock;
+    PrewriteMutation__check_lock;
+    amend_pessimistic_lock;
+    //PrewriteMutation__check_for_newer_version;
+    //ConcurrencyManager__update_max_ts;
+    //PrewriteMutation__need_min_commit_ts;
+    //PrewriteMutation__should_not_write;
+    PrewriteMutation__write_lock;
+  }
+  PrewriteMutation__write_lock[style_func;label="{{
+    PrewriteMutation\l
+    write_lock\l|
+    写入lock\l
+  }}"]
+  PrewriteMutation__write_lock -> {
+    Lock__new;
+    is_short_value;
+    MvccTxn__put_value;
+    async_commit_timestamps;
+    MvccTxn__put_locks_for_1pc;
+    MvccTxn__put_lock;
+  }
+  PrewriteMutation__check_lock -> {
+    ErrorInner__PessimisticLockNotFound;
+    ErrorInner__KeyIsLocked;
+    ErrorInner__LockTypeNotMatched;
+    LockStatus__Locked;
+    Lock__use_async_commit;
+    Lock__min_commit_ts;
+  }
+  SnapshotReader__load_lock -> LockStatus__None -> amend_pessimistic_lock[style_edge_data];
+  SnapshotReader__load_lock -> LockStatus__Some -> PrewriteMutation__check_lock[style_edge_data];
+  LockStatus__None -> PrewriteMutation__write_lock;
+
+  amend_pessimistic_lock -> {
+    SnapshotReader__seek_write;
+    ErrorInner__PessimisticLockNotFound;
+  }
+
+
+  PrewriteMutation__check_lock[style_func;label="{{
+    PrewriteMutation\l
+    check_lock\l|
+    lock.ts == txn_props.start_ts\l
+    检查lock_type是否一致\l
+  }}"]
+  Lock__use_async_commit -> Lock__min_commit_ts[style_edge_data];
+  SnapshotReader__load_lock[style_func;label="{{
+    SnapshotReader\l
+    load_lock\l|
+    调用MvccReader\l
+    load_lock\l
+  }}"]
+  SnapshotReader__seek_write[style_func;label="{{
+    SnapshotReader\l
+    seek_write\l|
+    调用MvccReader\l
+    seek_write\l
+  }}"]
+  LockStatus__None[style_blue1;label="{{
+    LockStatus\l
+    None\l|
+    key上没有lock\l
+    prewrite可以去加锁\l
+  }}"]
+  LockStatus__Some[style_func;label="{{
+    LockStatus\l
+    Some\l|
+    key上有lock\l
+  }}"]
+  amend_pessimistic_lock[style_blue1;label="{{
+    amend_pessimistic_lock|
+    对于悲观锁做一些check\l
+    没问题的话\l
+    就继续执行后续write_lock\l
+    检查write\l
+    是否有commit_ts \>\l
+    = reader.start_ts\l
+  }}"]
+  is_short_value[style_func;label="{{
+    is_short_value|
+    short value优化\l|
+    如果是short value\l
+    value可以直接存在lock上\l
+  }}"]
+
+  MvccTxn__put_lock[style_var;label="{{
+    MvccTxn\l
+    put_lock\l|
+    写入lock\l
+  }}"]
+  MvccTxn__put_value[style_var;label="{{
+    MvccTxn\l
+    put_value\l|
+    写入value\l
+  }}"]
+
+  amend_pessimistic_lock -> PrewriteMutation__write_lock[style_edge_data];
+
+  is_short_value -> {
+     MvccTxn__put_lock;
+     MvccTxn__put_value;
+  }[style_edge_data];
+
+/*
+  PrewriteMutation__check_for_newer_version -> {
+    SnapshotReader__seek_write;
+    PrewriteMutation__write_conflict_error;
+    Write__has_overlapped_rollback;
+    check_data_constraint;
+    prev_write;
+  }
+  check_data_constraint -> {
+    Write__gc_fence;
+  }
+  prev_write-> {
+    SnapshotReader__get_old_value;
+    OldValue;
+  }
+  OldValue[style_func;label="{{
+    OldValue|
+   `OldValue` is used by cdc to\l
+   read the previous value \l
+   associated with some key\l
+   during the prewrite process\l
+  }}"]
+
+  PrewriteMutation__should_not_write -> {
+    ConcurrencyManager__update_max_ts;
+    PrewriteMutation__need_min_commit_ts;
+  }[style_edge_data];
+  PrewriteMutation__should_not_write[style_var;label="{{
+    PrewriteMutation\l
+    should_not_write\l
+  }}"]
+  PrewriteMutation__CheckNotExists -> PrewriteMutation__should_not_write;
+  */
+}

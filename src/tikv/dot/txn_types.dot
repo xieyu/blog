@@ -5,7 +5,7 @@ digraph txn_types {
   newrank=true;
   rankdir=LR;
 
-  Write[style_func;label="{{
+  Write[style_blue1;label="{{
     Write|
     pub write_type: WriteType,\l|
     pub start_ts: TimeStamp,\l|
@@ -20,7 +20,7 @@ digraph txn_types {
     Value;
   }
 
-  WriteType[style_func;label="{{
+  WriteType[style_var;label="{{
     WriteType|
     Put,\l|
     Delete,\l|
@@ -114,7 +114,7 @@ digraph txn_types {
   }}"]
   Lock -> into_lock_info -> LockInfo[style_edge_data];
 
-  LockInfo[style_func;label="{{
+  LockInfo[style_blue1;label="{{
     LockInfo|
     bytes primary_lock = 1;\l|
     uint64 lock_version = 2;\l|
@@ -165,5 +165,17 @@ digraph txn_types {
     OverlappedRollback\l|
     None\l
   }}"]
-  
+
+  Op[style_var;label="{{
+    Op|
+    Put = 0;\l|
+    Del = 1;\l|
+    Lock = 2;\l|
+    Rollback = 3;\l|
+    Insert = 4;\l|
+    PessimisticLock = 5;\l|
+    CheckNotExists = 6;\l
+  }}"]
+
+  LockInfo -> Op;
 }

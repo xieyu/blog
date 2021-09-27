@@ -1,0 +1,61 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  LockResolver__resolveLocks -> {
+    cleanRegions;
+    cleanTxns;
+    locks;
+    resolve;
+  }
+
+  locks -> resolve;
+  resolve -> {
+    LockResolver__resolveLock;
+  }
+
+  cleanTxns -> cleanRegions[style_edge_data];
+  KvStore__SendReq -> ReadTimeoutShort[style_edge_data];
+  RegionCache__LocateKey -> Region -> KvStore__SendReq[style_edge_data];
+  Region -> cleanRegions[style_edge_data];
+
+  LockResolver__resolveLock -> {
+     cleanRegions;
+     ResolveLockRequest;
+     CmdResolveLock;
+     KvStore__SendReq;
+     GetRegionError;
+     ReadTimeoutShort;
+     Backoffer__Backoff;
+     cleanRegions__loc__Region__clear;
+     RegionCache__LocateKey;
+  }
+
+  Backoffer__Backoff[style_func;label="{{
+    Backoffer__Backoff\l|
+    对于regionError重试\l
+    重新LocKey\l
+  }}"]
+
+  LockResolver__resolveLocks[style_func;label="{{
+    LockResolver::resolvelocks\l|
+    遍历locks\l
+    对于每个Lock\l
+    调用resolve方法\l
+  }}"]
+  resolve[style_func;label="{{
+    resolve\l|
+    处理单个key\l
+  }}"]
+  cleanTxns[style_var;label="{{
+    cleanTxns\l|
+    map[uint64]map[RegionVerID]struct\{\}
+  }}"]
+  cleanRegions[style_var;label="{{
+    cleanRegions\l|
+    map[RegionVerID]struct\{\}\l
+  }}"]
+
+}

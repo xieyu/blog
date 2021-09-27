@@ -13,10 +13,10 @@ digraph execute {
       commitTxn;
       getTimestampWithRetry;
     }
-    getTimestampWithRetry[style_func;label="{{
+    getTimestampWithRetry[style_blue1;label="{{
       getTimestampWithRetry|
       在提交事务之前\l
-      先获取commit_ts\l
+      先获取commit_ts\l|
       从time Oracle服务\l
       获取commitTs\l
     }}"]
@@ -27,7 +27,8 @@ digraph execute {
     commitTxn[style_func;label="{{
       commitTxn|
       等primary ke提交成功后\l
-      才会返回, 其他的secondaries keys\l
+      才会返回, \l|
+      其他的secondaries keys\l
       由go rutine异步提交\l
     }}"]
     prewriteMutations[style_func;label="{{

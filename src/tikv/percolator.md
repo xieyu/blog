@@ -110,12 +110,12 @@ Percolator 使用两阶段提交来完成事务，不过coordinator是client，c
 事务读写都会用`start_ts`
 
 * data  负责保存多版本的value: `(key, start_ts) -> value`
-* write 负责控制value可见的版本控制: `(key, commit_ts) -> write_info` 
-* lock 表示事务的锁，表示有事务在写key: `key -> lock_info` 
+* write 负责控制value可见的版本控制: `(key, commit_ts) -> write_info`
+* lock 表示事务的锁，表示有事务在写key: `key -> lock_info`
 
 ### 跨行事务
 
-Percolator从key中任选一个作为`primary key`，事务的状态完全由`primary key`来决定。 
+Percolator从key中任选一个作为`primary key`，事务的状态完全由`primary key`来决定。
 其他的作为`secondary key`，`secondary key`的lock保存了对`primary key`引用。
 事务的`primary key` 提交成功后，client就认为事务提交成功了，其他的`secondary key`可以异步提交。
 
