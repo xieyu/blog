@@ -9,13 +9,17 @@ digraph batch_mutations {
   twoPhaseCommitter[style_func;label="{{
     twoPhaseCommitter|
     遍历MemDB\l
-    转换成memBufferMutations\l
+    转换成memBufferMutations\l|
+	startTS             uint64\l|
+	mutations           *memBufferMutations\l|
+  ...\l
   }}"]
   KVTxn -> KVUnionStore -> MemDB -> memBufferMutations -> groupMutations[style_edge_data];
   KVTxn[style_func;label="{{
     KVTxn|
-    write操作先保存在MemDB中\l
-    commit时转成memBufferMutations\l
+    write操作先保存在\l
+    MemDB中 commit时 转成\l|
+    memBufferMutations\l
   }}"]
   batchMutations -> twoPhaseCommitAction;
   twoPhaseCommitAction[style_var;label="{{
@@ -26,17 +30,51 @@ digraph batch_mutations {
   }}"]
   groupMutations[style_func;label="{{
     groupMutations|
-    先对mutation根据\l 
+    先对mutation根据\l
     region做分组\l
   }}"]
   batchMutations[style_func;label="{{
     batchMutations|
-    对每个分组内的mutations \l
-    按照size limit 做batch\l
+    对每个分组内的\l
+    mutations \l
+    按照size limit\l
+    分批batch\l
   }}"]
   batchExecutor[style_func;label="{{
     batchExecutor|
     并发处理batchMutations\l
   }}"]
-  
+
+  TiKV[style_func;label="{{
+    TiKv\l
+    处理TiDB 发来的请求\l
+  }}"]
+
+  KVUnionStore[style_blue1;label="{{
+    KVUnionStore\l
+	memBuffer *MemDB\l|
+	snapshot  uSnapshot\l
+  }}"]
+
+  MemDB[style_blue1;label="{{
+    MemDB\l|
+	sync.RWMutex\l|
+	root      memdbArenaAddr\l|
+	allocator nodeAllocator\l|
+	vlog      memdbVlog\l|
+	entrySizeLimit  uint64\l|
+	bufferSizeLimit uint64\l|
+	count           int\l|
+	size            int\l|
+	vlogInvalid bool\l|
+	dirty       bool\l|
+	stages      []memdbCheckpoint\l
+  }}"]
+
+  memBufferMutations[style_blue1;label="{{
+    memBufferMutations\l|
+	storage *unionstore.MemDB\l|
+	handles []unionstore.MemKeyHandle\l
+  }}"]
+
 }

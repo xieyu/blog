@@ -1,0 +1,137 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  actionPrewrite__handleSingleBatch -> {
+    RegionRequstSender__SendReq;
+    prewriteResp__GetErrors;
+    kvStore__GetLockResolver__ResolveLocksForWrite;
+    Backoffer__BackoffWithCfgAndMaxSleep;
+    KeyErr__GetAlreadyExist;
+    ExtractLockFromKeyErr;
+    locks;
+    twophaseCommitter__extractKeyExistsErr;
+  }
+  subgraph cluster_forloop{
+    graph[label="ForLoop";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RegionRequstSender__SendReq;
+    prewriteResp__GetErrors;
+    kvStore__GetLockResolver__ResolveLocksForWrite;
+    Backoffer__BackoffWithCfgAndMaxSleep;
+    msBeforeExpired
+    locks;
+    KeyError;
+    twophaseCommitter__extractKeyExistsErr;
+    KeyErr__GetAlreadyExist;
+
+    ExtractLockFromKeyErr;
+    KeyErr__GetLockecked;
+    tikverr__ExtractKeyErr;
+  }
+
+  prewriteResp__GetErrors -> KeyError -> ExtractLockFromKeyErr[style_edge_data];
+  kvStore__GetLockResolver__ResolveLocksForWrite -> msBeforeExpired;
+  msBeforeExpired -> Backoffer__BackoffWithCfgAndMaxSleep;
+  RegionRequstSender__SendReq -> prewriteResp__GetErrors;
+  locks -> kvStore__GetLockResolver__ResolveLocksForWrite[style_edge_data];
+  KeyError -> {
+    ExtractLockFromKeyErr;
+    KeyErr__GetAlreadyExist;
+    twophaseCommitter__extractKeyExistsErr;
+  }
+  KeyErr__GetAlreadyExist -> twophaseCommitter__extractKeyExistsErr;
+  ExtractLockFromKeyErr -> {
+    KeyErr__GetLockecked;
+    tikverr__ExtractKeyErr;
+  }
+
+  KeyErr__GetLockecked -> locks;
+  {
+    rank=same;
+    KeyErr__GetLockecked;
+    KeyErr__GetAlreadyExist;
+  }
+
+  KeyError[style_func;label="{{
+    KeyError\l
+    LockInfo locked = 1;\l|
+    string retryable = 2;\l|
+    string abort = 3;\l|
+    WriteConflict conflict = 4;\l|
+    AlreadyExist already_exist = 5;\l|
+    Deadlock deadlock = 6;\l|
+    CommitTsExpired commit_ts_expired = 7;\l|
+    TxnNotFound txn_not_found = 8;\l|
+    CommitTsTooLarge commit_ts_too_large = 9;\l
+  }}"]
+
+
+  actionPrewrite__handleSingleBatch[style_func;label="{{
+    actionPrewrite\l
+    handleSingleBatch\l|
+    处理某个region\l
+    一批prewrite请求\l
+  }}"]
+  RegionRequstSender__SendReq[style_func;label="{{
+    RegionRequstSender\l
+    SendReq\l|
+    发送prewrite请求给TiKV\l
+  }}"]
+  prewriteResp__GetErrors[style_func;label="{{
+    prewriteResp\l
+    GetErrors\l|
+    处理resp中的keyErr\l
+  }}"]
+  ExtractLockFromKeyErr[style_func;label="{{
+    ExtractLockFromKeyErr\l|
+    提取keyErr中的lokc信息系\l
+  }}"]
+  twophaseCommitter__extractKeyExistsErr[style_blue1;label="{{
+    twophaseCommitter\l
+    extractKeyExistsErr\l|
+    返回keyExistsErr\l
+  }}"]
+
+  kvStore__GetLockResolver__ResolveLocksForWrite[style_blue1;label="{{
+    kvStore\l
+    GetLockResolver\l
+    ResolveLocksForWrite\l|
+    解决写冲突lock\l
+  }}"]
+  msBeforeExpired[style_func;label="{{
+    msBeforeExpired\l
+    lock.ttl不为0\l|
+    继续等待\l|
+    等待Lock超时\l
+    或被commit\l
+    或被rollback\l
+  }}"]
+  Backoffer__BackoffWithCfgAndMaxSleep[style_func;label="{{
+    Backoffer\l
+    BackoffWithCfgAndMaxSleep\l
+    sleep一段时间后\l
+    开始下一次forloop\l|
+  }}"]
+  locks[style_var;label="{{
+    locks\l
+    需要resolve的lock数组\l
+  }}"]
+  KeyErr__GetAlreadyExist[style_func;label="{{
+    KeyErr\l
+    GetAlreadyExist\l
+  }}"]
+
+  tikverr__ExtractKeyErr[style_func;label="{{
+    tikverr\l
+    ExtractKeyErr\l|
+    对于其他非Locked类型错误\l
+    向上层返回err\l
+  }}"]
+  KeyErr__GetLockecked[style_func;label="{{
+    KeyErr\l
+    GetLockecked\l
+  }}"]
+}

@@ -1,0 +1,126 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  twoPhaseCommitter__execute -> {
+    twoPhaseCommitter__checkAsyncCommit;
+    twoPhaseCommitter__setAsyncCommit;
+    twoPhaseCommitter__mutations;
+    AsyncCommit__TotalKeySizeLimit;
+  }
+
+  twoPhaseCommitter__useAsycnCommit -> twoPhaseCommitter__isAsyncCommit[style_edge_data];
+  twoPhaseCommitter__setAsyncCommit -> twoPhaseCommitter__useAsycnCommit;
+
+  twoPhaseCommitter__checkAsyncCommit -> {
+    twoPhaseCommitter__mutations
+    Config;
+    GlobalTxnScope;
+    enableAsyncCommit;
+    twoPhaseCommitter__shouldWriteBinlog;
+  }
+
+  {
+    GlobalTxnScope;
+    enableAsyncCommit;
+    twoPhaseCommitter__shouldWriteBinlog;
+  } -> twoPhaseCommitter__setAsyncCommit[style_edge_data];
+
+  Config -> TiKVClient;
+  TiKVClient -> AsyncCommit;
+  AsyncCommit -> AsyncCommit__TotalKeySizeLimit;
+  AsyncCommit -> AsyncCommit__Default
+
+
+  {
+    twoPhaseCommitter__mutations
+    AsyncCommit__TotalKeySizeLimit
+  } -> twoPhaseCommitter__setAsyncCommit[style_edge_data];
+
+  {
+    rank=same;
+    enableAsyncCommit;
+    twoPhaseCommitter__shouldWriteBinlog;
+    AsyncCommit__TotalKeySizeLimit;
+    GlobalTxnScope;
+  }
+
+  twoPhaseCommitter__execute[style_func;label="{{
+    twoPhaseCommitter\l
+    execute\l|
+    执行事务\l
+  }}"]
+
+
+  AsyncCommit[style_func;label="{{
+    AsyncCommit\l|
+	  KeysLimit uint\l|
+	  TotalKeySizeLimit uint64\l|
+	  SafeWindow time.Duration\l|
+	  AllowedClockDrift time.Duration\l
+  }}"]
+
+  twoPhaseCommitter__mutations[style_func;label="{{
+    twoPhaseCommitter\l
+    mutations\l|
+    遍历mutations\l
+    计算事务所有keys大小\l
+    和配置中的totalKeysLimit做比较\l
+  }}"]
+
+  twoPhaseCommitter__checkAsyncCommit[style_func;label="{{
+    twoPhaseCommitter\l
+    checkAsyncCommit\l|
+    检查是否可以\l
+    采用asyncCommit\l
+  }}"]
+  GlobalTxnScope[style_func;label="{{
+    GlobalTxnScope\l|
+    如果事务的scope不是\l
+    GlobalTxnScope\l
+    就不开启AsyncCommit\l
+  }}"]
+  twoPhaseCommitter__shouldWriteBinlog[style_func;label="{{
+    twoPhaseCommitter\l
+    shouldWriteBinlog\l|
+    Async Commit和binlog不兼容\l
+    因为non unique timestamp issue\l
+  }}"]
+
+  twoPhaseCommitter__useAsycnCommit[style_var;label="{{
+    twoPhaseCommitter\l
+    useAsycnCommit\l|
+    检查结果保存在atomic var\l
+    useAsyncCommit中\l
+  }}"]
+  twoPhaseCommitter__isAsyncCommit[style_blue1;label="{{
+    twoPhaseCommitter\l
+    isAsyncCommit\l|
+    load atomic var\l
+    返回是否使用async commit\l
+  }}"]
+  twoPhaseCommitter__setAsyncCommit[style_func;label="{{
+    twoPhaseCommitter\l
+    setAsyncCommit\l|
+    设置atomic var\l
+  }}"]
+
+  AsyncCommit__TotalKeySizeLimit[style_func;label="{{
+    AsyncCommit\l
+    TotalKeySizeLimit\l
+    是否超过了keySizeLimit\l
+  }}"]
+  AsyncCommit__Default[style_green1;label="{{
+    AsyncCommit\l
+    TotalKeySizeLimit\l|
+			KeysLimit:         256,\l|
+			TotalKeySizeLimit: 4 * 1024\l|
+			SafeWindow:        2 * time.Second,\l|
+			AllowedClockDrift: 500 * time.Millisecond,\l
+  }}"]
+
+
+}

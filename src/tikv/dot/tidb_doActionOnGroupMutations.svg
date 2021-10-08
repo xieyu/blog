@@ -35,11 +35,11 @@
 <!-- doActionOnBatches_go -->
 <g id="node7" class="node">
 <title>doActionOnBatches_go</title>
-<path fill="none" stroke="#1c2123" d="M1293.5,-305.5C1293.5,-305.5 1427.5,-305.5 1427.5,-305.5 1433.5,-305.5 1439.5,-311.5 1439.5,-317.5 1439.5,-317.5 1439.5,-361.5 1439.5,-361.5 1439.5,-367.5 1433.5,-373.5 1427.5,-373.5 1427.5,-373.5 1293.5,-373.5 1293.5,-373.5 1287.5,-373.5 1281.5,-367.5 1281.5,-361.5 1281.5,-361.5 1281.5,-317.5 1281.5,-317.5 1281.5,-311.5 1287.5,-305.5 1293.5,-305.5"/>
-<text text-anchor="start" x="1289.5" y="-358.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">新启一个go routine</text>
-<text text-anchor="start" x="1289.5" y="-343.3" font-family="Times,serif" font-size="14.00" fill="#2f3638"> 调用doActionOnBatches</text>
-<text text-anchor="start" x="1289.5" y="-328.3" font-family="Times,serif" font-size="14.00" fill="#2f3638"> 异步的提交事务</text>
-<text text-anchor="start" x="1289.5" y="-313.3" font-family="Times,serif" font-size="14.00" fill="#2f3638"> 调用者不用等.</text>
+<path fill="#a2dbfa" stroke="#8a8898" d="M1293.5,-305.5C1293.5,-305.5 1427.5,-305.5 1427.5,-305.5 1433.5,-305.5 1439.5,-311.5 1439.5,-317.5 1439.5,-317.5 1439.5,-361.5 1439.5,-361.5 1439.5,-367.5 1433.5,-373.5 1427.5,-373.5 1427.5,-373.5 1293.5,-373.5 1293.5,-373.5 1287.5,-373.5 1281.5,-367.5 1281.5,-361.5 1281.5,-361.5 1281.5,-317.5 1281.5,-317.5 1281.5,-311.5 1287.5,-305.5 1293.5,-305.5"/>
+<text text-anchor="start" x="1289.5" y="-358.3" font-family="Times,serif" font-size="14.00" fill="#5d6179">新启一个go routine</text>
+<text text-anchor="start" x="1289.5" y="-343.3" font-family="Times,serif" font-size="14.00" fill="#5d6179"> 调用doActionOnBatches</text>
+<text text-anchor="start" x="1289.5" y="-328.3" font-family="Times,serif" font-size="14.00" fill="#5d6179"> 异步的提交事务</text>
+<text text-anchor="start" x="1289.5" y="-313.3" font-family="Times,serif" font-size="14.00" fill="#5d6179"> 调用者不用等.</text>
 </g>
 <!-- appendBatchMutationsBySize&#45;&gt;doActionOnBatches_go -->
 <g id="edge15" class="edge">
@@ -141,10 +141,10 @@
 <!-- doActionOnBatches_primaryBatch -->
 <g id="node6" class="node">
 <title>doActionOnBatches_primaryBatch</title>
-<path fill="none" stroke="#1c2123" d="M1260,-83.5C1260,-83.5 1461,-83.5 1461,-83.5 1467,-83.5 1473,-89.5 1473,-95.5 1473,-95.5 1473,-117.5 1473,-117.5 1473,-123.5 1467,-129.5 1461,-129.5 1461,-129.5 1260,-129.5 1260,-129.5 1254,-129.5 1248,-123.5 1248,-117.5 1248,-117.5 1248,-95.5 1248,-95.5 1248,-89.5 1254,-83.5 1260,-83.5"/>
-<text text-anchor="middle" x="1360.5" y="-114.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">doActionOnBatches(...,primaryBatch)</text>
-<polyline fill="none" stroke="#1c2123" points="1248,-106.5 1473,-106.5 "/>
-<text text-anchor="start" x="1256" y="-91.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">先提交primary Batch</text>
+<path fill="#bcffb9" stroke="#8a8898" d="M1260,-83.5C1260,-83.5 1461,-83.5 1461,-83.5 1467,-83.5 1473,-89.5 1473,-95.5 1473,-95.5 1473,-117.5 1473,-117.5 1473,-123.5 1467,-129.5 1461,-129.5 1461,-129.5 1260,-129.5 1260,-129.5 1254,-129.5 1248,-123.5 1248,-117.5 1248,-117.5 1248,-95.5 1248,-95.5 1248,-89.5 1254,-83.5 1260,-83.5"/>
+<text text-anchor="middle" x="1360.5" y="-114.3" font-family="Times,serif" font-size="14.00" fill="#5d6179">doActionOnBatches(...,primaryBatch)</text>
+<polyline fill="none" stroke="#8a8898" points="1248,-106.5 1473,-106.5 "/>
+<text text-anchor="start" x="1256" y="-91.3" font-family="Times,serif" font-size="14.00" fill="#5d6179">先提交primary Batch</text>
 </g>
 <!-- doActionOnGroupMutations&#45;&gt;doActionOnBatches_primaryBatch -->
 <g id="edge5" class="edge">
@@ -161,9 +161,9 @@
 <!-- doActionOnBatches_n -->
 <g id="node8" class="node">
 <title>doActionOnBatches_n</title>
-<path fill="none" stroke="#1c2123" d="M1302.5,-0.5C1302.5,-0.5 1418.5,-0.5 1418.5,-0.5 1424.5,-0.5 1430.5,-6.5 1430.5,-12.5 1430.5,-12.5 1430.5,-26.5 1430.5,-26.5 1430.5,-32.5 1424.5,-38.5 1418.5,-38.5 1418.5,-38.5 1302.5,-38.5 1302.5,-38.5 1296.5,-38.5 1290.5,-32.5 1290.5,-26.5 1290.5,-26.5 1290.5,-12.5 1290.5,-12.5 1290.5,-6.5 1296.5,-0.5 1302.5,-0.5"/>
-<text text-anchor="start" x="1298.5" y="-23.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">3. doActionOnBatches</text>
-<text text-anchor="start" x="1298.5" y="-8.3" font-family="Times,serif" font-size="14.00" fill="#2f3638"> 处理2的else</text>
+<path fill="#a2dbfa" stroke="#8a8898" d="M1302.5,-0.5C1302.5,-0.5 1418.5,-0.5 1418.5,-0.5 1424.5,-0.5 1430.5,-6.5 1430.5,-12.5 1430.5,-12.5 1430.5,-26.5 1430.5,-26.5 1430.5,-32.5 1424.5,-38.5 1418.5,-38.5 1418.5,-38.5 1302.5,-38.5 1302.5,-38.5 1296.5,-38.5 1290.5,-32.5 1290.5,-26.5 1290.5,-26.5 1290.5,-12.5 1290.5,-12.5 1290.5,-6.5 1296.5,-0.5 1302.5,-0.5"/>
+<text text-anchor="start" x="1298.5" y="-23.3" font-family="Times,serif" font-size="14.00" fill="#5d6179">3. doActionOnBatches</text>
+<text text-anchor="start" x="1298.5" y="-8.3" font-family="Times,serif" font-size="14.00" fill="#5d6179"> 处理2的else</text>
 </g>
 <!-- doActionOnGroupMutations&#45;&gt;doActionOnBatches_n -->
 <g id="edge7" class="edge">

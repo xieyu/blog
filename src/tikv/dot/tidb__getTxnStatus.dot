@@ -4,33 +4,12 @@ digraph dig {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
-  //LockResolver__resolveLocks -> {
-  //  foreach__locks;
-  //  resolve;
-  //  cleanTxns;
-  //};
-  //foreach__locks -> resolve;
-  //cleanTxns -> cleanRegions[style_edge_data];
-  //cleanRegions -> {
+  LockResolver__getTxnStatusFromLock -> TxnStatus -> TxnStatus__ttl[style_edge_data];
+  //TxnStatus__ttl -> {
   //  LockResolver__resolveLock;
-  //  LockResolver__resolvePessimisticLock;
-  //}[style_edge_data];
-
-  //resolve -> {
-  //  resolve;
-  //  LockResolver__getTxnStatusFromLock;
   //  LockResolver__resolveLockAsync;
   //  LockResolver__resolvePessimisticLock;
-  //  TxnStatus__ttl;
-  //  cleanTxns;
-  //  cleanRegions;
-  //}
-  LockResolver__getTxnStatusFromLock -> TxnStatus -> TxnStatus__ttl[style_edge_data];
-  TxnStatus__ttl -> {
-    LockResolver__resolveLock;
-    LockResolver__resolveLockAsync;
-    LockResolver__resolvePessimisticLock;
-  }[style_edge_data];
+  //}[style_edge_data];
 
 
   LockResolver__getTxnStatusFromLock -> {
@@ -56,7 +35,7 @@ digraph dig {
 
 
   LockResolver__saveResolved -> {
-    LockResolver__mu__recentResolved;
+    //LockResolver__mu__recentResolved;
     LockResolver__mu__resolved;
   }
   LockResolver__getResolved -> {
@@ -82,6 +61,7 @@ digraph dig {
     获取txn状态\l
   }}"]
 
+/*
   LockResolver__resolveLockAsync[style_green1;label="{{
     LockResolver\l
     resolveLockAsync\l|
@@ -98,8 +78,9 @@ digraph dig {
     LockResolver\l
       resolveLock\l
   }}"]
+  */
 
-  LockResolver__mu__resolved[style_func;label="{{
+  LockResolver__mu__resolved[style_blue1;label="{{
     LockResolver\l
     mu.resolved\l
     map[uint64]TxnStatus\l|
@@ -108,24 +89,20 @@ digraph dig {
   }}"]
   LockResolver__getResolved[style_func;label="{{
     LockResolver\l
-    getResolved\l
+    getResolved\l|
     向TiKV发起请求之前\l
     先看是否已经resolve了\l
   }}"]
 
   LockResolver__saveResolved[style_func;label="{{
     LockResolver\l
-    saveResolved\l
+    saveResolved\l|
     保存已经resolved的txn\l
   }}"]
   Action[style_func;label="{{
-    Action\l
-	  Action_NoAction                     Action = 0\l|
-	  Action_TTLExpireRollback            Action = 1\l|
-	  Action_LockNotExistRollback         Action = 2\l|
-	  Action_MinCommitTSPushed            Action = 3\l|
-	  Action_TTLExpirePessimisticRollback Action = 4\l|
-	  Action_LockNotExistDoNothing        Action = 5\l
+    Action\l|
+    TikV在执行CheckTxnStatus\l
+    时所执行的action\l
   }}"]
 
 

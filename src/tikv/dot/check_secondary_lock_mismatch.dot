@@ -11,14 +11,11 @@ digraph dig {
     SnapshotReader__get_txn_commit_record;
     SecondaryLockStatus__Committed;
     SecondaryLockStatus__RolledBack;
-    SecondaryLockStatus__Locked;
     MvccTxn__mark_rollback_on_mismatching_lock;
     make_rollback;
     MvccTxn__put_write;
     collapse_prev_rollback;
     ReleasedLocks__push;
-    WriteResult__set_allowed_on_disk_almost_full;
-    ConcurrencyManager__update_max_ts;
     ReleasedLocks__push;
     ReleasedLocks__new;
     ReleasedLocks__wake_up;
@@ -26,28 +23,11 @@ digraph dig {
 
   SnapshotReader__load_lock -> {
     lock__mismatch;
-    lock__exists;
   }
   SnapshotReader__seek_write -> MvccTxn__delete_write[style_edge_data];
-  lock__exists -> {
-    lock__exists__Pessimistic;
-    lock__exists__NOT__Pessimistic;
-  }[style_edge_data];
-
-  lock__exists__Pessimistic -> {
-    MvccTxn__unlock_key;
-    need_rollback;
-    SnapshotReader__get_txn_commit_record;
-    SecondaryLockStatus__RolledBack;
-  }
-  lock__exists__NOT__Pessimistic -> {
-    SecondaryLockStatus__Locked;
-  }
 
   lock__mismatch -> {
      SnapshotReader__get_txn_commit_record;
-     TxnCommitRecord__None;
-     MvccTxn__mark_rollback_on_mismatching_lock;
   }[style_edge_data];
 
   SnapshotReader__get_txn_commit_record -> {
@@ -68,22 +48,24 @@ digraph dig {
   TxnCommitRecord__None -> {
     need_rollback;
     SecondaryLockStatus__RolledBack;
+    overlapped_write;
   }
 
   need_rollback -> {
     MvccTxn__mark_rollback_on_mismatching_lock;
     make_rollback;
   }
+  make_rollback -> Write;
 
-  make_rollback -> {
-   Write__set_ovelapped_rollback;
-   Write__new_rollback;
-  }
-  Write__new_rollback -> {
-   WriteType__Rollback;
-  }
-  Write__new_rollback -> Write[style_edge_data];
-  WriteType__Rollback -> Write[style_edge_data];
+  //make_rollback -> {
+  // Write__set_ovelapped_rollback;
+  // Write__new_rollback;
+  //}
+  //Write__new_rollback -> {
+  // WriteType__Rollback;
+  //}
+  //Write__new_rollback -> Write[style_edge_data];
+  //WriteType__Rollback -> Write[style_edge_data];
   Write__set_ovelapped_rollback -> Write[style_edge_data];
 
   Write -> {
@@ -100,11 +82,8 @@ digraph dig {
   SecondaryLockStatus__RolledBack -> ReleasedLocks__wake_up[style_edge_data];
   MvccTxn__mark_rollback_on_mismatching_lock -> { Lock__rollback_ts__push;}
   MvccTxn__mark_rollback_on_mismatching_lock -> MvccTxn__put_lock[style_edge_data]
-  MvccTxn__unlock_key -> released_lock;
-  released_lock -> ReleasedLocks__push[style_edge_data];
 
   Lock__rollback_ts__push -> MvccTxn__put_lock[style_edge_data];
-  {TxnCommitRecord__None } -> overlapped_write;
   overlapped_write -> Write__set_ovelapped_rollback
   overlapped_write -> Write;
   //rank
@@ -112,23 +91,12 @@ digraph dig {
     rank=same;
     SecondaryLockStatus__Committed;
     SecondaryLockStatus__RolledBack;
-    SecondaryLockStatus__Locked;
   }
   {
     rank=same;
     TxnCommitRecord__OverlappedRollback;
     TxnCommitRecord__SingleRecord;
     TxnCommitRecord__None;
-  }
-  {
-    rank=same;
-    lock__exists;
-    lock__mismatch;
-  }
-  {
-    rank=same;
-    lock__exists__Pessimistic;
-    lock__exists__NOT__Pessimistic;
   }
   {
     rank=same;
@@ -153,32 +121,12 @@ digraph dig {
     读取key对应的lock\l
   }}"]
 
-  lock__exists[style_blue1;label="{{
-    lock exists\l|
-    1.lock存在\l
-    2.并且lock.ts == self.start_ts\l
-  }}"]
   lock__mismatch[style_blue1;label="{{
    lock mismatch\l|
     1. lock为None\l
     2. 或者Lock.ts != start_ts\l
   }}"]
 
-  lock__exists__Pessimistic[style_func;label="{{
-    lock__exists__Pessimistic\l|
-    case1: 并且Lock type\l
-    为Pessimistic\l
-  }}"]
-
-  lock__exists__NOT__Pessimistic[style_func;label="{{
-    lock__exists__NOT__Pessimistic\l
-    case2: 不是悲观lock\l
-  }}"]
-
-  SecondaryLockStatus__Locked[style_green1;label="{{
-    SecondaryLockStatus\l
-    Locked\l
-  }}"]
   SecondaryLockStatus__Committed[style_green1;label="{{
     SecondaryLockStatus\l
     Committed\l
@@ -233,22 +181,12 @@ digraph dig {
     设置has_overlapped_rollback\l|
     和gc_fenece\l
   }}"]
-  Write__new_rollback[style_func;label="{{
-    Write\l
-    new_rollback\l|
-    新建Write类型为Rollback\l
-    has_overlapped_rollback为false\l
-  }}"]
   MvccTxn__delete_write[style_blue1;label="{{
     MvccTxn\l
     delete_write\l|
     删除之前的Rollback类型\l
     并且没被protected\l
     的Write\l
-  }}"]
-  MvccTxn__unlock_key[style_blue1;label="{{
-    MvccTxn\l
-    unlock_key\l
   }}"]
   SnapshotReader__seek_write[style_func;label="{{
     SnapshotReader\l
@@ -271,34 +209,9 @@ digraph dig {
     TxnCommitRecord\l
     None\l
   }}"]
-  released_lock[style_var;label="{{
-    released_lock\l
-    被释放的lock\l
-  }}"]
   overlapped_write[style_func;label="{{
     OverlappedWrite\l|
     pub write: Write,\l|
     pub gc_fence: TimeStamp,\l
   }}"]
-  Write[style_func;label="{{
-    Write\l
-    pub write_type: WriteType,\l|
-    pub start_ts: TimeStamp,\l|
-    pub short_value: Option\<Value\>,\l|
-    pub has_overlapped_rollback: bool,\l|
-    pub gc_fence: Option\<TimeStamp\>,\l
-  }}"]
-
-  ConcurrencyManager__update_max_ts[style_func;label="{{
-    ConcurrencyManager\l
-    update_max_ts\l|
-    更新max_ts\l
-  }}"]
-
-  WriteType__Rollback[style_func;label="{{
-    WriteType\l
-    Rollback\l|
-    write类型为rollback\l
-  }}"]
-
 }

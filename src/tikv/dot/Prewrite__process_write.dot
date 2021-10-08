@@ -4,10 +4,21 @@ digraph Prewriter__process_write {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
-
+  //edge
   PrewritePessimistic__into_prewriter -> Prewriter;
   Prewrite__into_prewriter -> Prewriter;
   Prewriter -> Prewriter__process_write[style_edge_data];
+  Prewriter -> {
+    PrewriteKind;
+    MutationLock;
+  }
+  MutationLock -> Mutation;
+
+  PrewriteKind -> {
+    Pessimistic;
+    Optimistic;
+  }
+  Mutation -> prewrite[style_edge_data];
 
   Prewriter__process_write -> {
     PreWriteKind__can_skip_constraint_check;
@@ -16,22 +27,84 @@ digraph Prewriter__process_write {
     Prewriter__prewrite;
     Prewriter__write_result;
   }
+
+  Prewriter__prewrite -> {
+    prewrite;
+    TransactionProperties;
+  }
+  TransactionProperties -> prewrite[style_edge_data];
+
+  SnapshotReader__new -> {
+    Prewriter__prewrite;
+  }[style_edge_data];
+
+  //rank
+
+  //node
+  Prewriter[style_func;label="{{
+    Prewriter\<PrewriteKind\>\l
+    kind: K\l|
+    mutations: Vec\<K::Mutation\>,\l|
+    primary: Vec\<u8\>,\l|
+    start_ts: TimeStamp,\l
+  }}"]
   Prewriter__prewrite[style_blue1;label="{{
     Prewriter\l
     prewrite\l|
     遍历prewriter \l
     mutations\l
     对于每个mutation\l
-    调用prewrite
+    调用prewrite\l
   }}"]
-  Prewriter__prewrite -> {
-    prewrite;
-    TransactionProperties;
-    Prewriter__mutations;
-  }
 
-  SnapshotReader__new -> {
-     SnapshotReader__load_lock;
-     SnapshotReader__seek_write;
-  }[style_edge_data];
+  Optimistic[style_func;label="{{
+    Optimistic\l|
+    skip_contraint_check: bool\l|
+    乐观事务\l
+  }}"]
+  Pessimistic[style_func;label="{{
+    Pessimistic\l
+    for_update_ts: TimeStamp\l|
+    悲观事务\l
+  }}"]
+
+  Prewriter__process_write[style_func;label="{{
+    Prewrite\l
+    process_write\l|
+    处理Prewrite命令\l
+  }}"]
+  MutationLock[style_func;label="{{
+    MutationLock\l
+    fn is_pessimistic_lock(&self)\l
+    -\> bool;\l|
+    fn into_mutation(self)\l
+    -\> Mutation;\l
+  }}"]
+
+  Mutation[style_green1;label="{{
+    enum Mutation\l|
+    Put((Key, Value)),\l|
+    Delete(Key),\l|
+    Lock(Key),\l|
+    Insert((Key, Value)),\l|
+    CheckNotExists(Key),\l
+  }}"]
+
+  prewrite[style_func;label="{{
+    prewrite\l|
+    prewrite一个\l
+    mutation\l
+  }}"]
+  TransactionProperties[style_func;label="{{
+    TransactionProperties\l
+    pub start_ts: TimeStamp,\l|
+    pub kind: TransactionKind,\l|
+    pub commit_kind: CommitKind,\l|
+    pub primary: &'a [u8],\l|
+    pub txn_size: u64,\l|
+    pub lock_ttl: u64,\l|
+    pub min_commit_ts: TimeStamp,\l|
+    pub need_old_value: bool,\l|
+    pub is_retry_request: bool,\l
+  }}"]
 }

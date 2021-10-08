@@ -1,0 +1,104 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  LockResolver__resolveLockAsync -> {
+    LockResover__checkAllSecondaries;
+    LockResolver__resolveRegionLocks;
+    RegionCache__GroupKeysByRegion;
+    TxnStatus;
+  }
+
+  LockResover__checkAllSecondaries -> {
+    asyncResolveData;
+  }
+  TxnStatus -> LockResolver__resolveRegionLocks;
+  TxnStatus -> LockInfo;
+  LockInfo:secondaries -> LockResover__checkAllSecondaries[style_edge_data];
+
+  LockResolver__resolveRegionLocks -> {
+    CmdResolveLock;
+    ResolveLockRequest;
+  }
+  regions -> ResolveLockRequest:keys;
+  RegionCache__GroupKeysByRegion -> regions -> LockResolver__resolveRegionLocks;
+
+  asyncResolveData:commitTs ->  ResolveLockRequest:CommitVersion;
+  asyncResolveData:keys -> RegionCache__GroupKeysByRegion;
+
+  LockResolver__resolveLockAsync[style_func;label="{{
+    LockResolver\l
+    resolveLockAsync\l|
+    resolve async commit\l
+    事务的lock\l
+    需要根据所有的seconaries\l
+    keys来判断txn的状态\l
+  }}"]
+  LockResover__checkAllSecondaries[style_blue1;label="{{
+    LockResover\l
+    checkAllSecondaries\l|
+    cheks the secondary locks\l
+    of an async commit transaction\l
+    to find out the final status \l
+    of the transaction\l|
+    根据所有的secondary locks\l
+    判断txn状态\l
+  }}"]
+  TxnStatus[style_func;label="{{
+    TxnStatus\l
+	  ttl         uint64\l|
+	  commitTS    uint64\l|
+	  action      kvrpcpb.Action\l|
+	  primaryLock *kvrpcpb.LockInfo\l
+  }}"]
+
+  asyncResolveData[style_green1;label="{{
+    asyncResolveData\l
+      mutex sync.Mutex\l|
+	    <commitTs> commitTs    uint64\l|
+	    <keys> keys        [][]byte\l|
+	    missingLock bool\l
+  }}"]
+
+  ResolveLockRequest[style_func;label="{{
+    ResolveLockRequest\l
+		StartVersion: l.TxnID,\l|
+		<CommitVersion> CommitVersion: status.CommitTS()\l|
+    <keys> Keys\l
+  }}"]
+  LockInfo[style_func;label="{{
+    LockInfo\l|
+    bytes primary_lock = 1;\l|
+    uint64 lock_version = 2;\l|
+    bytes key = 3;\l|
+    uint64 lock_ttl = 4;\l|
+    uint64 txn_size = 5;\l|
+    Op lock_type = 6;\l|
+    uint64 lock_for_update_ts = 7;\l|
+    bool use_async_commit = 8;\l|
+    uint64 min_commit_ts = 9;\l|
+    <secondaries> repeated bytes secondaries = 10;\l
+  }}"]
+
+  RegionCache__GroupKeysByRegion[style_func;label="{{
+    RegionCache\l
+    GroupKeysByRegion\l|
+    把key根据region来分组\l
+  }}"]
+  regions[style_func;label="{{
+    regions\l|
+    map[RegionVersID][][]byes\l
+    regionVerID到keys的映射\l
+  }}"]
+  LockResolver__resolveRegionLocks[style_func;label="{{
+    LockResolver\l
+    resolveRegionLocks\l|
+    对于每个region启动\l
+    一个go routine\l|
+    resolve这个region\l
+    keys\l
+  }}"]
+
+}

@@ -10,15 +10,15 @@ digraph doActionOnMutations {
     groupMutations;
     doActionOnGroupMutations;
   }
-  groupMutations[style_func;label="{{
+  groupMutations[style_blue1;label="{{
     groupMutations|
-     groupMutations groups \l 
-     mutations by region, \l 
-     then checks for any large\l 
-     groups and in that case\l 
+     groupMutations groups \l
+     mutations by region, \l
+     then checks for any large\l
+     groups and in that case\l
      pre-splits the region.\l
   }}"]
-  doActionOnGroupMutations[style_func;label="{{
+  doActionOnGroupMutations[style_green1;label="{{
     doActionOnGroupMutations|
     split groups into batches\l
     one group per region\l
@@ -63,7 +63,7 @@ digraph doActionOnMutations {
     handleSingleBatch\l
   }}"]
   actionPrewrite_handleSingleBatch[style_func;label="{{
-    actionPrewrite| 
+    actionPrewrite|
     handleSingleBatch\l
   }}"]
 

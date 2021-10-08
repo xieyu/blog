@@ -29,12 +29,16 @@ digraph doActionOnBatches {
       使用rateLimiter token方式\l
       做并发控制\l
     }}"]
-    go_func[style_func;label="{{
+    go_func[style_green1;label="{{
       go func \{...\}\l|
       启动一个新的go routine\l
       发送batches\l
-      go routine跑完后\l 
+      go routine跑完后\l
       调用PutToken归还token\l
+    }}"]
+
+    startWorker[style_blue1;label="{{
+      go startWorker\l
     }}"]
 
     go_func -> {

@@ -1,0 +1,119 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  LockResolver__resolveLocks -> {
+    resolve;
+    cleanTxns;
+    cleanRegions;
+  }
+
+  subgraph cluster_status_ttl {
+    graph[label="status ttl==0";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    LockResolver__resolveLockAsync;
+    LockResolver__resolvePessimisticLock;
+    LockResolver__resolveLock;
+  }
+
+  LockResolver__getTxnStatusFromLock -> TxnStatus;
+  TxnStatus -> {
+    LockResolver__resolveLockAsync;
+    LockResolver__resolvePessimisticLock;
+    LockResolver__resolveLock;
+    msBeforeExpired;
+    tikverr__NewErrorWriteConflictWithArgs;
+  }[style_edge_data];
+
+
+  resolve -> {
+    LockResolver__getTxnStatusFromLock;
+    LockResolver__resolveLockAsync;
+    LockResolver__resolvePessimisticLock;
+    LockResolver__resolveLock;
+    tikverr__NewErrorWriteConflictWithArgs;
+  }
+  cleanRegions -> {
+    LockResolver__resolvePessimisticLock;
+    LockResolver__resolveLock;
+  }[style_edge_data];
+
+  cleanTxns -> cleanRegions[style_edge_data];
+
+  LockResolver__resolveLocks[style_func;label="{{
+    LockResolver\l
+    resolveLocks\l|
+    resolve一批lock\l
+  }}"]
+
+  LockResolver__resolveLock[style_func;label="{{
+    LockResolver\l
+    resolveLock\l
+  }}"]
+  resolve[style_func;label="{{
+    resolve\l|
+    resolve单个key\l
+  }}"]
+
+  LockResolver__getTxnStatusFromLock[style_blue1;label="{{
+    LockResolver\l
+    getTxnStatusFromLock\l|
+    根据lock.primarykey\l
+    获取事务的status\l
+  }}"]
+
+  LockResolver__resolvePessimisticLock[style_green1;label="{{
+    LockResolver\l
+    resolvePessimisticLock\l|
+    清理悲观事务lock\l
+  }}"]
+  LockResolver__resolveLock[style_green1;label="{{
+    LockResolver\l
+    resolveLock\l
+  }}"]
+  LockResolver__resolveLockAsync[style_green1;label="{{
+    LockResolver\l
+    resolveLockAsync\l|
+    清理async commit 的lock\l
+  }}"]
+
+  TxnStatus[style_func;label="{{
+    TxnStatus\l|
+	  ttl         uint64\l|
+	  commitTS    uint64\l|
+	  action      kvrpcpb.Action\l|
+	  primaryLock *kvrpcpb.LockInfo\l
+  }}"]
+  msBeforeExpired[style_var;label="{{
+    msBeforeExpired\l
+    等到下次lock expire\l|
+    由上层重试\l
+  }}"]
+
+  cleanTxns[style_var;label="{{
+    cleanTxns\l|
+	  // TxnID -\> []Region,\l|
+    record resolved Regions.\l|
+	  map[uint64]map[\l
+    locate.RegionVerID]struct\{\}\l
+  }}"]
+  cleanRegions[style_var;label="{{
+    cleanRegions\l
+      map[locate.RegionVerID]struct\{\}
+  }}"]
+  tikverr__NewErrorWriteConflictWithArgs[style_func;label="{{
+    tikverr\l
+    NewErrorWriteConflictWithArgs\l|
+		 Write conflict detected!\l|
+		 If it's a optimistic conflict\l
+     and current txn is earlier\l
+     than the lock owner,\l
+		 abort current transaction.\l
+		 This could avoids the deadlock\l
+     scene of two large transaction.\l
+  }}"]
+
+}

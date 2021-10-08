@@ -1,0 +1,48 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  twoPhaseCommitter__execute -> {
+    twoPhaseCommitter__checkAsyncCommit;
+    commitTSMayBeCalculated;
+    twoPhaseCommitter__setAsyncCommit;
+    twoPhaseCommitter__useAsyncCommit;
+    twoPhaseCommitter__needLinearizability
+    kvStore__GetTimestampeWithRetry;
+    twoPhaseCommitter__minComitTS;
+    twoPhaseCommitter__calculateMaxCommitTS;
+    twoPhaseCommitter__prewriteMutations;
+  }
+
+  twoPhaseCommitter__checkAsyncCommit -> {
+    asyncCommitCfg__TotalKeySizeLimit;
+    GetGlobalConfig__TiKVClient__AsyncCommit;
+    GlobalTxnScope;
+  }
+
+  twoPhaseCommitter__needLinearizability -> KVTxn__causalConsistency;
+
+  kvStore__GetTimestampeWithRetry -> twoPhaseCommitter__minComitTS[style_edge_data];
+
+  twoPhaseCommitter__buildPrewriteRequest -> {
+    twoPhaseCommitter__asyncSecondaries
+    twoPhaseCommitter__isAsyncCommit;
+  }
+
+  twoPhaseCommitter__isAsyncCommit -> twoPhaseCommitter__useAsyncCommit[style_edge_data];
+  twoPhaseCommitter__asyncSecondaries -> twoPhaseCommitter__mutations;
+  twoPhaseCommitter__prewriteMutations -> twoPhaseCommitter__buildPrewriteRequest[style_edge_data];
+  KVTxn__causalConsistency -> kvStore__GetTimestampeWithRetry[style_edge_data];
+  commitTSMayBeCalculated -> twoPhaseCommitter__calculateMaxCommitTS[style_edge_data];
+
+  twoPhaseCommitter__asyncSecondaries[style_blue1;label="{{
+    twoPhaseCommitter\l
+    asyncSecondaries\l
+  }}"]
+
+
+}

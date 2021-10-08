@@ -1,0 +1,122 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  TableCommon__AddRecord -> {
+    session__Txn;
+    txn__GetMemBuffer;
+    MemBuffer__Staging;
+    MemBuffer__Cleanup;
+    tablecodec__EncodeRow;
+    TableCommon__RecordKey;
+    MemBuffer__SetWithFlags;
+    MemBuffer__Set;
+    MemBuffer__Release;
+    TableCommon__addIndices;
+  }
+
+  TableCommon__addIndices -> {
+    index__Create;
+  }
+  index__Create -> {
+    index__GenIndexKey;
+    txn__GetMemBuffer;
+    MemBuffer__Get;
+    MemBuffer__Set;
+  }
+  {
+    TableCommon__RecordKey;
+    tablecodec__EncodeRow;
+  } -> {
+    MemBuffer__Set;
+    MemBuffer__SetWithFlags;
+  }[style_edge_data];
+
+  MemBuffer__Staging -> {
+    MemBuffer__Release;
+    MemBuffer__Cleanup;
+  }[style_edge_data];
+
+  index__GenIndexKey -> {
+    MemBuffer__Set;
+    MemBuffer__SetWithFlags;
+  }[style_edge_data];
+
+  TableCommon__RemoveRecord -> {
+    TableCommon__removeRowData;
+    session__Txn;
+    TableCommon__removeRowIndices;
+  }
+
+  TableCommon__removeRowData -> {
+    session__Txn;
+    TableCommon__RecordKey;
+    txn__Delete;
+  }
+  txn__Delete -> MemBuffer__Delete;
+
+  TableCommon__removeRowIndices -> {
+    index__Delete;
+  }
+
+  index__Delete -> {
+    index__GenIndexKey;
+    txn__GetMemBuffer;
+    MemBuffer__Delete;
+    MemBuffer__DeleteWithFlags;
+  }
+
+  session__Txn -> txn__GetMemBuffer[style_edge_data];
+  session__Txn -> txn__Delete[style_edge_data];
+
+  TableCommon__UpdateRecord -> {
+    session__Txn;
+    txn__GetMemBuffer;
+    TableCommon__rebuildIndices;
+    MemBuffer__Set;
+    MemBuffer__Release;
+  }
+
+  TableCommon__rebuildIndices -> {
+    TableCommon__buildIndexForRow;
+    TableCommon__removeRowIndex;
+  }
+  TableCommon__removeRowIndex -> {
+   index__Delete;
+  }
+  TableCommon__buildIndexForRow -> {
+    index__Create;
+  }
+
+  MemBuffer__Set -> MemDB__Set;
+  MemBuffer__Get -> MemDB__Get;
+  MemBuffer__Delete -> MemDB__Delete;
+
+  txn__GetMemBuffer -> {
+    MemBuffer__Set;
+    MemBuffer__Get;
+    MemBuffer__Cleanup;
+    MemBuffer__Release;
+    MemBuffer__Staging;
+  }[style_edge_data];
+
+  {
+    rank=same;
+    MemBuffer__Get;
+    MemBuffer__Set;
+    MemBuffer__SetWithFlags;
+    MemBuffer__Delete;
+    MemBuffer__DeleteWithFlags;
+  }
+
+  {
+    rank=same;
+    TableCommon__AddRecord;
+    TableCommon__RemoveRecord;
+    TableCommon__UpdateRecord;
+  }
+
+}

@@ -1,0 +1,145 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  p_window__get_intial_window_options -> {
+    prview;
+    results;
+    prompt;
+  }
+
+  Pikcer__new -> {
+    actions__clear;
+    action_set__clear;
+    setmetatable;
+    obj__preview;
+    obj__all_previews;
+    obj__register_completion_callback;
+    obj__finder;
+    obj__sorter;
+    obj__window;
+    obj__highlighter;
+  }
+  setmetatable -> obj;
+  Pikcer__new -> Picker__find;
+
+  Picker__find -> {
+    self__close_existing_pickers;
+    self__reset__selection;
+    vim__cmd__doautocmd__User__TeleatecopeFindPre;
+    popup__create__popup_opts__results;
+    results_win;
+    result_border_win;
+    main_loop;
+    nvim_set_option;
+    popup__create__popup_opts__preview;
+    popup__create
+    preview_win;
+    results_bufnr;
+    preview_burnr;
+    prompt_win;
+    prompt_bufnr;
+    prompt_border_win;
+    nvim_buf_set_lines;
+    filetype__TelescopeResults;
+    filetype__telescopePrompt;
+    nvim_buf_set_option;
+    vim_cmd__startinsert;
+    vim_cmd__stopinsert;
+    nvim_buf_is_valid__prompt_buf_nr;
+    self___get_prompt;
+    self___on_input_filter_cb;
+    self__get_result_processor;
+    self__get_result_completor__results_bufnr;
+    self__finder__prompt__process_result;
+    nvim_buf_attach__prompt_bufnr;
+    on_close_prompt;
+  }
+  nvim_buf_attach__prompt_bufnr -> {
+   on_lines_cb;
+   on_detach_cb;
+  }
+  on_detach_cb -> {
+     next_find_id;
+     tx__send;
+  }
+  tx__send -> self___on_input_filter_cb[style_edge_data];
+  prompt_win -> prompt_bufnr;
+  prompt_bufnr -> nvim_buf_attach__prompt_bufnr;
+
+  self___get_prompt -> prompt -> self___on_input_filter_cb;
+  self___on_input_filter_cb -> {
+    on_input_result;
+  }
+  on_input_result -> {
+    on_input_result__prompt;
+    on_input_result__updated_finder;
+  }
+
+  filetype__TelescopeResults -> results_bufnr;
+  filetype__telescopePrompt -> prompt_bufnr;
+  nvim_buf_set_option -> {
+    filetype__telescopePrompt;
+    filetype__TelescopeResults;
+  }
+
+  self___get_prompt -> {
+    nvim_buf_get_lines__prompt_bufnr;
+  }
+
+  resutls_bufnr -> nvim_buf_set_lines
+
+  preview_win -> nvim_win_get_buf -> preview_bufnr;
+  preview_win -> preview_bufnr;
+
+  results_win -> nvim_win_get_buf -> results_bufnr;
+  results_win -> results_bufnr;
+
+  nvim_set_option -> {
+    results_win;
+    preview_win;
+    prompt_win;
+  }
+
+  popup__create__popup_opts__results -> results_win;
+  popup__create__popup_opts__preview -> preview_win;
+
+  main_loop -> async_void;
+  async_void -> {
+  }
+
+  Picker__get_result_processor -> {
+    cb_add;
+    cb_function_entry;
+  }
+  cb_function_entry -> {
+    Sorter__score;
+    file_ignore_patterns;
+  }
+  cb_ad -> {
+    EntryManager__add_entry;
+  }
+
+  EntryManager -> {
+    EntryManager___append_container;
+    EntryManager__insert_container_after;
+  }
+  EntryManager___append_container -> {
+    EntryManager__set_entry;
+    lnked_states__appedn;
+  }
+
+
+  Picker__find[style_func;label="{{
+    Picker__find\l
+    Picker 主函数\l
+  }}"]
+
+  self___get_prompt[style_func;label="{{
+    读取prompt用户输入\l
+  }}"]
+
+}

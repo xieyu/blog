@@ -1,0 +1,121 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  DML -> txn__GetMemBuffer;
+
+  KVTxn__Commit -> {
+    twoPhaseCommitter__initKeysAndMutations;
+    twoPhaseCommitter__execute;
+  }
+  twoPhaseCommitter__initKeysAndMutations -> {
+    newMemBufferMutations;
+    txn__GetMemBuffer;
+    txn__IsPessimistic;
+  }
+  newMemBufferMutations -> {
+    memBufferMutations;
+  }
+  txn__GetMemBuffer -> memBufferMutations[style_edge_data];
+
+  memBufferMutations -> twoPhaseCommitter__mutations;
+  twoPhaseCommitter__execute -> {
+    twoPhaseCommitter__prewriteMutations;
+    twoPhaseCommitter__commitTxn;
+  }
+  twoPhaseCommitter__commitTxn -> twoPhaseCommitter__commitMutations;
+
+  twoPhaseCommitter__mutations -> {
+    twoPhaseCommitter__prewriteMutations;
+    twoPhaseCommitter__commitMutations
+  }[style_edge_data];
+
+  twoPhaseCommitter__prewriteMutations -> doActionOnMutations;
+  twoPhaseCommitter__commitMutations -> doActionOnMutations;
+  {
+    rank=same;
+    twoPhaseCommitter__prewriteMutations;
+    twoPhaseCommitter__commitMutations;
+  }
+  {
+    rank=same;
+    twoPhaseCommitter__execute;
+    twoPhaseCommitter__initKeysAndMutations;
+  }
+  {
+    rank=same;
+    DML;
+    KVTxn__Commit;
+  }
+
+  memBufferMutations[style_func;label="{{
+    memBufferMutations\l|
+      storage *unionstore.MemDB\l|
+      handles []unionstore.MemKeyHandle\l
+  }}"]
+  twoPhaseCommitter__mutations[style_blue1;label="{{
+    twoPhaseCommitter\l
+    mutations\l|
+    需要提交的mutations\l
+  }}"]
+
+  twoPhaseCommitter__initKeysAndMutations[style_blue1;label="{{
+    twoPhaseCommitter\l
+    initKeysAndMutations\l|
+    使用txn的MemDB\l
+    初始化要2pc提交的\l
+    mutations\l
+  }}"]
+
+  txn__GetMemBuffer[style_blue1;label="{{
+    txn\l
+    GetMemBuffer\l
+  }}"]
+  twoPhaseCommitter__execute[style_func;label="{{
+    twoPhaseCommitter\l
+    execute\l|
+    开始执行两阶段提交\l|
+    先Prewrite\l
+    然后Commit\l
+  }}"]
+
+  twoPhaseCommitter__prewriteMutations[style_var;label="{{
+    twoPhaseCommitter\l
+    prewriteMutations\l|
+    prewrite阶段\l
+  }}"]
+  twoPhaseCommitter__commitMutations[style_green1;label="{{
+    twoPhaseCommitter\l
+    commitMutations\l|
+    commit阶段\l
+  }}"]
+
+  twoPhaseCommitter__commitTxn[style_func;label="{{
+    twoPhaseCommitter\l
+    commitTxn\l
+  }}"]
+  KVTxn__Commit[style_func;label="{{
+    KVTxn\l
+    Commit\l|
+    提交txn的MemDB\l
+  }}"]
+  txn__IsPessimistic[style_func;label="{{
+    txn\l
+    IsPessimistic\l
+  }}"]
+  doActionOnMutations[style_func;label="{{
+    doActionOnMutations\l|
+    groups keys into primary batch\l
+    and secondary batch\l
+  }}"]
+  DML[style_func;label="{{
+    DML\l|
+    txn的DML阶段的\l
+    修改会先写入\l
+    MemDB中\l
+  }}"]
+
+}

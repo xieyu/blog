@@ -4,58 +4,52 @@ digraph dig {
   edge[color=gray40];
   newrank=true;
   rankdir=LR;
-  LockResolver__resolveLocks -> {
-    cleanRegions;
-    cleanTxns;
-    locks;
-    resolve;
-  }
-
-  locks -> resolve;
-  resolve -> {
-    LockResolver__resolveLock;
-  }
-
-  cleanTxns -> cleanRegions[style_edge_data];
   KvStore__SendReq -> ReadTimeoutShort[style_edge_data];
   RegionCache__LocateKey -> Region -> KvStore__SendReq[style_edge_data];
-  Region -> cleanRegions[style_edge_data];
 
   LockResolver__resolveLock -> {
-     cleanRegions;
      ResolveLockRequest;
      CmdResolveLock;
      KvStore__SendReq;
      GetRegionError;
      ReadTimeoutShort;
      Backoffer__Backoff;
-     cleanRegions__loc__Region__clear;
      RegionCache__LocateKey;
+     ResolveLockRequest;
   }
+  KvStore__SendReq -> {ResolveLockRequest;CmdResolveLock}[style_edge_data];
 
   Backoffer__Backoff[style_func;label="{{
     Backoffer__Backoff\l|
     对于regionError重试\l
     重新LocKey\l
   }}"]
-
-  LockResolver__resolveLocks[style_func;label="{{
-    LockResolver::resolvelocks\l|
-    遍历locks\l
-    对于每个Lock\l
-    调用resolve方法\l
+  LockResolver__resolveLock[style_func;label="{{
+    LockResolver\l
+    resolveLock\l|
+    清理掉secondary key\l
+    的lock\l
   }}"]
-  resolve[style_func;label="{{
-    resolve\l|
-    处理单个key\l
+  KvStore__SendReq[style_func;label="{{
+    KvStore\l
+    SendReq\l|
+    发送请求给TiKV\l
   }}"]
-  cleanTxns[style_var;label="{{
-    cleanTxns\l|
-    map[uint64]map[RegionVerID]struct\{\}
+  ResolveLockRequest[style_func;label="{{
+    ResolveLockRequest\l|
+    StartVersion: l.TxnID\l
+    CommitVersion: status.CommitTs\l|
+    commit_ts为0表示rollback\l
+    commit_ts \> 0 表示commit\l
   }}"]
-  cleanRegions[style_var;label="{{
-    cleanRegions\l|
-    map[RegionVerID]struct\{\}\l
+  GetRegionError[style_func;label="{{
+    GetRegionError\l|
+    处理region error问题\l
+  }}"]
+  RegionCache__LocateKey[style_func;label="{{
+    RegionCache\l
+    LocateKey\l|
+    定位key所在的region\l
   }}"]
 
 }

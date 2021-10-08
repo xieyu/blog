@@ -7,7 +7,6 @@ digraph dig {
 
   CheckTxnStatus__process_write -> {
     ConcurrencyManager__update_max_ts;
-    MvccTxn__new;
     SnapshotReader__new;
     SnapshotReader__load_lock;
     check_txn_status_lock_exists;
@@ -25,31 +24,6 @@ digraph dig {
     check_txn_status_missing_lock;
     mismatch_lock;
   }[style_edge_data];
-  SnapshotReader__get_txn_commit_record -> {
-    TxnCommitRecord__SingleRecord;
-    TxnCommitRecord__OverlappedRollback
-    TxnCommitRecord__None;
-    Write__has_ovelapped_rollback;
-  }
-  Write__has_ovelapped_rollback -> {
-    TxnCommitRecord__OverlappedRollback;
-    TxnCommitRecord__None;
-  }
-
-  TxnCommitRecord__SingleRecord -> {
-    TxnStatus__Committed;
-    TxnStatus__RolledBack;
-  }
-  TxnCommitRecord__OverlappedRollback -> TxnStatus__RolledBack;
-  TxnCommitRecord__None -> {
-    ErrorInner__TxnNotFound;
-    TxnStatus__LockNotExistDoNothing;
-    collapse_prev_rollback;
-    MvccTxn__mark_rollback_on_mismatching_lock;
-    MvccTxn__put_write;
-    TxnStatus__LockNotExist;
-  }[style_edge_data];
-
 
   ReleasedLocks__new -> ReleasedLocks__push -> ReleasedLocks__wakeup[style_edge_data];
   TxnStatus__TtlExpire -> ReleasedLocks__wakeup[style_edge_data];
@@ -79,19 +53,9 @@ digraph dig {
   rollback_lock -> TxnStatus__TtlExpire[style_edge_data]
   rollback_lock -> ReleasedLocks__push[style_edge_data]
 
-  MvccTxn__new -> {
-    MvccTxn__put_lock
-    MvccTxn__unlock_key
-  }[style_edge_data];
   MvccTxn__unlock_key -> TxnStatus__PessimisticRollback
   MvccTxn__put_lock -> TxnStatus__Uncommitted
 
-  check_txn_status_missing_lock -> {
-    SnapshotReader__get_txn_commit_record;
-    MvccTxn__put_write;
-    MvccTxn__mark_rollback_on_mismatching_lock;
-    collapse_prev_rollback;
-  }
   mismatch_lock -> MvccTxn__mark_rollback_on_mismatching_lock[style_edge_data];
   MvccTxn__mark_rollback_on_mismatching_lock -> MvccTxn__put_lock2;
 
@@ -111,34 +75,28 @@ digraph dig {
       rank=same;
       MvccTxn__put_lock;
       MvccTxn__put_lock2;
-      MvccTxn__put_write;
       MvccTxn__unlock_key;
   }
 
   {
      rank=same;
-     TxnStatus__Committed;
      TxnStatus__Uncommitted;
      TxnStatus__PessimisticRollback;
-     TxnStatus__LockNotExist;
-     TxnStatus__RolledBack;
      TxnStatus__TtlExpire;
-     TxnStatus__LockNotExistDoNothing
-     TxnStatus__LockNotExist
   }
-  {
-    rank=same;
-    TxnCommitRecord__None;
-    TxnCommitRecord__OverlappedRollback;
-    TxnCommitRecord__SingleRecord;
-  }
-
 
   //detail
   CheckTxnStatus__process_write[style_func;label="{{
     CheckTxnStatus\l
     process_write\l|
-    处理CheckTxnStatu命令\l
+    处理CheckTxnStatu命令\l|
+    primary_key: Key,\l|
+    lock_ts: TimeStamp,\l|
+    caller_start_ts: TimeStamp,\l|
+    current_ts: TimeStamp,\l|
+    rollback_if_not_exist: bool,\l|
+    force_sync_commit: bool,\l|
+    resolving_pessimistic_lock: bool,\l
   }}"]
   CheckTxnStatus__primary_key[style_var;label="{{
     CheckTxnStatus\l
@@ -159,7 +117,8 @@ digraph dig {
     用来判断是否过期\l
   }}"]
 
-  Lock__min_commit_ts[style_func;label="{{
+  Lock__min_commit_ts[style_orange;label="{{
+    update lock.min_commit_ts\l
     txn还持有该lock\l
     lock没有过期\l|
     根据caller_start_ts\l
@@ -167,7 +126,7 @@ digraph dig {
     更新lock.min_commit_ts\l
   }}"]
 
-  Lock__expired[style_func;label="{{
+  Lock__expired[style_orange;label="{{
     Lock__expired|
     txn还持有该lock\l
     但lock已过期\l|
@@ -175,6 +134,13 @@ digraph dig {
     + lock.ttl \< \l
     current_ts.physical\l|
     lock过期了，需要清理掉\l
+  }}"]
+
+  mismatch_lock[style_orange;label="{{
+    mismatch_lock\l
+    lock.ts != lock_ts\l
+    lock已经被其他事务\l
+    持有了\l
   }}"]
 
   MvccTxn__put_lock[style_blue1;label="{{
@@ -185,10 +151,9 @@ digraph dig {
   }}"]
   MvccTxn__put_lock2[style_blue1;label="{{
     MvccTxn\l
-    put_lock\l
+    put_lock\l|
     更新其他事务lock的\l
     rollback_ts\l
-    字段\l
   }}"]
 
   MvccTxn__unlock_key[style_blue1;label="{{
@@ -196,24 +161,19 @@ digraph dig {
     UnlockKey\l|
     如果是悲观事务\l|
     且请求要求\l
-    resolving_pessimistic_lock\l|
+    resolving_pessimistic_lock\l
   }}"]
   MvccTxn__mark_rollback_on_mismatching_lock[style_func;label="{{
     MvccTxn\l
-    mark_rollback_on_mismatching_lock\l
+    mark_rollback_on_mismatching_lock\l|
     将start_ts加入到lock\l
     的rollback_ts数组中\l
   }}"]
 
-  MvccTxn__new[style_func;label="{{
-    MvccTxn\l
-    new\l
-  }}"]
-
-
-  rollback_lock[style_func;label="{{
+  rollback_lock[style_blue1;label="{{
     rollback_lock\l|
     清理掉primary key\l
+    lock primary ttl已超时\l
   }}"]
 
   SnapshotReader__new[style_func;label="{{
@@ -225,12 +185,6 @@ digraph dig {
     SnapshotReader\l
     load_lock\l|
     读取lock\l
-  }}"]
-  SnapshotReader__get_txn_commit_record[style_func;label="{{
-    SnapshotReader\l
-    get_txn_commit_record\l|
-    获取primary key 的\l
-    commit record\l
   }}"]
 
   check_txn_status_lock_exists[style_blue1;label="{{
@@ -266,14 +220,9 @@ digraph dig {
     ReleasedLocks\l
     push\l
   }}"]
-
-  TxnStatus__RolledBack[style_green1;label="{{
-    TxnStatus\l
-    RolledBack\l|
-    The txn was already\l
-    rollback before\l|
-    事务之前就\l
-    被rollback了\l
+  ReleasedLocks__wakeup[style_func;label="{{
+    ReleasedLocks\l
+    wakeup\l
   }}"]
 
   TxnStatus__TtlExpire[style_green1;label="{{
@@ -285,21 +234,10 @@ digraph dig {
     在本次check时被rolback了\l
   }}"]
 
-  TxnStatus__LockNotExist[style_green1;label="{{
-    TxnStatus\l
-    LockNotExist\l|
-    由于lock不存在\l
-    事务被rollback了\l
-  }}"]
   TxnStatus__Uncommitted[style_green1;label="{{
    TxnStatus\l
    Uncommitted\l|
    事务还没提交\l
-  }}"]
-  TxnStatus__Committed[style_green1;label="{{
-    TxnStatus\l
-    Committed\l|
-    事务已经被提交了\l
   }}"]
   TxnStatus__PessimisticRollback[style_green1;label="{{
     TxnStatus\l
@@ -310,45 +248,6 @@ digraph dig {
     在本次check中被rollblack了\l
   }}"]
 
-  TxnStatus__LockNotExistDoNothing[style_green1;label="{{
-    TxnStatus\l
-    LockNotExistDoNothing\l|
-    the txn primary key\l
-    is not found and nothing\l
-    is done;\l
-  }}"]
 
-  TxnCommitRecord__SingleRecord[style_orange;label="{{
-    TxnCommitRecord\l
-    SingleRecord\l|
-    write.start_ts == start_ts\l|
-    Found the transaction's\l
-    write record\l
-  }}"]
-
-  TxnCommitRecord__OverlappedRollback[style_orange;label="{{
-     TxnCommitRecord\l
-     OverlappedRollback\l|
-     1.commit_ts == start_ts\l|
-     2.write.has_overlapped_rollback\l|
-     在别的事务(t2)的write reocrds\l
-     中的oerlapped_rollback找到\l
-     了该事务(t1)\l|
-     t1.start_ts == t2.commit_ts\l
-  }}"]
-  TxnCommitRecord__None[style_orange;label="{{
-    TxnCommitRecord\l
-    None\l|
-     1.commit_ts == start_ts\l
-     2.!write.has_overlapped_rollback\l|
-     没找t1的commit record\l
-  }}"]
-
-  mismatch_lock[style_func;label="{{
-    mismatch_lock\l
-    lock.ts != lock_ts\l
-    lock已经被其他事务\l
-    持有了\l
-  }}"]
 
 }

@@ -1,0 +1,207 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  check_txn_status_missing_lock -> {
+    SnapshotReader__get_txn_commit_record;
+  }
+  SnapshotReader__get_txn_commit_record -> {
+    TxnCommitRecord__SingleRecord;
+    TxnCommitRecord__OverlappedRollback;
+    TxnCommitRecord__None;
+  }[style_edge_data];
+
+  MissingLockAction__construct_write -> {
+    make_rollback;
+  }
+
+  TxnCommitRecord__SingleRecord -> {
+    WriteType_Rollback;
+    TxnStatus__RolledBack;
+    TxnStatus__Committed;
+  }[style_edge_data]
+
+  TxnCommitRecord__OverlappedRollback -> TxnStatus__RolledBack[style_edge_data];
+
+  TxnCommitRecord__None -> {
+    TxnStatus__LockNotExistDoNothing;
+    TxnStatus__LockNotExist;
+    ErrorInner__TxnNotFound;
+    collapse_prev_rollback;
+    MissingLockAction__construct_write;
+    MissingLockAction__collapse_rollback;
+    MvccTxn__mark_rollback_on_mismatching_lock;
+  }[style_edge_data];
+
+
+  MissingLockAction__construct_write -> MvccTxn__put_write;
+  make_rollback -> Write -> MvccTxn__put_write[style_edge_data];
+  MissingLockAction__ProtectedRollback -> MvccTxn__mark_rollback_on_mismatching_lock[style_edge_data];
+  MissingLockAction__collapse_rollback -> protected -> make_rollback;
+
+  WriteType_Rollback -> {
+    TxnStatus__RolledBack;
+    TxnStatus__Committed;
+  }[style_edge_data]
+  //rollback_if_not_exist -> MissingLockAction__ProtectedRollback[style_edge_data];
+  //rollback_if_not_exist -> ErrorInner__TxnNotFound[style_edge_data];
+  resolving_pessimistic_lock -> TxnStatus__LockNotExistDoNothing[style_edge_data];
+  MvccTxn__mark_rollback_on_mismatching_lock -> {
+    Lock__rollback_ts__push;
+    MvccTxn__put_lock;
+  }
+  Lock__rollback_ts__push -> MvccTxn__put_lock[style_edge_data];
+
+  MissingLockAction__collapse_rollback -> collapse_prev_rollback;
+  protected -> MissingLockAction__ProtectedRollback[style_edge_data];
+
+  {
+    rank=same;
+    //rollback_if_not_exist;
+    resolving_pessimistic_lock;
+  }
+  {
+    rank=same;
+    resolving_pessimistic_lock;
+    check_txn_status_missing_lock;
+    protected;
+  }
+
+
+  {
+    rank=same;
+    TxnCommitRecord__SingleRecord;
+    TxnCommitRecord__OverlappedRollback;
+    TxnCommitRecord__None;
+  }
+
+  {
+    rank=same;
+    TxnStatus__RolledBack;
+    TxnStatus__Committed;
+    TxnStatus__LockNotExist;
+    TxnStatus__LockNotExistDoNothing;
+  }
+
+  {
+    rank=same;
+    MvccTxn__put_write;
+    MvccTxn__put_lock;
+  }
+
+  TxnStatus__LockNotExist[style_green1;label="{{
+    TxnStatus\l
+    LockNotExist\l|
+    TxnCommitRecord\l
+    None\l
+    最后对应的状态为\l
+    LockNotExist\l
+  }}"]
+  TxnStatus__LockNotExistDoNothing[style_green1;label="{{
+    TxnStatus\l
+    LockNotExistDoNothing\l|
+    如果resolving_pessimistic_lock\l
+  }}"]
+  TxnStatus__RolledBack[style_green1;label="{{
+    TxnStatus\l
+    RolledBack\l
+  }}"]
+  TxnStatus__Committed[style_green1;label="{{
+    TxnStatus\l
+    Committed\l
+  }}"]
+
+  TxnCommitRecord__None[style_blue1;label="{{
+    TxnCommitRecord\l
+    None(Some(OverlappedWrite))\l|
+    commit_ts == start_ts\l
+    并且!write.has_overlapped_rollback\l|
+    或者没对应的commit record\l
+  }}"]
+  TxnCommitRecord__SingleRecord[style_func;label="{{
+    TxnCommitRecord\l
+    SingleRecord\l|
+    write.start_ts == start_ts\l
+  }}"]
+  TxnCommitRecord__OverlappedRollback[style_blue1;label="{{
+    TxnCommitRecord\l
+    OverlappedRollback\l|
+    commit_ts == start_ts\l
+    且write.has_overlapped_rollback\l
+  }}"]
+
+  SnapshotReader__get_txn_commit_record[style_func;label="{{
+    SnapshotReader\l
+    get_txn_commit_record\l|
+    scan all versions from\l
+    max to start_ts\l
+  }}"]
+
+  WriteType_Rollback[style_func;label="{{
+    WriteType\l
+    Rollback\l|
+    如果write type 为Rollback\l
+    则事务状态为rollback\l
+    否则为comitted\l
+  }}"]
+
+  ErrorInner__TxnNotFound[style_func;label="{{
+    ErrorInner\l
+    TxnNotFound\l|
+    如果MissingLock::Action为\l
+    ReturnErr\l
+  }}"]
+  MvccTxn__mark_rollback_on_mismatching_lock[style_func;label="{{
+    MvccTxn\l
+    mark_rollback_on_mismatching_lock\l|
+    如果lock不为None\l
+    并且overlappe为None\l
+  }}"]
+  MissingLockAction__construct_write[style_func;label="{{
+    MissingLockAction\l
+    construct_write\l|
+    构造要写入的Write\l
+  }}"]
+  MissingLockAction__collapse_rollback[style_func;label="{{
+    MissingLockAction\l
+    collapse_rollback\l
+  }}"]
+  MissingLockAction__ProtectedRollback[style_func;label="{{
+    MissingLockAction\l
+    ProtectedRollback\l
+  }}"]
+
+  MvccTxn__put_lock[style_blue1;label="{{
+    MvccTxn\l
+    put_lock\l|
+    写入更新后的lock
+  }}"]
+
+  Lock__rollback_ts__push[style_func;label="{{
+    Lock\l
+    rollback_ts\l
+    push\l|
+    将事务的start_ts\l
+    push到lock的rollback_ts中\l
+  }}"]
+
+  MvccTxn__put_write[style_blue1;label="{{
+    MvccTxn\l
+    put_write\l|
+    写入rollback type的\l
+    write\l
+  }}"]
+  protected[style_var;label="{{
+    protected\l|
+    传入的参数\l
+  }}"]
+
+  resolving_pessimistic_lock[style_var;label="{{
+    resolving_pessimistic_lock\l
+    传入的参数\l
+  }}"]
+
+}

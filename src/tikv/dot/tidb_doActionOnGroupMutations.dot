@@ -12,7 +12,6 @@ digraph doActionOnGroupMutations {
 		primaryKey: primaryKey,\l
   }}"]
 
-      
   doActionOnGroupMutations -> {
     newBatched;
     primary;
@@ -28,7 +27,7 @@ digraph doActionOnGroupMutations {
   subgraph cluster_firstIsPrimay {
     graph[label="1. if firstIsPrimay and \l((ActionIsCommit and !c.isAsyncCommit) \l or actionIsCleanup  or actionIsPessimiticLock)\l";fontsize=14;style="rounded,dashed";color="slategrey"]
     doActionOnBatches_primaryBatch;
-    doActionOnBatches_primaryBatch[style_func;label="{{
+    doActionOnBatches_primaryBatch[style_green1;label="{{
       doActionOnBatches(...,primaryBatch)|
       先提交primary Batch\l
     }}"]
@@ -45,7 +44,7 @@ digraph doActionOnGroupMutations {
   }
   subgraph cluster_ActionIsCommit {
     graph[label="2. if actionIsCommit and\l !actionCommit.retry\l and !isAsyncCommit";fontsize=14;style="rounded,dashed";color="slategrey"]
-    doActionOnBatches_go[style_func;label="{{
+    doActionOnBatches_go[style_blue1;label="{{
       新启一个go routine\l
       调用doActionOnBatches\l
       异步的提交事务\l
@@ -55,7 +54,7 @@ digraph doActionOnGroupMutations {
   }
 
   {rank=same; doActionOnBatches_go;doActionOnBatches_n;doActionOnBatches_primaryBatch};
-  doActionOnBatches_n[style_func;label="{{
+  doActionOnBatches_n[style_blue1;label="{{
     3. doActionOnBatches\l
     处理2的else\l
   }}"]
@@ -68,11 +67,11 @@ digraph doActionOnGroupMutations {
     如果primayKey为空\l
     则选择第一个key为primary key\l
   }}"]
-  
+
   appendBatchMutationsBySize -> txnCommitBatchSize;
   appendBatchMutationsBySize[style_func;label="{{
     appendBatchMutationsBySize|
-    将mutations 根据\l 
+    将mutations 根据\l
     size limit 分批\l
   }}"]
   txnCommitBatchSize[style_var;label="{{

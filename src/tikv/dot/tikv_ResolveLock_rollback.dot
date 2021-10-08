@@ -1,0 +1,232 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  rollback_lock ->{
+     SnapshotReader__get_txn_commit_record;
+     MvccTxn__unlock_key;
+     MvccTxn__delete_value;
+     MvccTxn__put_write;
+     make_rollback;
+     collapse_prev_rollback;
+     LockType__Put;
+  }
+  LockType__Put -> MvccTxn__delete_value[style_edge_data];
+  make_rollback -> {
+    Write__set_ovelapped_rollback;
+    Write__new_rollback;
+  }
+
+  {
+    Write__set_ovelapped_rollback;
+    Write__new_rollback;
+  } -> Write;
+  Write -> MvccTxn__put_write;
+
+  SnapshotReader__get_txn_commit_record -> {
+    TxnCommitRecord__None;
+    TxnCommitRecord__SingleRecord;
+    TxnCommitRecord__OverlappedRollback;
+    TxnCommitRecord__None_None;
+  }[style_edge_data]
+  {
+    TxnCommitRecord__OverlappedRollback;
+    TxnCommitRecord__None_None;
+  }-> MvccTxn__unlock_key[style_edge_data];
+
+  TxnCommitRecord__SingleRecord -> panic;
+
+  TxnCommitRecord__None -> OverlappedWrite[style_edge_data];
+  OverlappedWrite -> make_rollback[style_edge_data];
+  OverlappedWrite -> Write__set_ovelapped_rollback;
+  {is_pessimistic_txn; key__is_encoded_from__lock__primary} -> protected;
+
+  collapse_prev_rollback -> {
+    MvccTxn__delete_write;
+    SnapshotReader__seek_write;
+    Write__is_protected;
+    WriteType__Rollback;
+  }
+  WriteType__Rollback -> MvccTxn__delete_write[style_edge_data];
+  SnapshotReader__seek_write -> {
+    MvccTxn__delete_write
+    Write__is_protected;
+  }[style_edge_data];
+  is_pessimistic_txn -> MvccTxn__unlock_key[style_edge_data];
+  PROTECTED_ROLLBACK_SHORT_VALUE -> Write__is_protected[style_edge_data];
+  PROTECTED_ROLLBACK_SHORT_VALUE -> Write__new_rollback[style_edge_data];
+
+  protected -> Write__new_rollback[style_edge_data];
+  protected -> Write__set_ovelapped_rollback[style_edge_data];
+
+
+  //rank
+  {
+    rank=same;
+    MvccTxn__put_write;
+    MvccTxn__delete_value;
+    MvccTxn__unlock_key;
+    MvccTxn__delete_write;
+  }
+  {
+    rank=same;
+    TxnCommitRecord__None;
+    TxnCommitRecord__SingleRecord
+  }
+
+  {
+    rank=same;
+    rollback_lock;
+    is_pessimistic_txn;
+    key__is_encoded_from__lock__primary;
+  }
+  {
+    rank=same;
+    collapse_prev_rollback;
+    make_rollback;
+  }
+
+  {
+    rank=same;
+    TxnCommitRecord__OverlappedRollback;
+    TxnCommitRecord__SingleRecord;
+    TxnCommitRecord__None;
+    TxnCommitRecord__None_None;
+  }
+
+  SnapshotReader__get_txn_commit_record[style_func;label="{{
+    SnapshotReader\l
+    get_txn_commit_record\l|
+    scan all versions from\l
+    max to start_ts\l
+  }}"]
+  SnapshotReader__seek_write[style_func;label="{{
+    SnapshotReader\l
+    seek_write\l
+  }}"]
+  MvccTxn__unlock_key[style_blue1;label="{{
+    MvccTxn\l
+    unlock_key\l
+  }}"]
+  MvccTxn__delete_write[style_orange;label="{{
+    MvccTxn\l
+    delete_write\l
+  }}"]
+  MvccTxn__put_write[style_orange;label="{{
+    MvccTxn\l
+    put_write\l|
+    注意此处用的是start_ts\l
+    key,start_ts\l
+  }}"]
+  MvccTxn__delete_value[style_blue1;label="{{
+    MvccTxn\l
+    delete_value\l
+  }}"]
+  protected[style_var;label="{{
+    protected\l
+    rollback需要protect\l
+  }}"]
+  OverlappedWrite[style_func;label="{{
+    OverlappedWrite\l|
+    pub write: Write,\l|
+    pub gc_fence: TimeStamp,\l
+  }}"]
+  Write[style_func;label="{{
+    Write\l|
+    pub write_type: WriteType,\l|
+    pub start_ts: TimeStamp,\l|
+    pub short_value: Option\<Value\>,\l|
+    pub has_overlapped_rollback: bool,\l|
+    pub gc_fence: Option\<TimeStamp\>,\l
+  }}"]
+
+
+  make_rollback[style_func;label="{{
+    make_rollback\l|
+    创建rollback Write Record\l
+  }}"]
+
+  WriteType__Rollback[style_func;label="{{
+    WriteType\l
+    Rollback\l
+  }}"]
+  Write__is_protected[style_green1;label="{{
+    Write\l
+    is_protected\l|
+    如果WriteType为Rollback\l
+    并且short_value 为b'p\l|
+    PROTECTED_ROLLBACK\l
+    _SHORT_VALUE\l|
+    则不删除\l
+  }}"]
+
+  LockType__Put[style_func;label="{{
+    LockType\l
+    Put\l|
+    如果lockTYpe为Put\l
+    并且short value 不为None\l
+    说明是写了数据\l
+    需要删掉之前\l
+    写入的数据\l
+  }}"]
+
+  Write__set_ovelapped_rollback[style_blue1;label="{{
+    Write\l
+    set_ovelapped_rollback\l
+  }}"]
+  Write__new_rollback[style_green1;label="{{
+    Write\l
+    new_rollback\l|
+    如果需要protect\l
+    这设置short_value\l
+    为b'p\l
+  }}"]
+
+  TxnCommitRecord__None_None[style_func;label="{{
+    TxnCommitRecord\l
+    None\l|
+    overlapped_write: None\l
+    没到对应的commit record\l
+  }}"]
+
+  TxnCommitRecord__None[style_func;label="{{
+    TxnCommitRecord\l
+    None(Some(OverlappedWrite))\l|
+    commit_ts == start_ts\l
+    并且!write.has_overlapped_rollback
+  }}"]
+  TxnCommitRecord__SingleRecord[style_func;label="{{
+    TxnCommitRecord\l
+    SingleRecord\l|
+    write.start_ts == start_ts\l
+  }}"]
+  TxnCommitRecord__OverlappedRollback[style_func;label="{{
+    TxnCommitRecord\l
+    OverlappedRollback\l|
+    commit_ts == start_ts\l
+    且write.has_overlapped_rollback\l
+  }}"]
+  key__is_encoded_from__lock__primary[style_func;label="{{
+    key\l
+    is_encoded_from\l
+    lock__primary\l
+  }}"]
+  panic[style_func;label="{{
+    panic\l|
+    如果writeType !=\l
+    WriteType::rollback\l|
+    txn record found\l
+    but not expected\l|
+    write type只能是Rollback\l
+  }}"]
+
+  collapse_prev_rollback[style_blue1;label="{{
+    collapse_prev_rollback\l|
+    删除之前不被保护的\l
+    rollback类型的write\l
+  }}"]
+
+}

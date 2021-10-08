@@ -35,14 +35,14 @@
 <!-- groupMutations -->
 <g id="node3" class="node">
 <title>groupMutations</title>
-<path fill="none" stroke="#1c2123" d="M194.5,-163.5C194.5,-163.5 328.5,-163.5 328.5,-163.5 334.5,-163.5 340.5,-169.5 340.5,-175.5 340.5,-175.5 340.5,-257.5 340.5,-257.5 340.5,-263.5 334.5,-269.5 328.5,-269.5 328.5,-269.5 194.5,-269.5 194.5,-269.5 188.5,-269.5 182.5,-263.5 182.5,-257.5 182.5,-257.5 182.5,-175.5 182.5,-175.5 182.5,-169.5 188.5,-163.5 194.5,-163.5"/>
-<text text-anchor="middle" x="261.5" y="-254.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">groupMutations</text>
-<polyline fill="none" stroke="#1c2123" points="182.5,-246.5 340.5,-246.5 "/>
-<text text-anchor="start" x="190.5" y="-231.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">groupMutations groups </text>
-<text text-anchor="start" x="190.5" y="-216.3" font-family="Times,serif" font-size="14.00" fill="#2f3638"> mutations by region, </text>
-<text text-anchor="start" x="190.5" y="-201.3" font-family="Times,serif" font-size="14.00" fill="#2f3638"> then checks for any large</text>
-<text text-anchor="start" x="190.5" y="-186.3" font-family="Times,serif" font-size="14.00" fill="#2f3638"> groups and in that case</text>
-<text text-anchor="start" x="190.5" y="-171.3" font-family="Times,serif" font-size="14.00" fill="#2f3638"> pre&#45;splits the region.</text>
+<path fill="#a2dbfa" stroke="#8a8898" d="M194.5,-163.5C194.5,-163.5 328.5,-163.5 328.5,-163.5 334.5,-163.5 340.5,-169.5 340.5,-175.5 340.5,-175.5 340.5,-257.5 340.5,-257.5 340.5,-263.5 334.5,-269.5 328.5,-269.5 328.5,-269.5 194.5,-269.5 194.5,-269.5 188.5,-269.5 182.5,-263.5 182.5,-257.5 182.5,-257.5 182.5,-175.5 182.5,-175.5 182.5,-169.5 188.5,-163.5 194.5,-163.5"/>
+<text text-anchor="middle" x="261.5" y="-254.3" font-family="Times,serif" font-size="14.00" fill="#5d6179">groupMutations</text>
+<polyline fill="none" stroke="#8a8898" points="182.5,-246.5 340.5,-246.5 "/>
+<text text-anchor="start" x="190.5" y="-231.3" font-family="Times,serif" font-size="14.00" fill="#5d6179">groupMutations groups </text>
+<text text-anchor="start" x="190.5" y="-216.3" font-family="Times,serif" font-size="14.00" fill="#5d6179"> mutations by region, </text>
+<text text-anchor="start" x="190.5" y="-201.3" font-family="Times,serif" font-size="14.00" fill="#5d6179"> then checks for any large</text>
+<text text-anchor="start" x="190.5" y="-186.3" font-family="Times,serif" font-size="14.00" fill="#5d6179"> groups and in that case</text>
+<text text-anchor="start" x="190.5" y="-171.3" font-family="Times,serif" font-size="14.00" fill="#5d6179"> pre&#45;splits the region.</text>
 </g>
 <!-- doActionOnMutations&#45;&gt;groupMutations -->
 <g id="edge2" class="edge">
@@ -53,12 +53,12 @@
 <!-- doActionOnGroupMutations -->
 <g id="node4" class="node">
 <title>doActionOnGroupMutations</title>
-<path fill="none" stroke="#1c2123" d="M187,-68.5C187,-68.5 336,-68.5 336,-68.5 342,-68.5 348,-74.5 348,-80.5 348,-80.5 348,-132.5 348,-132.5 348,-138.5 342,-144.5 336,-144.5 336,-144.5 187,-144.5 187,-144.5 181,-144.5 175,-138.5 175,-132.5 175,-132.5 175,-80.5 175,-80.5 175,-74.5 181,-68.5 187,-68.5"/>
-<text text-anchor="middle" x="261.5" y="-129.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">doActionOnGroupMutations</text>
-<polyline fill="none" stroke="#1c2123" points="175,-121.5 348,-121.5 "/>
-<text text-anchor="start" x="183" y="-106.3" font-family="Times,serif" font-size="14.00" fill="#2f3638">split groups into batches</text>
-<text text-anchor="start" x="183" y="-91.3" font-family="Times,serif" font-size="14.00" fill="#2f3638"> one group per region</text>
-<text text-anchor="start" x="183" y="-76.3" font-family="Times,serif" font-size="14.00" fill="#2f3638"> many baches per group</text>
+<path fill="#bcffb9" stroke="#8a8898" d="M187,-68.5C187,-68.5 336,-68.5 336,-68.5 342,-68.5 348,-74.5 348,-80.5 348,-80.5 348,-132.5 348,-132.5 348,-138.5 342,-144.5 336,-144.5 336,-144.5 187,-144.5 187,-144.5 181,-144.5 175,-138.5 175,-132.5 175,-132.5 175,-80.5 175,-80.5 175,-74.5 181,-68.5 187,-68.5"/>
+<text text-anchor="middle" x="261.5" y="-129.3" font-family="Times,serif" font-size="14.00" fill="#5d6179">doActionOnGroupMutations</text>
+<polyline fill="none" stroke="#8a8898" points="175,-121.5 348,-121.5 "/>
+<text text-anchor="start" x="183" y="-106.3" font-family="Times,serif" font-size="14.00" fill="#5d6179">split groups into batches</text>
+<text text-anchor="start" x="183" y="-91.3" font-family="Times,serif" font-size="14.00" fill="#5d6179"> one group per region</text>
+<text text-anchor="start" x="183" y="-76.3" font-family="Times,serif" font-size="14.00" fill="#5d6179"> many baches per group</text>
 </g>
 <!-- doActionOnMutations&#45;&gt;doActionOnGroupMutations -->
 <g id="edge3" class="edge">

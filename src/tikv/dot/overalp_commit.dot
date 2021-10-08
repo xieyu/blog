@@ -1,0 +1,119 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  t1__start_ts -> t1__mid -> t1__primary_key__expired -> t1__rollback_lock;
+  t2__start_ts -> t2__current_ts;
+  t4__start_ts -> t4__hold_lock -> lock_rollback_ts;
+  t4__hold_lock -> t4__commit_ts;
+  t4__start_ts -> t4__commit_ts[style_edge_data];
+
+
+  t2__current_ts -> t1__check_txn_status_missing_lock -> lock_rollback_ts;
+
+  subgraph cluster_same_ts{
+    graph[label="same ts on key1";fontsize=20;style="rounded,dashed";color="slategrey"]
+    t3__commit_ts;
+    t1__start_ts;
+    t4__commit_ts;
+  }
+  t1__start_ts -> WriteRecord:t1[style_edge_data];
+  t3__commit_ts -> WriteRecord:t3[style_edge_data];
+  WriteRecord:t3_overlapped_rollback -> set_overlapped_rollback[style_edge_data];
+
+  t1__rollback_lock -> t1__check_txn_status_missing_lock;
+  t1__rollback_lock -> WriteRecord:t1;
+
+  {
+    rank=same;
+    t3__commit_ts;
+    t1__start_ts;
+    t4__commit_ts;
+  }
+
+  {
+    rank=same;
+    t2__start_ts;
+    t1__mid;
+  }
+  {
+    rank=same;
+    t2__current_ts;
+    t4__hold_lock;
+  }
+
+  t3__start_ts[style_blue1;label="{{
+    事务: t3\l|
+    start_ts\l
+  }}"]
+  t3__commit_ts[style_blue1;label="{{
+    事务: t3\l|
+    commit_ts\l
+  }}"]
+  t3__start_ts ->t3__commit_ts;
+
+  t1__start_ts[style_green1;label="{{
+    事务: t1\l|
+    start_ts\l
+  }}"]
+  t1__mid[style_green1;label="{{
+    事务: t1\l|
+    执行中...
+  }}"]
+  t1__primary_key__expired[style_green1;label="{{
+    事务: t1\l|
+    primary_key\l
+    expired\l
+  }}"]
+
+  t1__check_txn_status_missing_lock[style_func;label="{{
+    t1\l
+    check_txn_status_missing_lock\l
+  }}"]
+
+  t2__start_ts[style_func;label="{{
+    事务: t2\l|
+    start_ts\l
+  }}"]
+  t2__current_ts[style_func;label="{{
+    事务: t2\l
+    current_ts\l|
+    事务t2执行时发现和t1的lock有冲突\l|
+    发送CheckTxnStatus命令到TiKV\l
+    检查t1的状态\l
+  }}"]
+
+  WriteRecord[style_func;label="{{
+    Write column|
+    写到CF_WRITE的kv\l|
+    {<t3> key1 t3.commit_ts|{
+      write_type: Rollback\l|
+      start_ts: t3.start_ts\l|
+      short_value: t3.short_value\l|
+      <t3_overlapped_rollback> has_overlapped_rollback\l
+    }}|
+    {<t1> key1 t1.start_ts\l
+    和上面的\l
+    t3.commit_ts相同\l
+    在t3提交时候\l
+    会被覆盖掉\l
+    |{
+      write_type: Rollback\l|
+      start_ts: t1.start_ts\l|
+      short_value: t1.short_value\l
+      被用于标记是否要protected\l|
+      has_overlapped_rollback\l
+    }}|
+    ...\l
+  }}"]
+  set_overlapped_rollback[style_var;label="{{
+    set_overlapped_rollback\l|
+    将t3的\l
+    has_overalapped_rollback\l
+    字段设置为true\l
+  }}"]
+
+}

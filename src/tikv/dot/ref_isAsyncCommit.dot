@@ -1,0 +1,128 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  {
+    twoPhaseCommitter__execute;
+    kvTxn__onComittted;
+    actionPrewrite__handleSingleBatch;
+    actionCommit__handleSingleBatch;
+    twoPhaseCommitter__buildPrewriteRequest
+    twoPhaseCommitter__doActionOnGroupMutations;
+  } -> twoPhaseCommitter__isAsyncCommit;
+
+  twoPhaseCommitter__doActionOnGroupMutations -> {
+    actionPrewrite__handleSingleBatch;
+    actionCommit__handleSingleBatch;
+  }[style_edge_data];
+
+  actionPrewrite__handleSingleBatch -> {
+    twoPhaseCommitter__buildPrewriteRequest;
+    twoPhaseCommitter__setUndetermimedErr;
+    twoPhaseCommitter__setAsyncCommit__False;
+  }
+
+  twoPhaseCommitter__execute -> {
+    commitWithGoRoutine;
+    twoPhaseCommitter__prewriteMutations;
+  }
+  twoPhaseCommitter__prewriteMutations -> {
+    actionPrewrite__handleSingleBatch;
+    twoPhaseCommitter__doActionOnGroupMutations;
+  }[style_edge_data];
+
+  twoPhaseCommitter__commitMutations -> {
+    actionCommit__handleSingleBatch;
+    twoPhaseCommitter__doActionOnGroupMutations;
+  }[style_edge_data];
+
+  commitWithGoRoutine -> {
+    twoPhaseCommitter__commitMutations;
+  }
+
+  actionCommit__handleSingleBatch -> {
+    twoPhaseCommitter__setUndetermimedErr;
+  }
+
+  twoPhaseCommitter__setAsyncCommit__False[style_func;label="{{
+    twoPhaseCommitter\l
+    setAsyncCommit(False)\l|
+    如果prewrite.Resp.minCommitTs为0\l
+    client fallback to normal way to\l
+    continue committing the transcation\l
+    if prewrite are all finished\l
+  }}"]
+
+  actionPrewrite__handleSingleBatch[style_func;label="{{
+    actionPrewrite\l
+    handleSingleBatch\l|
+    对于grpc Error\l
+    setUndetectmiatedErr\l
+  }}"]
+
+  twoPhaseCommitter__doActionOnGroupMutations[style_func;label="{{
+    twoPhaseCommitter\l
+    doActionOnGroupMutations\l|
+    asyncCommit 不用考虑\l
+    . first commit primary batch\l|
+  }}"]
+
+  commitWithGoRoutine[style_green1;label="{{
+    开启一个go routine\l
+    异步提交commit\l|
+    go func() \{\l
+      commitMutations()\l
+    \}\l
+  }}"]
+  actionCommit__handleSingleBatch[style_func;label="{{
+    actionCommit\l
+    handleSingleBatch\l|
+		c.setUndeterminedErr(nil)\l|
+    we can make sure\l
+    tikv has proccessed\l
+    the commit primary key request\l
+    so we can calean undterminted err\l
+  }}"]
+  twoPhaseCommitter__setUndetermimedErr[style_func;label="{{
+    twoPhaseCommitter\l
+    setUndetermimedErr;\l
+  }}"]
+
+  twoPhaseCommitter__isAsyncCommit[style_func;label="{{
+    twoPhaseCommitter\l
+    isAsyncCommit\l
+  }}"]
+
+  twoPhaseCommitter__buildPrewriteRequest[style_green1;label="{{
+    twoPhaseCommitter\l
+    buildPrewriteRequest\l|
+    扫描mutations\l
+    设置prewrite req的secondaries\l
+    lock keys\l
+  }}"]
+
+  twoPhaseCommitter__commitMutations[style_func;label="{{
+    twoPhaseCommitter\l
+    commitMutations\l|
+    commit阶段\l|
+    commit阶段是异步的\l
+    不用等到primary key\l
+    commit 成功就可以返回\l
+    事务结果给client\l
+  }}"]
+  twoPhaseCommitter__execute[style_func;label="{{
+    twoPhaseCommitter\l
+    execute\l|
+    两阶段提交事务\l
+  }}"]
+
+  twoPhaseCommitter__prewriteMutations[style_func;label="{{
+    twoPhaseCommitter\l
+    prewriteMutations\l|
+    prewrite阶段\l
+  }}"]
+
+
+}

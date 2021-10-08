@@ -1,0 +1,74 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  LockResover__checkAllSecondaries -> {
+    LockResover__checkSecondaries;
+    asyncResolveData;
+    RegionCache__GroupKeysByRegion;
+    storage__SendReq;
+  }
+  TxnStatus -> LockInfo -> RegionCache__GroupKeysByRegion;
+  RegionCache__GroupKeysByRegion -> regions[style_edge_data];
+  regions -> LockResover__checkSecondaries[style_edge_data];
+  LockResover__checkSecondaries -> {
+    CmdCheckSecondaryLocks;
+    CheckSecondaryLocksRequest;
+  } -> storage__SendReq;
+  storage__SendReq ->  asyncResolveData__addKeys[style_edge_data];
+  asyncResolveData__addKeys -> asyncResolveData[style_edge_data];
+
+  CheckSecondaryLocksRequest[style_func;label="{{
+    CheckSecondaryLocksRequest\l|
+    Keys\l|
+		StartVersion: txnID,\l
+  }}"]
+
+  regions[style_func;label="{{
+    regions\l|
+    map[RegionVersID][][]byes\l
+    regionVerID到keys的映射\l
+  }}"]
+
+  storage__SendReq[style_func;label="{{
+    storage\l
+    SendReq\l
+    向TiKV发送请求\l
+  }}"]
+  LockResover__checkSecondaries[style_blue1;label="{{
+    LockResover\l
+    checkSecondaries\l|
+    每个region 单独起一个\l
+    goroutine向TiKV发送\l
+    CmdCheckSecondaryLocks请求\l
+  }}"]
+  asyncResolveData[style_green1;label="{{
+    asyncResolveData\l
+    多个goroutine之间共享\l|
+    mutex sync.Mutex\l|
+	  commitTs    uint64\l|
+	  keys        [][]byte\l|
+	  missingLock bool\l
+  }}"]
+
+  asyncResolveData__addKeys[style_blue1;label="{{
+    asyncResolveData\l
+    addKeys\l|
+    使用checkresp更新\l
+    asyncResoveData\l
+    会使用lock.MinCommitTS\l
+    来更新整体的commitTs\l
+  }}"]
+  RegionCache__GroupKeysByRegion[style_func;label="{{
+    RegionCache\l
+    GroupKeysByRegion\l|
+    根据region将key做分组\l
+  }}"]
+  LockResover__checkAllSecondaries[style_func;label="{{
+    LockResover\l
+    checkAllSecondaries\l
+  }}"]
+}

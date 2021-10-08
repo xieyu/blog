@@ -1,34 +1,23 @@
 # Resolve Lock
 
+> * 在事务(假定为t1) 在Prewrite阶段执行时，如果遇到Lock冲突，首先会先根据Lock.primaryKey
+   获取持有该lock事务（假定为t2) > 状态，如果primary key的lock已过期， 则尝试清理t2遗留的lock(cleanup或者commit).
+> * Asncy commit 需要check所有的secondaris keys判断事务(t2)的`commit_ts`
+> * WriteType::Rollback类型的Write,写入的key ts为事务的`start_ts`,可能和其他事务的`commit_ts`相等，
+>   因此在commit或者rollback_lock时，需要特殊处理。
+
 <!-- toc -->
 
 ## Prewrite 阶段处理lock冲突
 
 在TiDB prewrite阶段，如果遇到lock，会尝试resolveLocks，resolveLocks会尝试获取
 持有lock的事务的状态，然后去resolve lock. 如果lock 没有被resolve, 还被其他
-事务所持有，则返回要sleep的时间。prewite BackoffWithMaxSleep后，重新尝试去resolve locks
+事务所持有，则返回要sleep的时间。prewite BackoffWithMaxSleep后，重新尝试去resolve locks。
 
-```go
-func (action actionPrewrite) handleSingleBatch(c *twoPhaseCommitter, bo *Backoffer, batch batchMutations) error {
-  for {
-   //other codes
-		msBeforeExpired, err := c.store.lockResolver.resolveLocksForWrite(bo, c.startTS, locks)
-		if err != nil {
-			return errors.Trace(err)
-		}
-		atomic.AddInt64(&c.getDetail().ResolveLockTime, int64(time.Since(start)))
-		if msBeforeExpired > 0 {
-			err = bo.BackoffWithMaxSleep(retry.BoTxnLock, int(msBeforeExpired), errors.Errorf("2PC prewrite lockedKeys: %d", len(locks)))
-			if err != nil {
-				return errors.Trace(err)
-			}
-		}
-  }
-}
-```
+![](./dot/client__actionPrewrite__resolve_lock.svg)
 
 
-### TiDB resolveLocks
+TiDB resolve lock 流程如下
 
 ```go
 // ResolveLocks tries to resolve Locks. The resolving process is in 3 steps:
@@ -42,28 +31,29 @@ func (action actionPrewrite) handleSingleBatch(c *twoPhaseCommitter, bo *Backoff
 //    the same transaction.
 ```
 
+![](./dot/client__resolve_lock_for_write.svg)
+
+对于primary key已经过期的事务，则尝试去resolve locks，根据事务类型有不同的resolve 方法
+1. `resolveLock`: resolve正常提交的乐观事务lock
+2. `resolveLocksAsync`: 处理async commit的乐观事务txn locks，需要checkAllSecondaris key的
+    `min_commit_ts`来计算最终的`commit_ts`.
+3. `resolvePessimisticLock`: resolve 悲观事务lock
+
 ## 获取事务状态
 
-### TiDB getTxnStatusFromLock
 
-resolveLocks 首先会根据lock.primarykey, 调用`LockResolver::getTxnStatus`去获取持有这些lock的txns的状态。
+### client getTxnStatusFromLock
 
+resolveLocks 首先会根据`lock.primarykey`, 调用`LockResolver::getTxnStatus`去获取持有这个lock的事务的状态。
 
 ![](./dot/tidb__getTxnStatus.svg)
 
-对于TxnStatus.ttl 为0，已经过期的事务，则尝试去resolve locks，根据事务类型，有不同的
-resolve 方法
-1. `resolveLock`: resolve正常提交的乐观事务lock
-2. `resolveLocksAsync`: 处理async commit的乐观事务txn locks。 由于async commit的primary lock包含所有secondaires lock信息，
-所以可以把secondaires lock也resolve掉，避免后续冲突再resolve.
-3. `resolvePessimisticLock`: resolve 悲观事务lock
 
 
 ### TiKV CheckTxnStatus
 
-TiDB的`LockResolver::getTxnStatus` 最后会发GRPC请求到TiKV, TiKV执行Cmd CheckTxnStatus.
-
-该Cmd主要功能在代码中注释如下：
+事务(假定为t2)，prewrite阶段遇到Lock(假定为事务t1的lock)冲突时，会发CheckTxnStatus GRPC请求到TiKV
+该Cmd主要功能如下：
 
 ```rust
     /// checks whether a transaction has expired its primary lock's TTL, rollback the
@@ -76,18 +66,88 @@ TiDB的`LockResolver::getTxnStatus` 最后会发GRPC请求到TiKV, TiKV执行Cmd
 ```
 
 
-CheckTxnStatus 根据`lock.primary_key`检查某个事务txn状态在检查过程中，可能会rollback txn, 
-主要会调用`check_txn_status_lock_exists`和`check_txn_status_missing_lock`来处理lock的各种case.
+CheckTxnStatus 根据`lock.primary_key`检查事务t1的状态，在检查过程中，如果t1的lock过期，则可能会rollback t1。
 
-1. `check_txn_status_lock_exists`: 如果Lock存在且事务还持有该lock的话， 如果lock 已经过期了，这时候会<b>清理掉lock</b>, 并返回TxnStatus::Expire状态，
-否则就更新lock的`min_commit_ts`, 返回TxnStatus::Uncommitted状态。
+主要会调用`check_txn_status_lock_exists`和`check_txn_status_missing_lock`来处理lock的几种可能情况:
 
-2. `check_txn_status_missing_lock`: lock不存在，或者lock.ts已经不是txn了，说明txn可能被commited了，也可能被rollback了。
-这时候要去seek `primary_key`的write record，来推算txn状态。
+1. `check_txn_status_lock_exists`： 如果Lock存在且t1还持有该lock， 如果lock没过期，更新lock的`min_commit_ts`, 返回TxnStatus::Uncommitted状态；如果lock已过期，会<b>rollback_lock</b>, 并返回TxnStatus::Expire状态.
+
+2. `check_txn_status_missing_lock`：lock不存在或者lock.ts已经不是t1了，t1可能已经commited了，也可能被rollback了。
+需要调用`get_txn_commit_record`，扫描从`max_ts`到`t1.start_ts`之间key的write record来判断t1状态。
 
 调用流程图如下，其中黄色的是GRPC请求中带上来的数据。
 
+1. `primary_key` lock的primary key
+2. `caller_start_ts`  如果lock没被提交或者rollback，会用它来更新lock的min_commit_ts
+3. `current_ts` 调用getTxnStat接口时，传入的当前ts.
+
 ![](./dot/check_txn_status.svg)
+
+#### rollback_lock
+
+t1的primary lock过期时，rollback_lock调用流程如下:
+
+
+如果locktype 为put, 并且value没有保存在Lock的short_value字段中，则需要删掉之前写入的value.
+
+![](./dot/tikv_ResolveLock_rollback.svg)
+
+主要是提交了Rollback类型的Write, 注意此处的key为 `key t1.start_ts`, 而不是`key t1.commit_ts`
+这是和pecolator论文中不一样的地方，可能会出现t1.start_ts和其他事务commit_ts一样的情况。
+
+
+
+#### get_txn_commit_record
+
+事务t2遇到持有lock时t1时，调用`get_txn_commit_record`  扫描从max_ts到t2.start_ts的所有write record，
+获取事务t1的状态。
+
+##### `TxnCommitRecord::SingleRecord`
+
+找到了`write.start_ts = t1.ts1`的WriteRecord，可以根据
+该record的WriteType来判断事务状态，如果为Rollback则事务状态为rollback. 否则就是Committed。
+
+##### `TxnCommitRecord::OverlappedRollback`
+
+找到了`t1.start_ts == t3.commit_ts`，t3的write record，并且t3 write record中
+`has_overlapped_write`为<b>true</b>，这时候可以确定事务的状态为Rollback
+
+事务t1.start_ts和事务t3.commit_ts相同，并且write columns中，t3的write已经提交了。如果
+直接写入t1的rollback，会覆盖掉t3之前的提交。为了避免该情况，只用将t3 write record中的
+`has_overlapped_rollback` 设置为true即可。
+
+![](./dot/overlap_rollback.svg)
+
+##### `TxnCommitRecord::None(Some(write))`
+
+找到了`t1.start_ts == t3.commit_ts` t3的write record，并且
+t3 WriteRecord的`has_overlapped_write` 为<b>false</b>，后续rollback_lock和check_txn_status_missing_lock 
+会将该字段设置为true.
+
+t1先写入write rollback, 然后t3 commit时，会覆盖掉t1的write rollback.
+
+![](./dot/overalp_commit.svg)
+
+##### `TxnCommitRecord::None(None)`
+
+如果状态为`TxnCommitRecord::None(None)`,并且Lock 现在被t4所持有，则将t1.start_ts
+加入到Lock.rollback_ts数组中，这样在t4被commit时，如果t4.commit_ts == t1.start_ts
+会将t4的write record的has_overlapped_write设置为true.
+
+从max_ts到`t2.start_ts`没找到相关的write record.
+
+
+#### `check_txn_status_missing_lock`
+
+check_txn_status_missing_lock会调用`get_txn_commit_record`计算t1的commit状态，
+
+
+![](./dot/check_txn_status_missing_lock.svg)
+
+另外一种情形是，t1.start_ts == t3.commit_ts, 并且t1先被rollback了, t3 commit时，
+会覆盖掉t1的rollback write record，这种check_txn_status_missing_lock 更新t3 
+commit 的has_overalpped rollback设为为true.
+
 
 上图中绿色的就是最后返回的txn status, 对应的enum如下,在TiDB中对应于返回字段中的Action.
 
@@ -128,39 +188,46 @@ const (
 )
 ```
 
-## 清理过期lock
+
+## 清理expired lock
 
 ### resolveLock
 
-请求中的txn_status和key_lock 这两个是怎么构造出来的？
+TiDB 获取根据Lock.primary key获取完txn状态后，
+开始resolve secondary key的lock.向TiKV
+发起resolve Lock request.
 
 ![](./dot/LockResolver__resolveLock.svg)
 
-TiKV CmdResolveLock
 
-Resolve locks according to `tnx_status`.
+#### TiKV 执行CmdResolveLock
+TiKV收到ResolveLock Request后，有三种case
 
-CmdResolveLock请求中，会带上`txn_status`, 保存了`txn -> commit_ts`的映射
-如果txn对应的`commit_ts`为0, 则cleaup, rollback_lock, 回滚事务。
-如果txn对应的`commit_ts`不为0，则尝试commit 提交事务。
+1. `commit_ts > 0`, 并且txn还持有该lock，则commit
+2. `commit_ts == 0`, 并且txn还持有该lock, 则rollback.
+3. 如果lock为None, 或者lock.ts已经发生改变了，则`check_txn_status_missing_lock`
 
-这里`scan_key`起什么作用？
 
 ![](./dot/tikv_ResolveLock.svg)
 
+其中rollback和 check_txn_status_missing_lock 逻辑和上面 CheckTxnStatus中的一致。
 
-ResolveLockLite?
+#### TiKV commit 处理流程:
+
+![](./dot/tikv_ResolveLock_commit.svg)
 
 
 ### resolveLocksAsync
 
-TiDB
+TiDB 中首先调用`checkAllSecondaries`来获取txn的Status, 然后对所有的secondaries keys按照region分组，并且每个分组启动一个go routine,  并发的发送CmdResolveLock 请求给TiKV
 
-![](./dot/resolveLocksForWriteAsyncCommit.svg)
+![](./dot/tidb_resolveLockAsync2.svg)
 
-![](./dot/resolve_region_locks.svg)
+#### client checkAllSecondaries
 
-TiKV CmdCheckSecondaryLocks
+![](./dot/client__checkAllSeconaries.svg)
+
+#### TiKV CmdCheckSecondaryLocks
 
 
 ```rust
@@ -171,10 +238,7 @@ TiKV CmdCheckSecondaryLocks
     ///
     /// If the lock does not exist or is a pessimistic lock, to prevent the
     /// status being changed, a rollback may be written.
-    CheckSecondaryLocks:
 ```
-
-![](./dot/check_secondary_locks.svg)
 
 ```rust
 #[derive(Debug, PartialEq)]
@@ -184,7 +248,18 @@ enum SecondaryLockStatus {
     RolledBack,
 }
 ```
-不太明白这个地方悲观事务为什么可以unlokc_key;
+##### lock match
+如果txn还持有该lock，对于乐观事务，会返回lock信息，而悲观事务，则会unlock key? 向write column
+写入rollback信息。(为什么？）
+
+![](./dot/check_seconary_locks_loc_exists.svg)
+
+##### lock mismatch
+
+如果lock已经被其他事务所持有。或者Lock已经被resolve.
+
+![](./dot/check_secondary_lock_mismatch.svg)
+
 
 
 
@@ -245,3 +320,6 @@ key为`key commit_ts`, 当`start_ts == commit_ts`时，事务的rollback可能�
 
 ![](./dot/Lock__rollback_ts.svg)
 
+![](./dot/resolveLocksForWriteAsyncCommit.svg)
+![](./dot/resolve_region_locks.svg)
+![](./dot/check_secondary_locks.svg)

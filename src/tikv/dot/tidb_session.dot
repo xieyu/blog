@@ -1,0 +1,122 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  baseExecutor -> Context;
+  Context ->  Session;
+  Session -> session;
+  session -> kv__Storage;
+  session -> LazyTxn;
+  kv__Storage -> tikvStore;
+  LazyTxn -> kv__Transcation;
+  kv__Transcation -> KVTxn;
+  tikvStore -> KVStore;
+  KVTxn -> KVStore;
+  KVTxn -> KVUnionStore;
+  KVUnionStore -> MemDB;
+
+  baseExecutor[style_func;label="{{
+    baseExecutor\l|
+	  ctx           sessionctx.Context\l|
+	  id            int\l|
+	  schema        *expression.Schema\l|
+    ...\l
+  }}"]
+
+  Context[style_func;label="{{
+    interface Context\l|
+    Context is an interface\l
+    for transaction\l
+    and executive args environment\l|
+    NewTxn(context.Context) error\l|
+    NewStaleTxnWithStartTS(\l
+    ctx context.Context, startTS uint64) error\l|
+    Txn(active bool) (kv.Transaction, error)\l|
+    ...\l
+  }}"]
+  Session[style_func;label="{{
+    Session\l|
+    consistent with the lifecycle\l
+    of a client connection\l|
+    sessionctx.Context\l|
+    TxnInfo() * txninfo.TxnInfo\l|
+    ExecuteStmt(context.Context, ast.StmtNode)\l
+    (sqlexec.RecordSet, error)\l|
+    CommitTxn(context.Context) error\l|
+    RollbackTxn(context.Context)\l|
+  }}"]
+  session[style_func;label="{{
+    type session struct\l|
+      processInfo atomic.Value\l|
+      txn         LazyTxn\l|
+      store kv.Storage\l|
+      ...\l
+  }}"]
+
+  kv__Storage[style_func;label="{{
+    kv.Storage interface\l|
+      Begin() (Transaction, error)\l|
+      BeginWithOption(\l
+      option tikv.StartTSOption)\l
+      (Transaction, error)\l|
+      ...\l
+  }}"]
+
+  LazyTxn[style_func;label="{{
+    LazyTxn\l|
+    kv.Transaction\l|
+    txnFuture *txnFuture\l|
+    ...\l
+  }}"]
+
+  kv__Transcation[style_func;label="{{
+    kv.Transcation interface\l|
+      RetrieverMutator\l|
+      Commit(context.Context) error\l|
+      Rollback() error\l|
+      LockKeys(ctx context.Context,\l
+      lockCtx *LockCtx, keys ...Key) error\l|
+      ...\l
+  }}"];
+
+  KVTxn[style_blue1;label="{{
+    KVTxn\l|
+      store     kvstore\l|
+      startTS   uint64\l|
+      committer *twoPhaseCommitter\l|
+      ...\l
+  }}"]
+
+  tikvStore[style_func;label="{{
+    tikvStore\l|
+      *tikv.KVStore\l|
+      etcdAddrs []string\l|
+      tlsConfig *tls.Config\l|
+      ...\l
+  }}"]
+  KVStore[style_blue1;label="{{
+    KVStore\l
+      clusterID uint64\l|
+      oracle    oracle.Oracle\l|
+      lockResolver *txnlock.LockResolver\l|
+      txnLatches   *latch.LatchesScheduler\l|
+      ...
+  }}"]
+  KVUnionStore[style_func;label="{{
+    KVUnionStore\l|
+	memBuffer *MemDB\l|
+	snapshot  uSnapshot\l
+  }}"]
+  MemDB[style_blue1;label="{{
+    MemDB\l|
+    MemDB is rollbackable\l
+    Red-Bloack Tree\l
+    Optimized for TiDB's\l
+    transcation states buffer\l
+    use scenario\l
+  }}"]
+
+}
