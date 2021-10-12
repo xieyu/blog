@@ -53,6 +53,8 @@ pub struct Lock {
 先关配置在Config.TiKVClient.AsyncCommit中, checkAsyncCommit 会遍历mutations
 计算事务的total key size是否超过了限制。 最后结果保存在atomic变量`useAsyncCommit`中。
 
+相关配置项如下：
+
 ```rust
 type AsyncCommit struct {
 	// Use async commit only if the number of keys does not exceed KeysLimit.
@@ -74,22 +76,32 @@ type AsyncCommit struct {
 
 对`isAsyncCommit`的调用, 最主要的有两个地方
 
-一个是buildPrewriteRequest时，需要遍历事务的 mutations将所有的secondaries lock keys 放到request中；另外一个是commit时在一个go routine
-中异步提交的。prewrite成功后，就可以向client返回事务结果，不必向正常commit时等到primary key
-提交成功才返回结果给client.
+1. <b>prewrite阶段</b>，是buildPrewriteRequest时，需要遍历事务的 mutations将所有的secondaries lock keys 放到request中
+2. <b>commit阶段</b>，commit时，启动一个go routine 异步提交，这样prewrite成功后，就可以向client返回事务结果，
+不必向正常commit时等到primary key，提交成功才返回结果给client.
 
 ![](./dot/ref_isAsyncCommit.svg)
 
 
 ## minCommitTS
 
+> 对于 Async Commit 事务的每一个 key，prewrite 时会计算并在 TiKV 记录这个 key 的 Min Commit TS，事务所有 keys 的 Min Commit TS 的最大值即为这个事务的 Commit TS。
+
 ### client端更新min commit ts
 
-对应代码流程如下, 关键是minCommitTS的更新。
+minCommitTS更新逻辑如下，twoPhaseCommitter有个成员变量minCommitTS，记录事务的最小CommitTS.
+每次prewrite request会带上该minCommitTS, 并且如果prewrite resp返回的minCommitTS比自己的大，
+则更新twoPhaseCommitter的`minCOmmitTS`
 
-![](./dot/twoPhaseCommitter_async_commit_exe.svg)
+这样能保证所有prewrite 请求处理完后，twoPhaseCommitter的`minCommitTS`是所有key lock的minCommitTS
+中最大的。
 
-PreWrite前从TSO获取ts, 更新成员变量`minCommitTS`
+在后面resolve async commit lock中，也要遍历所有的lock的minCommitTS, 来确定最后的minCommitTS.
+
+![](./dot/client_minCommitTS.svg)
+
+
+1. PreWrite前从TSO获取ts, 更新成员变量`minCommitTS`
 
 ```go
 func (c *twoPhaseCommitter) execute(ctx context.Context) (err error) {
@@ -104,7 +116,7 @@ func (c *twoPhaseCommitter) execute(ctx context.Context) (err error) {
 }
 ```
 
-TiDB发送给TiKV的prewrite请求中带上minCommitTS.
+2. TiDB发送给TiKV的prewrite请求中带上minCommitTS，它收到c.minCommitTS, c.StartTS, c.forUpdateTS影响。
 
 ```go
 func (c *twoPhaseCommitter) buildPrewriteRequest(batch batchMutations, txnSize uint64) *tikvrpc.Request {
@@ -120,7 +132,8 @@ func (c *twoPhaseCommitter) buildPrewriteRequest(batch batchMutations, txnSize u
   //...
 ```
 
-根据prewriteResp.minCommitTS 更新commiter的`minCommitTS`
+3. TiKV端根据maxTS,请求中的minCommitTS, forUpdateTs计算出最终MinCommitTS，并保存在`lock.min_commit_ts`字段中，
+然后在prewriteResp.minCommitTS给TiDB client, TiDB client更新twoPhaseCommitter的minCommitTs.
 
 ```go
 func (action actionPrewrite) handleSingleBatch(c *twoPhaseCommitter, bo *Backoffer, batch batchMutations) error {
@@ -177,14 +190,12 @@ fn async_commit_timestamps(/*...*/) -> Result<TimeStamp> {
 
 每次读操作，都会更新`concurrency_manager.max_ts`
 
-![](./dot/update_max_ts.svg)
+![](./dot/tikv_update_max_ts.svg)
 
-值得注意的是replica read 也会更新max_ts。replica reader 在read之前会发readIndex消息给leader（
-TODO:不确定是否是这样）
+值得注意的是replica read 也会更新max_ts。replica reader 在read之前会发readIndex消息给leader
 
-发送ReadIndex 请求会附带上事务的start_ts, leader在处理reader index消息时，
-会回调`ReplicaReadLockChecker::on_step` 更新`concurrency_manager.max_ts`。
+## 因果一致性
 
-![](./dot/replica_reader_max_ts.svg)
+> 循序性要求逻辑上发生的顺序不能违反物理上的先后顺序。具体地说，有两个事务 T1 和 T2，如果在 T1 提交后，T2 才开始提交，那么逻辑上 T1 的提交就应该发生在 T2 之前，也就是说 T1 的 Commit TS 应该小于 T2 的 Commit TS。 3
 
-相关commit见[check memory locks in replica read #8926]
+> 为了保证这个特性，TiDB 会在 prewrite 之前向 PD TSO 获取一个时间戳作为 Min Commit TS 的最小约束。由于前面实时性的保证，T2 在 prewrite 前获取的这个时间戳必定大于等于 T1 的 Commit TS，而这个时间戳也不会用于更新 Max TS，所以也不可能发生等于的情况。综上我们可以保证 T2 的 Commit TS 大于 T1 的 Commit TS，即满足了循序性的要求。

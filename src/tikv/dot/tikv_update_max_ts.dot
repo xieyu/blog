@@ -1,0 +1,284 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  {
+    Storage__scan
+    Storage__scan_lock
+    CheckTxnStatus__process_write
+    AcquirePessimisticLock__process_write
+    CheckSecondaryLocks__process_write
+    Cleanup__process_write
+    ReplicaReadLockChecker__on_step
+    BackupRange__backup
+    Endpoint__register_min_ts_event
+    AppliedLockCollector__start_collecting
+    Runner__handle_update_max_timestamp
+    Endpoint__check_memory_locks
+    AdvanceTsWorker_advance_ts_for_regions
+    BackupRange__backup;
+    cdc__endpoint__EndPoint__register_min_ts_event;
+  }-> ConcurrencyManager__update_max_ts
+
+  Command__process_write -> {
+    CheckTxnStatus__process_write
+    AcquirePessimisticLock__process_write
+    CheckSecondaryLocks__process_write
+    Cleanup__process_write
+  }
+  Scheduler__process_write -> Command__process_write;
+
+  CoprocessorHost__on_step_read_index -> ReadIndexObserver__on_step -> ReplicaReadLockChecker__on_step;
+  Peer__step -> CoprocessorHost__on_step_read_index;
+
+  future_scan_lock -> Storage__scan_lock;
+  Service__handle_request -> future_scan_lock;
+  Endpoint__parse_request_and_check_memory_locks -> {
+    Endpoint__check_memory_locks
+  }
+  pd__Runner__run -> Runner__handle_update_max_timestamp;
+
+  {
+    PeerFsmDelegate__on_ready_commit_merge
+      Peer__on_role_changed
+  } -> Peer__require_updating_max_ts;
+  Peer__handle_raft_ready_append -> Peer__on_role_changed;
+  PeerFsmDelegate__on_apply_res -> PeerFsmDelegate__on_ready_result -> PeerFsmDelegate__on_ready_commit_merge;
+  PeerFsmDelegate__handle_msgs -> {
+    PeerFsmDelegate__on_apply_res;
+    PeerFsmDelegate__on_raft_message
+  }
+  PeerFsmDelegate__on_raft_message -> {
+    Peer__step;
+  }
+  PeerFsmDelegate__collect_ready -> Peer__handle_raft_ready_append;
+  PollHandler__handle_normal -> {
+    PeerFsmDelegate__collect_ready;
+    PeerFsmDelegate__handle_msgs;
+  }
+
+
+  Peer__require_updating_max_ts -> Runner__handle_update_max_timestamp[style_edge_data];
+
+  {
+    Endpoint__parse_and_handle_unary_request
+    Endpoint__parse_and_handle_stream_request
+  } -> Endpoint__parse_request_and_check_memory_locks;
+
+  Service__coprocessor_stream -> {
+    Endpoint__parse_and_handle_stream_request
+  }
+  Service__coprocessor -> future_copr -> Endpoint__parse_and_handle_unary_request;
+
+  {
+    Endpoint__new;
+    Endpoint__run;
+  } -> Endpoint__register_min_ts_event;
+  Scheduler__execute -> Scheduler__process_by_worker -> Scheduler__process_write
+
+  //rank
+  {
+    rank=same;
+    Service__coprocessor;
+    Service__coprocessor_stream;
+    Service__handle_request;
+  }
+
+  {
+    rank=same;
+    Endpoint__parse_and_handle_unary_request;
+    Endpoint__parse_and_handle_stream_request;
+  }
+
+  //node
+
+  ConcurrencyManager__update_max_ts[style_func;label="{{
+    ConcurrencyManager\l
+    update_max_ts\l|
+    更新Arc\<AtomicU64\>\l|
+    max_ts\l
+  }}"]
+
+  PeerFsmDelegate__on_raft_message[style_func;label="{{
+    PeerFsmDelegate\l
+    on_raft_message\l
+  }}"]
+
+  PeerFsmDelegate__on_apply_res[style_func;label="{{
+    PeerFsmDelegate\l
+    on_apply_res\l|
+    apply fsm保存完\l
+    毕后的回调\l
+  }}"]
+  PeerFsmDelegate__on_ready_result[style_func;label="{{
+    PeerFsmDelegate\l
+    on_ready_result\l
+    处理apply fsm的ready result\l
+  }}"]
+
+  PeerFsmDelegate__on_ready_commit_merge[style_func;label="{{
+    PeerFsmDelegate\l
+    on_ready_commit_merge\l|
+    处理ExecResult::CommitMerge\l
+    消息\l|
+     If a follower merges into a leader,\l
+     a more recent read may happen\l
+     on the leader of the follower.\l
+     So max ts should be updated after\l
+     a region merge.\l
+  }}"]
+  Peer__require_updating_max_ts[style_func;label="{{
+    Peer\l
+    require_updating_max_ts\l
+  }}"]
+
+  Peer__handle_raft_ready_append[style_func;label="{{
+    Peer\l
+    handle_raft_ready_append\l
+  }}"]
+  PeerFsmDelegate__collect_ready[style_func;label="{{
+    PeerFsmDelegate\l
+    collect_ready\l
+  }}"]
+
+  PeerFsmDelegate__handle_msgs[style_func;label="{{
+    PeerFsmDelegate\l
+    handle_msgs\l
+  }}"]
+
+  PollHandler__handle_normal[style_func;label="{{
+    PollHandler\l
+    handle_normal\l|
+    raft poller处理\l
+    normal消息\l
+  }}"]
+
+  Peer__on_role_changed[style_func;label="{{
+    Peer\l
+    on_role_changed\l|
+    变为了leader\l|
+    A more recent read may happen\l
+    on the old leader. So max ts should\l
+    be updated after a peer becomes leader.\l
+  }}"]
+
+  Peer__step[style_func;label="{{
+    Peer\l
+    step\l|
+    处理raft消息
+  }}"]
+  CoprocessorHost__on_step_read_index[style_blue1;label="{{
+    CoprocessorHost\l
+    on_step_read_index\l|
+    处理follower发来\l
+    的read_index 消息\l
+  }}"]
+
+  ReadIndexObserver__on_step[style_func;label="{{
+    ReadIndexObserver\l
+    on_step\l|
+    trait ReadIndexObserver\l
+  }}"]
+
+  ReplicaReadLockChecker__on_step[style_func;label="{{
+    ReplicaReadLockChecker\l
+    on_step\l|
+    使用replica read start_ts\l
+    更新max_ts\l
+  }}"]
+
+
+
+  Scheduler__execute[style_func;label="{{
+    Scheduler\l
+    execute\l|
+    执行txn cmd\l
+  }}"]
+
+  Scheduler__process_by_worker[style_func;label="{{
+    Scheduler\l
+    process_by_worker\l|
+    在worker线程池中执行\l
+  }}"]
+  Scheduler__process_write[style_func;label="{{
+    Scheduler\l
+    process_write\l
+  }}"]
+  Command__process_write[style_func;label="{{
+    Command\l
+    process_write\l|
+    执行write命令\l
+    使用请求中的\l
+    start_ts\l
+    for_update_ts\l
+    min_commit_ts\l
+    更新max_ts\l
+  }}"]
+  CheckTxnStatus__process_write[style_func;label="{{
+    CheckTxnStatus\l
+    process_write\l|
+    事务t2遇到t1的lock时\l
+    检查t1事务状态\l
+  }}"]
+
+  AcquirePessimisticLock__process_write[style_func;label="{{
+    AcquirePessimisticLock\l
+    process_write\l|
+    获取悲观Lock\l
+  }}"]
+  CheckSecondaryLocks__process_write[style_func;label="{{
+    CheckSecondaryLocks\l
+    process_write\l|
+    async commit的txn\l
+    检查它的seconary locks\l
+  }}"]
+
+  Cleanup__process_write[style_func;label="{{
+    Cleanup\l
+    process_write\l|
+    清理lock\l
+  }}"]
+  Runner__handle_update_max_timestamp[style_func;label="{{
+    Runner\l
+    handle_update_max_timestamp\l|
+    处理Task::UpdateMaxTimestamp\l
+  }}"]
+
+  Service__coprocessor_stream[style_green1;label="{{
+    Service\l
+    coprocessor_stream\l|
+    GRPC 接口\l
+  }}"]
+  Service__handle_request[style_green1;label="{{
+    Service\l
+    handle_request\l
+    GRPC 接口\l
+  }}"]
+  Service__coprocessor[style_green1;label="{{
+    Service\l
+    coprocessor\l|
+    GRPC接口\l
+  }}"]
+
+  Endpoint__parse_and_handle_stream_request[style_func;label="{{
+    Endpoint\l
+    parse_and_handle_stream_request\l
+  }}"]
+  Endpoint__parse_and_handle_unary_request[style_func;label="{{
+    Endpoint\l
+    parse_and_handle_unary_request\l
+  }}"]
+  Endpoint__parse_request_and_check_memory_locks[style_func;label="{{
+    Endpoint\l
+    parse_request_and_check_memory_locks\l
+  }}"]
+  Endpoint__check_memory_locks[style_func;label="{{
+    Endpoint\l
+    check_memory_locks\l
+  }}"]
+
+
+
+}

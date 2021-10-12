@@ -1,0 +1,99 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  actionPrewrite__handleSingleBatch -> {
+    c__buildPrewriteRequest;
+  }
+  actionPrewrite__handleSingleBatch -> {
+    prewriteResp__MinCommitTS;
+    c__minCommitTS;
+  }[style_edge_data];
+
+  c__execute -> actionPrewrite__handleSingleBatch[style_edge_data];
+  c__store__GetTimeStampWithRetry -> lastestTS;
+
+  c__execute -> {
+    c__store__GetTimeStampWithRetry;
+  }
+
+  lastestTS -> c__minCommitTS;
+
+  PrewriteRequest -> TiKV -> prewriteResp__MinCommitTS[style_edge_data];
+  TiKV -> TiKV__ConcurrencyManager_max_ts;
+  TiKV -> TiKV__Lock__MinCommitTS;
+
+  prewriteResp__MinCommitTS -> c__minCommitTS;
+  c__buildPrewriteRequest -> {
+    c__forUpdateTS;
+    c__minCommitTS;
+  }[style_edge_data];
+
+  c__forUpdateTS -> minCommitTS;
+  c__minCommitTS -> minCommitTS;
+
+  minCommitTS -> PrewriteRequest[style_edge_data];
+
+  //rank
+  {
+    rank=same;
+    PrewriteRequest;
+    prewriteResp__MinCommitTS;
+  }
+
+  //node
+  c__minCommitTS[style_var;label="{{
+    twoPhaseCommitter\l
+    minCommitTS\l
+  }}"]
+  c__forUpdateTS[style_var;label="{{
+    twoPhaseCommitter\l
+    forUpdateTS\l
+  }}"]
+  PrewriteRequest[style_func;label="{{
+    PrewriteRequest\l|
+    发给TiKV的请求上\l
+    带了minCommitTS\l
+  }}"]
+  prewriteResp__MinCommitTS[style_func;label="{{
+    prewriteResp\l
+    MinCommitTS\l|
+    TiKV返回resp上\l
+    会带着一个minCommitTS\l
+    commiter要用它\l
+    来更新自己的\l
+    minCommitTS\l
+  }}"]
+
+  actionPrewrite__handleSingleBatch[style_func;label="{{
+    actionPrewrite\l
+    handleSingleBatch\l|
+    使用resp中的minCommitTS\l
+    更新committer的minCommitTS\l
+  }}"]
+
+  TiKV__ConcurrencyManager_max_ts[style_var;label="{{
+    TiKV\l
+    ConcurrencyManager\l|
+    max_ts: Arc\<AtomicU64\>,\l
+  }}"]
+  TiKV__Lock__MinCommitTS[style_var;label="{{
+    TiKV\l
+    Lock\l
+    MinCommitTS\l|
+    将minCommitTS\l
+    保存在prewrite的\l
+    lock中\l
+  }}"]
+  c__store__GetTimeStampWithRetry[style_func;label="{{
+    GetTimeStampWithRetry\l|
+    如果需要线性一致性\l
+    needLinearizability\l
+    先获取一个lastTS\l
+    minCommitTS = lastTS + 1\l
+  }}"]
+
+}

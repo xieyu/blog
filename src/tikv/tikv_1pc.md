@@ -1,5 +1,8 @@
 # OnePC(一阶段提交)
 
+
+![](./dot/one-pc.png)
+
 只涉及一个region，且一个batch就能完成的事务，不使用分布式提交协议，只使用一阶段完成事务，
 和AsyncCommit相比， 省掉了后面的commit步骤。
 

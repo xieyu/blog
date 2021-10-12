@@ -1,0 +1,165 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+
+  AcquirePessimisticLock__process_write -> acquire_pessimistic_lock;
+
+  {
+    Prewriter__prewrite
+  } -> prewrite;
+
+/*
+  {
+    Storage__get
+    Storage__batch_get_command
+    Storage__batch_get
+  } -> prepare_snap_ctx;
+
+  {
+    ReplicaReadLockChecker__on_step
+    Endpoint__check_memory_locks
+    Storage__scan
+    prepare_snap_ctx
+    scan_latest_handle_lock
+    PointGetter__load_and_check_lock
+    BackupRange__backup
+    BackwardKvScanner__read_next
+  } -> Lock__check_ts_conflict;
+  */
+
+  //{
+  //  handle_1pc_locks
+  //} -> WriteType__from_lock_type;
+  Prewriter__process_write -> Prewriter__prewrite;
+
+
+  Mutation -> PrewriteMutation__from_mutation;
+  prewrite -> {
+    PrewriteMutation__from_mutation;
+    PrewriteMutation__write_lock;
+  }
+  PreWriteKind__Mutation -> Mutation;
+  PrewritePessimistic__mutations -> PreWriteKind__Mutation;
+  client__twoPhaseCommitter__initKyesAndMutations -> PrewritePessimistic__mutations[style_edge_data];
+  client__KVTxn__LockKeys -> AcquirePessimisticLock__process_write[style_edge_data];
+  client__twoPhaseCommitter__execute -> {
+    client__twoPhaseCommitter__initKyesAndMutations;
+    client__twoPhaseCommitter__PrewriteMutations;
+  }
+
+  client__twoPhaseCommitter__PrewriteMutations -> Prewriter__process_write[style_edge_data];
+
+  PrewriteMutation__from_mutation -> PrewriteMutation__write_lock[style_edge_data];
+
+  PrewriteMutation__write_lock -> {
+    MvccTxn__put_lock;
+  }
+  PrewriteMutation__write_lock -> {
+    MvccTxn__put_value;
+  }
+  acquire_pessimistic_lock -> MvccTxn__put_lock;
+
+  //rank=same
+  //{}
+  {
+    rank=same;
+    AcquirePessimisticLock__process_write;
+    Prewriter__process_write;
+  }
+
+  {
+   rank=same;
+   client__twoPhaseCommitter__execute;
+   client__KVTxn__LockKeys;
+  }
+
+  {
+    rank=same;
+    prewrite;
+    acquire_pessimistic_lock;
+  }
+
+  Mutation[style_func;label="{{
+    Mutation\l|
+    Put((Key, Value)),\l|
+    Delete(Key),\l|
+    Lock(Key),\l|
+    Insert((Key, Value)),\l|
+    CheckNotExists(Key),\l
+  }}"]
+
+
+  AcquirePessimisticLock__process_write[style_func;label="{{
+    AcquirePessimisticLock\l
+    process_write\l|
+    对于每个key\l
+    调用acquire_pessimistic_lock\l
+  }}"]
+
+  acquire_pessimistic_lock[style_blue1;label="{{
+    acquire_pessimistic_lock\l|
+    调用txn::put_lock\l
+    将lock类型设置为\l
+    Pessimisitc\l
+  }}"]
+  PrewriteMutation__from_mutation[style_func;label="{{
+    PrewriteMutation\l
+    from_mutation\l|
+    在这个地方设置为\l
+    乐观lock的\l
+  }}"]
+
+  client__twoPhaseCommitter__initKyesAndMutations[style_func;label="{{
+    client\l
+    twoPhaseCommitter\l
+    initKyesAndMutations\l|
+    client端开始2pc提交时\l
+    遍历MemDB\l
+    设置Mutation Op\l
+  }}"]
+
+  Prewriter__process_write[style_func;label="{{
+    Prewriter\l
+    process_write\l|
+    prewrite阶段将lock\l
+    类型改为乐观lock\l
+  }}"]
+  PrewriteMutation__write_lock[style_func;label="{{
+    PrewriteMutation\l
+    write_lock\l|
+    写入Lock\l
+    写入值\l
+  }}"]
+  client__KVTxn__LockKeys[style_func;label="{{
+    client\l
+    KVTxn\l
+    LockKeys\l|
+    client端lock keys阶段\l
+    该阶段只加悲观lock\l
+    并不会write value\l
+  }}"]
+
+  client__twoPhaseCommitter__execute[style_func;label="{{
+    client\l
+    twoPhaseCommitter\l
+    execute\l|
+    client 2pc提交\l
+  }}"]
+  client__twoPhaseCommitter__PrewriteMutations[style_func;label="{{
+    client\l
+    twoPhaseCommitter\l
+    PrewriteMutations\l|
+    prewrite阶段\l
+  }}"]
+
+  prewrite[style_blue1;label="{{
+    prewrite\l|
+    写入Lock\l
+    和value\l
+  }}"]
+}
