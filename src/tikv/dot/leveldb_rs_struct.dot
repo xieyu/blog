@@ -1,0 +1,98 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  Version -> {
+    TableCache;
+    FileMetaHandle;
+    Cmp;
+  }
+
+  Compaction -> Version;
+  maybe_do_compaction -> {
+    compact_memtable;
+    needs_compaction;
+    pick_compaction;
+    start_compaction;
+  }
+  pick_compaction -> {
+    Compaction;
+    //Size compaction
+    version__compaction_score;
+    version__file_to_compact;
+  }
+  Compaction -> start_compaction[style_edge_data];
+  compact_memtable -> {
+    write_l0_table;
+    log_and_apply;
+  }
+
+  {
+      Version__new
+      Version__update_stats
+  } -> version__file_to_compact;
+  {
+    VersionSet__finalize
+      Version__new
+  } -> version__compaction_score;
+
+
+  needs_compaction -> {
+    compaction_score;
+    file_to_compact;
+  }
+
+  pick_memtable_output_level -> {
+    Version__overlap_in_level;
+    MAX_MEM_COMPACT_LEVEL;
+  }
+
+  {
+  DB__recover_log_file
+  DB__compact_memtable
+  } ->DB__write_l0_table;
+
+
+  pick_memtable_output_level[style_func;label="{{
+    pick_memtable_output_level\l
+    选择memtable输出\l
+    的level\l
+  }}"]
+
+  MAX_MEM_COMPACT_LEVEL[style_func;label="{{
+    MAX_MEM_COMPACT_LEVEL\l
+    最高为2\l
+  }}"]
+  DB__write_l0_table -> pick_memtable_output_level;
+  VersionSet__finalize -> {
+    compaction_level;
+  }
+
+
+  //nodes
+  Version[style_func;label="{{
+    Version\l
+    table_cache: Shared\<TableCache\>,\l|
+    user_cmp: Rc\<Box\<dyn Cmp\>\>,\l|
+    pub files: [Vec\<FileMetaHandle\>; NUM_LEVELS],\l|
+    pub file_to_compact: Option\<FileMetaHandle\>,\l|
+    pub file_to_compact_lvl: usize,\l|
+    pub compaction_score: Option\<f64\>,\l|
+    pub compaction_level: Option\<usize\>,\l
+  }}"]
+  FileMetaHandle[style_func;label="{{
+    FileMetaHandle\l
+      Shared\<FileMetaData\>;\l
+  }}"]
+  VersionSet__finalize[style_func;label="{{
+    VersionSet__finalize\l
+    计算最佳score值\l
+    score = total_size(v.files[l].iter()) \l
+    as f64 / max_bytes;|
+  }}"]
+
+}

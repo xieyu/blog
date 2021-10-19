@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentScriptType="application/ecmascript" contentStyleType="text/css" height="447px" preserveAspectRatio="none" style="width:317px;height:447px;background:#FFFFFF;" version="1.1" viewBox="0 0 317 447" width="317px" zoomAndPan="magnify"><defs><filter height="300%" id="fkz6wiwd8jao6" width="300%" x="-1" y="-1"><feGaussianBlur result="blurOut" stdDeviation="2.0"/><feColorMatrix in="blurOut" result="blurOut2" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .4 0"/><feOffset dx="4.0" dy="4.0" in="blurOut2" result="blurOut3"/><feBlend in="SourceGraphic" in2="blurOut3" mode="normal"/></filter></defs><g><!--MD5=[ca04eb9d7352a7e9232f21f07f3bd553]
+cluster Spring Boot Application--><polygon fill="#FFFFFF" filter="url(#fkz6wiwd8jao6)" points="16,110.5,193,110.5,200,132.9883,244,132.9883,244,440.5,16,440.5,16,110.5" style="stroke:#000000;stroke-width:1.5;"/><line style="stroke:#000000;stroke-width:1.5;" x1="16" x2="200" y1="132.9883" y2="132.9883"/><text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing" textLength="171" x="20" y="126.0352">Spring Boot Application</text><!--MD5=[1b9dce2ce56fb0e0072eca4d439af425]
+entity Controllers--><rect fill="#F8F8F8" filter="url(#fkz6wiwd8jao6)" height="52.9766" style="stroke:#000000;stroke-width:1.5;" width="195" x="32.5" y="145.5"/><text fill="#000000" font-family="sans-serif" font-size="14" font-style="italic" lengthAdjust="spacing" textLength="175" x="42.5" y="169.0352">«Spring REST controllers»</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="77" x="91.5" y="185.5234">Controllers</text><!--MD5=[b604c3a35008299bdec560f53a953b66]
+entity DataStoreService--><rect fill="#F8F8F8" filter="url(#fkz6wiwd8jao6)" height="52.9766" style="stroke:#000000;stroke-width:1.5;" width="135" x="62.5" y="258.5"/><text fill="#000000" font-family="sans-serif" font-size="14" font-style="italic" lengthAdjust="spacing" textLength="110" x="75" y="282.0352">«Spring service»</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="115" x="72.5" y="298.5234">DataStoreService</text><!--MD5=[4e260e4024c27e03c495c33059d2b5ff]
+entity Repository--><rect fill="#F8F8F8" filter="url(#fkz6wiwd8jao6)" height="52.9766" style="stroke:#000000;stroke-width:1.5;" width="153" x="53.5" y="371.5"/><text fill="#000000" font-family="sans-serif" font-size="14" font-style="italic" lengthAdjust="spacing" textLength="133" x="63.5" y="395.0352">«Spring repository»</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="73" x="93.5" y="411.5234">Repository</text><!--MD5=[fee662a292a0353a69bd162820bae93b]
+entity User--><ellipse cx="56" cy="14" fill="#F8F8F8" filter="url(#fkz6wiwd8jao6)" rx="8" ry="8" style="stroke:#383838;stroke-width:1.5;"/><path d="M56,22 L56,49 M43,30 L69,30 M56,49 L43,64 M56,49 L69,64 " fill="none" filter="url(#fkz6wiwd8jao6)" style="stroke:#383838;stroke-width:1.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="31" x="40.5" y="83.0352">User</text><!--MD5=[5d9339f42acd91d7837da645a9ed6462]
+entity ThirdPartyApp--><rect fill="#F8F8F8" filter="url(#fkz6wiwd8jao6)" height="46.4883" style="stroke:#383838;stroke-width:1.5;" width="196" x="107" y="22"/><rect fill="#F8F8F8" height="10" style="stroke:#383838;stroke-width:1.5;" width="15" x="283" y="27"/><rect fill="#F8F8F8" height="2" style="stroke:#383838;stroke-width:1.5;" width="4" x="281" y="29"/><rect fill="#F8F8F8" height="2" style="stroke:#383838;stroke-width:1.5;" width="4" x="281" y="33"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="156" x="122" y="55.5352">Third party application</text><!--MD5=[09821884d778e47c1088d4d5429fa28e]
+link User to Controllers--><path d="M71.51,72.2 C83.38,92.25 99.77,119.93 112.18,140.89 " fill="none" id="User-to-Controllers" style="stroke:#383838;stroke-width:1.0;"/><polygon fill="#383838" points="114.76,145.26,113.5978,135.48,112.2043,140.9625,106.7218,139.569,114.76,145.26" style="stroke:#383838;stroke-width:1.0;"/><!--MD5=[2b08c5d4ba61d3d4a05152912bcc7662]
+link ThirdPartyApp to Controllers--><path d="M191.76,68.06 C179.62,88.3 161.53,118.45 148.06,140.9 " fill="none" id="ThirdPartyApp-to-Controllers" style="stroke:#383838;stroke-width:1.0;"/><polygon fill="#383838" points="145.43,145.28,153.4904,139.6205,148.0025,140.9925,146.6305,135.5046,145.43,145.28" style="stroke:#383838;stroke-width:1.0;"/><!--MD5=[5acc4d59b62762dd06c8c80a052eb64a]
+link Controllers to DataStoreService--><path d="M130,198.74 C130,215 130,236.08 130,253.21 " fill="none" id="Controllers-to-DataStoreService" style="stroke:#383838;stroke-width:1.0;"/><polygon fill="#383838" points="130,258.39,134.0257,249.4015,130.0143,253.39,126.0257,249.3786,130,258.39" style="stroke:#383838;stroke-width:1.0;"/><!--MD5=[787d1822b21ac2ed803c40c10f599670]
+link DataStoreService to Repository--><path d="M130,311.74 C130,328 130,349.08 130,366.21 " fill="none" id="DataStoreService-to-Repository" style="stroke:#383838;stroke-width:1.0;"/><polygon fill="#383838" points="130,371.39,134.0257,362.4015,130.0143,366.39,126.0257,362.3786,130,371.39" style="stroke:#383838;stroke-width:1.0;"/><!--MD5=[acef8472d29a35ad334b5f761746f1f5]
+@startuml
+ 
+' Generated diagram will be in black/grey/white.
+skinparam monochrome true
+ 
+actor User
+[Third party application] as ThirdPartyApp
+ 
+package "Spring Boot Application" {
+    rectangle Controllers <<Spring REST controllers>>
+    rectangle DataStoreService <<Spring service>>
+    rectangle Repository <<Spring repository>>
+}
+ 
+User - -> Controllers
+ThirdPartyApp - -> Controllers
+ 
+Controllers - -> DataStoreService
+DataStoreService - -> Repository
+ 
+@enduml
+
+@startuml
+ 
+skinparam monochrome true
+ 
+actor User
+[Third party application] as ThirdPartyApp
+ 
+package "Spring Boot Application" {
+    rectangle Controllers <<Spring REST controllers>>
+    rectangle DataStoreService <<Spring service>>
+    rectangle Repository <<Spring repository>>
+}
+ 
+User - -> Controllers
+ThirdPartyApp - -> Controllers
+ 
+Controllers - -> DataStoreService
+DataStoreService - -> Repository
+ 
+@enduml
+
+PlantUML version 1.2021.12(Wed Oct 06 00:01:58 CST 2021)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: US-ASCII
+Language: en
+Country: CN
+--></g></svg>

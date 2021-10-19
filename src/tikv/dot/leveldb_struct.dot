@@ -1,0 +1,16 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Version -> {
+    FileMetaData;
+    VersionSet;
+  }
+
+  Version[style_func;label="{{
+    Version\l
+  }}"]
+}
