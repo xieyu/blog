@@ -95,6 +95,10 @@ for req in split_reqs.get_requests() {
 可以开始new region的campaign操作，其他非leader节点，
 要等选举超时之后，才能开始选举操作。
 
+> 读过 Peer::handle_raft_ready_append中记录 last_committed_split_idx的小伙伴应该能注意这里并没有让租约立马失效，仅仅设置 index 阻止下次续约。换句话说，在 Split 期间的那次租约时间内是可以让原 Region 的 Leader 提供本地读取功能的。根据前面的分析，这样做貌似是不合理的。
+
+> 原因十分有趣，对于原 Region 非 Leader 的 Peer 来说，它创建新 Region 的 Peer 是不能立马发起选举的，得等待一个 Raft 的选举超时时间，而对于原 Region 是 Leader 的 Peer 来说，新 Region 的 Peer 可以立马发起选举。Raft 的超时选举时间是要比租约时间长的，这是保证租约正确性的前提
+
 
 ![](./dot/PeerFsmDelegate__on_ready_split_region_new_region.svg)
 

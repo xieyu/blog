@@ -1,0 +1,29 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  {a;w1} -> b;
+  {a;w2} -> c;
+  {w3;w4;b;c} -> d;
+  {d} -> L;
+  b[style_func;label="{{
+    b\l|
+    b = w1 * a\l
+  }}"]
+  c[style_func;label="{{
+    c\l|
+    c = w2 * a;\l
+  }}"]
+  d[style_func;label="{{
+    d\l|
+    d = d3 * b + w4 * c\l
+  }}"]
+
+  L[style_func;label="{{
+    L\l
+    L = 10 -d \l
+  }}"]
+}

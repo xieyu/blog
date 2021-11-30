@@ -2,10 +2,23 @@
 
 <!-- toc -->
 
+## raft module
+
 ![](./dot/raft-process-in-tikv.png)
 
 上图摘自[How TiKV Reads and Writes](https://en.pingcap.com/blog/how-tikv-reads-and-writes)
 
+
+基本过程为，client发读写请求给raft leader。
+
+raft leader在处理写请求(比如put k, v)时，将写请求包装为一个log entry, 写到自己
+本地的raft log中，然后发给各个follower, follower写成功后，发送ack给leader, 当集群中
+大部分节点写成功时(达到commit状态，可以安全的apply 到state machine上，leader返回写成功给client.
+
+leader在处理读请求时，会通过read index检查确认自己还是不是leader,
+
+
+## RawNode API
 
 raft对外暴露的接口为RawNode，它和App关系如下图所示:
 
@@ -83,7 +96,6 @@ pub fn propose_conf_change(&mut self, context: Vec<u8>, cc: impl ConfChangeI) ->
 
 App调用`RawNode::read_index` 来获取`read_index`
 
-> 对于读请求，我们只需要确认此时 leader 是否真的是 leader 即可，一个较为轻量的方法是发送一次心跳，再检查是否收到了过半的响应，这在 raft-rs 中被称为 ReadIndex
 
 除此之外raft中还有一个lease read.
 
@@ -121,9 +133,9 @@ follower 处理leader发送的heartbeat消息和Append消息，然后
 
 ![](./dot/raft_follower_step_msgs.svg)
 
-#### candiate
+#### candidate
 
-如果在投票期间收到了其他leader的消息，并且验证（比较term)Ok的话，
+如果在投票期间收到了其他leader的消息，并且验证（term不小于自己的term)Ok的话，
 就成为follower，处理heartbeat, appendEntry等消息,流程和上面的follwer一样。
 
 如果没有其他leader的消息，就处理peer发来的投票resp，

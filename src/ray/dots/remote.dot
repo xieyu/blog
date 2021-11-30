@@ -1,0 +1,390 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ray__remote_function__RemoteFunction[style_func;label="{{
+    ray.remote_function.RemoteFunction\l|
+    _function\l|
+    _function_name\l
+    _is_cross_language\l|
+    _num_gpus\l|
+    _memory\l
+    _object_store_memory\l|
+    _runtime_env;\l|
+    _function_signature\l|
+    _placement_group\l|
+    _uuid\l|
+    _resources\l|
+  }}"]
+
+  TaskSubmitter[style_func;label="{{
+    TaskSubmitter\l|
+    SubmitTask\l|
+    CreateActor\l|
+    SubmitActorTask\l|
+    GetActor\l|
+    CreatePlacementGroup\l|
+    RemovePlacementGroup\l|
+    WaitPlacementGroupReady\l|
+    GetFullName\l|
+    GetCurrentJobID\l|
+  }}"]
+
+  AbstractRayRuntime[style_func;label="{{
+    AbstractRayRuntime\l|
+    WorkerContext\l|
+    TaskSubmitter\l|
+    TaskExecutor\l|
+    ObjectStore\l|
+    GlobalStateAccessor\l
+  }}"]
+
+  ObjectStore[style_func;label="{{
+    ObjectStore\l
+    Put\l|
+    Get\l|
+    Wait\l|
+    AddLocalReference\l|
+    RemoveLocalReference\l|
+    GetAllReferenceCounts\l
+  }}"]
+
+
+  remote -> {
+    make_decorator;
+  }
+  make_decorator -> {
+    ray__remote_function__RemoteFunction;
+    ray__actor__make_actor;
+    inspect__isfunction;
+    inspect__isclass;
+  }
+
+  inspect__isclass -> ray__actor__make_actor[style_edge_data];
+  inspect__isfunction -> ray__remote_function__RemoteFunction[style_edge_data];
+  ray__remote_function__RemoteFunction -> {
+    ParsedRuntimeEnv;
+    ray__private__signature__extract_signature;
+    _inject_tracing_into_function;
+    inspect__iscoroutinefunction;
+  }
+
+  ray__actor__make_actor -> {
+    ActorClass___ray_from_modified_class;
+    modified_class;
+    _inject_tracing_into_class;
+  }
+  modified_class -> Class -> ActorClass___ray_from_modified_class[style_edge_data];
+  modified_class -> {
+    __ray_terminate__;
+  }
+  __ray_terminate__ -> {
+    ray__worker__global_worker;
+    ray__LOCAL_MODE;
+    ray__actor__exit_actor;
+  }
+
+  ActorClass___ray_from_modified_class -> {
+    ActorClass____ray_metadata;
+    ActorClassMethodMetadata;
+  }
+
+
+  RemoteFunction___remote -> {
+    client_mode_should_convert;
+    client_mode_convert_function;
+    ray__worker__global_worker__check_connected;
+    RemoteFunction___is_cross_language;
+    PythonFunctionDescriptor__from_function;
+    pickle__dumps;
+    RemoteFunction__picked_function;
+    invocation;
+  }
+
+  invocation -> {
+    ray__worker__global_worker__core_worker__submit_task;
+  }
+  client_mode_should_convert -> client_mode_convert_function[style_edge_data];
+
+  ray__worker__global_worker__core_worker__submit_task -> {
+    prepare_resources;
+    CRayFunction;
+    CoreWorkerProcess__GetCoreWorker__SubmitTask;
+  }
+
+  TaskSubmitter -> {
+    NativeTaskSubmitter;
+    LocalModeTaskSubmitter;
+  }
+
+  NativeTaskSubmitter__SubmitTask -> {
+    NativeTaskSubmitter__Submit;
+  }
+  NativeTaskSubmitter__Submit -> {
+    CoreWorkerProcess__GetCoreWorker__SubmitTask;
+    CoreWorkerProcess__GetCoreWorker__SubmitActorTask;
+    BuildRayFunction;
+  }
+
+  LocalModeTaskSubmitter__SubmitTask -> {
+    LocalModeTaskSubmitter__Submit;
+  }
+  LocalModeTaskSubmitter__Submit -> {
+    FunctionDescriptorBuilder__BuildCpp;
+    SetCommonTaskSpec;
+    SetActorCreationTaskSpec;
+    TaskID__ForActorCreationTask;
+    builder__SetActorTaskSpec;
+    TaskExecutor__Invoke;
+    TASK_TYPE_ACTOR_CREATION_TASK;
+    TASK_TYPE_ACTOR_Task;
+    boost__asio__post;
+  }
+  boost__asio__post -> TaskExecutor__Invoke[style_edge_data];
+
+  TaskExecutor__Invoke -> {
+    msgpack__sbuffer__write;
+    task_spec__FunctionDescriptor;
+    TaskExecutionHandler;
+    AbstractRayRuntime__Put;
+  }
+
+  TaskExecutionHandler -> {
+    func_name;
+    FunctionManager__Instance__GetMemberFunction;
+    FunctionManager__Instance__GetFuntion;
+    func_ptr__args_buffer;
+    ActorContext;
+
+  }
+  func_name -> {
+    FunctionManager__Instance__GetMemberFunction;
+    FunctionManager__Instance__GetFuntion;
+  } -> func_ptr__args_buffer[style_edge_data];
+  func_ptr__args_buffer -> AbstractRayRuntime__Put[style_edge_data];
+
+  RayRuntime -> AbstractRayRuntime;
+  AbstractRayRuntime -> {
+    NativeRayRuntime;
+    LocalModeRayRuntime;
+  }[color=red];
+
+  AbstractRayRuntime -> {
+    WorkerContext;
+    TaskSubmitter;
+    TaskExecutor;
+    ObjectStore;
+    GlobalStateAccessor;
+  }
+
+  ObjectStore -> ObjectStore__Put[style_edge_data];
+
+  AbstractRayRuntime__Put -> ObjectStore__Put;
+  ObjectStore -> {
+    NativeObjectStore;
+    LocalModeObjectStore;
+  }[color=red];
+
+  LocalModeObjectStore -> {
+    LocalModeRayRuntime;
+    CoreWorkerMemoryStore;
+  }
+
+  ray__init -> {
+    RAY_ADDRESS_ENVIRONMENT_VARIABLE;
+    RAY_JOB_CONFIG_JSON_ENV_VAR;
+    ray__client;
+    services__validate_redis_address;
+    ray___private__parameter__RayParams;
+    ray__node__Node;
+    connect;
+    _post_init_hooks__hok;
+    global_worker__core_worker__get_current_node_id;
+    global_worker__set_lod_code_from_local;
+  }
+  RAY_ADDRESS_ENVIRONMENT_VARIABLE -> RAY_ADDRESS;
+
+  ray___private__parameter__RayParams -> ray__node__Node[style_edge_data];
+
+  ray___private__parameter__RayParams[style_func;label="{{
+    ray___private__parameter__RayParams\l|
+    a class used to store the\l
+    parameters used by Ray\l
+    update\l|
+    update_if_absent\l|
+    update_pre_selected_port\l|
+    _check_usage\l|
+  }}"]
+
+  ray__node__Node[style_func;label="{{
+    ray__node__Node\l|
+    An encapsulation of the\l
+    Ray processes on a single node\l
+  }}"]
+  connect[style_func;label="{{
+    connect\l
+    Connect this worker to\l|
+    raylet\l|
+    Plasma\l|
+    Redis\l
+  }}"];
+
+  connect -> {
+    node__create_redis_client;
+    gcs_utils__create_gcs_channel;
+    gcs_utils__GcsClient;
+    _initialize_internal_kv;
+    _initialize_global_state;
+    gcs_pubsub_enabled;
+    GcsPublisher;
+    JobID__nil;
+    ray__state__next_job_id;
+    ray_constants__WORKER_PROCESS_TYPE_IDLE_WORKER;
+    ray___private__services_check_version_info;
+    ray___raylet__GcsClientOptitons;
+    ray__job_config__JobConfig;
+    ray___private__utils__validate_namespace;
+    job_config__set_ray_namespace;
+    job_config__set_runtime_env;
+    ray___raylet__CoreWorker;
+    ray___raylet__CoreWorker__notify_raylet;
+    worker__run_function_on_all_workers;
+    worker__cached_functions_to_run;
+  }
+
+  GcsPublisher -> gcs_service_pb2_grpc__InternalPubSubGcsServiceStub;
+
+  gcs_utils__GcsClient[style_func;label="{{
+    gcs_utils__GcsClient\l
+    Client To GCS using GRPC\l|
+    internal_kv_get\l|
+    internal_kv_put\l|
+    internal_kv_del\l|
+    internal_kv_exists\l|
+    internal_kv_keys\l|
+  }}"]
+
+  GcsClient__create_from_redis -> {
+    get_gcs_address_from_redis;
+  }
+  GcsClient__connect_to_gcs_by_redis_address -> {
+    GcsClient__create_from_redis;
+    create_redis_client;
+  }
+
+  gcs_utils__GcsClient -> {
+    gcs_service_pb2_grpc__InternalPubSubGcsServiceStub;
+  }
+  Plasma[style_func;label="{{
+    Plasma\l
+    In-Memory Object Store\l
+    Appache Arrow\l
+  }}"]
+
+
+  Raylet[style_func;label="{{
+    Raylet\l
+    NodeManager\l|
+    NodeID\l|
+    GcsClient\l|
+    GcsNodeInfo\l|
+  }}"]
+  Raylet -> {
+    gcs_utils__GcsClient;
+    GcsNodeInfo;
+  }
+
+  Raylet__Start -> {
+    Raylet__RegisterGcs;
+    Raylet__DoAccept;
+  }
+  Raylet__RegisterGcs -> {
+    NodeManager__GetInitialConfig;
+    GcsClient__NodeResources__AsyncUpdateResources;
+    NodeManager__RegisterGcs;
+  }
+  Raylet__DoAccept -> {
+    Raylet__HandleAccept;
+  }
+  Raylet__HandleAccept -> {
+    NodeManager__ProcessNewClient;
+    NOdeManager__ProcessClientMessage;
+    FlatBufferBuilder__Finish;
+    ClientConnection__Create;
+  }
+  ray__node__Node -> {
+    RayParams__update_if_absent;
+    Node__start_ray_process;
+    Node__start_head_processes;
+  }
+  Node__start_ray_process[style_func;label="{{
+    Node__start_ray_process\l
+    start all of the\l
+    processes on the node\l
+  }}"]
+
+  Node__start_ray_process -> {
+    ray__state__GlobalState;
+    GlobalState___initialize_global_state;
+    Node__start_raylet;
+    ray___private__services__determine_plasma_store_config;
+    Node__start_log_monitor;
+  }
+  Node__start_raylet -> {
+    ray__private__services__start_raylet;
+  }
+
+  ray__private__services__start_raylet[style_func;label="{{
+    ray__private__services__start_raylet\l|
+    Start a raylet\l
+    which is a combined \l
+    local scheduler\l
+    and Object manager\l
+  }}"]
+  ray__private__services__start_raylet -> {
+    RAYLET_EXECUTABLE;
+    start_ray_process;
+  }
+  start_ray_process[style_func;label="{{
+    start_ray_process\l|
+    start one of the\l
+    Ray processes\l
+    启动raylet进程\l
+  }}"]
+
+  start_ray_process -> {
+    RAY_JEMALLOC_LIB_PATH;
+    ConsolePopen;
+    ProcessInfo;
+  }
+  ConsolePopen -> subprocess__Popen;
+  RAYLET_EXECUTABLE[style_func;label="{{
+    RAYLET_EXECUTABLE\l
+    RAY_PATH\l|
+    core/src/ray/raylet/raylet\l
+  }}"]
+  RAYLET_EXECUTABLE -> {
+    ray__raylet__main;
+  }
+  ray__raylet__main -> Raylet__Start;
+
+  Node__start_head_processes -> {
+    Node__start_redis;
+    Node__start_gcs_server;
+    Node__start_monitor;
+    Node__start_ray_client_server;
+    Node__start_dashboard;
+  }
+  Node__start_ray_client_server -> {
+    services__start_ray_client_server;
+  }
+
+  Node__start_gcs_server -> services__start_gcs_server;
+  start_gcs_server -> {
+    GCS_SERVER_EXECUTABLE;
+  }
+
+}

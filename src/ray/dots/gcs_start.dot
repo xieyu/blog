@@ -1,0 +1,70 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  GcsServer__Start -> {
+    redis_client_options;
+    RedisClient__Connect;
+    make_shared_GcsRedisFailureDetector;
+    make_unique__pubsub__Publisher;
+    GcsPublisher;
+    RedisGcsTableStorage;
+    GcsInitData__AsyncLoad;
+  }
+  redis_client_options -> RedisClient__Connect[style_edge_data];
+  RedisClient__Connect -> redis_client_;
+  redis_client_ -> RedisGcsTableStorage -> GcsInitData -> GcsServer__DoStart[style_edge_data];
+  redis_client_ -> GcsPublisher;
+
+  make_unique__pubsub__Publisher ->  GcsPublisher[style_edge_data];
+  GcsInitData__AsyncLoad -> GcsServer__DoStart[style_edge_data];
+  GcsServer__DoStart -> {
+    InitGcsResourceManager;
+    InitGcsResourceScheduler;
+    InitGcsNodeManager;
+    InitGcsHeartbeatManager;
+    InitKVManager;
+    InitPubSubHandler;
+    InitRuntimeEnvManager;
+    InitGcsJobManager;
+    InitGcsPlacementGroupManager;
+    InitGcsActorManager;
+    InitGcsWorkerManager;
+    InitTaskInfoHandler;
+    InitStatsHandler;
+    InitResourceReportPolling;
+    InitResourceReportBroadcasting;
+    InstallEventListeners;
+    rpc_server___Run;
+    StoreGcsServerAddressInRedis;
+    gcs_heartbeat_manager_->Start;
+    PrintDebugInfo;
+    PrintAsioStats;
+    CollectStats;
+  }
+
+  InitGcsResourceManager -> {
+    GcsResourceManager;
+    NodeResourceInfoGrpcService;
+    rpc_server___RegisterService;
+  }
+
+  NodeResourceInfoGrpcService -> {
+    rpc_server___RegisterService;
+  }
+  {
+    main_service_;
+    gcs_publisher_;
+    gcs_table_storage_;
+  }-> GcsResourceManager;
+
+
+
+  RedisClient__Connect[style_func;label="{{
+    RedisClient__Connect\l
+    连接Redis\l
+  }}"]
+}

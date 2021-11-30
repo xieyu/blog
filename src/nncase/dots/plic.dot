@@ -1,0 +1,71 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  plic_irq_t -> {
+    IRQN_AI_INTERRUPT;
+    IRQN_DMA0_INTERRUPT;
+  }
+  dmac_irq_register -> IRQN_DMA0_INTERRUPT -> dmac_irq_callback;
+  dmac_irq_register -> dmac_irq_callback;
+
+  kpu_data_ready -> IRQN_AI_INTERRUPT -> kpu_config_input;
+  kpu_init -> IRQN_AI_INTERRUPT -> callback;
+  kpu_run -> IRQN_AI_INTERRUPT -> kpu_continue;
+  kpu_run_kmodel -> IRQN_AI_INTERRUPT -> ai_step;
+
+  kpu_data_ready -> kpu_config_input[style_edge_data];
+  kpu_run -> kpu_continue[style_edge_data];
+  kpu_run_kmodel -> ai_step[style_edge_data];
+
+  kpu_data_input -> dmac_irq_register;
+  kpu_data_input -> kpu_data_ready[style_edge_data];
+  dmac_irq_callback -> kpu_data_ready;
+
+  kpu_config_input -> kpu__layer_argument_fifo;
+  kpu_start -> kpu_data_input;
+  kpu_conv -> dmac_set_irq -> kpu_kmodel_done;
+  kpu_conv -> {
+    kpu_kmodel_done;
+    ai_step;
+    kpu_send_layer;
+  }[style_edge_data];
+
+  kpu_kmodel_done -> kpu_model_context_t__done_callback;
+  kpu_run_kmodel -> kpu_model_context_t__done_callback;
+  ai_step -> kpu_kmodel_done;
+  ai_step -> kpu_conv;
+
+  kpu_run_kmodel[style_func;label="{{
+    kpu_run_kmodel\l
+    这个地方会传入一个\l
+    done_callback\l
+  }}"]
+  kpu_model_context_t__done_callback[style_func;label="{{
+    kpu_model_context_t\l
+    done_callback\l|
+    model跑完后回调函数\l
+  }}"]
+
+  plic_irq_t[style_func;label="{{
+    plic_irq_t\l|
+    外围设备中断\l
+    主要有个AI\l
+    还有6个DAMC\l
+  }}"]
+  kpu -> AI_BASE_ADDR;
+  AI_BASE_ADDR[style_func;label="{{
+    AI_BASE_ADDR\l
+      0x40800000U\l|
+  }}"]
+  kpu_send_layer[style_func;label="{{
+    kpu_send_layer\l
+    risc v向kpu发指令?\l
+  }}"]
+
+  {rank=same;kpu_start;kpu_run_kmodel};
+  {rank=same;kpu_init;kpu_run;kpu_start};
+}

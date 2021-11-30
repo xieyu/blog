@@ -1,0 +1,38 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  kpu_download -> {
+    get_kpu_row_layout;
+    get_kpu_bytes;
+    use__runtime__k210;
+    kernels__detail__compute_size;
+  }
+
+  kpu_conv2d -> {
+    runtime__carry_shift;
+    kernels__detail_clamp;
+  }
+  kpu_pool2d -> {
+    get_kpu_filter_size;
+    get_kpu_filter_stride;
+    get_kpu_pool_output_size;
+    get_kpu_select_pool_offset;
+    kernels__detail__clamp;
+  };
+
+  fake_kpu_conv2d -> {
+    kernels__detail_apply_activation;
+    std__max;
+    std__min;
+  }
+  kpu_upload -> {
+    kernels__detail__compute_size;
+    dmac_set_irq;
+    dmac_set_single_mode;
+    dmac_wait_done;
+  }
+}

@@ -1,0 +1,96 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  GcsServer -> {
+    GcsServerConfig;
+    instrumented_io_context;
+    rpc__GrpcServer;
+    rpc__ClientCallManager;
+    rpc__NodeManagerClientPool;
+    GcsResourceManager;
+    GcsResourceScheduler;
+    GcsNodeManager;
+    GcsHeartbeatManager;
+    GcsRedisFailureDetector;
+    GcsActorManager;
+    GcsJobManager;
+    rpc__ActorInfoGrpcService;
+    rpc__NodeInfoGrpcService;
+    rpc__NodeReousrceInfoGrpcService;
+    rpc__HeartbeatInfoGrpcService;
+    rpc__TaskInfoHandler;
+    rpc__TaskInfoGrpcService;
+    rpc__StatsHandler;
+    rpc__StatsRpcService;
+    GcsResourceReportPoller;
+    GrpcBasedResourceBroadcaster;
+    GcsWorkerManager;
+    rpc__WorkerInfoGrpcService;
+    rpc__PlacementGroupInfoGrpcService
+    GcsInternalKVManager;
+    InternalPubSubHandler;
+    InternalPubSubGrpcService;
+    RedisClient;
+    GcsPublisher;
+    RuntimeEnvManager;
+    GcsTableStorage;
+  }
+
+  GcsTableStorage -> {
+    RedisGcsTableStorage
+    InMemoryGcsTableStorage
+  }[color=red];
+
+  GcsTableStorage -> {
+    GcsJobTable;
+    GcsActorTable;
+    GcsPlacementGroupTable;
+    GcsTaskTable;
+    GcsTaskLeaseTable;
+    GcsTaskReconstructionTable;
+    GcsNodeTable;
+    GcsNodeResourceTable;
+    GcsPlacementGroupScheduleTable;
+    GcsResourceUsageBatchTable;
+    GcsProfileTable;
+    GcsWorkerTable;
+    GcsInternalConfigTable;
+  }
+  GcsNodeTable -> {
+    GcsTable;
+    NodeID;
+    GcsNodeInfo;
+  }
+
+  GcsTaskTable -> {
+    GcsTableWithJobId;
+    TaskTableData;
+    TaskID;
+  }
+  GcsTableWithJobId -> {
+    GcsTable;
+    TaskID;
+  }
+  TaskTableData -> Task;
+  GcsActorTable -> {
+    GcsTableWithJobId;
+    ActorTableData;
+    ActorID;
+  }
+  GcsTableWithJobId -> ActorID;
+
+  GcsJobTable -> {
+    GcsTable;
+    JobID;
+    JobTableData;
+  }
+  GcsTable -> {
+    StoreClient;
+    table_name_;
+  }
+
+
+}

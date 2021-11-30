@@ -1,0 +1,182 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  MemADDR[style_func;label="{{
+    ADDR layout\l|
+CLINT_BASE_ADDR     (0x02000000U)\l|
+<PLIC_BASE_ADDR> PLIC_BASE_ADDR      (0x0C000000U)\l|
+ UARTHS_BASE_ADDR    (0x38000000U)\l|
+ GPIOHS_BASE_ADDR    (0x38001000U)\l|
+ Under AXI 64bit\l|
+ RAM_BASE_ADDR       (0x80000000U)\l|
+ RAM_SIZE            (6 * 1024 * 1024U)\l|
+ IO_BASE_ADDR        (0x40000000U)\l|
+ IO_SIZE             (6 * 1024 * 1024U)\l|
+ AI_RAM_BASE_ADDR    (0x80600000U)\l|
+ AI_RAM_SIZE         (2 * 1024 * 1024U)\l|
+ <AI_IO_BASE_ADDR> AI_IO_BASE_ADDR     (0x40600000U)\l|
+ AI_IO_SIZE          (2 * 1024 * 1024U)\l|
+ <AI_BASE_ADDR> AI_BASE_ADDR        (0x40800000U)\l|
+ AI_SIZE             (12 * 1024 * 1024U)\l|
+ FFT_BASE_ADDR       (0x42000000U)\l|
+ FFT_SIZE            (4 * 1024 * 1024U)\l|
+ ROM_BASE_ADDR       (0x88000000U)\l|
+ ROM_SIZE            (128 * 1024U)\l|\l|
+Under AHB 32 bit\l|
+ <DMAC_BASE_ADDR> DMAC_BASE_ADDR      (0x50000000U)\l|
+ GPIO_BASE_ADDR      (0x50200000U)\l|
+ UART1_BASE_ADDR     (0x50210000U)\l|
+ UART2_BASE_ADDR     (0x50220000U)\l|
+ UART3_BASE_ADDR     (0x50230000U)\l|
+ SPI_SLAVE_BASE_ADDR (0x50240000U)\l|
+ I2S0_BASE_ADDR      (0x50250000U)\l|
+ I2S1_BASE_ADDR      (0x50260000U)\l|
+ I2S2_BASE_ADDR      (0x50270000U)\l|
+ I2C0_BASE_ADDR      (0x50280000U)\l|
+ I2C1_BASE_ADDR      (0x50290000U)\l|
+ I2C2_BASE_ADDR      (0x502A0000U)\l|
+ FPIOA_BASE_ADDR     (0x502B0000U)\l|
+ SHA256_BASE_ADDR    (0x502C0000U)\l|
+ TIMER0_BASE_ADDR    (0x502D0000U)\l|
+ TIMER1_BASE_ADDR    (0x502E0000U)\l|
+ TIMER2_BASE_ADDR    (0x502F0000U)\l|
+ WDT0_BASE_ADDR      (0x50400000U)\l|
+ WDT1_BASE_ADDR      (0x50410000U)\l|
+ OTP_BASE_ADDR       (0x50420000U)\l|
+ DVP_BASE_ADDR       (0x50430000U)\l|
+ SYSCTL_BASE_ADDR    (0x50440000U)\l|
+ AES_BASE_ADDR       (0x50450000U)\l|
+ RTC_BASE_ADDR       (0x50460000U)\l|
+ SPI0_BASE_ADDR      (0x52000000U)\l|
+ SPI1_BASE_ADDR      (0x53000000U)\l|
+ SPI3_BASE_ADDR      (0x54000000U)\l
+  }}"]
+
+  kpu_config_t[style_blue1;label="{{
+    kpu: kpu_config_t\l|
+    field都是volatile的,\l
+    每个字段都是uint64_t\l|
+    volatile uint64_t layer_argument_fifo\l|
+    interrupt_status\l|
+    interrupt_raw\l|
+    interrupt_mask\l|
+    interrupt_clear\l|
+    fifo_threshold\l|
+    fifo_data_out\l|
+    fifo_ctrl\l|
+    eight_bit_mode\l
+  }}"]
+
+  kpu_config_interrupt_t[style_func;label="{{
+    kpu_config_interrupt_t\l|
+    uint64_t calc_done_int : 1;\l|
+    uint64_t layer_cfg_almost_empty_int : 1;\l|
+    uint64_t layer_cfg_almost_full_int : 1;\l|
+    uint64_t reserved : 61;\l
+  }}"]
+
+  kpu_config_fifo_ctrl_t[style_func;label="{{
+    kpu_config_fifo_ctrl_t\l
+    uint64_t dma_fifo_flush_n : 1;\l|
+    uint64_t gs_fifo_flush_n : 1;\l|
+    uint64_t cfg_fifo_flush_n : 1;\l|
+    uint64_t cmd_fifo_flush_n : 1;\l|
+    uint64_t resp_fifo_flush_n : 1;\l|
+    uint64_t reserved : 59;\l
+  }}"]
+
+  kpu_config_fifo_threshold_t[style_func;label="{{
+    kpu_config_fifo_threshold_t\l
+    uint64_t fifo_full_threshold : 4;\l|
+    uint64_t fifo_empty_threshold : 4;\l|
+    uint64_t reserved : 56;\l
+  }}"]
+  kpu_config_eight_bit_mode_t[style_func;label="{{
+    kpu_config_eight_bit_mode_t\l
+    uint64_t eight_bit_mode : 1;\l|
+    uint64_t reserved : 63;\l
+  }}"]
+
+  plic_t[style_func;label="{{
+    plic_t\l|
+    plic_source_priorities_t source_priorities;\l|
+    const plic_pending_bits_t pending_bits;\l|
+    plic_target_enables_t target_enables;\l|
+    plic_target_t targets;\l
+  }}"]
+
+  dmac_t[style_func;label="{{
+    dmac_t\l|
+    uint64_t id;\l|
+    uint64_t compver;\l|
+    uint64_t cfg;\l|
+    uint64_t chen;\l|
+    uint64_t reserved1[2];\l|
+    uint64_t intstatus;\l|
+    uint64_t com_intclear;\l|
+    uint64_t com_intstatus_en;\l|
+    uint64_t com_intsignal_en;\l|
+    uint64_t com_intstatus;\l|
+    uint64_t reset;\l|
+    uint64_t reserved2[20];\l|
+    <dmac_channel_t> dmac_channel_t channel[DMAC_CHANNEL_COUNT];\l
+  }}"]
+
+  dmac_channel_t[style_func;label="{{
+    dmac_channel_t\l|
+    uint64_t sar;\l|
+    uint64_t dar;\l|
+    uint64_t block_ts;\l|
+    uint64_t ctl;\l|
+    uint64_t cfg;\l|
+    uint64_t llp;\l|
+    uint64_t status;\l|
+    uint64_t swhssrc;\l|
+    uint64_t swhsdst;\l|
+    uint64_t blk_tfr;\l|
+    uint64_t axi_id;\l|
+    uint64_t axi_qos;\l|
+    uint64_t reserved1[4];\l|
+    uint64_t intstatus_en;\l|
+    uint64_t intstatus;\l|
+    uint64_t intsignal_en;\l|
+    uint64_t intclear;\l|
+    uint64_t reserved2[12];\l
+  }}"]
+
+  MemADDR:AI_BASE_ADDR -> AI_BASE_ADDR -> kpu_config_t;
+  MemADDR:AI_IO_BASE_ADDR -> AI_IO_BASE_ADDR;
+  MemADDR:PLIC_BASE_ADDR -> PLIC_BASE_ADDR -> plic_t;
+  MemADDR:DMAC_BASE_ADDR -> DMAC_BASE_ADDR -> dmac_t;
+
+  AI_IO_BASE_ADDR -> {
+    kpu_add_padding;
+    kpu_global_average_pool;
+    dmac_set_single_mode;
+  }
+
+  kpu_config_t -> {
+    kpu_config_interrupt_t;
+    kpu_config_fifo_threshold_t;
+    kpu_config_fifo_ctrl_t;
+    kpu_config_eight_bit_mode_t;
+  }
+
+  plic_t -> {
+    plic_source_priorities_t;
+    plic_pending_bits_t;
+    plic_target_t;
+    plic_targets;
+  }
+
+  dmac_t:dmac_channel_t -> {
+    dmac_channel_t;
+    DMAC_CHANNEL_COUNT;
+  }
+
+
+}

@@ -1,0 +1,171 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  compile_command__run -> {
+    parser_vector_opt;
+    compile_options;
+    import_options
+    nncase__compiler__create;
+    nncase__compiler__import_onnx;
+    nncase__compiler__import_tflite;
+    nncase__compiler__import_caffe;
+    nncase__compiler__compile;
+    nncase__compiler__gencode;
+  }
+  import_options -> nncase__compiler__import_onnx;
+
+  nncase__compiler__import_onnx -> {
+    onnx_importer__import;
+    ir__graph;
+    BEGIN_IMPORT;
+    END_IMPORT;
+    ir_import_dot;
+    do_dump_graph;
+  }
+  onnx_importer__import -> {
+    graph__node
+    convert_op;
+    graph__intializer;
+    graph__input;
+    ouput_tensors_;
+    init_names;
+  }
+  convert_op -> {
+    convert_op__opcode;
+  }
+  convert_op__opcode -> {
+    convert_op_Conv;
+  }
+  convert_op_Conv -> {
+    ouput_tensors_;
+  }
+  compile_options -> compile_options_;
+
+  nncase__compiler__compile -> {
+    pre_process;
+    post_process;
+    optimize_target_independent;
+    optimize_target_dependent;
+    add_quantize_annotation;
+    quantize_graph;
+    graph__set_modile_type;
+    to_module_type;
+    run_calibration;
+    quant_evaluator__quantizer;
+  }
+  {graph_;compile_options_} -> pre_process;
+  {graph_;compile_options_} -> post_process;
+
+  nncase__compiler__gencode -> {
+    scheduler;
+    scheduler__schedule;
+    model_builder__config_dump;
+    model_builder__build;
+    dump_summary;
+  }
+
+  model_builder__build -> {
+    MODEL_IDENTIFIER;
+    MODEL_VERSION;
+    target__create_module_builder;
+    codegen__module_builder__build;
+  }
+
+  codegen__module_builder__build -> {
+    module_builder__compile;
+    module_builder__link;
+    module_builder__write_binary;
+  }
+  module_builder__compile -> {
+    write_constants;
+    begin_emit_module;
+    generate_current_runtime_ops;
+    begin_emit_function;
+    emit;
+    end_emit_function;
+    runtime_ops;
+    end_emit_module;
+  }
+  begin_emit_function -> k210_module_builder__begin_emit_function
+  end_emit_function -> k210_module_builder__end_emit_function;
+  k210_module_builder__begin_emit_function -> set_current_entry_point;
+  k210_module_builder__end_emit_function -> set_current_function_text_end;
+  set_current_entry_point -> {
+    entry_points_;
+  }
+  set_current_function_text_end -> {
+    function_text_end_;
+  }
+
+  module_builder__write_binary -> write_function_binary;
+  write_function_binary -> entry_points_;
+
+  target__create_module_builder -> {
+    k210__target__create_module_builder;
+    vulkan__target__create_module_builder;
+  } -> codegen__module_builder;
+  target__create_module_builder -> codegen__module_builder__build[style_edge_data];
+
+  k210__target__create_module_builder -> {
+    codegen__create_k210_module_builder;
+  }
+
+  generate_current_runtime_ops -> {
+    current_function_;
+    nncase__ir__node__node__runtime_opcode;
+    runtime_ops__txt
+  }
+  generate_current_runtime_ops -> runtime_ops;
+  runtime_ops -> emit;
+  emit[style_func;label="{{
+    emit\l|
+    对于runtime_ops中每个\l
+    node emit\l
+  }}"]
+  emit -> k210_module_builder__emit;
+  k210_module_builder__emit -> ops_def;
+  ops_def ->{
+    DEFINE_OP_k210__kpu_conv2d
+    DEFINE_OP_k210__kpu_download
+    DEFINE_OP_k210__kpu_upload
+    DEFINE_OP_copy
+  }
+
+  DEFINE_OP_k210__kpu_conv2d -> {
+    kpu_conv2d;
+  }
+  node -> {
+    kpu_conv2d;
+    kpu_download;
+    kpu_upload;
+  }
+
+  _target -> {
+    neutral_target;
+  }
+  neutral_target -> {
+    cpu_target;
+    k210_target;
+    vulkan_target;
+  }
+
+
+
+
+
+  graph_ -> scheduler[style_edge_data];
+  scheduler -> scheduler__schedule[style_edge_data];
+  scheduler__schedule -> builder__build[style_edge_data];
+
+
+  entry_points_[style_func;label="{{
+    entry_points_\l
+    function_schedule_result\l|
+    std::streampos\l
+  }}"]
+
+}

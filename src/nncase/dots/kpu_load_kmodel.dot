@@ -1,0 +1,26 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  kpu_load_kmodel -> {
+    kpu_model_context_t;
+    buffer;
+    IOMEM;
+    malloc;
+    nncase_load_kmodel;
+    memcpy;
+    body_start_iomem;
+    body_start_cache;
+  }
+
+  nncase_load_kmodel -> {
+    nncase_v0_load_kmodel;
+    nncase_v1_load_kmodel;
+  }
+
+  nncase_v0_load_kmodel -> {
+    nncase_context__load_kmodel;
+  }
+}

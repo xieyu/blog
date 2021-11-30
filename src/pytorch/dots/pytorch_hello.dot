@@ -1,0 +1,62 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Path[style_func;label="{{
+    Path\l|
+    path: Vec\<String\>,\l|
+    group: usize,\l|
+    var_store: &'a VarStore,\l
+  }}"]
+
+  VarStore[style_func;label="{{
+    Variable\l
+    pub variables_: Arc\<Mutex\<Variables\>\>,\l|
+    device: Device,\l
+  }}"]
+
+  Variables[style_func;label="{{
+    Variables\l
+    pub named_variables: HashMap\<String, Tensor\>,\l|
+    pub trainable_variables: Vec\<Var\>,\l
+  }}"]
+  Var[style_func;label="{{
+    Var\l
+    pub tensor: Tensor,\l|
+    pub group: usize,\l
+  }}"]
+
+  Device[style_green1;label="{{
+    enum Device\l|
+    Cpu\l|
+    Cuda(usize),\l
+  }}"]
+
+
+  Device -> {
+    Cpu;
+    Cuda;
+  }
+
+  VarStore -> {
+    Variables;
+    Device;
+  }
+  Variables -> {
+    Tensor;
+    HashMap;
+    Var;
+  }
+  Var -> {
+    Tensor;
+  }
+  Tensor -> C_tensor;
+  Path -> {
+    VarStore;
+  }
+
+
+}

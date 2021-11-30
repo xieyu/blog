@@ -1,0 +1,22 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  kpu_load_kmodel -> {
+    malloc;
+    nncase_load_kmodel;
+    kpu_kmodel_header_t__main_mem_usage;
+    memcpy;
+    body_start_iomem;
+    IOMEM;
+  }
+  IOMEM[style_func;label="{{
+    IOMEM
+      0x40000000\l|
+  }}"]
+
+  IOMEM -> body_start_iomem;
+}

@@ -1,0 +1,57 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  _target -> {
+    neutral_target;
+  }
+  neutral_target -> {
+    cpu_target;
+    vulkan_target;
+  }
+
+  _target[style_func;label="{{
+    target\l|
+    register_allocators\l|
+    register_evaluator_ops\l|
+    register_target_independent_passes\l|
+    register_target_dependent_passes\l|
+    create_quantizer\l|
+    register_quantize_passes\l|
+    register_target_dependent_after_quantization_passes\l|
+    register_target_dependent_after_buffer_fusion_passes\l|
+    register_allocation_passes\l|
+    <module_builder> create_module_builder\l|
+    add_quantization_broadcast\l|
+    config_attributes\l|
+    on_create_options\l
+  }}"]
+
+  module_builder -> {
+    stackvm_module_builder;
+    k210_module_builder;
+    vulkan_module_builder;
+  }
+
+  module_builder[style_func;label="{{
+    module_builder\l|
+    entry_points_\l|
+    function_text_end_\l|
+    symbol_offsets_\l|
+    current_function_\l
+  }}"]
+  neutral_target[style_func;label="{{
+    neutral_target\l|
+    move_transpose_transform\l|
+    fold_pad_conv_transform\l|
+    fold_dilated_conv_transform\l|
+    add_default_transforms\l
+  }}"]
+  cpu_target -> k210_target;
+
+
+  _target:module_builder -> module_builder;
+}
