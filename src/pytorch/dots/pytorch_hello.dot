@@ -29,21 +29,15 @@ digraph dig {
     pub group: usize,\l
   }}"]
 
-  Device[style_green1;label="{{
+  rs_Device[style_green1;label="{{
     enum Device\l|
     Cpu\l|
     Cuda(usize),\l
   }}"]
 
-
-  Device -> {
-    Cpu;
-    Cuda;
-  }
-
   VarStore -> {
     Variables;
-    Device;
+    rs_Device;
   }
   Variables -> {
     Tensor;
@@ -57,6 +51,4 @@ digraph dig {
   Path -> {
     VarStore;
   }
-
-
 }

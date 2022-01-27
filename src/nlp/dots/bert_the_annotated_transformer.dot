@@ -1,0 +1,79 @@
+#include "styles.h"
+digraph bert {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t;
+
+  EncoderDecoder -> {
+    Encoder;
+    Decoder;
+    src_embed;
+    target_embed;
+    Generator;
+  }
+
+  {
+    src_embed;
+    target_embed;
+  } -> {
+    Embedding;
+    PositionalEncoding;
+  }
+
+  Encoder -> {
+    EncodeLayer;
+  }
+
+  Decoder -> {
+    DecoderLayer;
+  }
+
+  EncodeLayer -> {
+    MultiHeadAttention;
+    PositionwiseFeedForward;
+  }
+  DecoderLayer -> {
+    MultiHeadAttention;
+    PositionwiseFeedForward;
+  }
+
+  Embedding -> {
+    nn_Embedding;
+    vocab;
+  }
+  PositionalEncoding -> {
+    torch__sin;
+    torch__cos;
+  }
+
+  MultiHeadAttention -> {
+    nn__Linear;
+    nn__Dropout;
+    attention;
+  }
+
+  attention[style_func;label="{{
+    attention\l|
+    attention(Q, K, V) \l
+    = softmax(QK^T/sqrt(d_K))*V\l
+  }}"];
+  attention -> {
+    softmax;
+    matmul;
+    dropout;
+  }
+  PositionwiseFeedForward[style_func;label="{{
+    PositionwiseFeedForward\l|
+    FFN(x) = \l
+    max(0, xW_1 + b_1)*W_2 + b2\l
+  }}"];
+  src_embed -> Encoder[style_edge_data];
+  target_embed -> Decoder[style_edge_data];
+  Decoder -> Generator[style_edge_data];
+  Encoder -> Decoder[style_edge_data];
+
+  Encoder -> LayerNorm;
+  Decoder -> LayerNorm;
+}

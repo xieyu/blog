@@ -1,8 +1,21 @@
 # PyTorch
 
+## 相关缩写
+
+```
+C10 = Caffe Tensor Library(Core Tensor Library)存在这两种说法吧
+aten = a tensor library
+THP = TorcH Python
+TH = TorcH
+THC = TorcH Cuda
+THCS = TorcH Cuda Sparse
+THCUNN = TorcH Cuda Neural Network
+THD = TorcH Distributed
+THNN = TorcH Neural Network
+TH = TorcH Sparse
+```
 
 ## tch-rs
-
 
 tensor 相关结构之间关系
 

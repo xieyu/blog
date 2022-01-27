@@ -112,5 +112,4 @@ digraph sequence{
   {rank=same;3;participant_02_prepare};
   {rank=same;4;participant_01_commit};
   {rank=same;4;participant_02_commit};
-
 }

@@ -1,0 +1,105 @@
+#include "styles.h"
+digraph wasm_bindgen {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  wasm_bindgen -> {
+    js_sys;
+    web_sys;
+    wasm_bindgen;
+    wasm_bindgen_futures;
+  }
+
+  web_sys[style_func;label="{{
+    web_sys\l|
+    对web api的封装\l
+  }}"];
+
+  wasm_bindgen -> {
+    JsValue;
+    JsCast;
+  }
+
+  JsCast[style_func;label="{{
+    JsCast\l|
+    将JsValue转换\l 
+    成特殊的类型\l
+  }}"];
+  JsValue[style_func;label="{{
+    JsValue\l|
+    表示js中的object\l
+  }}"];
+
+  js_sys[style_func;label="{{
+    js_sys\l|
+    bindings / imports of \l 
+    JavaScript's standard,\l 
+    built-in objects\l
+  }}"];
+
+  wasm_bindgen_futures[style_func;label="{{
+    wasm_bindgen_future\l|
+    provides a bridge for\l 
+    working with JavaScript\l 
+    Promise types as a Rust Future\l
+  }}"];
+
+  wasm_bindgen_futures -> {
+    JsFuture;
+    future_to_promise;
+    spawn_local;
+  }
+
+  spawn_local[style_func;label="{{
+    spawn_local\l|
+    This is the best way to\l 
+    run a Future in Rust \l 
+    without sending it\l 
+    to JavaScript.\l
+  }}"];
+
+
+  web_sys -> {
+    Element;
+    EventTarget;
+    HtmlElement;
+    HtmlTextAreaElement;
+    __Node;
+  }
+
+  JsValue -> {
+    from_str;
+    bigint_from_str;
+    undefined;
+    null;
+    symbol;
+    from_serde;
+    into_serde;
+    as_f64;
+    as_string;
+    is_string;
+    from;
+    into;
+  }
+
+  JsCast -> {
+    dyn_ref;
+    unchecked_into;
+    dyn_into;
+    is_instance_of;
+    is_type_of;
+  }
+
+  js_sys -> {
+    JSON;
+    Reflect;
+    WebAssembly;
+    decode_uri;
+    decode_uri_component;
+    encode_uri;
+    encode_uri_component;
+  }
+}

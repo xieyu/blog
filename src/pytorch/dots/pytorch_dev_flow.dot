@@ -1,0 +1,63 @@
+#include "styles.h"
+digraph pytorch_dev_flow {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  DataPreparation -> {
+    Dataset;
+    DataLoader;
+    Sampler;
+  }
+
+  Dataset[style_func;label="{{
+    Dataset\l|
+    torch.utils.data.Dataset\l
+  }}"];
+  Dataset -> {
+    TensorDataset;
+    ConcatDataset;
+    ChainDataset;
+    Subset;
+  }
+
+  Sampler -> {
+    SequentialSampler;
+    RandomSampler;
+    SubsetRandomSampler;
+    WeightedRandomSampler;
+    BatchSampler;
+    DistributedSampler;
+  }
+
+  Dataset -> {
+    torchaudio;
+    torchvision;
+    torchtext
+  }
+  torchvision -> {
+    CIFAR_10;
+  }
+
+  DataTransforms -> Dataset[style_edge_data];
+  {Dataset;Sampler} -> DataLoader[style_edge_data];
+
+
+
+  DataTransforms -> {
+    Compose;
+    RandomCrop;
+    RandomHorizontalFlip;
+    ToTensor;
+    Normalize;
+  }
+
+  Compose -> {
+    RandomCrop;
+    RandomHorizontalFlip;
+    ToTensor;
+    Normalize;
+  }[style_edge_data];
+}

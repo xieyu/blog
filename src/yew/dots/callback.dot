@@ -1,0 +1,26 @@
+#include "styles.h"
+digraph callback {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  enum_Callback -> {
+    Callback;
+    CallbackOnce;
+  }
+
+  Callback -> {
+    emit;
+    once;
+    noop;
+  }
+
+  Callback[style_func;label="{{
+    Callback\l|
+        cb: Rc\<dyn Fn(IN)\>,\l|
+        passive: Option\<bool\>\l
+    
+  }}"];
+}

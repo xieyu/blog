@@ -1,0 +1,167 @@
+#include "styles.h"
+digraph Scope {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  Scope -> {
+    mount_in_place;
+    reuse;
+    push_update;
+    send_message;
+    send_message_batch;
+    callback;
+    callback_with_passive;
+    callback_once;
+    batch_callback;
+    batch_callback_once;
+    callback_future;
+    callback_future_once;
+    send_future;
+    send_future_batch;
+    reuse;
+    context;
+  }
+
+  send_future -> {
+    spawn_local;
+    send_message;
+    future__await;
+  }
+  send_future_batch -> {
+    spawn_local;
+    send_message_batch;
+    future__await;
+  }
+
+  mount_in_place -> {
+    scheduler__push_component_create;
+    CreateRunner;
+    RenderRunner;
+    RenderedRunner;
+    scheduler__start;
+  }
+
+  reuse -> push_update;
+  callback -> callback_with_passive;
+  send_message -> push_update;
+  send_message_batch -> push_update;
+  push_update -> {
+    UpdateRunner;
+    scheduler__push_component_update;
+    scheduler__start;
+  }
+
+  push_update -> UpdateRunner__run[style_edge_data];
+
+  UpdateRunner[style_func;label="{{
+    UpdateRunner\l|
+    state: Shared\<Option\l 
+    \<ComponentState\<COMP\>\>\>\l|
+    event: UpdateEvent\<COMP\>\l
+  }}"];
+  UpdateRunner -> {
+    ComponentState;
+    UpdateEvent;
+  }
+
+
+  callback_with_passive -> {
+    Callback__Callback;
+  }
+  callback_with_passive -> send_message[style_edge_data];
+
+
+  UpdateRunner__run -> {
+    Component__update;
+    Component__changed;
+  }
+  UpdateRunner__run -> {
+    scheduler__push_component_render;
+    RenderRunner;
+    RenderedRunner;
+  }
+
+  Component__update[style_green1;label="{{
+    Component::update\l
+  }}"];
+
+  Component__changed[style_green1;label="{{
+    Component::changed\l
+  }}"];
+
+  RenderRunner[style_func;label="{{
+    RenderRunner\l|
+    state: Shared\<Option\l 
+    \<ComponentState\<COMP\>\>\>\l|
+  }}"];
+
+  RenderRunner -> {
+    RenderRunner__run;
+  }[style_edge_data];
+
+  RenderRunner__run -> {
+    Component__view;
+    new_root__apply;
+    node_ref__link;
+  }
+
+  Component__view[style_green1;label="{{
+    Component::view\l
+  }}"];
+
+  RenderedRunner[style_func;label="{{
+    RenderedRunner\l|
+    state: Shared\<Option\l 
+    \<ComponentState\<COMP\>\>\>\l
+  }}"];
+
+  RenderedRunner -> RenderedRunner__run[style_edge_data];
+
+  RenderedRunner -> {
+    Component__rendered;
+  }
+
+  Component__rendered[style_green1;label="{{
+    Component::rendered\l
+  }}"];
+
+  CreateRunner[style_func;label="{{
+    CreateRunner\l|
+    pub(crate) parent: Element,\l|
+    pub(crate) next_sibling: NodeRef,\l|
+    pub(crate) placeholder: VNode,\l|
+    pub(crate) node_ref: NodeRef,\l|
+    pub(crate) props: Rc\<COMP::Properties\>,\l
+  }}"];
+
+  CreateRunner -> {
+    CreateRunner__run;
+  }[style_edge_data];
+
+  CreateRunner__run -> {
+    ComponentState__new;
+  }
+
+  scheduler__start -> {
+    CreateRunner__run;
+    UpdateRunner__run;
+    RenderRunner__run;
+    RenderedRunner__run;
+  }[style_edge_data];
+
+  VComp__apply -> VDiff__apply -> PropsWrapper__mount -> Mountable__mount -> mount_in_place;
+
+  VDiff__apply[style_func;label="{{
+    VDiff__apply\l|
+    Scoped diff apply to \l
+    other tree\l
+    Virtual rendering for the node\l
+  }}"];
+
+  mount_in_place -> insert_node;
+
+
+}

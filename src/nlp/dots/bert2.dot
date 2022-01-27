@@ -1,0 +1,114 @@
+#include "styles.h"
+digraph bert {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  bert -> {
+    MaskLanguageModel;
+    NextStencePrediction;
+    specialTokens;
+    Vocabulary;
+  };
+  specialTokens -> {
+    CLS;
+    MASK;
+    SEP;
+    END;
+    PAD;
+  };
+
+  bert[style_func;label="{{
+    bert\l|
+    Bidirectional Encoder \l 
+    Representation with\l
+    Transformers\l
+  }}"];
+
+  MaskLanguageModel[style_func;label="{{
+    MaskLanguageModel\l|
+    the man [MASK] to the store\l
+    the man went to the store\l|
+    learn bidirectional representation\l
+  }}"];
+
+  NextStencePrediction[style_func;label="{{
+    NextStencePrediction\l|
+    predicts whether the two\l
+    sentences are contextually\l
+    assigned to each other.\l
+  }}"];
+
+  CLS[style_func;label="{{
+    CLS\l|
+    sentence begin\l
+  }}"];
+  MASK[style_func;label="{{
+    MASK\l|
+    word is masked\l
+  }}"];
+  SEP[style_func;label="{{
+    SEP\l|
+    seperates two sentence\l
+  }}"];
+  PAD[style_func;label="{{
+    PAD\l|
+    Use to truncate \l
+    the sentence with\l
+    equal length\l|
+    保证句子的\l
+    长度是一样的\l
+  }}"];
+  END[style_func;label="{{
+    END\l|
+    End the sentence\l
+  }}"];
+
+  input_sentence -> {
+    token_embedding;
+    segment_embedding;
+    position_embedding;
+  };
+
+  token_embedding[style_func;label="{{
+    token_embedding\l|
+    The cat is walking. The dog is barking\l|
+    [CLS] the cat is walking [SEP] the dog is barking\l|
+    [1, 5, 7, 9, 10, 2, 5, 6, 9, 11]\l
+  }}"];
+  segment_embedding[style_func;label="{{
+    segment_embedding\l|
+    A segment embedding separates\l
+    two sentences from each other\l
+    and they are generally\l
+    defined as 0 and 1.\l
+  }}"];
+
+  position_embedding[style_func;label="{{
+    position_embedding\l|
+    A position embedding gives\l
+    position to each embedding\l
+    in a sequence. \l
+  }}"];
+  vocabulary -> token_embedding;
+
+  input -> {
+    embeddings;
+    attention_mask;
+  } -> Encoder;
+  {
+    Query;
+    Key;
+    Value;
+    AttentionMask;
+  } -> MultiHeadAttention;
+
+  x_symbol_representation -> encode -> z_continuous_representation -> decode -> y_symbol_representation;
+
+  attention -> {
+    additive_attention;
+    dot_product_attention;
+  }
+}

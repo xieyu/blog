@@ -1,0 +1,203 @@
+#include "styles.h"
+digraph vnode {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  ComponentState -> VNode;
+
+  VNode[style_func;label="{{
+    VNode\l|
+    VTag\l|
+    VText\l|
+    VComp\l|
+    VList\l|
+    VPortal\l|
+    VRef\l
+  }}"];
+
+  VNode -> {
+    VTag;
+    VText;
+    VComp;
+    VList;
+    VPortal;
+    __Node;
+  }
+
+  VTag[style_func;label="{{
+    VTag\l|
+    a type for a virtual\l
+    Element representation\l
+  }}"];
+
+  VTag -> {
+    VTagInner;
+    Listeners;
+    Element;
+    NodeRef;
+    Attributes;
+    Key;
+  }
+  Element[style_func;label="{{
+    web_sys::Element\l|
+  }}"];
+
+  Listeners[style_func;label="{{
+    Listeners\l|
+    Node\l
+    Registered(u32)\l
+    Pending\l
+  }}"];
+
+  Attributes[style_func;label="{{
+    enum Attributes\l|
+    A collection of attributes\l
+    for an element\l|
+    keys\l
+    values\l
+    IndexMap\l
+  }}"];
+  Attributes -> AttrValue;
+  AttrValue[style_func;label="{{
+    enum AttrValue\l|
+    Static\l
+    Owned\l
+    Rc\l
+  }}"];
+
+
+  VTagInner[style_func;label="{{
+    VTagInner\l|
+    Input(InputFields)\l
+    Textarea\l|
+    Other\l
+  }}"];
+
+  VTagInner -> {
+    InputFields;
+    TextAreaElement;
+    VList;
+  }
+
+  VList[style_func;label="{{
+    VList\l|
+    children: Vec\<VNode\>\l
+    fully_keyed: bool\l
+    pub key: Option\<Key\>\l
+  }}"];
+
+  Key[style_func;label="{{
+    Key\l|
+    key of Yew's Virtual nodes\l
+    key: Rc\<str\>\l|
+  }}"];
+
+  VPortal[style_func;label="{{
+    VPortal\l|
+    pub host: Element,\l|
+    pub next_sibling: NodeRef,\l|
+    pub node: Box\<VNode\>,\l|
+    sibling_ref: NodeRef,\l
+  }}"];
+
+  VPortal -> {
+    Element;
+    NodeRef;
+    VNode;
+  }
+
+  NodeRef[style_func;label="{{
+    NodeRef\l|
+    Rc\<RefCell\<NodeRefInner\>\>\l
+  }}"];
+
+  NodeRef -> {
+    NodeRefInner;
+  }
+
+  NodeRefInner[style_func;label="{{
+    NodeRefInner\l|
+    node: Option\<Node\>,\l|
+    link: Option\<NodeRef\>,
+  }}"];
+
+  NodeRefInner -> {
+    __Node;
+    NodeRef;
+  }
+
+  VText[style_func;label="{{
+    VText\l|
+    virtual text node\l|
+    pub text: AttrValue\l
+    pub  reference: Option\<TextNode\>\l
+  }}"];
+
+  VText -> {
+    TextNode;
+    AttrValue;
+  }
+
+  TextNode[style_green1;label="{{
+    TextNode\l|
+    web_sys::Text;
+  }}"];
+
+  InputFields -> {
+    InputElement;
+  }
+  InputElement[style_green1;label="{{
+    InputElement\l|
+    web_sys::HtmlInputElement\l
+  }}"];
+
+  VComp[style_func;label="{{
+    VComp\l|
+    type_id: TypeId,\l|
+    scope: Option\<Box\<dyn Scoped\>\>,\l|
+    props: Option\<Box\<dyn Mountable\>\>,\l|
+    pub(crate) node_ref: NodeRef,\l|
+    pub(crate) key: Option\<Key\>,\l|
+    pub(crate) id: u64,\l
+  }}"];
+
+  VComp -> {
+    Scoped;
+    Mountable;
+    NodeRef;
+    Key;
+  }
+
+  Scoped[style_func;label="{{
+    Scoped\l|
+    fn to_any(&self) -\> AnyScope\l|
+    fn root_vnode(&self) -\> Option\<Ref\<'_, VNode\>\>;\l|
+    fn destroy(&mut self);\l
+  }}"];
+  Scoped -> {
+    VNode;
+  }
+
+  Mountable[style_func;label="{{
+    Mountable\l|
+    fn copy\l|
+    fn mount\l|
+    fn reuse\l
+  }}"];
+
+  Mountable -> Scoped;
+  TextAreaElement -> HtmlTextAreaElement;
+  HtmlTextAreaElement[style_green1;label="{{
+    HtmlTexAreaElement\l
+    
+  }}"];
+
+  __Node[style_green1;label="{{
+    __Node\l|
+    web_sys::Node\l
+  }}"];
+
+}

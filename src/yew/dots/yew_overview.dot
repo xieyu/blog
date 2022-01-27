@@ -1,0 +1,123 @@
+#include "styles.h"
+digraph yew {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+
+  yew -> {
+    Component;
+    Callback;
+  }
+  Component -> {
+    LifeCycle;
+    AssociatedTypes;
+    Context;
+    Scope;
+  }
+
+  Scope -> {
+    send_message;
+    send_message_batch;
+    callback;
+  }
+
+  AssociatedTypes -> {
+    Message;
+    Properties;
+  }
+
+  Properties -> {
+    derive_Properties;
+    prop_macro;
+  }
+
+  LifeCycle -> {
+    Create;
+    View;
+    Rendered;
+    Update;
+    Changed;
+    Destory;
+  }
+  Component[style_func;label="{{
+    Component\l|
+    any type impl Component\l
+    trait can be used in html!\l
+  }}"];
+
+  Properties[style_func;label="{{
+    Properties\l|
+    Properties represents the\l
+    information passed to a \l
+    component from its parent\l
+  }}"];
+
+  Message[style_func;label="{{
+    Message\l|
+    send messages to a component\l
+    after an event has taken place\l
+  }}"];
+
+  Context[style_func;label="{{
+    Context\l|
+    This object provides a reference\l
+    to component's scope, which\l
+    allows sending messages to a\l
+    component and the props\l
+    passed to the component\l
+  }}"];
+
+  Callback -> {
+    Services;
+    Agents;
+    ParentComponets;
+    emit;
+    batch_callback;
+  }
+
+  Properties -> {
+    Children;
+    ChildrenWithProps;
+    NestedChilds;
+  }
+  NestedChilds -> {
+    Router;
+    Store;
+    Boids;
+  };
+
+  Context -> Properties[style_edge_data];
+  Children[style_func;label="{{
+    Children\l|
+    Properties中struct\l
+    名字必须为children\l
+  }}"];
+
+  __Node -> Html__VRef[style_edge_data];
+
+  View -> Html;
+  Html -> {
+    DynamicTag;
+    Html__VRef;
+    Elements;
+  }
+
+  DynamicTag[style_func;label="{{
+    DynamicTag\l|
+    \<@name\>\</@\>
+  }}"];
+
+  Elements -> DomNodes;
+  DomNodes -> web_sys -> {
+    Element;
+    __Node;
+  }
+  Elements -> {
+    BooleanAttribute;
+    OptionalAttribute;
+  }
+
+}

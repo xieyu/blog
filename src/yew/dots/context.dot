@@ -1,0 +1,93 @@
+#include "styles.h"
+digraph yew_context {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  Context -> {
+    Scope;
+    COMP__Properties;
+  }
+
+  Scope[style_func;label="{{
+    Scope\l|
+    parent: Option\<Rc\<AnyScope\>\>,\l|
+    pub(crate) state: Shared\<Option\l|
+    \<ComponentState\<COMP\>\>\>\l
+  }}"];
+
+  Scope-> {
+    COMP;
+    ComponentState;
+    AnyScope;
+  }
+  COMP -> Component;
+
+  AnyScope[style_func;label="{{
+    AnyScope\l|
+    type_id: TypeId,\l|
+    parent: Option\<Rc\<AnyScope\>\>,\l|
+    state: Rc\<dyn Any\>,\l
+  }}"];
+
+  AnyScope -> {
+    TypeId;
+    AnyScope;
+    Any;
+  }
+
+  Any[style_func;label="{{
+    Any\l|
+    A trait to emulate\l
+    dynamic typing\l
+  }}"];
+
+  TypeId[style_func;label="{{
+    TypeId\l|
+    a globally unique identifier\l
+    for a type\l
+  }}"];
+
+  Component[style_func;label="{{
+    Component\l|
+    basic building blocks of the UI\l
+    in a Yew app\l|
+    type Message\l
+    type Properties\l|
+    生命周期函数\l
+    fn create\l
+    fn update\l
+    fn changed\l
+    fn view\l
+    fn rendered\l
+    fn destroy\l
+  }}"];
+
+  COMP__Properties -> Properties;
+  Component -> Properties;
+
+  Properties[style_func;label="{{
+    Properties\l|
+    fn builder -\> Self::Builder\l
+  }}"];
+
+  ComponentState -> {
+    Component;
+    VNode;
+    Context;
+    NodeRef;
+  }
+
+  VNode[style_func;label="{{
+    VNode\l|
+    VTag\l|
+    VText\l|
+    VComp\l|
+    VList\l|
+    VPortal\l|
+    VRef\l
+  }}"];
+
+}
