@@ -1,0 +1,187 @@
+#include "styles.h"
+digraph hyper {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  make_service_fn -> {
+    MakeServiceFn;
+  };
+  MakeServiceFn[style_func;label="{{
+    MakeServiceFn\l|
+    f: F\l
+  }}"];
+
+  Builder -> server__Builder__serve;
+  server__Builder__serve -> {
+    Http___serve;
+    spawn_all;
+    Server;
+    Accept;
+  }
+  MakeServiceFn -> Http___serve;
+
+  Http___serve -> spawn_all -> Server[style_edge_data];
+  Builder[style_func;label="{{
+    Builder\l|
+    <incoming> incoming: I,\l|
+    <protocol> protocol: Http_\<E\>,\l
+  }}"];
+
+  Builder:incoming -> Accept;
+  Builder:protocol -> Http;
+  Http[style_func;label="{{
+    Http\l|
+    exec: E,\l|
+    h1_half_close: bool,\l|
+    h1_keep_alive: bool,\l|
+    h1_title_case_headers: bool,\l|
+    h1_preserve_header_case: bool,\l|
+    h1_header_read_timeout: Option\<Duration\>,\l|
+    h1_writev: Option\<bool\>,\l|
+    h2_builder: proto::h2::server::Config,\l|
+    mode: ConnectionMode,\l|
+    max_buf_size: Option\<usize\>,\l|
+    pipeline_flush: bool,\l
+  }}"];
+  Http -> Http___serve;
+  Http___serve -> conn__Serve;
+  conn__Serve[style_func;label="{{
+    conn::Serve\l|
+        <incoming> incoming: I,\l|
+        <make_service> make_service: S,\l|
+        protocol: Http\<E\>,\l
+    
+  }}"];
+  conn__Serve:make_service -> MakeServiceFn;
+  conn__Serve:incoming -> Accept;
+  with_graceful_shutdown -> Graceful;
+  MakeServiceRef__call -> Connecting[style_edge_data];
+
+  Serve[style_func;label="{{
+    Serve\l|
+    _marker: std::marker::\l 
+    PhantomData\<(I, S, E)\>,\l
+  }}"];
+  Serve__await -> {
+    Serve__poll;
+  }
+  Serve__poll -> {
+    Serve__project;
+    Serve__poll_watch;
+  }
+
+  Serve__poll_watch -> {
+    Serve__poll_next_;
+    NewSvcTask__new;
+    Exec__execute_new_svc;
+  }
+  Exec__execute_new_svc -> {
+    Exec__execute;
+  }
+
+  Exec__execute -> {
+    tokio__task__spawn;
+  }
+  tokio__task__spawn -> NewSvcTask__poll[style_edge_data];
+  NewTask__poll[style_func;label="{{
+    NewTask__poll\l|
+    loop \{...\}\l
+  }}"];
+  NewSvcTask__poll -> {
+    Connecting__poll;
+    watcher__watch;
+    future_poll;
+  }
+
+  NewSvcTask__new -> NewSvcTask;
+  NewSvcTask[style_func;label="{{
+    NewSvcTask\l|
+    state: State\<I, N, S, E, W\>,\l
+  }}"];
+  NewSvcTask -> State;
+  State[style_func;label="{{
+    enum State\l|
+    Connecting;\l
+    Connected;\l
+  }}"];
+  State -> {
+    State_Connecting;
+    State_Connected;
+  }
+  State_Connecting[style_func;label="{{
+    State_Connecting\l|
+    <conn> connecting: Connecting\<I, N, E\>,\l|
+    watcher: W,\l
+  }}"];
+  Connecting__poll -> {
+    Connecting:future;
+    protocol__serve_connection;
+    Connecting__future_poll
+  }
+  protocol__serve_connection -> Http__serve_connection;
+  Http__serve_connection -> {
+    ProtoServer__H1;
+    proto__h1__dispatch__Server__new;
+    proto__h2__Server__new;
+    ProtoServer__H2;
+  }
+
+  State_Connecting:conn -> Connecting;
+
+  Connecting -> NewSvcTask__new -> Exec__execute_new_svc[style_edge_data];
+  Serve__poll_watch[style_func;label="{{
+    Serve::poll_watch\l|
+    loop \{...\}\l
+  }}"];
+
+  Serve__poll_next_ -> {
+    MakeServiceRef__poll_ready_ref;
+    Accept__poll__accept;
+    MakeServiceRef__make_service_ref;
+    Connecting;
+  }
+  Connecting[style_func;label="{{
+    Connecting\l|
+    <future> future: F,\l|
+    io: Option\<I\>,\l|
+    protocol: Http\<E\>,\l
+  }}"];
+
+  Connecting:future -> service_fn;
+  Connecting:future -> Connecting__future_poll -> Service;
+
+
+  proto__h1__dispatch__Server__new -> {
+    Dispatch__poll_msg;
+    Dispatch__recv_msg;
+    Dispatch__poll_ready;
+    Dispatch__should_poll;
+  }
+  Dispatch__recv_msg -> {
+    Service__call;
+  }
+  Dispatch__poll_ready -> {
+    Service__poll_ready;
+  }
+
+  Service -> {
+    Service__call;
+    Service__poll_ready;
+  }
+
+  h2__server__Serving__poll_server -> {
+    Service__poll_ready;
+    Service__call;
+  }
+
+
+  MakeServiceRef__make_service_ref -> {
+    MakeServiceRef__call;
+  }
+
+
+  service_fn -> Service;
+}

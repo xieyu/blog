@@ -1,0 +1,22 @@
+#include "styles.h"
+digraph cookie {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  http__header__SET_COOKIE;
+
+  http__header__SET_COOKIE[style_func;label="{{
+    http::header::SET_COOKIE\l|
+    set-cookie\l
+  }}"];
+
+  trait__FromRequest;
+
+  UserIdFromSession__from_request -> {
+    Extension__MemoryStore__from_request;
+  }
+
+}

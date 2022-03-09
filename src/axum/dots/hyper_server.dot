@@ -1,0 +1,116 @@
+#include "styles.h"
+digraph hyper_server {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  Server -> {
+    Accept;
+    Service;
+    Exec;
+  }
+
+  AddrIncoming -> {
+    SocketAddr;
+    TcpListener;
+    AddrIncoming__poll_next_;
+  }
+
+  Serve__poll_next_ -> {
+    Accept__poll_accept;
+  }
+  Accept -> Accept__poll_accept;
+
+  Accept__poll_accept -> {
+    AddrIncoming__poll_accept;
+  }
+
+  AddrIncoming__poll_accept -> {
+    AddrIncoming__poll_next_;
+  }
+
+  TcpListener -> TcpListener__poll_accept[style_edge_data];
+
+
+  AddrIncoming__poll_next_ -> {
+    TcpListener__poll_accept;
+    AddrStream__new;
+  }
+  TcpListener__poll_accept -> AddrStream__new[style_edge_data];
+
+  Serve__poll_next_ -> {
+    AddrStream__new
+    make_service_ref;
+    Connecting;
+  }[style_edge_data];
+
+  AddrStream__new -> make_service_ref -> Connecting -> NewSvcTask[style_edge_data];
+
+  SpawnAll__poll_watch -> {
+    Serve__poll_next_;
+    NewSvcTask;
+    NewSvcExec__execute_new_svc;
+  }
+  NewSvcTask -> NewSvcExec__execute_new_svc[style_edge_data];
+  NewSvcExec__execute_new_svc -> NewSvcExec__execute;
+  
+  NewSvcExec__execute -> {
+    tokio__task__spawn;
+  }
+  tokio__task__spawn -> NewSvcExec__poll[style_edge_data];
+  NewSvcExec__poll -> {
+    Connecting_poll;
+    Watcher__watch;
+    conn__with_upgrades;
+    future_poll;
+  }
+  Connecting_poll -> {
+    conn__with_upgrades;
+  }
+  Watcher__watch -> Watcher__future;
+  Watcher__future -> Watcher__future_poll;
+  Watcher -> {
+    GracefulWatcher;
+    NoopWatcher;
+  }
+  NoopWatcher -> UpgradeableConnection;
+  GracefulWatcher -> Watch;
+
+  Watch[style_func;label="{{
+    Watch\l|
+    rx: watch::Receiver\<()\>,\l
+  }}"];
+
+  Watcher__watch -> {
+    Watching;
+  }
+  Watching__poll -> {
+  }
+
+
+  Connecting -> Connecting_poll[style_edge_data];
+  NewSvcTask -> {
+    State;
+  }
+  State[style_func;label="{{
+    State\l|
+    State__Connecting;\l
+    State__Connected;\l
+  }}"];
+  State -> {
+    State__Connecting;
+    State__Connected;
+  } 
+  State__Connecting[style_func;label="{{
+    State_Connecting\l|
+    connecting: Connecting\<I, N, E\>,\l|
+    watcher: W,\l|
+  }}"];
+  Connecting -> State_Connecting[style_edge_data];
+
+
+  Server__poll -> SpawnAll__poll_watch;
+  Server__await -> Server__poll[style_edge_data];
+}

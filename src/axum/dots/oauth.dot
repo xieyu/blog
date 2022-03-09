@@ -1,0 +1,112 @@
+#include "styles.h"
+digraph oauth {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  User__FromRequest -> {
+    Extension__MemoryStore__from_request;
+    TypedHeader__header__Cookie__from_request;
+    SessionStore__load_session;
+    session__get__User;
+  }
+  User__FromRequest -> AuthRedirect__IntoResponse[style_edge_data];
+
+  AuthRedirect__IntoResponse -> {
+    Redirect__temporary;
+  }
+
+  Redirect__temporary[style_func;label="{{
+    Redirect_temporary\l|
+    临时重定向到\l
+    /auth/discord\l
+  }}"];
+  Redirect__temporary -> discord_auth[style_edge_data];
+  discord_auth -> {
+    BasicClient__authorize_url;
+    CsrfToken__new_random;
+    Redirect__to__auth_url;
+  }
+  protected -> User__FromRequest[style_edge_data];
+
+  protected[style_func;label="{{
+    protected\l|
+    (user: User) -\> impl IntoResponse\l
+  }}"];
+
+  login_authorized -> {
+    AuthRequest;
+    BasicClient;
+    MemoryStore;
+
+    BasicClient__exchange_code;
+    BasicClient__request_ascyn;
+    reqwest__Client__get__bearer_auth;
+    SessionStore__store_session;
+    session__insert__User;
+  }
+
+  login_authorized[style_func;label="{{
+    login_authorized\l|
+    发送请求\l
+    设置cookies\l
+  }}"];
+  logout -> {
+    SessionStore__load_session;
+    SessionStore__destory_session;
+    Redirect__to;
+  }
+
+  SessionStore__load_session[style_green1;label="{{
+    SessionStore\l|
+    load_session\l
+  }}"];
+
+  SessionStore__destory_session[style_green1;label="{{
+    SessionStore\l |
+    destory_session\l
+  }}"];
+
+  SessionStore__store_session[style_green1;label="{{
+    SessionStore\l|
+    store_session\l
+  }}"];
+
+  session__insert__User[style_blue1;label="{{
+    session\l|
+    insert_User\l
+  }}"];
+  session__get__User[style_blue1;label="{{
+    session\l|
+    get_User\l
+  }}"];
+  {
+    rank=same;
+    SessionStore__store_session;
+    SessionStore__destory_session;
+    SessionStore__load_session;
+  }
+
+  {
+    rank=same;
+    session__insert__User;
+    session__get__User;
+  }
+
+  {
+    rank=same;
+    login_authorized;
+    logout;
+    protected;
+  }
+
+  User__FromRequest[style_func;label="{{
+    User\l|
+    FromRequest\l|
+    User实现了FromRequest trait\l
+  }}"];
+
+
+}

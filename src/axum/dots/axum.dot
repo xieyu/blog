@@ -15,6 +15,7 @@ digraph axum {
   }}"];
 
   Router -> {
+    Fallback;
     Endpoint;
     RouteId;
     _Node;
@@ -121,17 +122,131 @@ digraph axum {
   }}"];
 
   http__Request[style_func;label="{{
-    http_Request\l|
+    http::Request\l|
     head: Parts,\l|
     body: T,\l
   }}"];
 
   http__Response[style_func;label="{{
-    http_Response\l|
+    http::Response\l|
     head: Parts,\l|
     body: T,\l
   }}"];
+
   BoxBody -> UnsyncBoxBody;
+  http__Response -> Parts;
+  Parts[style_func;label="{{
+    Parts\l|
+    pub status: StatusCode,\l|
+    pub version: Version\l|
+    pub headers: HeaderMap\<HeaderValue\>,\l|
+    pub extensions: Extensions\l|
+    _priv: (),\l|
+  }}"];
+  http__Request -> Parts;
+  Parts -> {
+    StatusCode;
+    HeaderValue;
+    Extensions;
+  }
+
+  HeaderValue[style_func;label="{{
+    HeaderValue\l|
+    inner: Bytes,\l|
+    is_sensitive: bool,\l
+  }}"];
+
+  Extensions[style_func;label="{{
+    Extensions\l|
+    map: Option\<Box\<AnyMap\>\>,\l
+  }}"];
+  Extensions -> AnyMap;
+  AnyMap -> TypeId;
+
+  Infallible[style_func;label="{{
+    enum Infallible\l|
+  }}"];
+  Fallback -> {
+    Infallible;
+    Route;
+  }
+
+  Fallback[style_func;label="{{
+    Fallback\l|
+    Default(Route\<B, E\>),\l|
+    Custom(Route\<B, E\>),\l
+  }}"];
 
 
+  Body[style_func;label="{{
+    Body\l|
+    kind: Kind,\l|
+    extra: Option\<Box\<Extra\>\>\l
+  }}"];
+  Body -> {
+    Kind;
+    Extra;
+  }
+
+  Kind[style_func;label="{{
+    Kind\l|
+    Once(Option\<Bytes\>\l|
+    Chan\l|
+    H2\l|
+    Ffi\l|
+    wrapped\l
+  }}"];
+
+  Kind -> {
+    SyncWrapper;
+    Chan;
+    H2;
+    Ffi;
+    Wrapped;
+  }
+  Chan[style_func;label="{{
+    Chan\l|
+        content_length: DecodedLength,\l|
+        want_tx: watch::Sender,\l|
+        data_rx: mpsc::Receiver\<Result\<Bytes, crate::Error\>\>,\l|
+        trailers_rx: oneshot::Receiver\<HeaderMap\>,\l
+    
+  }}"];
+
+  H2[style_func;label="{{
+    H2\l|
+        ping: ping::Recorder,\l|
+        content_length: DecodedLength,\l|
+        recv: h2::RecvStream,\l|
+  }}"];
+
+  Extra[style_func;label="{{
+    Extra\l|
+    delayed_eof: Option\<DelayEof\>,\l
+  }}"];
+
+  Extra -> {
+    DelayEof;
+  }
+
+  DelayEof[style_func;label="{{
+    DelayEof\l|
+    NotEof(DelayEofUntil),\l|
+    Eof(DelayEofUntil),\l
+  }}"];
+  DelayEof -> {
+    DelayEofUntil;
+  }
+
+  DelayEofUntil[style_func;label="{{
+    DelayEofUntil\l|
+    oneshot::Receiver\<Never\>\l
+  }}"];
+
+  DelayEofUntil -> Never;
+
+  Never[style_func;label="{{
+    Never\l|
+    enum Never \{\}\l
+  }}"];
 }

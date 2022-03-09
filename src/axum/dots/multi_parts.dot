@@ -1,0 +1,150 @@
+#include "styles.h"
+digraph multi_parts {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  Multipart__from_request -> {
+    BodyStream__from_request;
+    HeadersAlreadyExtracted;
+    parse_boundary;
+    multer__Multipart__new;
+  }
+  BodyStream__from_request -> {
+    take_body;
+    map_data;
+    map_err;
+    BodyStream;
+  }
+  take_body -> body -> BodyStream[style_edge_data];
+  BodyStream[style_func;label="{{
+    BodyStream\l|
+    SyncWrapper\\<Pin\<Box\<dyn HttpBody\l 
+    \<Data = Bytes, Error = Error\>\l 
+    + Send + 'static\>\>\>,\l
+  }}"];
+
+  BodyStream -> {
+    http_body__Body;
+    SyncWrapper;
+    Bytes;
+  }
+  Bytes[style_func;label="{{
+    Bytes\l|
+    ptr: *const u8,\l|
+    len: usize,\l|
+    data: AtomicPtr\<()\>,\l|
+    vtable: &'static Vtable,\l
+  }}"];
+
+  http_body__Body[style_func;label="{{
+    trait http_body::Body\l|
+    a streaming body\l
+    of a Request or\l
+    Response\l
+  }}"];
+
+  take_body[style_func;label="{{
+    take_body\l|
+    Takes the body\l
+    out of request\l
+    leaving a None\l
+    in its place\l
+  }}"];
+
+  parse_boundary -> {
+    multer__parse_boundary;
+    headers__get__CONTENT_TYPE;
+  }
+  multer__parse_boundary -> {
+    crate__Error__NoMultipart;
+    crate__Error__NoBoundary;
+    mime__BOUNDARY;
+    mime__FORM_DATA;
+    Mime;
+  }
+  Mime[style_func;label="{{
+    Mime\l|
+    mime=multipart/form-data\l 
+    boundary=ABCDEFG\l
+  }}"];
+
+  accept_form -> {
+    Multipart;
+    Multipart__next_field;
+  }
+  Multipart -> Multipart__from_request[style_edge_data];
+
+  Multipart__next_field -> {
+    next_field__await;
+  }
+  next_field__await -> {
+    Multipart__poll_next_field;
+  }
+
+  Multipart__poll_next_field -> {
+    Multipart__state__try_lock;
+    StreamingStage;
+  }
+  Multipart__state__try_lock -> MultipartState;
+  StreamingStage[style_func;label="{{
+    StreamingStage\l|
+    FindingFirstBoundary,\l|
+    ReadingBoundary,\l|
+    DeterminingBoundaryType,\l|
+    ReadingTransportPadding,\l|
+    ReadingFieldHeaders,\l|
+    ReadingFieldData,\l|
+    Eof,\l
+  }}"];
+
+  MultipartState[style_func;label="{{
+    MultipartState\l|
+    pub(crate) buffer: StreamBuffer\<'r\>,\l|
+    pub(crate) boundary: String,\l|
+    pub(crate) stage: StreamingStage,\l|
+    pub(crate) next_field_idx: usize,\l|
+    pub(crate) curr_field_name: Option\<String\>,\l|
+    pub(crate) curr_field_size_limit: u64,\l|
+    pub(crate) curr_field_size_counter: u64,\l|
+    pub(crate) constraints: Constraints,\l|
+  }}"];
+
+  MultipartState -> {
+    StreamBuffer;
+    StreamingStage;
+    Constraints;
+  }
+  StreamBuffer[style_func;label="{{
+    StreamBuffer\l|
+    pub(crate) eof: bool,\l|
+    pub(crate) buf: BytesMut,\l|
+    pub(crate) stream: Pin\<Box\<dyn Stream\l 
+    \<Item = Result\<Bytes, crate::Error\>\>\l 
+    + Send + 'r\>\>,\l
+    pub(crate) whole_stream_size_limit: u64,\l|
+    pub(crate) stream_size_counter: u64,\l
+  }}"];
+
+  StreamBuffer -> {
+    BytesMut;
+  }
+  BytesMut[style_func;label="{{
+    BytesMut\l|
+    ptr: NonNull\<u8\>,\l|
+    len: usize,\l|
+    cap: usize,\l|
+    data: *mut Shared,\l
+  }}"];
+  BytesMut -> Shared;
+
+  Shared[style_func;label="{{
+    Shared\l|
+    vec: Vec\<u8\>,\l|
+    original_capacity_repr: usize,\l|
+    ref_count: AtomicUsize,\l
+  }}"];
+
+}

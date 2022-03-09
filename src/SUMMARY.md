@@ -9,6 +9,7 @@
     - [mini torch](./pytorch/mini-torch.md)
 - [Yew](./yew/index.md)
 - [Axum](./axum/index.md)
+- [Hyper](./axum/hyper.md)
 - [NLP](./nlp/index.md)
   - [Bert](./nlp/bert.md)
 - [Ray](./ray/index.md)

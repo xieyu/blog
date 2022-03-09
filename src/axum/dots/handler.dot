@@ -1,0 +1,95 @@
+#include "styles.h"
+digraph handler {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+
+  top_level_handler_fn -> {
+    MethodFilter;
+    handler;
+    on;
+  }
+  on -> {
+    MethodRouter__new;
+    MethodRouter__on;
+  }
+
+  MethodFilter[style_func;label="{{
+    MethodFilter\l|
+    DELETE\l|
+    GET\l|
+    HEAD\l|
+    OPTIONS\l|
+    PATCH\l
+    POST\l
+    PUT\l
+    TRACE\l
+  }}"];
+
+  MethodRouter__on -> {
+    handler__into_service;
+    on_service_boxed_response_body;
+  }
+  handler__into_service -> {
+    IntoService__new;
+  }
+  IntoService[style_func;label="{{
+    IntoService\l|
+    handler: H,\l|
+    _marker: PhantomData\<fn() -\> (T, B)\>,\l
+  }}"];
+
+  IntoService__new -> IntoService;
+  IntoService -> Service -> {
+    Service__poll_read;
+    Service__call;
+  }
+  Service__call -> {
+    Handler__call;
+    future__IntoServiceFuture__new;
+  }
+  Handler__call -> Handler;
+  Handler[style_func;label="{{
+    trait Handler\l|
+    trait for async functions\l
+    that can be used to handle \l
+    requests\l|
+    async fn call\l|
+    fn layer;\l|
+    into_service;\l|
+    into_make_service_with_connect_info\l|
+    into_make_service\l|
+  }}"];
+  Handler__call -> {
+    IntoResponse__into_response;
+    Layered__call;
+  }
+  IntoResponse__into_response[style_func;label="{{
+    IntoResponse__into_response\l|
+    Create a response\l|
+  }}"];
+  Layered__call -> {
+    Layered;
+    ServiceExt__oneshot;
+  }
+  ServiceExt__oneshot -> {
+    Oneshot__new;
+  }
+
+  Layered[style_func;label="{{
+    Layered\l|
+    svc: S\l|
+    _input: PhantomData\<fn() -> T\>\l
+  }}"];
+
+  on_service_boxed_response_body -> {
+    Route__new;
+  }
+  Route__new -> {
+    BoxCloneService__new;
+  }
+
+}
