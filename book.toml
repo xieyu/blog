@@ -5,9 +5,22 @@ multilingual = false
 src = "src"
 title = "blog"
 
-[preprocessor.toc]
-command = "mdbook-toc"
-renderer = ["html"]
+#[preprocessor.toc]
+#command = "mdbook-toc"
+#renderer = ["html"]
+
+[output.html]
+additional-css = ["theme/style3.css"]
+additional-js = ["assets/custom.js", "assets/bigPicture.js"]
+#git-repository-url = "https://github.com/sunface/rust-course"
+#edit-url-template = "https://github.com/sunface/rust-course/edit/main/{path}"
 
 #[preprocessor.graphviz]
 #command = "mdbook-graphviz"
+
+[output.html.fold]
+enable = true
+level = 1
+
+[rust]
+edition = "2021"   #在线运行用2021版本的

@@ -7,6 +7,7 @@
 - [PyTorch](./pytorch/index.md)
     - [pytorch pocket reference 笔记](./pytorch/pytorch_pocket_reference.md)
     - [mini torch](./pytorch/mini-torch.md)
+- [Tengine](./tengine/index.md)
 - [Yew](./yew/index.md)
 - [Axum](./axum/index.md)
 - [Hyper](./axum/hyper.md)
