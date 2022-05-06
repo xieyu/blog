@@ -1,0 +1,214 @@
+digraph logManager {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_nio_channel {
+    graph[label="java.nio.channels";fontsize=20;];
+    FileChannel_open[label="FileChannel.open"];
+  }
+  subgraph cluster_FileRecords {
+    graph[label="FileRecords";fontsize=20;];
+    FileRecords_open[label="open"];
+    FileRecords_open -> {
+      openChannel;
+    }
+    openChannel -> {
+      FileChannel_open;
+      randomAccessFile_getChannel;
+    }
+  }
+
+  subgraph cluster_logSegment {
+    graph[label="logSegment";fontsize=20;];
+    LogSegment_open[label="open"];
+    LogSegment_open -> {
+      FileRecords_open;
+      LazyIndex_forOffset;
+      LazyIndex_forTime;
+
+      logFile;
+      offsetIndexFile;
+      timeIndexFile;
+    }
+    subgraph cluster_log {
+      graph[label="log: 获取路径名";fontsize=20;];
+      logFile;
+      offsetIndexFile;
+      timeIndexFile;
+    }
+  }
+  subgraph cluster_log {
+    graph[label="log";fontsize=20;];
+    log_flush[label="flush"];
+    log_delete[label="delete"];
+    deleteOldSegments;
+    log_contruct[label="Log"];
+    loadSegments[shape="record";
+      label="{{
+        loadSegments|
+          加载Partiton的\l 
+          所有Segment文件\l
+      }}";
+    ];
+    createDirectories[shape="record";
+      label="{{
+        createDirectories|
+          如果目录不存在\l
+          则创建日志目录\l
+      }}";
+    ];
+    log_contruct -> {
+      createDirectories;
+      initializeLeaderEpochCache;
+      loadSegments;
+    };
+    loadSegments -> {
+      removeTempFilesAndCollectSwapFiles;
+      completeSwapOperations;
+      addSegment;
+      loadSegmentFiles;
+    }
+    loadSegmentFiles -> {
+      listFiles;
+      isIndexFile;
+      offsetFromFile;
+      isLogFile;
+      timeIndexFile;
+      LogSegment_open;
+      sanityCheck;
+    }
+  }
+
+  subgraph cluster_logCleaner {
+    graph[label="logCleaner";fontsize=20;];
+    cleaner_startup[label="startup"];
+    cleaner_startup[shape="record";
+      label="{{
+        startup|
+          清理compact类型的日志\l
+      }}";
+    ];
+  }
+
+  subgraph cluster_logManager {
+    graph[label="logManager";fontsize=20;];
+    logManager_construct[label="LogManager"];
+    logManager_construct -> {
+      loadLogs;
+    }
+    loadLogs -> {
+      newFixedThreadPool;
+      recoveryPointCheckpoints;
+      logStartOffsetCheckpoints;
+    };
+    loadLogs[shape="record";
+      label="{{
+        loadLogs|
+          使用多线程loadLog\l
+      }}";
+    ];
+
+    loadLogs -> loadLog[label="多线程"];
+    loadLog -> {
+      log_contruct;
+      addLogToBeDeleted;
+    };
+
+    logManager_startup[label="startup"];
+    scheduler_schedule[shape="record";
+      label="{{
+        scheduler.schedule|
+          后台启动定时任务\l
+      }}";
+    ];
+    cleanupLogs[shape="record";
+      label="{{
+        cleanupLogs|
+          清理过期日志\l
+      }}";
+    ];
+    flushDirtyLogs[shape="record";
+      label="{{
+        flushDirtyLogs|
+          定时刷新还没\l 
+          写到磁盘上的日志\l
+      }}";
+    ];
+    deleteLogs[shape="record";
+      label="{{
+        deleteLogs|
+          定时删除标记为删除的日志\l
+      }}";
+    ];
+
+    logManager_startup -> scheduler_schedule;
+    scheduler_schedule -> {
+      cleanupLogs;
+      flushDirtyLogs;
+      checkpointLogRecoveryOffsets;
+      checkpointLogStartOffsets;
+      deleteLogs;
+      cleaner_startup;
+    };
+
+    flushDirtyLogs -> {
+      log_flush;
+    };
+
+    cleanupLogs -> {
+      pauseCleaningForNonCompactedPartitions;
+      deleteOldSegments;
+    };
+    checkpointLogRecoveryOffsets -> {
+      checkpointRecoveryOffsetsAndCleanSnapshot;
+      liveLogDirs;
+    }
+
+    deleteLogs -> {
+      log_delete;
+    }
+    checkpointLogStartOffsets -> {
+      liveLogDirs;
+      checkpointLogStartOffsetsInDir;
+    };
+
+    checkpointLogStartOffsetsInDir -> {
+      logsByDir;
+      logStartOffsetCheckpoints;
+      checkpoint_write;
+    };
+
+    getOrCreateLog -> {
+      getLog
+      log_contruct;
+    };
+    getLog -> {
+      futureLogs;
+      currentLogs;
+    };
+    futureLogs[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="futureLogs"
+    ];
+    currentLogs[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="currentLogs"
+    ];
+    {getOrCreateLog; loadLog} -> currentLogs[color=red];
+    {getOrCreateLog;loadLog} -> futureLogs[color=red];
+  }
+  subgraph cluster_Partition {
+    graph[label="Partition";fontsize=20;];
+    createLog -> getOrCreateLog;
+  }
+
+  subgraph cluster_KafkaServer {
+    graph[label="KafkaServer";fontsize=20;];
+    startup -> logManager_startup;
+    startup -> logManager_construct;
+  }
+}

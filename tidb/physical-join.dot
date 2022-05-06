@@ -1,0 +1,11 @@
+digraph physical_join {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  basePhysicalJoin;
+  PhysicalHashJoin -> basePhysicalJoin;
+  PhysicalIndexJoin -> basePhysicalJoin;
+  PhysicalIndexMergeJoin -> basePhysicalJoin;
+  PhysicalIndexHashJoin -> PhysicalIndexJoin;
+  PhysicalMergeJoin -> basePhysicalJoin;
+}

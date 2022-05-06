@@ -1,0 +1,134 @@
+#include "styles.h"
+digraph slow_hash_agg {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  process_batch_input -> {
+     states_offset_each_logical_row_clear;
+     ensure_columns_decoded;
+     eval_exprs_decoded_no_lifetime;
+     encode_sort_key;
+     cached_encoded_result;
+     group_key_buffer_extend_from_slice;
+     group_key_offsets_push;
+     group_by_results_unsafe;
+     states_push_aggr_fn_create_state;
+     group_key_ref_unsafe;
+     states_offset_each_logical_row_push;
+     update_each_row_states_by_offset;
+     group_by_results_unsafe_iter;
+  }[color="#5395c3"]
+
+  eval_exprs_decoded_no_lifetime -> group_by_results_unsafe -> group_by_results_unsafe_iter;
+  ensure_columns_decoded[style_func;label="{{
+    ensure_columns_decoded|
+    遍历group_by_exps\l
+    保证它的cloumn被decoded了\l
+  }}"]
+  eval_exprs_decoded_no_lifetime[style_func;label="{{
+    eval_exprs_decoded_no_lifetime|
+    在数据上执行group_by_exps\l|
+    结输出到group_by_results_unsafe上\l
+  }}"]
+  group_by_results_unsafe[style_blue1;label="{{
+    group_by_results_unsafe|
+      Vec\<RpnStackNode\<'static\>\>,\l
+  }}"]
+
+  subgraph cluster_for_each_logical_row {
+    graph[label="for_each_logical_row";fontsize=20;style="rounded,dashed";color="slategrey"]
+     subgraph cluster_iter_group_by_results {
+       graph[label="iter_group_by_results";fontsize=20;style="rounded,dashed";color="slategrey"]
+       encode_sort_key -> group_key_buffer -> group_key_offsets_push[style_edge_data];
+       subgraph cluster_b{
+         graph[label="";fontsize=20;style="rounded,dashed";color="slategrey"]
+         group_key_offsets_push -> group_key_offsets;
+         group_key_offsets_push[style_func;label="{{
+           push(group_key_buffer.len())|
+           后面遍历结果时候会用到\l
+         }}"]
+
+         group_key_offsets[style_var;label="{{
+           group_key_offsets
+           Vec\<usize\>\l
+         }}"]
+       }
+       group_key_buffer_extend_from_slice[style_func;label="{{
+         group_key_buffer\l|
+         extend_from_slice\
+       }}"]
+       group_by_results_unsafe_iter;
+       group_key_buffer_extend_from_slice -> group_key_buffer;
+       cached_encoded_result -> group_key_buffer;
+       group_by_results_unsafe_iter -> encode_sort_key[style_edge_data];
+       encode_sort_key -> cached_encoded_result[style_edge_data];
+       group_by_results_unsafe_iter[style_blue1;label="{{
+         group_by_results_unsafe_iter|
+         迭代遍历group_by_results_unsafe\l
+       }}"]
+       cached_encoded_result[style_blue1;label="{{
+         cached_encoded_result\l
+         Vec\<Option\<Vec\<u8\>\>\l|
+         Cached encode result for calculated\l
+         scalar results\l
+       }}"]
+       cached_encoded_result -> group_key_buffer_extend_from_slice;
+     }
+     group_key_ref_unsafe[style_blue1;label="{{
+       group_key_ref_unsafe|
+       buffer: group_key_buffer\l|
+       begin: 开始处理一行logical row\l时group_key_buffer len\l|
+       begin: 结束处理一行logical row\l时group_key_buffer len\l
+     }}"]
+    states_offset_each_logical_row_push[style_func;label="{{
+      push(group_index * aggr_fn_len)\l|
+      logical_row_idx 对应\l 
+      aggr_fn 在states中开始的idx\l
+    }}"]
+    groups;
+    states_push_aggr_fn_create_state;
+    group_key_buffer[style_blue1;label="{{
+      group_key_buffer|
+      Box\<Vec\<u8\>\>\l
+    }}"]
+
+  }
+  states_offset_each_logical_row -> update_each_row_states_by_offset;
+  update_each_row_states_by_offset -> {
+     match_template_evaluable;
+     macro_update;
+  }
+  ensure_columns_decoded -> eval_exprs_decoded_no_lifetime[style_edge_data];
+  groups -> states_offset_each_logical_row_push;
+
+  subgraph cluster_states_offset_each_logical_row {
+    graph[label="";fontsize=20;style="rounded,dashed";color="slategrey"]
+    states_offset_each_logical_row_clear[style_func;label="{{
+      clear
+    }}"]
+    states_offset_each_logical_row[style_red;label="{{
+      states_offset_each_logical_row
+    }}"]
+    {states_offset_each_logical_row_clear;states_offset_each_logical_row_push} -> states_offset_each_logical_row;
+  }
+
+  groups[style_var;label="{{
+    groups|
+    groups: HashMap\<GroupKeyRefUnsafe, usize\>,\l
+  }}"]
+  group_key_ref_unsafe -> groups -> states_push_aggr_fn_create_state;
+  states_push_aggr_fn_create_state[style_func;label="{{
+    states.push(aggr_fn.create_state)|
+    创建所有的eval aggr func state\l
+  }}"]
+  states_push_aggr_fn_create_state -> states;
+  states[style_var;label="{{
+    states\l|
+    states: Vec\<Box\<dyn AggrFunctionState\>\>,\l
+  }}"]
+  states -> update_each_row_states_by_offset;
+
+  group_key_buffer -> group_key_ref_unsafe
+}

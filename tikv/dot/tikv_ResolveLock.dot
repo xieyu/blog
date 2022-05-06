@@ -1,0 +1,99 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ResolveLock__process_write -> {
+    TxnStatus__Get;
+    cleanup;
+    commit;
+    ReleasedLocks__wakeup;
+    current_lock_ts;
+  }
+  TxnStatus__Get -> commit_ts[style_edge_data];
+  commit_ts -> {
+    cleanup;
+    commit;
+  }
+  current_lock_ts -> commit;
+  current_lock_ts -> TxnStatus__Get[style_edge_data];
+
+  cleanup -> {
+    rollback_lock;
+    check_txn_status_missing_lock;
+  }
+
+  commit -> ReleasedLocks__push[style_edge_data];
+  rollback_lock -> ReleasedLocks__push[style_edge_data];
+  ReleasedLocks__push -> ReleasedLocks__wakeup;
+
+
+  //rank
+  {rank=same;commit;rollback_lock;check_txn_status_missing_lock};
+  {
+    rank=same;
+    check_txn_status_missing_lock;
+    rollback_lock;
+  }
+
+  ResolveLock__process_write[style_func;label="{{
+    ResolveLock\l
+    process_write\l|
+    遍历key_locks数组\l
+    <txn_status> txn_status: \l
+    HashMap\<TimeStamp, TimeStamp\>,\l|
+    scan_key: Option\<Key\>,\l|
+    <key_lock> key_locks: Vec\<(Key, Lock)\>,\l
+  }}"]
+
+  cleanup[style_func;label="{{
+    cleaup\l|
+    如果commit_ts.is_zero()\l
+    则cleaup txn\l
+  }}"]
+  commit_ts[style_var;label="{{
+    commit_ts\l
+    事务的commit_ts\l
+  }}"]
+  commit[style_blue1;label="{{
+    commit\l|
+    提交事务\l
+    如果事务的commit_ts\l
+    \>0就提交事务\l
+  }}"]
+  rollback_lock[style_blue1;label="{{
+    rollback_lock\l|
+    回滚事务\l
+    如果lock_type为Put\l
+    需要delete_value\l
+  }}"]
+  TxnStatus__Get[style_func;label="{{
+    TxnStatus\l
+    Get\l|
+    使用Lock.ts\l
+    从txn_status map\l
+    获取事务的 commit_ts\l
+  }}"]
+  current_lock_ts[style_var;label="{{
+    current_lock.ts\l|
+    当前遍历lock的ts\l
+  }}"]
+
+  check_txn_status_missing_lock[style_blue1;label="{{
+    check_txn_status_missing_lock\l|
+    lock不存在\l
+    或者Lock已经\l
+    被其他事务所持有\l
+  }}"]
+  ReleasedLocks__push[style_func;label="{{
+    ReleasedLocks\l
+    push\l
+  }}"]
+  ReleasedLocks__wakeup[style_func;label="{{
+    ReleasedLocks\l
+    wakeup\l
+  }}"]
+
+}

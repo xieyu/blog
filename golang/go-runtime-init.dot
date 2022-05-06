@@ -1,0 +1,61 @@
+digraph goruntime_init {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  rt0_go -> {
+    osinit;
+    schedinit;
+    _initcgo;
+    newproc;
+    mstart;
+  };
+
+  osinit -> {
+    getproccount;
+    getHugePageSize;
+    osArchInit;
+  };
+  schedinit -> {
+    tracebackinit;
+    stackinit;
+    mallocinit;
+    gcinit;
+  };
+
+  mstart -> {
+    mstart1;
+    mexit;
+  }
+
+  mstart1 -> {
+    save;
+    asminit;
+    minit;
+    mstartm0;
+    schedule;
+  };
+
+  mstartm0 -> {
+    newextram;
+    initsig;
+  };
+
+  schedule -> {
+    getg;
+    gcstopm;
+    runSafePointFn;
+    checkTimers;
+    findrunnable;
+    execute;
+  };
+
+  execute -> {
+    setThreadCPUProfiler;
+    traceGoStart;
+    gogo;
+  };
+
+  gogo -> {
+    get_tls;
+  }
+}

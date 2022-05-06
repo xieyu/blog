@@ -1,0 +1,81 @@
+#include "styles.h"
+digraph project_struct {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  dir__src -> {
+    dir__body;
+    dir__client;
+    dir__common;
+    dir__ffi;
+    dir__proto;
+    dir__server;
+    dir__service;
+    rs__cfg;
+    rs__error;
+    rs__ext;
+    rs__headers;
+    rs__lib;
+    rs__mock;
+    rs__rt;
+    rs__upgrade;
+  }
+
+  dir__body -> {
+    rs__aggregate;
+    rs__body;
+    rs__length;
+    rs__to_bytes;
+    rs__body_mod;
+  }
+
+  rs__aggregate -> {
+    fn__aggregate;
+  }
+
+  dir__client -> {
+    dir__connect;
+    rs__client;
+    rs__conn;
+    rs__dispatch;
+    rs__pool;
+    rs__service;
+    rs__client_mod;
+  }
+  dir__connect -> {
+    rs__dns;
+    rs__http;
+    rs__connect_mod;
+  }
+
+  dir__common -> {
+    dir__io;
+    rs__buf;
+    rs__date;
+    rs__drain;
+    rs__exec;
+    rs__lazy;
+    rs__common__mod;
+    rs__never;
+    rs__sync_wrapper;
+    rs__task;
+    rs__watch;
+  }
+  dir__io -> {
+    rs__io__mod;
+    rs__rewind;
+  }
+  dir__server -> {
+    rs__accept;
+    rs__conn;
+    rs__server;
+    rs__shutdown;
+    rs__tcp;
+    rs__server__mod;
+  }
+
+
+}

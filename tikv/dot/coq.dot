@@ -1,0 +1,66 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  coq__lsp__requests__lsp__lua;
+  COQ__lsp_comp -> req;
+  COQ__lsp_preview -> req;
+  COQ__lsp_third_party -> req;
+  req -> {
+    pcall;
+    on_resp_old;
+    on_resp_new;
+    on_resp;
+    COQ__Lsp_notify;
+    callback__on_resp;
+  }
+  on_resp_old -> COQ__Lsp_notify;
+  on_resp_new -> on_resp_old;
+  on_resp -> {
+    on_resp_old;
+    on_resp_new;
+  }
+
+  COQ__ts_req -> {
+    vim__schedule;
+    COQ__Ts_notify;
+    iter__nodes;
+    vim__loop_now;
+  }
+  coq__treesitter__request__async_request -> {
+    nvim__api__exec_lua;
+  }
+  nvim__api__exec_lua -> COQ__ts_req;
+
+  lsp__Worker__request -> {
+    request_lsp;
+  }
+  request_lsp -> {
+    async_request;
+    parse;
+  }
+  parse -> {
+    shuffle;
+    parse_item;
+    LSPcomp;
+  }
+  LSPcomp -> {
+    Completion;
+  }
+  Completion[style_func;label="{{
+    Completion\l
+    source: str
+    weight_adjust: float
+    label: str
+    sort_by: str
+    primary_edit: Edit
+    icon_match: Optional[str]
+    uid: UUID = field(default_factory=uuid4)
+    secondary_edits: Sequence[RangeEdit] = ()
+    kind: str = ""
+    doc: Optional[Doc] = None
+    extern: Optional[Tuple[Extern, Any]] = None
+  }}"]
+}

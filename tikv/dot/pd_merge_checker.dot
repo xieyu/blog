@@ -1,0 +1,122 @@
+#include "styles.h"
+digraph pd_merge_checker {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_regionTree {
+    graph[label="regionTree";fontsize=20;style="rounded,dashed";color="slategrey"]
+    getAdjacentRegions -> Btree;
+    regionTree[style_struct;label="{{
+      regionTree|
+      tree * btree.Btree\l
+    }}"]
+      
+  }
+  subgraph cluster_RegionsInfo{
+    graph[label="RegionsInfo";fontsize=20;style="rounded,dashed";color="slategrey"]
+    GetAdjacentRegions[style_func;label="{{
+      GetAdjacentRegions|
+      返回region的prev和next\l
+    }}"]
+    GetAdjacentRegions -> getAdjacentRegions;
+    RegionsInfo[style_struct;label="{{
+      RegionsInfo|
+	    tree         *regionTree\l|
+	    regions      *regionMap    \l|            
+	    leaders      map[uint64]*regionSubTree\l|
+	    followers    map[uint64]*regionSubTree\l|
+	    learners     map[uint64]*regionSubTree\l|
+	    pendingPeers map[uint64]*regionSubTree\l
+    }}"]
+    RegionsInfo -> regionTree;
+    BasicCluster[style_struct;label="{{
+      BasicCluster|
+	sync.RWMutex\l|
+	Stores  *StoresInfo\l|
+	Regions *RegionsInfo\l|
+    }}"]
+    BasicCluster -> RegionsInfo;
+  }
+
+  subgraph cluster_MergeChecker {
+    graph[label="MergeChecker";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Check[style_func;label="{{
+      Check|
+      一些需要skip的情况
+    }}"]
+    Check -> {
+     IsRegionHot;
+     IsRegionReplicated;
+     IsRegionHealthy;
+     GetAdjacentRegions;
+     CreateMergeRegionOperator;
+     checkTarget;
+    }
+    checkTarget[style_func;label="{{
+      checkTarget|
+      检查region和adjacent region\l
+      是否可以merge\l
+    }}"]
+    CreateMergeRegionOperator -> {
+      isRegionMatch;
+      NewBuilder_source_SetPeers;
+      MergeRegion;
+    }
+    NewBuilder_source_SetPeers[style_func;label="{{
+      NewBuilder(\"\", cluster,\l 
+      source).SetPeers(peers)\l|
+      如果不match\l
+      向让source region的peer\l
+      的storeID和target的一致\l
+    }}"]
+    isRegionMatch[style_func;label="{{
+      isRegionMatch|
+      检查source和target\l 
+      的peers是否match\l
+    }}"]
+    isRegionMatch -> NewBuilder_source_SetPeers[style_edge_data];
+    NewBuilder_source_SetPeers -> matchOp;
+    matchOp[style_func;label="{{
+      matchOp|
+      matchOp会发给source region\l
+      将source region的peers\l
+      对齐到target上\l|
+      执行完之后，再发Merge Region\l
+      Op给soure region\l
+    }}"]
+    matchOp -> MergeRegion[style_edge_data];
+    isRegionMatch[style_func;label="{{
+      isRegionMatch|
+      遍历source的peers\l 
+      检查target在source peers\l 
+      storeID上 是否也有peer\l
+    }}"]
+    IsLearner[style_func;label="{{
+      IsLearner|
+      learner不算
+    }}"]
+    isRegionMatch -> {
+      GetStorePeer;
+      IsLearner;
+    }
+    GetStorePeer[style_func;label="{{
+      GetStorePeer|
+      rerturns the peer in specified store\l
+    }}"]
+    GetAdjacentRegions ->  checkTarget[style_edge_data]; 
+    checkTarget -> CreateMergeRegionOperator[style_edge_data];
+    checkTarget -> {
+      IsRegionHot;
+      AllowMerge;
+      IsRegionHealthy;
+      IsRegionReplicated;
+    }
+    AllowMerge[style_func;label="{{
+      AllowMerge|
+      检查两个region\l 
+      是否允许merge\l
+    }}"]
+  }
+  
+}

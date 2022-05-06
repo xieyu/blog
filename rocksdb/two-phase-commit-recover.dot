@@ -1,0 +1,174 @@
+digraph two_phase_commit_recover {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    InsertRecoveredTransaction -> {
+      recovered_transactions_;
+    }[color=red];
+
+    DeleteRecoveredTransaction -> {
+      recovered_transactions_;
+    }[color=red];
+
+    GetRecoveredTransaction -> {
+      recovered_transactions_;
+    }[color=blue];
+
+    recovered_transactions_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        recovered_transactions_|
+          key为事务name\l|
+          std::unordered_map\<std::string, RecoveredTransaction*\>\l
+          recovered_transactions_;\l
+      }}";
+    ];
+    recovered_transactions_ -> RecoveredTransaction;
+    RecoveredTransaction[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        RecoveredTransaction|
+          std::string name_;\l|
+          bool unprepared_;\l|
+          std::map\<SequenceNumber, BatchInfo\> batches_;\l|
+          ...
+      }}";
+    ];
+  } // end of DBImpl
+
+  subgraph cluster_WriteBatch {
+    graph[label="WriteBatch";fontsize=20;];
+
+    WAL_REP[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        Write batch Rep_|
+          Seq\l|
+          ktypeBeginPrepare(xid)\l|
+          put(key1, value1)\l|
+          delete(key2, value2)\l|
+          ...\l|
+          kTypeEndPrepareXID(xid)\l|
+          <commit> kTypeCommitXID(xid)\l
+      }}";
+    ];
+    WAL_REP -> WriteBatch_Iterate;
+    WriteBatch_Iterate[
+      shape="record";
+      label="{{
+        Iterate|
+        遍历batch,　调用handled处理\l
+        batch中每个record\l
+      }}";
+    ];
+    WriteBatch_Iterate -> ReadRecordFromWriteBatch;
+    ReadRecordFromWriteBatch[
+      shape="record";
+      label="{{
+        ReadRecordFromWriteBatch|
+        从WriteBatch中读取记录\l
+      }}";
+    ];
+  } // end of WriteBatch
+  subgraph cluster_MemTable {
+    graph[label="MemTable";fontsize=20;];
+    MemTable_Add;
+    
+  } // end of MemTable
+
+  subgraph cluster_MemTableInserter {
+    graph[label=" MemTableInserter";fontsize=20;];
+    WriteBatch_Iterate -> {
+      MarkBeginPrepare;
+      MarkEndPrepare;
+      MarkCommit;
+      PutCF;
+    }
+    PutCF[
+      shape="record";
+      label="{{
+        PutCF|
+        case 1.rebuilding_trx_不为null\l
+        则表示是recovering的事务\l
+        插入rebuilding_trx batch中\l|
+        case 2.将(key,value)插入\l 
+        memtable中\l
+      }}";
+    ];
+    rebuilding_trx_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        rebuilding_trx_|
+        WriteBatch\l|
+        保存从BeginPrepare到
+        EndPrepare之间的write
+      }}";
+    ];
+    PutCF -> MemTable_Add;
+    PutCF -> rebuilding_trx_;
+    rebuilding_trx_ -> {
+      InsertRecoveredTransaction;
+      MarkCommit;
+    }[style=dashed];
+
+    MarkBeginPrepare[
+      shape="record";
+      label="{{
+        MarkBeginPrepare|
+        遇到了BeginPrepare标记\l
+        新建rebuiding_trx_　writeBatch\l
+        用来记录beginPrepare ... endPrepare之间的
+        操作\l
+      }}";
+    ];
+    MarkBeginPrepare -> {
+      rebuilding_trx_;
+      rebuilding_trx_seq_;
+      unprepared_batch_;
+    }
+
+    MarkEndPrepare[
+      shape="record";
+      label="{{
+        MarkEndPrepare|
+        把writeBatch以事务名字为key\l
+        插入db的map中\l
+      }}";
+    ];
+    MarkEndPrepare -> {
+      InsertRecoveredTransaction;
+      MaybeAdvanceSeq;
+    }
+
+    MarkCommit[
+      shape="record";
+      label="{{
+        MarkCommit|
+        处理Commit record\l
+        1. 读取事务id, 去map中查找对应的\l
+        recover transaction\l
+        找到对应WriteBatch\l
+        2. 迭代遍历最终调用PutCF,将key/value插入memtable中\l
+      }}";
+    ];
+
+    MarkCommit -> {
+      GetRecoveredTransaction;
+      DeleteRecoveredTransaction;
+      MaybeAdvanceSeq;
+      WriteBatch_Iterate;
+    }[color="#b83b5e"];
+
+  } // end of  MemTableInserter
+}

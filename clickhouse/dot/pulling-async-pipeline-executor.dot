@@ -1,0 +1,121 @@
+digraph pulling_async_pipeline_executor {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PipelineExecutor {
+    graph[label="PipelineExecutor";fontsize=20;];
+    pipelineExecutor_execute;
+    pipelineExecutor_execute[
+      shape="record";
+      label="{{
+        execute
+      }}";
+    ];
+    PipelineExecutor;
+  }
+  subgraph cluster_InputPort {
+    graph[label="InputPort";fontsize=20;];
+    getHeader;
+  }
+
+  subgraph cluster_LazyOutputFormat {
+    graph[label="LazyOutputFormat";fontsize=20;];
+    lazy_format -> lazy_format_getPort[style=dashed];
+    lazy_format_getPort[
+      shape="record";
+      label="{{
+        getPort|
+        IProcessor::getPort
+      }}";
+    ];
+    lazy_format_getPort -> getHeader[style=dashed];
+  }
+  subgraph cluster_QueryPipeline{
+    graph[label="QueryPipeline";fontsize=20;];
+    pipeline_execute[
+      shape="record";
+      label="{{
+        execute|
+        创建PipelineExecutor
+      }}";
+    ];
+    pipeline_execute -> PipelineExecutor;
+    //pipeline_getHeader -> lazy_format;
+    
+  }
+  subgraph cluster_PullingAsyncPipelineExecutor {
+    graph[label="PullingAsyncPipelineExecutor";fontsize=20;];
+    pull_chunk[
+      shape="record";
+      label="{{
+        pull|
+        bool pull_chunk\l 
+        (Chunk& chunk, uint64_t milliseconds)\l
+      }}";
+    ];
+    threadFunction[
+      shape="record";
+      label="{{
+        threadFunction|
+        在线程池中执行
+      }}";
+    ];
+    pull_chunk -> {
+      threadFunction;
+      pipeline_execute;
+      finish_event_tryWait;
+      getChunk;
+    }[color="#b83b5e"];
+
+    threadFunction -> {
+      setThreadName;
+      detachQueryIfNotDetached;
+      pipelineExecutor_execute;
+      finish_event_set;
+    }[color="#3f72af"];
+
+    subgraph cluster_finish_event {
+      graph[label="finish_event";fontsize=20;];
+      finish_event_tryWait[
+        shape="record";
+        label="{{
+          tryWait|
+          等待finish event执行完成\l
+        }}";
+      ];
+      finish_event_set[
+        shape="record";
+        label="{{
+          set|
+          设置已完成执行
+        }}";
+      ];
+      finish_event_set -> finish_event_tryWait[style=dashed];
+    }
+
+    pull_block[
+      shape="record";
+      label="{{
+        pull|
+        bool pull_block\l 
+        (Block& block, uint64_t milliseconds)\l
+      }}";
+    ];
+    getChunkInfo[
+      shape="record";
+      label="{{
+        getChunkInfo|
+        Chunk::getChunkInfo
+      }}";
+    ];
+    pull_block -> {
+      pull_chunk;
+      getHeader;
+      lazy_format_getPort;
+      getChunkInfo;
+      lazy_format;
+    }[color="#17b978"];
+
+  }
+}

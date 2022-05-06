@@ -1,0 +1,55 @@
+#include "styles.h"
+digraph raft_storage_initial_state {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RawNode_new -> Raft_new -> Storage_initial_state -> RaftState;
+
+  Raft_new -> {
+    RaftCore_post_conf_change;
+    RaftCore_load_state;
+    RaftCore_become_follower;
+  }
+
+  RaftState[style_blue1;label="{{
+    RaftState|
+    pub hard_state: HardState,\l|
+    pub conf_state: ConfState,\l
+  }}"]
+  RaftState -> {
+    HardState;
+    ConfState;
+  }
+  HardState[style_blue1;label="{{
+    HardState|
+    pub term: u64,\l|
+    pub vote: u64,\l|
+    pub commit: u64,\l
+  }}"]
+  ConfState[style_blue1;label="{{
+    ConfState|
+    pub voters: ::std::vec::Vec\<u64\>,\l|
+    pub learners: ::std::vec::Vec\<u64\>,\l|
+    pub voters_outgoing: ::std::vec::Vec\<u64\>,\l|
+    pub learners_next: ::std::vec::Vec\<u64\>,\l|
+    pub auto_leave: bool,\l
+  }}"]
+
+  HardState -> RaftCore_load_state[style_edge_data];
+  ConfState -> confchnage_restore[style_edge_data];
+  //Storage_last_index -> confchnage_restore[style_edge_data];
+  RaftCore_load_state[style_var;label="{{
+    RaftCore_load_state|
+    使用hardState更新\l
+    Raft的term,vote\l
+    raft_log的committed\l
+    变量\l|
+    检查committed \<= last_index\l
+  }}"]
+  //Storage_last_index -> Raft_load_state[style_edge_data];
+  RaftCore_load_state -> Storage_last_index;
+  Raft_new -> Storage_last_index;
+  ConfState -> RaftCore_post_conf_change[style_edge_data];
+}

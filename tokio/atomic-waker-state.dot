@@ -1,0 +1,14 @@
+digraph atomic_waker_state {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  WAITING;
+  WAKING;
+  REGISTERING;
+
+  WAITING -> REGISTERING[label="register_by_ref"];
+
+  register -> do_register;
+  register_by_ref -> do_register;
+}

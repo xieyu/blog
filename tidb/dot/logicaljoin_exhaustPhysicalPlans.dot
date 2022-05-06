@@ -1,0 +1,162 @@
+digraph logicaljoin_exhaustPhysicalPlans {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  findBestTask -> exhaustPhysicalPlans;
+  exhaustPhysicalPlans[
+    shape="record";
+    label="{{
+      exhaustPhysicalPlans|
+      logicalJoin can generate hash join\l
+      index join and sort merge join\l
+    }}";
+  ];
+  PhysicalMergeJoin[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalMergeJoin
+    }}";
+  ];
+  basePhysicalJoin[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+    basePhysicalJoin
+    }}";
+  ];
+  PhysicalHashJoin[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalHashJoin
+    }}";
+  ];
+  PhysicalBroadCastJoin[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalBroadCastJoin
+    }}";
+  ];
+  tryToGetChildReqProp[
+    shape="record";
+    label="{{
+      tryToGetChildReqProp|
+      mergejoin的leftChild和rightchild需要\l 
+      按照joinKey降序排序\l|
+	    lProp := property.NewPhysicalProperty(\l 
+        property.RootTaskType,\l
+        p.LeftJoinKeys,\l 
+        desc,\l 
+        math.MaxFloat64,\l
+        false)\l|
+      rProp := property.NewPhysicalProperty(\l
+        property.RootTaskType,\l
+        p.RightJoinKeys\l 
+        desc,\l 
+        math.MaxFloat64,l\
+        false)\l
+    }}"];
+
+  tryToGetChildReqProp -> PhysicalMergeJoin[style=dashed;color=blue];
+  basePhysicalJoin -> {
+    PhysicalMergeJoin;
+    PhysicalIndexJoin;
+    PhysicalHashJoin;
+    PhysicalBroadCastJoin;
+  }[style=dashed];
+  PhysicalIndexJoin -> {
+    PhysicalIndexMergeJoin;
+    PhysicalIndexHashJoin;
+  }
+  {
+    rank=same;
+    GetMergeJoin;
+    GetMergeJoin;
+    tryToGetIndexJoin;
+  }
+
+
+  exhaustPhysicalPlans -> {
+    GetMergeJoin;
+    tryToGetIndexJoin;
+    tryToGetBroadCastJoin;
+    getHashJoins;
+  };
+  GetMergeJoin -> {
+    PhysicalMergeJoin;
+    basePhysicalJoin;
+    tryToGetChildReqProp;
+  };
+  getHashJoins -> {
+    getHashJoin;
+  };
+  getHashJoin -> {
+    NewPhysicalHashJoin;
+  };
+  NewPhysicalHashJoin -> {
+    basePhysicalJoin;
+    PhysicalHashJoin;
+  };
+  tryToGetBroadCastJoin -> {
+    tryToGetBroadCastJoinByPreferGlobalIdx;
+    getPreferredBCJLocalIndex;
+  };
+  tryToGetBroadCastJoinByPreferGlobalIdx -> {
+    basePhysicalJoin;
+    PhysicalBroadCastJoin;
+  };
+  tryToGetIndexJoin -> {
+    getIndexJoinByOuterIdx;
+  }
+  getIndexJoinByOuterIdx -> buildIndexJoinInner2IndexScan 
+  buildIndexJoinInner2IndexScan -> {
+    constructInnerIndexScanTask;
+    constructInnerIndexScanTask;
+    constructIndexJoin;
+    constructIndexHashJoin;
+    constructIndexMergeJoin;
+  }
+  constructIndexMergeJoin -> {
+    constructIndexJoin;
+    PhysicalIndexMergeJoin;
+  }
+  constructIndexJoin -> {
+    basePhysicalJoin;
+    PhysicalIndexJoin;
+  }
+  constructIndexHashJoin -> {
+    constructIndexJoin;
+    PhysicalIndexHashJoin;
+  }
+  PhysicalIndexMergeJoin[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalIndexMergeJoin
+    }}";
+  ];
+  PhysicalIndexJoin[
+    shape="record";
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      PhysicalIndexJoin
+    }}";
+  ];
+  PhysicalIndexHashJoin[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      PhysicalIndexHashJoin
+    }}";
+  ];
+}

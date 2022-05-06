@@ -1,0 +1,81 @@
+#include "styles.h"
+digraph raft_log_snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Unstable__snapshot;
+  Unstable__snapshot[style_func;label="{{
+    Unstable__snapshot|
+    The incoming unstable snapshot\l
+  }}"]
+
+  Unstable__unstable_snapshot -> Unstable__snapshot;
+
+  RawNode__ready -> Unstable__unstable_snapshot;
+
+  RaftCore__maybe_send_append ->{
+     RaftCore__prepare_send_snapshot;
+  }
+  RaftCore__prepare_send_snapshot[style_func;label="{{
+    RaftCore__prepare_send_snapshot|
+    准备发送MsgSnapshot给peer\l
+  }}"]
+  RaftCore__prepare_send_snapshot -> {
+     RaftLog__snapshot;
+  }
+  RaftLog__snapshot[style_func;label="{{
+    RaftLog__snapshot|
+    调用Storage::snapshot\l
+    生成snapshot\l
+  }}"]
+  RaftCore__step_leader[style_func;label="{{
+    RaftCore__step_leader|
+    leader节点生成snapshot\l
+    然后发送MsgSnapshot给follower\l
+  }}"]
+  RaftCore__handle_snapshot[style_func;label="{{
+    RaftCore__handle_snapshot|
+    follower节点收到MsgSnapshot\l
+    将snapshot放在Unstable__snapshot\l
+    变量上\l
+  }}"]
+  RawNode__ready[style_func;label="{{
+    RawNode__ready|
+    在follower节点上会\l
+    收到这个snapshot\l
+    应用负责apply 这个snapshot\l
+  }}"]
+
+  RaftCore__step -> {
+     RaftCore__step_candidate;
+     RaftCore__step_follower;
+     RaftCore__step_leader;
+  }
+
+  RaftCore__step_leader  -> {
+    RaftCore__handle_append_response;
+    RaftCore__handle_hearbeat_response;
+  } -> RaftCore__maybe_send_append;
+
+  {RaftCore__step_candidate;RaftCore__step_follower} -> {
+    RaftCore__handle_snapshot;
+  }
+  RaftCore__handle_snapshot -> {
+    RaftCore__restore;
+  }
+
+  RaftCore__restore -> {
+    RaftLog__restore;
+  }
+  RaftLog__restore -> Unstable__restore;
+  Unstable__restore -> Unstable__snapshot;
+  Unstable__restore[style_blue1;label="{{
+    Unstable__restore|
+    将snapshot设置为message\l
+    中收到的snapsot\l
+  }}"]
+  {rank=same;RawNode__ready;RaftCore__step};
+
+}

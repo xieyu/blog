@@ -1,0 +1,81 @@
+#include "styles.h"
+digraph raft_router {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RaftRouter -> {
+     BatchRouter;
+  }
+  BatchRouter -> {
+     PeerFsm;
+     StoreFsm;
+  }
+  BatchRouter -> Router;
+  Router -> {
+     NormalScheduler;
+     ControlScheduler;
+  }
+  Router[style_func;label="{{
+    Router|
+    <normals> normals: Arc\<Mutex\<HashMap\<u64, BasicMailbox\<N\>\>\>\>,\l|
+    caches: Cell\<LruCache\<u64, BasicMailbox\<N\>\>\>,\l|
+    <control_box> pub(super) control_box: BasicMailbox\<C\>,\l|
+    pub(crate) normal_scheduler: Ns,\l|
+    control_scheduler: Cs,\l|
+    shutdown: Arc\<AtomicBool\>,\l
+  }}"]
+  Router:normals -> normals;
+  normals[style_var;label="{{
+    normals|
+    从region_id到region的\l
+    Fsm mailbox映射\l
+  }}"]
+  normals -> PeerFsm;
+  Router:control_box -> control_box;
+  control_box -> StoreFsm;
+  ServerRaftStoreRouter -> RaftRouter;
+  RaftKv -> ServerRaftStoreRouter;
+
+  PollContext -> ApplyRouter -> ApplyFsm;
+  PeerFsm -> PollContext[style_edge_data];
+  {PeerFsm;StoreFsm} -> RaftPoller;
+  ApplyFsm -> ApplyPoller;
+  RaftRouter[style_func;label="{{
+    RaftRouter|
+    根据RaftCmd中的Region id\l
+    将消息发给对应的region fsm\l
+  }}"]
+  subgraph cluster_RaftThread {
+    graph[label="RaftPoller\n ThreadPool";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PeerFsm;
+    StoreFsm;
+    RaftPoller;
+    RaftPoller[style_func;label="{{
+      RaftPoller|
+      poll 有消息的fsm\l
+      然后处理fsm消息\l
+    }}"]
+    PeerFsm[style_func;label="{{
+      PeerFsm|
+      负责处理raftlog,\l
+      raft state, apply sate\l
+      等\l
+    }}"]
+  }
+  subgraph cluster_ApplyPollerThreadPool {
+    graph[label="ApplyPoller\n ThreadPool";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ApplyFsm;
+    ApplyFsm[style_func;label="{{
+    ApplyFsm|
+    将key,value修改\l
+    写入kv engine\l
+    }}"]
+    ApplyPoller;
+    ApplyPoller[style_func;label="{{
+      ApplyPoller|
+      poll有消息的fsm\l
+      然后处理fsm消息\l
+    }}"]
+  }
+}

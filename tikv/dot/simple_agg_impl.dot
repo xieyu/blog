@@ -1,0 +1,96 @@
+#include "styles.h"
+digraph simple_agg {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  process_batch_input -> {
+    entities_each_aggr_exprs;
+    aggr_expr_eval;
+    macro_match_template_evaluable;
+    macro_update_repeat;
+    macro_update_vector;
+  }
+  subgraph cluster_for_loop {
+    graph[label="for idx in 0...self.states.len()";fontsize=20;style="rounded,dashed";color="slategrey"]
+    aggr_expr_eval;
+
+    entities_each_aggr_exprs[style_var;label="{{
+      Entities::each_aggr_exprs\l|
+      Vec\<RpnExpression\>\l
+    }}"]
+    entities_each_aggr_exprs -> aggr_expr_eval -> macro_match_template_evaluable -> {
+      macro_update_repeat;
+      macro_update_vector;
+    };
+    aggr_expr_eval[style_func;label="{{
+      aggr_expr_eval|
+      RpnExpression::eval\l|
+      RpnExpression求值\l
+    }}"]
+    macro_match_template_evaluable[style_func;label="{{
+      match_template_evaluable!
+    }}"]
+    macro_update_repeat[style_func;label="{{
+      update_repeat!
+    }}"]
+    macro_update_vector[style_func;label="{{
+      update_vector!
+    }}"]
+    macro_match_template_evaluable;
+    macro_update_repeat;
+    macro_update_vector;
+    macro_update_repeat ->  update_repeat -> states[style_edge_data];
+    macro_update_vector ->  update_vector -> states[style_edge_data];
+    update_repeat[style_func;label="{{
+    AggrFunctionState::\l
+      update_repeat\l
+    }}"]
+    update_vector[style_func;label="{{
+      AggrFunctionState::\lupdate_vector\l
+    }}"]
+    states[style_var;label="{{
+      SimpleAggregationImpl::states|
+        states: Vec\<Box\<dyn AggrFunctionState\>\>,\l
+    }}"]
+  }
+  AggregationExecutor_handle_next_batch -> {
+    process_batch_input;
+    is_partial_results_ready;
+  }
+  is_partial_results_ready[style_struct;label="{{
+    SimpleAggregationImpl::\lis_partial_results_ready\l|
+    false\l
+    需要等到src_is_drained\l|
+    Simple Aggregation can output\l
+    aggregate results\l
+    only if the soure is drained\l
+  }}"]
+  process_batch_input[style_struct;label="{{
+    SimpleAggregationImpl::\lprocess_batch_input\l|
+    遍历self.states\l
+    调用each_aggr_exprs[idx]\l
+    将结果保存在states[idx]上\l
+  }}"]
+  AggregationExecutor_handle_next_batch[style_func;label="{{
+    AggregationExecutor::\lhandle_next_batch\l
+  }}"]
+  aggregate_partial_results -> iterate_available_groups;
+  aggregate_partial_results[style_func;label="{{
+    AggregationExecutor::\laggregate_partial_results
+  }}"]
+  iterate_available_groups[style_struct;label="{{
+    SimpleAggregationImpl\literate_available_groups\l
+    遍历每个state\l
+    调用传进来的闭包函数\l
+  }}"]
+  states -> iterate_available_groups[style_edge_data];
+  AggregationExecutor_handle_next_batch -> aggregate_partial_results;
+  is_partial_results_ready -> aggregate_partial_results[style_edge_data];
+  iterate_available_groups -> closure;
+  closure[style_func;label="{{
+  回调闭包\l
+  调用state.push_result\l
+  将结果放入all_result_columns\l
+  }}"]
+}

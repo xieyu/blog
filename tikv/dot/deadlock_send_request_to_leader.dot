@@ -1,0 +1,110 @@
+#include "styles.h"
+digraph send_request_to_leader {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  send_request_to_leader ->{
+    reconnect_leader;
+    client_detect;
+  }
+  reconnect_leader -> {
+     register_detect_handler;
+     handler_lambda;
+     spawn_local;
+  }
+  handler_lambda -> WaiterMgrScheduler_deadlock;
+  client_detect -> handler_lambda[style_edge_data];
+  register_detect_handler -> {
+    send_task;
+    recv_task;
+    DeadlockClient_detect;
+    mpsc_unbounded;
+  }
+  mpsc_unbounded[style_func;label="{{
+    mpsc::unbounded|
+    创建一个channel\l
+    rx为接收端\l
+    tx为发送端\l
+  }}"]
+  mpsc_unbounded -> {rx;tx}
+  tx[style_var;label="{{
+    tx|
+    channel的发送端\l 
+    被赋值给了client.sender\l
+  }}"]
+  rx[style_func;label="{{
+    rx|
+    channel的接收端\l
+    被闭包move到了send_task\l
+  }}"]
+  send_task[style_func;label="{{
+    send_task|
+    async 任务\l
+    从rx端接收DeadlockRequest\l
+    然后使用sink.send_all\l
+    请求发给Deadlock Server\l
+  }}"]
+  recv_task[style_func;label="{{
+    recv_task|
+    从reciver接收resp\l
+    并调用设置好的cb\l 
+    回调函数\l
+  }}"]
+
+  recv_task -> handler_lambda;
+  handler_lambda[style_func;label="{{
+    注册的闭包回调函数\l
+    处理DeadlockRequest的resp\l
+  }}"]
+  client_detect ->  tx -> rx -> send_task[style_edge_data];
+  send_task -> sink[style_edge_data];
+  spawn_local[style_func;label="{{
+    spawn_local|
+    执行异步任务\l
+  }}"]
+  spawn_local -> {
+    send_task;
+    recv_task;
+  }[style_edge_data];
+
+  sink[style_var;label="{{
+    sink|
+    grpc stream detect接口\l 
+    返回的 sink\l 
+    用来写数据\l
+  }}"]
+  receiver[style_var;label="{{
+    receiver|
+    grpc stream detect接口\l 
+    返回的Reciver\l
+    用来接收数据\l
+  }}"]
+  sink -> receiver[style_edge_data];
+
+  DeadlockClient_detect[style_func;label="{{
+    DeadlockClient::detect|
+    Grcp client， detect\l 
+    返回sink, recv\l
+  }}"]
+  DeadlockClient_detect -> {sink, receiver};
+  receiver -> recv_task;
+
+  client_detect[style_func;label="{{
+    Client::detect|
+    向UnboundedSender中发送\l
+    DeadlockRequest请求\l
+  }}"]
+  reconnect_leader[style_func;label="{{
+    reconnect_leader|
+    连接leader 的detect\l 
+    grpc stream接口\l
+  }}"]
+  send_request_to_leader[style_func;label="{{
+    send_request_to_leader|
+    1.如果leader_client为None\l
+    创建和leader的stream连接\l|
+    2.调用detect\l
+  }}"]
+  {rank=same; reconnect_leader; client_detect};
+}

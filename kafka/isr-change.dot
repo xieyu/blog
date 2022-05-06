@@ -1,0 +1,116 @@
+digraph isrchange {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_controllerContext {
+    graph[label="controllerContext";fontsize=20;style=rounded];
+    liveBrokerEpochs[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        liveBrokerEpochs
+      }}";
+    ];
+    partitionLeadershipInfo[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        partitionLeadershipInfo
+      }}";
+    ];
+    liveOrShuttingDownBrokerIds -> liveBrokerEpochs;
+    partitionLeadershipInfo;
+    partitionLeadershipInfo[
+      shape="record";
+      label="{{
+        partitionLeadershipInfo|
+        更新此处cache\l
+      }}";
+    ];
+    liveOrShuttingDownBrokerIds[
+      shape="record";
+      label="{{
+        liveOrShuttingDownBrokerIds|
+        获取要发送udpateMetadata 的\l
+        broker列表\l
+      }}";
+    ];
+  };
+  subgraph cluster_zkClient {
+    graph[label="zkClient";fontsize=20;style=rounded];
+    getAllIsrChangeNotifications;
+    getPartitionsFromIsrChangeNotifications;
+    getTopicPartitionStates[
+      shape="record";
+      label="{{
+        getTopicPartitionStates|
+        从zk中获取partition状态\l
+      }}";
+    ];
+    getTopicPartitionStates -> getTopicPartitionStatesRaw ->GetDataRequest;
+    GetDataRequest[
+      shape="record";
+      label="{{
+        GetDataRequest|
+        获取TopicPartitionStateZnode下数据
+      }}";
+    ];
+    deleteIsrChangeNotifications[
+      shape="record";
+      label="{{
+        deleteIsrChangeNotifications|
+        清理掉所有的通知
+      }}";
+    ];
+    deleteIsrChangeNotifications -> {
+      IsrChangeNotificationSequenceZNode;
+      IsrChangeNotificationZNode;
+    };
+    getPartitionsFromIsrChangeNotifications;
+    getPartitionsFromIsrChangeNotifications -> IsrChangeNotificationSequenceZNode;
+    getAllIsrChangeNotifications -> IsrChangeNotificationZNode
+  };
+
+  processIsrChangeNotification -> {
+    getAllIsrChangeNotifications;
+    getPartitionsFromIsrChangeNotifications;
+    updateLeaderAndIsrCache;
+    processUpdateNotifications;
+    deleteIsrChangeNotifications;
+  }
+  updateLeaderAndIsrCache[
+    shape="record";
+    label="{{
+      updateLeaderAndIsrCache|
+      从zk中获取最新的partionState\l
+      然后更新controllerContext中的cache\l
+    }}";
+  ];
+  sendUpdateMetadataRequest[
+    shape="record";
+    label="{{
+      sendUpdateMetadataRequest|
+      向所有的broker发送\l 
+      更新metadata请求 \l
+    }}";
+  ];
+  processUpdateNotifications[
+    shape="record";
+    label="{{
+      processUpdateNotifications|
+      获取要发送的broker列表\l
+      发送updateMetaData请求\l
+    }}";
+  ];
+  updateLeaderAndIsrCache -> {
+    getTopicPartitionStates;
+    leaderIsrAndControllerEpochs;
+    partitionLeadershipInfo;
+  }
+  processUpdateNotifications -> {
+    liveOrShuttingDownBrokerIds;
+    sendUpdateMetadataRequest;
+  }
+}

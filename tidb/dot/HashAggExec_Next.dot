@@ -1,0 +1,239 @@
+digraph HashAggExec_Next {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_AggFunc {
+    graph[label="AggFunc";fontsize=20;style="rounded,dashed";color="slategrey"]
+    af_UpdatePartialResult[
+      shape="record";
+      label="{{
+        UpdatePartialResult
+      }}"];
+    AllocPartialResult;
+    MergePartialResult;
+    AppendFinalResult2Chunk;
+  }
+
+  Open -> {
+    isUnparallelExec;
+    initForParallelExec;
+    initForUnparallelExec;
+  }
+  Next -> {
+    unparallelExec;
+    parallelExec;
+  }
+  unparallelExec -> {
+    execute;
+    getPartialResults;
+    AppendFinalResult2Chunk;
+  }
+  execute -> {
+    getGroupKey;
+    getPartialResults;
+    af_UpdatePartialResult;
+  }
+  parallelExec -> {
+    prepare4ParallelExec;
+    finalOutputCh;
+  }
+
+  prepare4ParallelExec -> {
+    HashAggPartialWorker_run;
+    HashAggFinalWorker_run;
+    fetchChildData;
+  }[label="go routine"];
+  prepare4ParallelExec -> {
+    waitFinalWorkerAndCloseFinalOutput;
+    waitPartialWorkerAndCloseOutputChs;
+  }
+  subgraph cluster_baseHashAggWorker {
+    graph[label="baseHashAggWorker";fontsize=20;style="rounded,dashed";color="slategrey"]
+    getPartialResult;
+  }
+
+  subgraph cluster_HashAggFinalWorker {
+    graph[label="HashAggFinalWorker";fontsize=20;style="rounded,dashed";color="slategrey"]
+    HashAggFinalWorker_run[
+      shape="record";
+      label="{{
+        HashAggFinalWorker.run
+      }}"];
+    HashAggFinalWorker_run -> {
+      HashAggFinalWorker_outputCh;
+      consumeIntermData;
+      getFinalResult;
+    }
+    consumeIntermData -> {
+      getPartialInput;
+      getPartialResultBatch;
+      getPartialResult;
+      MergePartialResult;
+    }[color="#3f72af"];
+
+    getFinalResult ->{
+      receiveFinalResultHolder;
+      getPartialResult;
+      HashAggFinalWorker_outputCh;
+      AppendFinalResult2Chunk;
+    }
+    getPartialInput -> HashAggFinalWorker_inputCh;
+    HashAggFinalWorker_inputCh[
+      shape="record";
+      label="{{
+        inputCh|
+          inputCh chan *HashAggIntermData
+      }}"];
+    HashAggFinalWorker_outputCh[
+      shape="record";
+      label="{{
+        outputCh
+      }}"];
+  }
+  HashAggFinalWorker_outputCh -> finalOutputCh[label="same ref"];
+
+  receiveFinalResultHolder -> {
+    HashAggFinalWorker_finalResultHolderCh;
+  }
+  initForParallelExec -> {
+    inputCh;
+  }
+
+  fetchChildData -> {
+    Next_children;
+  }
+  subgraph cluster_HashAggPartialWorker {
+    graph[label="HashAggPartialWorker";fontsize=20;style="rounded,dashed";color="slategrey"]
+    HashAggPartialWorker_run[
+      shape="record";
+      label="{{
+        HashAggPartialWorker.run\l|
+        读取child数据\l
+      }}"];
+    HashAggPartialWorker_run -> {
+      shuffleIntermData;
+      getChildInput;
+      updatePartialResult;
+      globalOutputCh;
+    }
+    shuffleIntermData -> {
+      partialResultMap;
+      HashAggPartialWorker_outputChs;
+    }
+    HashAggPartialWorker_outputChs[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        outputChs
+      }}"
+    ];
+    HashAggPartialWorker_outputChs -> HashAggFinalWorker_inputCh;
+
+    getChildInput -> {
+      chk;
+      giveBackCh;
+    }
+    chk[
+      shape=record;
+      style=filled;
+      fillcolor="#f6d887";
+      label="{{
+        chk|
+          chk *chunk.Chunk\l
+      }}"
+    ];
+
+    updatePartialResult -> {
+      getGroupKey;
+      getPartialResult;
+      af_UpdatePartialResult;
+    }
+    edge[style=dashed;color=blue];
+    getGroupKey  -> getPartialResult;
+    chk -> updatePartialResult[style=dashed;color=blue]
+    chk -> af_UpdatePartialResult;
+  }
+  getPartialResult -> {
+    partialResultMap;
+    AllocPartialResult;
+  }
+  partialResultMap[
+    shape="record";
+    label="{{
+      PartialResultMap|
+      aggPartialResultMapper\l
+      type aggPartialResultMapper\l
+      map[string][]aggfuncs.PartialResult|
+    }}"];
+  globalOutputCh[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      globalOutputCh
+    }}"
+  ];
+  finalOutputCh[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      finalOutputCh
+    }}"
+  ];
+  getGroupKey[
+    shape="record";
+    label="{{
+      getGroupKey|
+      evaluates the group items \l 
+      and args of aggregate function\l
+    }}"];
+
+/*
+  subgraph cluster_expression {
+    graph[label="expression";fontsize=20;style="rounded,dashed";color="slategrey"]
+    GetColumn;
+    EvalExpr;
+    PutColumn;
+  }
+
+  getGroupKey -> {
+    GetColumn;
+    EvalExpr;
+    PutColumn;
+    HashGroupKey;
+  }
+  */
+
+  HashAggFinalWorker_outputCh[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      HashAggFinalWorker_outputCh
+    }}"
+  ];
+  HashAggFinalWorker_finalResultHolderCh[
+    shape=record;
+    style=filled;
+    fillcolor="#95e1d3"
+    label="{{
+      HashAggFinalWorker_finalResultHolderCh
+    }}"
+  ];
+  inputCh[
+    shape="record";
+    label="{{
+      inputCh|
+      [] chan *HashAggInput|
+      chk *chunk.Chunk\l|
+      <giveBackCh> giveBackCh chan\<- *chunk.Chunk\l
+    }}"];
+
+  edge[style=dashed;color=blue];
+  inputCh:giveBackCh -> getChildInput;
+  inputCh -> fetchChildData -> inputCh:giveBackCh;
+}

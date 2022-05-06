@@ -1,0 +1,173 @@
+digraph background_flushtitl {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ColumnFamilyData {
+    graph[label="ColumnFamilyData";fontsize=20;];
+
+    subgraph cluster_MemTableList {
+      graph[label="MemTableList";fontsize=20;];
+      PickMemtablesToFlush[
+        shape="record"
+        label="{{
+          PickMemtablesToFlush|
+          根据max_memtable_id筛选出\l
+          需要flush的memtable
+        }}"
+      ];
+    }
+    ColumnFamilyData[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        ColumnFamilyData|
+          <MemTableList> MemTableList* imm_;|
+          ...
+      }}";
+    ];
+    PickMemtablesToFlush -> ColumnFamilyData:MemTableList;
+  }
+
+  subgraph cluster_FlushJob {
+    graph[label="FlushJob";fontsize=20;];
+    FlushJob[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        FlushJob|
+        const unit64_t* max_memtable_id_\l|
+        ColumnFamilyData* cfd_;\l|
+        autovector<MemTable*> mems_;\l
+      }}"
+    ];
+    PickMemTable[
+      shape="record"
+      label="{{
+        PickMemTable|
+        从flushJob的columnFaimlyData的\l
+        imm_列表中选择需要flush的memtable\l
+      }}"
+    ];
+    PickMemTable -> PickMemtablesToFlush;
+    PickMemTable -> FlushJob;
+    FlushJob -> ColumnFamilyData;
+    FlushJob -> FlushJob_Run[style=dashed;color=gray80];
+    FlushJob_Run -> {
+      WriteLevel0Table;
+    }
+    WriteLevel0Table[shape="record";
+      label="{{
+        WriteLevel0Table|
+        将mem刷到L0级别文件中\l
+      }}";
+    ];
+  }
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    flush_queue_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        flush_queue_|
+          std::vector\<FlushRequest\> \l
+          FlushRequest: ColumnFamilyData, unit64_t\l
+      }}";
+    ];
+    BackgroundFlush[shape="record";
+      label="{{
+        BackgroundFlush|
+        将flush_queue_中的\l 
+        ColumnFamilyData\l
+        的imm 列表刷到磁盘上\l
+      }}";
+    ];
+    flush_queue_ -> ColumnFamilyData;
+    flush_queue_ -> PopFirstFromFlushQueue[style=dashed;color=gray40];
+    FlushMemTablesToOutputFiles
+    FlushMemTableToOutputFile;
+    AtomicFlushMemTablesToOutputFiles;
+    BackgroundFlush -> {
+      PopFirstFromFlushQueue;
+      FlushMemTablesToOutputFiles;
+      IsFlushPending;
+    }
+    PopFirstFromFlushQueue[shape="record";
+      label="{{
+        PopFirstFromFlushQueue|
+        从flush_queue_队首取一个flush_request\l
+        FlushRequest: ColumnFamilyData, unit64_t\l
+      }}";
+    ];
+    FlushMemTablesToOutputFiles[shape="record";
+      label="{{
+        FlushMemTablesToOutputFiles|
+        根据atomic_flush选项选择
+      }}";
+    ];
+
+    FlushMemTablesToOutputFiles -> {
+      AtomicFlushMemTablesToOutputFiles
+      GetSnapshotContext;
+      GetLatestMutableCFOptions;
+      FlushMemTableToOutputFile;
+    }[color="#b83b5e"]
+
+    AtomicFlushMemTablesToOutputFiles -> {
+      InstallSuperVersionAndScheduleWork;
+      GetDataDir;
+      GetSnapshotContext;
+      FlushJob;
+      PickMemTable;
+      GetCompressionFlush;
+      SyncClosedLogs;
+      FlushJob_Run
+    }[color="#3f72af"]
+
+    FlushMemTableToOutputFile -> {
+      FlushJob;
+      NotifyOnFlushBegin;
+      PickMemTable;
+      FlushJob_Run;
+      InstallSuperVersionAndScheduleWork;
+      NotifyOnCompactionCompleted;
+    }[color="#f08a5d"]
+  }
+
+  WriteLevel0Table -> {
+    BuildTable;
+  }
+
+  BuildTable[shape="record";
+    label="{{
+      BuildTable|
+      构建SSTable\l
+    }}";
+  ];
+  BuildTable -> {
+    NewTableBuilder;
+    Builder_Add;
+    Builder_Finish;
+    Builder_Abandon;
+  }
+  subgraph cluster_TableBuilder {
+    graph[label="TableBuilder";fontsize=20;];
+    NewTableBuilder;
+    Builder_Add;
+    Builder_Finish;
+    Builder_Abandon;
+  }
+
+  //rank
+  {rank=same;flush_queue_;PickMemTable;FlushJob_Run}
+
+  // dataflow depend
+  {
+    edge[style=dashed;color=gray40];
+    PopFirstFromFlushQueue -> FlushMemTablesToOutputFiles;
+  }
+}

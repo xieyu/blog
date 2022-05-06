@@ -1,0 +1,26 @@
+#include "styles.h"
+digraph check_region_epoch {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  ApplyDelegate__exec_raft_cmd -> {
+    check_region_epoch;
+  }
+  check_region_epoch -> {
+    compare_region_epoch;
+    RaftCmdRequest__get_header__get_region_epoch;
+  }
+  compare_region_epoch -> {
+    EpochNotMatch;
+  }
+  Peer__validate_split_region -> {
+    Peer__region__epoch;
+  }
+  Peer__on_prepare_split_region -> {
+    Peer__validate_split_region;
+  }
+
+}

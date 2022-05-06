@@ -1,0 +1,135 @@
+#include "styles.h"
+digraph acquire_latches_lock {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  //wakeup
+  //Scheduler_on_wait_for_lock -> Scheduler_release_lock;
+  //Scheduler_try_to_wake_up -> SchedulerInner_acquire_lock;
+  //Scheduler_try_to_wake_up -> {
+  //  Scheduler_execute;
+  //}
+  //Scheduler_release_lock -> {
+  //   Latches_release;
+  //   Scheduler_try_to_wake_up;
+  //};
+
+  //SchedulerInner_acquire_lock[style_func;label="{{
+  //  SchedulerInner\l|
+  //  acquire_lock\l|
+  //  尝试获取所有key的laches\l
+  //}}"]
+
+  //SchedulerInner_acquire_lock -> Latches_acquire
+  Latches_acquire -> {
+    lock_latch;
+    Latch_wait_for_wake;
+    Latch_get_first_req_by_hash;
+    Lock_acquired;
+  }
+  Lock_acquired[style_func;label="{{
+    Lock::acquired|
+    如果required_hashes.len() == owned count\l
+    说明就获取lock了\l
+  }}"]
+  Lock -> Lock_acquired;
+  schedule_command[style_func;label="{{
+    schedule_command|
+    先尝试获取lock的所有key hashes\l
+    成功的话，执行task\l
+  }}"]
+
+  schedule_command -> {
+     Latches_acquire;
+     SchedulerInner_gen_id;
+     execute;
+  }
+  SchedulerInner_gen_id[style_func;label="{{
+    SchedulerInner::gen_id|
+    generate the \l 
+    next command ID\l|
+    获取lock和释放Lock时候\l 
+    都需要这个cid\l|
+    使用了atomicU64 id_alloc\l
+    每次fetch_add(1, Ordering::Relaxed)\l
+  }}"]
+  SchedulerInner_gen_id -> {
+    release_lock;
+    Latches_acquire;
+  }[style_edge_data];
+  Lock[style_var;label="{{
+    Lock|
+    pub required_hashes: Vec\<u64\>,\l
+    pub owned_count: usize,\l
+  }}"]
+  Latch[style_var;label="{{
+    Latch|
+    pari存储的是：hash_key, cid\l
+    pub waiting: VecDeque\<Option\<(u64, u64)\>\>,\l
+  }}"]
+
+  Latches_acquire[style_func;label="{{
+    Latches::acquire|
+      遍历lock::required_hashes\l
+      对于每个key_hash\l
+      尝试获取Lock 成功的话\l
+      增加lock owned_count\l
+  }}"]
+  Latches_acquire -> Lock;
+  Latch_get_first_req_by_hash[style_func;label="{{
+    Latch::get_first_req_by_hash|
+    获取key_hash对应的队首的cid\l
+    如果cid==自己或者是None\l
+    继续lock下一个key\l
+    否则就break\l
+  }}"]
+  lock_latch[style_func;label="{{
+    Latch::lock_latch|
+    获取key_hash 对应slot的mutex锁\l
+    self.slots[(hash as usize) \l\& (self.size - 1)].lock()
+  }}"]
+  Latch_wait_for_wake[style_func;label="{{
+    Latch::wait_for_wake|
+    将key_hash, cid\l
+    push到latch的waiting队列中\l
+  }}"]
+  Latch_wait_for_wake -> Latch;
+
+
+  subgraph cluster_Scheduler {
+    graph[label="Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+     on_write_finished -> schedule_command;
+     on_read_finished -> schedule_command;
+     run_cmd -> schedule_command;
+     execute[style_func;label="{{
+       execute|
+       在async_snapshot的callback\l
+       中执行process_by_worker\l
+     }}"]
+     execute -> {
+       on_write_finished;
+       on_read_finished;
+       on_wait_for_lock;
+       finish_with_err;
+     }[style_edge_data];
+     on_read_finished -> release_lock;
+     on_write_finished -> release_lock;
+     on_wait_for_lock -> release_lock;
+     finish_with_err -> release_lock;
+     on_wait_for_lock[style_func;label="{{
+       on_wait_for_lock|
+       有冲突了，需要加入到task 会被\l
+       waiter_manager中\l
+       先释放task获取的内存latches\l
+     }}"]
+     release_lock[style_func;label="{{
+       release_lock|
+       释放掉Laches lock\l
+       唤醒等待latches的cid\l
+     }}"]
+
+  }
+  
+}

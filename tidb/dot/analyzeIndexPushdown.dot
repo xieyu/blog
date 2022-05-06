@@ -1,0 +1,42 @@
+digraph analyzeIndexPushdown {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  analyzeIndexPushdown -> {
+    buildStats;
+  }
+  buildStats -> {
+    buildStatsFromResult;
+  }
+  buildStatsFromResult -> {
+    NextRaw;
+    HistogramFromProto;
+    MergeHistograms;
+    MergeCMSketch;
+    ExtractTopN;
+  }
+  AnalyzeIndexResp[
+    shape="record";
+    label="{{
+      AnalyzeIndexResp|
+	      Hist *Histogram\l|
+        Cms *CMSketch\l
+    }}"];
+
+  analyzeIndexIncremental -> {
+    buildStats;
+    MergeHistograms;
+    MergeCMSketch4IncrementalAnalyze;
+  }
+
+  edge[style=dashed;color=darkblue];
+  NextRaw -> AnalyzeIndexResp;
+  AnalyzeIndexResp -> {
+    HistogramFromProto;
+    CMSketchFromProto;
+  }
+  HistogramFromProto -> MergeHistograms;
+  CMSketchFromProto -> MergeCMSketch;
+}

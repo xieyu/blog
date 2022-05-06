@@ -1,0 +1,36 @@
+#include "styles.h"
+digraph aggr_function_derive {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+ aggr_function_derive[style_func;label="{{
+   aggr_function_derive|
+   定义自动生成name和\l 
+   create_state代码的derive\l
+ }}"]
+  aggr_function_derive -> {
+    from_derive_input;
+    generate_tokens;
+  }
+  generate_tokens -> {
+     impl_name;
+     impl_create_state;
+  }
+  subgraph cluster_AggrFunctionOpts {
+    graph[label="AggrFunctionOpts";fontsize=20;style="rounded,dashed";color="slategrey"]
+    from_derive_input;
+    generate_tokens;
+      
+  }
+  impl_name[style_func;label="{{
+    name|
+    生成name函数代码
+  }}"]
+  impl_create_state[style_func;label="{{
+    create_state|
+    生成create_state代码
+  }}"]
+  
+}

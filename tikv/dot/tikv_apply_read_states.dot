@@ -1,0 +1,8 @@
+#include "styles.h"
+digraph tikv_apply_read_states {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  poll -> handle_normal -> collect_ready -> handle_raft_ready_append -> apply_reads;
+}

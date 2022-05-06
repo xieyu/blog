@@ -1,0 +1,61 @@
+digraph plan_builder {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_logical_plan_builder {
+    graph[label="logical_plan_builder";fontsize=20;style=rounded];
+    Build -> buildSelect[label="SelectStmt"]
+    buildSelect -> {
+      buildTableDual;
+      unfoldWildStar;
+      detectSelectWindow;
+      buildSelectLock;
+      detectSelectAgg;
+      buildAggregation;
+      extractAggFuncs;
+      buildProjection;
+      groupWindowFuncs;
+      buildWindowFunctions;
+      buildWindowSpecs;
+      resolveHavingAndOrderBy;
+      pushTableHints;
+      pushSelectOffset;
+      popSelectOffset;
+      popTableHints;
+    };
+
+    buildSelect -> buildSort[label="OrderBy"];
+    buildSelect -> buildSelection[label="Where"];
+    buildSelect -> buildResultSetNode[label="From"];
+    buildSelect -> resolveGbyExprs [label="GroupBy"];
+    buildSelect -> buildLimit[label="Limit"];
+    buildSelect -> buildDistinct[label="Distinct"];
+
+    buildSelection -> {
+      splitWhere;
+      LogicalSelection;
+    };
+
+    buildSort -> LogicalSort;
+    buildSelect2[label="递归buildSelect"];
+
+    buildResultSetNode -> {
+      buildJoin;
+      buildSelect2;
+      buildUnion;
+    };
+    buildResultSetNode -> buildDataSource[label="ast.TableName"];
+
+    buildResultSetNode2[label="递归buildResultSetNode"];
+    buildJoin -> {
+      buildResultSetNode2;
+    };
+
+    buildDataSource -> {
+      DataSource;
+      LogicalUnionScan;
+    }
+    buildLimit -> LogicalLimit;
+  }
+}

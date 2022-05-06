@@ -1,0 +1,154 @@
+#include "styles.h"
+digraph conf_change {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RaftRs {
+    graph[label="RaftRs";fontsize=20;style="rounded,dashed";color="slategrey"]
+    apply_conf_change;
+    assign_commit_groups;
+  }
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    heartbeat_pd;
+  }
+
+  schedule_task_ApplyTask_apply -> handle_tasks;
+  subgraph cluster_ApplyDelegate {
+    graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_tasks -> handle_apply;
+    handle_apply-> ApplyDelegate_handle_raft_committed_entries;
+    ApplyDelegate_handle_raft_committed_entries -> {
+     handle_raft_entry_normal;
+     handle_raft_entry_conf_change;
+    }
+    handle_raft_entry_conf_change -> {
+      process_raft_cmd;
+    }
+    process_raft_cmd -> apply_raft_cmd;
+    apply_raft_cmd -> {
+       ExecResult_ChangePeer;
+       exec_raft_cmd;
+       region_clone;
+    }
+    exec_raft_cmd -> {
+      check_region_epoch;
+      exec_admin_cmd;
+    }
+    exec_admin_cmd -> {
+      exec_change_peer;
+      exec_change_peer_v2;
+    }
+
+    exec_change_peer -> {
+      ConfChangeType_RemoveNode;
+      ConfChangeType_AddNode;
+      ConfChangeType_AddLearnerNode;
+      find_peer_mut;
+      is_learner;
+      set_role;
+      pending_remove;
+      stopped;
+      region_clone;
+      write_peer_state;
+      remove_peer;
+    }
+    region_clone[style_func;label="{{
+      self.region.clone()
+      conf_ver + 1
+    }}"]
+    region[style_var;label="{{
+      region|
+    }}"]
+    region -> region_clone;
+
+    exec_change_peer_v2 ->{
+      ApplyDelegate_apply_conf_change;
+      apply_leave_joint;
+      write_peer_state;
+    }
+    apply_leave_joint -> {
+      conf_ver;
+      set_conf_ver
+    }
+
+    ApplyDelegate_apply_conf_change ->{
+      find_peer;
+      find_peer_mut;
+      ConfChangeType_AddNode;
+      ConfChangeType_AddLearnerNode;
+      ConfChangeType_RemoveNode;
+      DemotingVoter;
+      IncomingVoter;
+    }
+  }
+  subgraph cluster_Raft {
+    graph[label="Raft";fontsize=20;style="rounded,dashed";color="slategrey"]
+    has_ready;
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    propose
+    step;
+    handle_raft_ready_append -> {
+     has_ready;
+     handle_raft_committed_entries;
+    };
+    handle_raft_committed_entries -> schedule_task_ApplyTask_apply;
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+     ExecResult_ChangePeer -> on_ready_change_peer;
+     on_ready_change_peer -> {
+       apply_conf_change;
+       update_region;
+       assign_commit_groups;
+       remove_peer_from_cache;
+       heartbeat_pd;
+       register_raft_base_tick;
+       destroy_peer;
+       ping;
+       become_follower;
+       is_learner;
+     }
+     PeerFsmDelegate_handle_msgs -> {
+      propose_batch_raft_command;
+      propose_raft_command;
+      on_raft_message;
+     };
+     propose_batch_raft_command -> propose_raft_command;
+     propose_raft_command -> {
+       pre_propose_raft_command;
+       register_merge_check_tick;
+       propose;
+     }
+     propose -> on_raft_message[style_edge_data];
+
+     on_raft_message -> {
+       step;
+     }
+     handle_normal -> {
+       PeerFsmDelegate_handle_msgs;
+       collect_ready;
+     }
+     collect_ready -> handle_raft_ready_append;
+  }
+  subgraph cluster_pd {
+    graph[label="pd";fontsize=20;style="rounded,dashed";color="slategrey"]
+    schedule_heartbeat_receiver -> {
+      new_change_peer_request;
+      new_change_peer_v2_request;
+      send_admin_request;
+    }
+    {
+      new_change_peer_request;
+      new_change_peer_v2_request;
+    } -> send_admin_request[style_edge_data];
+    send_admin_request -> send_raft_command;
+  }
+
+  
+}

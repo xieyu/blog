@@ -1,0 +1,158 @@
+digraph DataSourceFindBestTaskCost {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_HistColl {
+    graph[label="HistColl";fontsize=20;style="rounded,dashed";color="slategrey"]
+      GetRowCountByIndexRanges;
+      GetRowCountByColumnRanges;
+      {
+        equalRowCount;
+        enumRangeValues;
+        BetweenRowCount;
+        outOfRangeEQSelectivity;
+      } -> GetColumnRowCount;
+
+      {
+        GetColumnRowCount;
+        GetIncreaseFactor;
+      }-> GetRowCountByColumnRanges;
+      LessRowCountWithBktIdx -> lessRowCount;
+      {
+        outOfRangeEQSelectivity;
+        CMSketch_queryValue;
+      } -> equalRowCount;
+      {
+        lessRowCount;
+        notNullCount;
+      } -> BetweenRowCount;
+      {
+        outOfRangeEQSelectivity;
+        equalRowCount;
+        BetweenRowCount;
+      }-> GetRowCount;
+      {
+        GetRowCount;
+        getEqualCondSelectivity;
+      }-> getIndexRowCount;
+
+      {
+        getIndexRowCount;
+        GetRowCount;
+        GetIncreaseFactor;
+      } -> result -> GetRowCountByIndexRanges;
+  }
+
+  subgraph cluster_crossEstimateRowCount {
+    graph[label="crossEstimateRowCount";fontsize=20;style="rounded,dashed";color="slategrey"]
+    {
+      GetRowCountByIndexRanges
+      GetRowCountByColumnRanges
+    } -> rangeCount;
+    rangeCount -> crossEstimateRowCount_scanCount;
+    crossEstimateRowCount_scanCount[
+      shape="record";
+      label="{{
+        scanCount|
+          scanCount := rangeCount + expectedCnt - count\l
+      }}"];
+  }
+
+  subgraph cluster_getOriginalPhysicalIndexScan {
+    graph[label="getOriginalPhysicalIndexScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    crossEstimateRowCount_scanCount -> rowCount -> partialCost1;
+    partialCost1[
+      shape="record";
+      label="{{
+        partialCost1|
+	        cost := rowCount * rowSize * sessVars.ScanFactor\l|
+          cost = rowCount * rowSize * sessVars.DescScanFactor\l|
+          TiKV: cost += float64(len(ts.Ranges)) * sessVars.SeekFactor\l|
+          TiDB: cost += float64(len(ts.Ranges)) * float64(len(ts.Columns)) * sessVars.SeekFactor\l
+
+      }}"];
+  }
+
+  subgraph cluster_convertToIndexMergeScan {
+    graph[label="convertToIndexMergeScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    {
+      prop_ExpectedCnt;
+      ds_stats_RowCount;
+      path_CountAfterAccess;
+    } -> totalRowCount;
+    totalRowCount[
+      shape="record";
+      label="{{
+        totalRowCount|
+        totalRowCount *=\l 
+        prop.ExpectedCnt\l 
+        / ds.stats.RowCount\l
+      }}"];
+  }
+
+  subgraph cluster_convertToPartialTableScan {
+    graph[label="convertToPartialTableScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    partialCost1 -> partialCost;
+    rowCount -> partialCost;
+    Selectivity -> partialCost;
+
+    partialCost[
+      shape="record";
+      label="{{
+        partialCost|
+	        partialCost += \l
+          rowCount * sessVars.CopCPUFactor\l|
+          partialCost += \
+          selectivity * rowCount \l 
+          * rowSize * sessVars.NetworkFactor\l
+      }}"];
+  }
+
+
+
+  subgraph cluster_buildIndexMergeTableScan {
+    graph[label="buildIndexMergeTableScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    partialCost[
+      shape="record";
+      label="{{
+        partialCost|
+          partialCost +=\l 
+          totalRowCount *\l 
+          rowSize *\l 
+          sessVars.ScanFactor\l
+      }}"];
+    {
+      totalRowCount;
+      rowSize;
+      sessionVars_ScanFactor;
+    } -> partialCost;
+  }
+
+  subgraph cluster_finishCopTask {
+  graph[label="finishCopTask";fontsize=20;style="rounded,dashed";color="slategrey"]
+    tablePlan[
+      shape="record";
+      label="{{
+        tablePlan|
+	  	  t.cst += t.count() \l
+        * sessVars.NetworkFactor \l
+        * t.tblColHists.GetAvgRowSize(\l
+          ctx, \l
+          t.tablePlan.Schema().Columns,\l
+          false, false)\l
+      }}"];
+    copIterWorkers[
+      shape="record";
+      label="{{
+        copIterWorkers|
+        t.cst /=copIterWorkers
+      }}"];
+    tablePlan -> copIterWorkers[style=dashed];
+  }
+  tablePlan -> cst;
+  copIterWorkers -> cst;
+  partialCost -> coptask_cst -> tablePlan;
+
+}

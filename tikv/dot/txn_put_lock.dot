@@ -1,0 +1,100 @@
+#include "styles.h"
+digraph txn_put_lock {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Command__process_write[style_func;label="{{
+    Command\l
+    process_write\l|
+    处理txn写命令\l
+  }}"]
+
+  Command__process_write -> {
+    TxnHeartBeat_process_write;
+    PreWrite__process_write;
+    CheckSecondaryLocks__process_write;
+    CheckTxnStatus__process_write;
+    ResolveLock__process_write;
+    Rollback__process_write;
+  }
+  ResolveLock__process_write[style_func;label="{{
+    ResolveLock\l
+    process_write\l|
+    resolve lock \l
+    according txn status\l
+  }}"]
+  Rollback__process_write[style_func;label="{{
+    Rollback\l
+    process_write\l
+  }}"]
+  CheckTxnStatus__process_write[style_func;label="{{
+    CheckTxnStatus\l
+    process_write\l
+  }}"]
+  CheckSecondaryLocks__process_write[style_func;label="{{
+    CheckSecondaryLocks\l
+    process_write\l
+  }}"]
+  PreWriter__process_write[style_func;label="{{
+    PreWriter\l
+    process_write\l
+  }}"]
+
+  CheckTxnStatus__process_write -> check_txn_status_lock_exists;
+  cleanup -> check_txn_status_missing_lock;
+  ResolveLock__process_write -> cleanup;
+  Rollback__process_write -> cleanup;
+
+  TxnHeartBeat_process_write[style_func;label="{{
+    TxnHeartBeat::process_write|
+    更新lock.ttl = self.advise_ttl\l
+    更新的是primary key 的lock\l
+  }}"]
+  mark_rollback_on_mismatching_lock[style_func;label="{{
+    mark_rollback_on_mismatching_lock|
+    将事务的start_ts放入\l
+    lock的rollback_ts\l|
+    Add the timestamp of the current \l
+    rollback operation to another\l
+    transaction's lock if necessary.\l
+  }}"]
+
+  check_txn_status_lock_exists[style_func;label="{{
+    check_txn_status_lock_exists|
+    更新primary lock\l
+    的lock.min_comit_ts\l
+  }}"]
+
+  PrewriteMutation__write_lock -> {
+    put_lock;
+    put_locks_for_1pc;
+  }
+
+  TxnHeartBeat_process_write -> {
+    put_lock;
+  }
+
+  acquire_pessimistic_lock -> put_lock;
+
+  check_txn_status_lock_exists -> put_lock;
+  mark_rollback_on_mismatching_lock -> put_lock;
+
+  check_txn_status_missing_lock -> mark_rollback_on_mismatching_lock;
+  CheckSecondaryLocks__process_write -> mark_rollback_on_mismatching_lock;
+  PreWrite__process_write -> PreWriter__process_write -> PreWriter__prewrite -> prewrite -> PrewriteMutation__write_lock;
+  PreWrite__process_write[style_func;label="{{
+    PreWrite\l
+    process_write\l
+  }}"]
+  PreWriter__prewrite[style_func;label="{{
+    PreWriter\l
+    prewrite\l
+  }}"]
+  PrewriteMutation__write_lock[style_func;label="{{
+    PrewriteMutation\l
+    write_lock\l
+  }}"]
+
+}

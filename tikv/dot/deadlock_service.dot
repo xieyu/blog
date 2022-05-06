@@ -1,0 +1,68 @@
+#include "styles.h"
+digraph deadlock_service {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  deadlock_service -> {
+     DeadlockService_new;
+  }
+  DeadlockService_new -> DetectorScheduler;
+  DetectorScheduler -> Detector_run[style_edge_data];
+  Server_register_service[style_func;label="{{
+    Server::register_service|
+    注册创建Deadlock\l 
+    Grpc Service\l
+  }}"]
+  grpc_register_services[style_func;label="{{
+    grpc::register_services|
+    注册grpc service\l
+  }}"]
+  deadlock_service[style_func;label="{{
+    deadlock_service|
+    创建deadlock grpc service\l
+  }}"]
+  DeadlockService_detect[style_func;label="{{
+    DeadlockService::detect|
+    service detect接口\l
+    将Task发送到channel中\l
+    由Detector::run来处理\l
+  }}"]
+  Task_DetectRpc[style_var;label="{{
+    Task::DetectRpc|
+    包含了grpc stream的\l
+    stream和sink\l
+  }}"]
+  DetectorScheduler[style_func;label="{{
+    DetectorScheduler|
+      通过channel发送给Detector\l
+  }}"]
+  Server_register_service -> {
+    create_deadlock;
+    deadlock_service;
+    grpc_register_services;
+  }
+  DeadlockService_detect -> {
+    Task_DetectRpc;
+  };
+
+  Task_DetectRpc -> DetectorScheduler[style_edge_data];
+  Detector_run -> handle_detect_rpc;
+  handle_detect_rpc -> {
+    DetectTable_detect;
+    spawn_local;
+  }
+  Detector_run[style_func;label="{{
+    Detector::run|
+    从channel中取task\l
+    执行task\l
+  }}"]
+  DetectTable_detect[style_func;label="{{
+    DetectTable::detect
+  }}"]
+  handle_detect_rpc[style_func;label="{{
+    handle_detect_rpc\l|
+    处理deadlock detect请求\l
+  }}"]
+}

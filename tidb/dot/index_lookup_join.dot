@@ -1,0 +1,329 @@
+digraph index_lookup_join {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  IndexLookUpJoin -> {
+    Open;
+    Next;
+    Close;
+  }
+  Open -> {
+    startWorkers;
+  }
+  startWorkers[
+    shape="record";
+    label="{{
+      startWorkers|
+      启动innerWorker和OuterWorker\l
+    }}";
+  ];
+
+  startWorkers -> {
+    resultCh;
+    newOuterWorker_run;
+    newInnerWorker_run;
+  }[color="#b83b5e"];
+
+  resultCh[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      resultCh|
+        resultCh chan\<- *lookUpJoinTask
+    }}";
+  ];
+  newOuterWorker_run[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+      newOuterWorker(..).run(..)|
+      goroutine, 一个goroutine worker|
+      1.read N outer rows\l
+      2.build as task\l
+      3. send to resultCh and innerCh\l
+    }}";
+  ];
+  newInnerWorker_run[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+      newInnerWorker(..).run(..)|
+      goroutine, 可以并行N个执行|
+      从innerChan中取task\l|
+      1. receives the task, \l
+      2.builds key ranges from outer rows \l
+      3.fetch inner rows, \l
+      4.builds inner row hash map.\l
+    }}";
+  ];
+  innerCh[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      innerCh|
+      chan *lookupJoinTask\l
+      Len为并发个数\l
+      用于存放lookupJoinTask\l
+    }}";
+  ];
+  newOuterWorker_run -> {
+    buildTask;
+    pushToChan;
+  }
+  pushToChan[
+    shape="record";
+    label="{{
+      pushToChan|
+      分别向innerCh, resultCh放task\l
+      这样保证Next iter时候\l 
+      顺序是一致的\l
+    }}";
+  ];
+  pushToChan -> {
+    innerCh;
+    resultCh;
+  }
+  buildTask[
+    shape="record";
+    label="{{
+      buildTask|
+      builds a lookupJoinTask\l 
+      and read outer rows\l
+    }}";
+  ];
+  buildTask -> {
+    lookUpJoinTask;
+    ow_executor_Next;
+    VectorizedFilter;
+    task_outerResult;
+  };
+  VectorizedFilter[
+    shape="record";
+    label="{{
+      VectorizedFilter|
+      根据outer表的filter做过滤\l
+    }}";
+  ];
+  ow_executor_Next[
+    shape="record";
+    label="{{
+      outworker executor Next|
+      读取Outer rows\l
+      outerrows放到outerResult中\l
+    }}";
+  ];
+
+  newInnerWorker_run -> {
+    handleTask;
+    task_doneCh;
+  }
+  handleTask[
+    shape="record";
+    label="{{
+      handleTask|
+      根据外表的rows, 创建keyRange\l
+      然后从内表中查数据\l
+      最终建立lookupMap\l
+    }}";
+  ];
+  handleTask -> {
+    constructLookupContent;
+    fetchInnerResults;
+    buildLookUpMap;
+  }[color="#f08a5d"];
+
+  fetchInnerResults[
+    shape="record";
+    label="{{
+      fetchInnerResults|
+      取到的数据结果\l
+      放到task_innerResult中\l
+    }}";
+  ];
+
+  fetchInnerResults -> {
+    buildExecutorForIndexJoin;
+    innerExec_Next;
+    task_innerResult;
+  }
+  task_lookupMap[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      task_lookupMap
+    }}";
+  ];
+
+  Next -> {
+    getFinishedTask;
+    lookUpMatchedInners;
+    tryToMatchInners;
+  } [color="#b83b5e"];
+
+  task_matchedInners[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      task_matchedInners\l|
+        matchedInners     []chunk.Row\l
+    }}";
+  ];
+  innerIter[
+    shape="record";
+    label="{{
+      InnerIter|
+      迭代遍历matchedInners
+    }}";
+  ];
+  task_matchedInners -> innerIter[style=dashed];
+  innerIter -> tryToMatchInners[style=dashed];
+  resultCh -> getFinishedTask[style=dashed];
+  task_doneCh -> getFinishedTask[style=dashed];
+
+  getFinishedTask[
+    shape="record";
+    label="{{
+      getFinishedTask|
+      从resultCh中获取task\l
+      然后等待task finish\l|
+      这样保证最后join的顺序和\l
+      outer表中顺序是一致的\l
+    }}";
+  ];
+  constructLookupContent[
+    shape="record";
+    label="{{
+      constructLookupContent|
+      遍历外表中的数据\l 
+      构造inner表取值范围\l
+      对于chunk中每一个row数据\l
+      构造DatumLookupKey
+    }}";
+  ];
+  constructDatumLookupKey[
+    shape="record";
+    label="{{
+      constructDatumLookupKey|
+      遍历rows中的keyCols(要join的column)\l
+      将keycols对应的values放入LoookupKeys\l
+    }}";
+  ];
+
+  constructLookupContent -> {
+    constructDatumLookupKey;
+    encodedLookUpKeys;
+  }
+
+  task_outerResult[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      task.outerResult|
+        outerResult *chunk.List
+    }}";
+  ];
+  task_innerResult[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      task_innerResult|
+        innerResult *chunk.List
+    }}";
+  ];
+  task_lookupMap[
+    shape="record";
+    label="{{
+      task_lookupMap|
+        lookupMap *mvmap.MVMap\l
+    }}";
+  ];
+  lookUpJoinTask[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      lookUpJoinTask|
+        outerResult *chunk.List\l|
+        outerMatch  [][]bool\l|
+        innerResult       *chunk.List\l|
+        lookupMap         *mvmap.MVMap\l|
+        matchedInners     []chunk.Row\l|
+	      doneCh   chan error\l|
+	      cursor   chunk.RowPtr\l|
+	      hasMatch bool
+    }}";
+  ];
+  task_doneCh[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      task_doneCh|
+      doneCh   chan error
+    }}";
+  ];
+  lookUpJoinTask -> {
+    task_lookupMap;
+    task_outerResult;
+    task_innerResult;
+    task_matchedInners;
+    task_doneCh;
+  }[color="#3fc1c9"; style=dashed]
+
+  lookUpContent[
+    shape="record";
+    fillcolor="gray70"
+    style=filled;
+    label="{{
+      lookUpContent|
+      type indexJoinLookUpContent struct\l|
+	      keys    []types.Datum\l
+        row     chunk.Row\l
+        keyCols []int\l
+    }}";
+  ];
+  innerExec_Next[
+    shape="record";
+    label="{{
+      innerExec_Next|
+      遍历在key在lookUpContent中的records\l
+      并将结果放到task的innerResult中\l
+    }}";
+  ];
+
+  lookUpMatchedInners[
+    shape="record";
+    label="{{
+      lookUpMatchedInners|
+      遍历lookupMap建立machtedInners\l
+    }}";
+  ];
+  tryToMatchInners[
+    shape="record";
+    label="{{
+      tryToMatchInners|
+      outerRow和innerIter匹配
+    }}";
+  ];
+
+  {rank=same; Open;Next;Close};
+  edge[style=dashed;color=blue];
+  ow_executor_Next -> task_outerResult->constructLookupContent;
+  constructLookupContent -> lookUpContent -> buildExecutorForIndexJoin -> innerExec_Next;
+  lookUpMatchedInners -> task_matchedInners;
+  task_outerResult -> tryToMatchInners[lable=outRows];
+  task_lookupMap -> lookUpMatchedInners;
+  innerExec_Next -> task_innerResult -> buildLookUpMap -> task_lookupMap;
+  innerCh -> lookUpJoinTask -> newInnerWorker_run;
+  resultCh -> lookUpJoinTask;
+}

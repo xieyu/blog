@@ -1,0 +1,134 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  KVTxn__Commit -> {
+    newTwoPhaseCommitter;
+  }
+
+  newTwoPhaseCommitter -> {
+    twoPhaseCommitter;
+  }
+
+  NewTiKVTxn -> KVTxn__StartTS;
+  KVStore__BeginWithOption -> {
+    NewTiKVTxn;
+    StartTSOption__StartTS;
+    KVStore__getTimestampWithRetry;
+  }
+  StartTSOption__StartTS -> KVTxn__StartTS;
+  KVStore__getTimestampWithRetry -> KVTxn__StartTS;
+  KVStore__Begin -> {
+    KVStore__BeginWithOption;
+    DefaultStartTSOption;
+  }
+
+  KVTxn__StartTS -> twoPhaseCommitter__startTS;
+
+
+  tikvStore__BeginWithOption -> KVStore__BeginWithOption;
+  tikvStore__Begin -> KVStore__Begin;
+
+  session__InitTxnWithStartTS -> tikvStore__BeginWithOption;
+  sessionctx_Context__InitTxnWithStartTS -> session__InitTxnWithStartTS;
+  sessionctx_Context__NewStaleTxnWithStartTS -> session__NewStaleTxnWithStartTS;
+  sessionctx_Context__NewTxn -> session__NewTxn;
+  session__NewStaleTxnWithStartTS -> {
+    tikvStore__BeginWithOption;
+  }
+
+  ExecStmt__buildExecutor -> {
+    sessionctx_Context__InitTxnWithStartTS;
+    math__MaxUint64;
+    IsPointGetWithPKOrUniqueKeyByAutoCommit;
+    GetSessionVars__SnapshotTS;
+  }
+
+  IsPointGetWithPKOrUniqueKeyByAutoCommit -> math__MaxUint64[style_edge_data];
+  math__MaxUint64 -> sessionctx_Context__InitTxnWithStartTS[style_edge_data];
+  GetSessionVars__SnapshotTS -> sessionctx_Context__InitTxnWithStartTS[style_edge_data];
+
+  ExecStmt__PointGet -> {
+    sessionctx_Context__InitTxnWithStartTS;
+    math__MaxUint64;
+  }
+
+  ExecuteExec__Build -> {
+    GetSessionVars__SnapshotTS;
+    math__MaxUint64;
+    sessionctx_Context__InitTxnWithStartTS;
+    IsPointGetWithPKOrUniqueKeyByAutoCommit;
+  }
+
+  SimpleExec__executeBegin -> {
+    sessionctx_Context__NewStaleTxnWithStartTS;
+    sessionctx_Context__NewTxn;
+  }
+  SimpleExec__Next__ast__BeginStmt -> {
+    SimpleExec__executeBegin;
+  }
+  SimpleExec__Next -> {
+   SimpleExec__Next__ast__CommitStmt;
+   SimpleExec__Next__ast__BeginStmt;
+   SimpleExec__Next__ast__RollbackStmt;
+  }
+  SimpleExec__Next__ast__RollbackStmt -> {
+    SimpleExec__executeRollback;
+  }
+
+  SimpleExec__Next__ast__CommitStmt -> {
+    SimpleExec__executeCommit;
+  }
+  SimpleExec__executeCommit -> GetSessionVars__SetInTxn__false;
+
+  SimpleExec__staleTxnStartTS -> {
+    sessionctx_Context__NewStaleTxnWithStartTS;
+  }
+
+  SimpleExec__executeRollback -> {
+   GetSessionVars__TxnCtx__ClearDelta;
+   GetSessionVars__SetInTxn__false
+   KVTxn__Rollback;
+  }
+
+  KVTxn__Rollback -> {
+    KVTxn__rollbackPessimisticLocks;
+    KVTxn__close;
+    ttlManager__close;
+  }
+  KVTxn__close -> KVTxn__valid;
+
+  session__NewTxn -> {
+    tikvStore__BeginWithOption;
+  }
+
+  PlanBuilder__buidSimple__ast__BeginStmt -> {
+    GetSessionVars__TxnReadTs__PeakTxnReadTS;
+    GetSessionVars__TxnReadTS__UseTxnReadTS;
+    calculateTsExpr;
+  }
+  {
+    GetSessionVars__TxnReadTs__PeakTxnReadTS;
+    calculateTsExpr;
+  } -> SimpleExec__staleTxnStartTS[style_edge_data];
+
+
+  //rank
+  {
+    rank=same;
+    ExecStmt__PointGet;
+    ExecuteExec__Build;
+    ExecStmt__buildExecutor;
+  }
+
+
+  StartTSOption[style_func;label="{{
+    StartTSOption\l
+	  TxnScope string
+	  StartTS  *uint64
+  }}"]
+  DefaultStartTSOption -> StartTSOption;
+}

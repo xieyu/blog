@@ -1,0 +1,63 @@
+digraph execute_query {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Interpreters {
+    graph[label="Interpreters";fontsize=20;];
+    executeQuery -> executeQueryImpl;
+    executeQuery[
+      shape="record";
+      label="{{
+        executeQuery|
+        执行SQL query\l
+        返回结果为BlockIO\l
+      }}";
+    ];
+    executeQueryImpl -> {
+      makeQueryContext;
+      parseQuery;
+      InterpreterSetQuery;
+      logQuery;
+      initializeExternalTablesIfSet;
+      tryFindInputFunction;
+      executeTableFunction;
+      execute;
+      setInsertionTable;
+      InterpreterFactory_get;
+    }[color="#b83b5e"];
+
+    InterpreterFactory_get[
+      shape="record";
+      label="{{
+        InterpreterFactory_get|
+        根据ast创建响应的interpreter\l
+      }}";
+    ];
+    execute[
+      shape="record";
+      label="{{
+        execute|
+        执行SQL语句对应的interpreter\l
+      }}";
+    ];
+    parseQuery[
+      shape="record";
+      label="{{
+        parseQuery|
+        将query解析为AST
+      }}";
+    ];
+    execute -> {
+      InterpreterInsertQuery_execute;
+      InterpreterCreateQuery_execute;
+      InterpreterSelectQuery_execute;
+    }
+    InterpreterSelectQuery_execute -> {
+      buildQueryPlan;
+      buildQueryPipeline;
+    }
+    parseQuery -> InterpreterFactory_get[style=dashed;color=gray50;];
+    InterpreterFactory_get -> execute[style=dashed;color=gray50;];
+  }
+}

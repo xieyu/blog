@@ -1,0 +1,93 @@
+
+#include "styles.h"
+digraph cookie {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  http__header__SET_COOKIE[style_func;label="{{
+    http::header::SET_COOKIE\l|
+    set-cookie\l
+  }}"];
+
+  trait__FromRequest;
+
+  RequestParts -> UserIdFromSession__from_request;
+  RequestParts[style_func;label="{{
+    RequestParts\l|
+    method: Method,\l|
+    uri: Uri,\l|
+    version: Version,\l|
+    headers: Option\<HeaderMap\>,\l|
+    extensions: Option\<Extensions\>\l|
+    body: Option\<B\>,\l
+  }}"];
+
+  UserIdFromSession__from_request -> {
+    Extension__MemoryStore__from_request;
+    TypedHeader;
+    Cookie;
+    MemoryStore;
+    AXUM_SESSION_COOKIE_NAME;
+    SessionStore__store_session;
+    CreatedFreshUserId;
+    SessionStore__load_session;
+  }
+  trait__FromRequest -> UserIdFromSession__from_request[style_edge_data];
+
+  SessionStore -> {
+    load_session;
+    store_session;
+    destroy_session;
+    clear_store;
+  }
+  MemoryStore -> SessionStore[label="impl"];
+
+  TypedHeader[style_func;label="{{
+    TypedHeader\l|
+    pub struct TypedHeader\<T\>\l
+  }}"];
+
+  Cookie[style_func;label="{{
+    Cookie\l|
+    pub struct Cookie(FlatCsv\<SemiColon\>)\l
+  }}"];
+
+  MemoryStore[style_func;label="{{
+    MemoryStore\l|
+    inner: Arc\<RwLock\<HashMap\<String, Session\>\>\>,
+  }}"];
+
+  MemoryStore -> Session;
+  Session[style_func;label="{{
+    Session\l|
+    id: String,\l|
+    expiry: Option\<DateTime\<Utc\>\>,\l|
+    data: Arc\<RwLock\<HashMap\<String, String\>\>\>,\l|
+    cookie_value: Option\<String\>,\l|
+    data_changed: Arc\<AtomicBool\>,\l|
+    destroy: Arc\<AtomicBool\>,\l
+  }}"];
+
+  RequestParts -> {
+    HeaderMap;
+    Extensions;
+  }
+
+  Extensions[style_func;label="{{
+    Extensions\l|
+    map: Option\<Box\<AnyMap\>\>,\l
+  }}"];
+
+  HeaderMap[style_func;label="{{
+    HeaderMap\l|
+    mask: Size,\l|
+    indices: Box\<[Pos]\>,\l|
+    entries: Vec\<Bucket\<T\> ,\l|
+    extra_values: Vec\<ExtraValue\<T\>\>,\l|
+    danger: Danger\l
+  }}"];
+
+}

@@ -1,0 +1,190 @@
+#include "styles.h"
+digraph PeerFsmDelegate__on_ready_split_region_new_region {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate__on_ready_split_region -> {
+     PeerStorage__clear_extra_split_data;
+     PeerFsm__create;
+     PollContext__global_replication_state;
+     Peer__insert_peer_cache;
+     Region__get_peers;
+     Peer__maybe_campaign;
+     Peer__hearbeat_pd;
+     Peer__activate;
+     StoreMeta__region_ranges__insert;
+     StoreMeta__regions__insert;
+     StoreMeta__readers__insert;
+     BasicMailbox__new;
+     ReadDelegate__from_peer;
+     RaftRouter__register;
+     RaftRouter__force_send__PeerMsg__Start;
+     StoreMeta__pending_msg;
+  }
+  PeerFsm__create ->  ReadDelegate__from_peer -> StoreMeta__readers__insert[style_edge_data];
+  BasicMailbox__new -> RaftRouter__register[style_edge_data];
+  RaftRouter__force_send__PeerMsg__Start -> PeerFsmDelegate__start;
+  RaftRouter__force_send__PeerMsg__Start[style_func;label="{{
+    RaftRouter\l
+    force_send\l
+    PeerMsg::Start|
+    发送Start消息给\l
+    PeerFsm\l
+  }}"]
+  PeerFsmDelegate__start[style_func;label="{{
+    PeerFsmDelegate\l
+    start\l|
+    开始各周期性的\l
+    tick和check\l
+  }}"]
+  BasicMailbox__new[style_func;label="{{
+    BasicMailbox__new|
+    创建新的PeerFsm对应的\l
+    Mailbox\l
+  }}"]
+  RaftRouter__register[style_func;label="{{
+    RaftRouter\l
+    register\l|
+    将mailbox注册\l
+    RaftRouter上\l
+  }}"]
+  Peer__activate -> {
+    ApplyRouter__schedule_task__ApplyTask__register;
+  }
+  Region__get_peers -> Peer__insert_peer_cache[style_edge_data];
+
+  Peer__hearbeat_pd[style_func;label="{{
+    Peer\l
+    heartbeat_pd\l|
+    如果当前节点是leader\l
+    新创建的peer向pd发起\l
+    hearbeat\l
+  }}"]
+  PeerFsm__create[style_func;label="{{
+    PeerFsm::create|
+    创建新region的PeerFsm\l
+  }}"]
+
+  Peer__maybe_campaign[style_func;label="{{
+    Peer\l
+    maybe_campaign\l|
+    如果new region peers \>1\l
+    且parent 为leader\l
+    则发起campaign\l
+  }}"]
+  Peer__maybe_campaign -> RawNode__campaign;
+  RawNode__campaign[style_func;label="{{
+    RawNode\l
+    campaign\l|
+    新的region\l
+    开始竞选投票\l
+  }}"]
+  StoreMeta[style_var;label="{{
+    StoreMeta|
+    <region_ranges> pub region_ranges:\l
+    BTreeMap\<Vec\<u8\>, u64\>,\l|
+    <regions> pub regions: \l
+    HashMap\<u64, Region\>,\l|
+    <readers> pub readers:\l
+    HashMap\<u64, ReadDelegate\>,\l
+  }}"]
+  ReadDelegate__from_peer[style_func;label="{{
+    ReadDelegate\l
+    from_peer\l|
+    创建peer对应的ReadDelegate\l
+    用于后续的LocalReader\l
+  }}"]
+  StoreMeta__readers__insert[style_func;label="{{
+    StoreMeta\l
+    readers\l
+    insert\l|
+    插入到readers\l
+  }}"]
+  StoreMeta__region_ranges__insert[style_func;label="{{
+    StoreMeta\l
+    region_ranges\l
+    insert\l|
+    插入到region_ranges\l
+  }}"]
+  StoreMeta__regions__insert[style_func;label="{{
+    StoreMeta\l
+    regions\l
+    insert\l|
+    插到regions中\l
+  }}"]
+  StoreMeta__readers__insert -> StoreMeta:readers;
+  StoreMeta__region_ranges__insert -> StoreMeta:region_ranges;
+  StoreMeta__regions__insert -> StoreMeta:regions;
+  PeerFsm__create-> {
+    BasicMailbox__new
+    Peer__activate;
+    Peer__hearbeat_pd;
+    Peer__maybe_campaign;
+    Peer__insert_peer_cache;
+  }[style_edge_data];
+
+  RaftRouter__register -> RaftRouter__force_send__PeerMsg__Start[style_edge_data];
+
+  Peer__activate[style_func;label="{{
+    Peer\l
+    activate\l|
+    register self to \l
+    apply scheduler\l
+    Aslo trigger \l
+    RegionChangeEvent::Create
+  }}"]
+  ApplyRouter__schedule_task__ApplyTask__register[style_func;label="{{
+    ApplyRouter\l
+    schedule_task\l
+    ApplyTask::register(self)|
+    创建ApplyFsm以及mailbox\l
+    然后注册到apply router上\l
+  }}"]
+
+  ApplyRouter__schedule_task__ApplyTask__register -> {
+    ApplyFsm__from_registration;
+    BasicMailbox__new2;
+    ApplyRouter__register;
+  }
+  ApplyFsm__from_registration[style_blue1;label="{{
+    ApplyFsm\l
+    from_registration\l|
+    创建ApplyFsm, 以及向\l
+    它发消息的tx\l
+  }}"]
+  BasicMailbox__new2[style_func;label="{{
+    BasicMailbox\l
+    new|
+    将sender包装为mailbox\l
+  }}"]
+  ApplyRouter__register[style_func;label="{{
+    ApplyRouter\l
+    register\l|
+    将mailbox注册到\l
+    ApplyRouter上\l
+  }}"]
+  BasicMailbox__new2 -> ApplyRouter__register;
+  ApplyFsm__from_registration -> ApplyFsmDelegate__from_registration;
+
+  ApplyFsmDelegate__from_registration[style_func;label="{{
+    ApplyFsmDelegate\l
+    from_registration\l|
+    新建ApplyFsmDelegate\l
+  }}"]
+  PeerFsmDelegate__on_ready_split_region[style_func;label="{{
+    PeerFsmDelegate\l
+    on_ready_split_region\l|
+    创建新的region对应的\l
+    PeerFsm和ApplyFsm\l
+  }}"]
+
+  PeerStorage__clear_extra_split_data[style_func;label="{{
+    PeerStorage\l
+    clear_extra_split_data\l|
+    Delete all extra split data\l
+    from start_key to end_key
+  }}"]
+}
+

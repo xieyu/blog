@@ -1,0 +1,40 @@
+digraph executor_nodelay_next {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_inert {
+    graph[label="executor/xxx.go";fontsize=20;];
+      InsertExec_Next[label="InsertExec.Next"];
+      DeleteExec_Next[label="DeleteExec.Next"];
+      UpdateExec_Next[label="UpdateExec.Next"];
+      ReplaceExec_Next[label="ReplaceExec.Next"];
+      LoadDataExec_Next[label="LoadDataExec.Next"];
+      DDLExec_Next[label="DDLExec.Next"];
+  }
+  subgraph cluster_executor {
+    graph[label="executor/executor.go";fontsize=20;];
+    Next -> {
+      InsertExec_Next;
+      DeleteExec_Next;
+      UpdateExec_Next;
+      ReplaceExec_Next;
+      LoadDataExec_Next;
+      DDLExec_Next;
+    };
+  }
+
+  subgraph cluster_executor_adapter {
+    graph[label="executor/adapter.go";fontsize=20;];
+    subgraph cluster_ExecStmt {
+      graph[label="ExecStmt";fontsize=20;];
+      Exec -> {
+        buildExecutor;
+        handleNoDelay;
+      };
+
+      handleNoDelay -> handleNoDelayExecutor;
+      handleNoDelayExecutor -> Next;
+    }
+  }
+}

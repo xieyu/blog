@@ -1,0 +1,129 @@
+#include "styles.h"
+digraph tikv_call_raft_rs {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RawNode {
+    graph[label="RawNode";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RawNode_tick;
+    RawNode_propose;
+    RawNode_step;
+    RawNode_ready;
+    RawNode_advance_append;
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Peer_step;
+    Peer_propose;
+    Peer_read_index;
+    Peer_post_raft_ready_append;
+    handle_raft_ready_append;
+    handle_raft_ready_advance;
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_raft_base_tick;
+    on_tick;
+    on_check_merge;
+    on_raft_gc_log_tick;
+    on_hash_computed;
+    on_casual_msg;
+    on_ready_result;
+    on_apply_res;
+    on_ready_prepare_merge;
+    on_significant_msg;
+    on_leader_callback;
+    on_capture_change;
+    on_raft_message;
+    rollback_merge;
+    propose_batch_raft_command;
+    propose_raft_command;
+    PeerFsmDelegate_start;
+    PeerFsmDelegate_handle_msgs;
+    PeerFsmDelegate_post_raft_ready_append;
+    collect_ready;
+  }
+
+  subgraph cluster_RaftPoller {
+    graph[label="RaftPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RaftPoller_handle_normal;
+    RaftPoller_handle_raft_ready;
+    RaftPoller_end;
+  }
+
+
+  PeerFsmDelegate_handle_msgs -> on_tick -> on_raft_base_tick -> RawNode_tick;
+  Peer_read_index -> propose_normal;
+  propose_raft_command -> Peer_propose -> propose_normal -> RawNode_propose
+  {
+    PeerFsmDelegate_handle_msgs;
+    propose_batch_raft_command;
+    on_capture_change;
+    on_leader_callback;
+    rollback_merge;
+    on_raft_gc_log_tick;
+    on_hash_computed;
+  }->propose_raft_command;
+
+  PeerFsmDelegate_handle_msgs -> propose_batch_raft_command;
+
+  PeerFsmDelegate_handle_msgs -> on_raft_message -> Peer_step -> RawNode_step
+  Poller_poll -> {
+    RaftPoller_end;
+    RaftPoller_handle_normal;
+  }
+  RaftPoller_handle_normal -> {
+    PeerFsmDelegate_handle_msgs;
+    collect_ready;
+  }
+  collect_ready -> handle_raft_ready_append -> RawNode_ready;
+  RaftPoller_end -> RaftPoller_handle_raft_ready;
+  RaftPoller_handle_raft_ready -> PeerFsmDelegate_post_raft_ready_append;
+  PeerFsmDelegate_post_raft_ready_append -> {
+    Peer_post_raft_ready_append;
+    handle_raft_ready_append;
+    handle_raft_ready_advance;
+  }
+
+  handle_raft_ready_advance -> RawNode_advance_append;
+
+  on_significant_msg -> {
+    on_capture_change;
+    on_leader_callback;
+  }
+  on_casual_msg -> {
+    on_hash_computed;
+    on_raft_gc_log_tick;
+  }
+  on_tick -> {
+    on_raft_gc_log_tick;
+    on_check_merge;
+  }
+  on_check_merge -> {
+    rollback_merge;
+  }
+  PeerFsmDelegate_start -> {
+    on_check_merge;
+  }
+  on_ready_prepare_merge -> {
+    on_check_merge;
+  }
+  on_ready_result -> {
+    on_ready_prepare_merge;
+  }
+
+  on_apply_res -> {
+    on_ready_result;
+  }
+
+  PeerFsmDelegate_handle_msgs -> {
+    on_significant_msg;
+    on_casual_msg;
+    PeerFsmDelegate_start;
+    on_apply_res;
+  }
+  Peer_propose -> Peer_read_index;
+}

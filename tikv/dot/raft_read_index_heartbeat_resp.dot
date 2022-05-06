@@ -1,0 +1,63 @@
+#include "styles.h"
+digraph heartbeat_resp {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RaftCore__handle_heartbeat_response[style_func;label="{{
+    RaftCore\l
+    handle_heartbeat_response\l|
+    处理follower的heartbeat\l
+    response\l|
+    根据ctx找到对应的\l
+    ReadIndexStatus\l
+  }}"]
+
+  RaftCore__handle_ready_read_index[style_func;label="{{
+    RaftCore\l
+    handle_ready_read_index\l|
+    ready index ok了\l
+    放入read_states\l
+    或者发MsgReadIndexResp给\l
+    MgsReadIndex发送者\l
+  }}"]
+
+  RaftCore__handle_heartbeat_response -> {
+    ReadOnly__recv_ack;
+    ProgressTracker__has_quorum;
+    ReadOnly__advance;
+    RaftCore__handle_ready_read_index
+  }
+  ReadOnly__recv_ack[style_func;label="{{
+    ReadOnly__recv_ack|
+    根据ctx找对应的\l
+    ReadIndexStatus\l
+    更新其中的acks\l
+  }}"]
+  ReadIndexStatus[style_func;label="{{
+    ReadIndexStatus|\l|
+    pub req: Message,\l|
+    pub index: u64,\l|
+    <acks> pub acks: HashSet\<u64\>,\l
+  }}"]
+  ReadOnly__recv_ack -> ReadIndexStatus:acks;
+  ReadIndexStatus:acks -> ProgressTracker__has_quorum[style_edge_data];
+  ProgressTracker__has_quorum[style_func;label="{{
+    ProgressTracker__has_quorum|
+    查看是否收到了大部的\l
+    hearbeat resp\l
+  }}"]
+
+  ReadOnly__recv_ack -> {
+    ReadOnly__pending_read_index;
+  }
+
+  ProgressTracker__has_quorum -> ReadOnly__advance -> RaftCore__handle_ready_read_index[style_edge_data];
+
+  RaftCore__handle_ready_read_index-> {
+    RaftCore__read_states;
+    MsgReadIndexResp;
+    RaftCore__send;
+  }
+
+}

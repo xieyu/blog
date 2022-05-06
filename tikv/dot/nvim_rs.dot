@@ -1,0 +1,190 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  //links
+  create__tokio__new_parent -> {
+    Neovim__new;
+    stdin__compat;
+    stdout__compat_write;
+    handler;
+    tokio__spawn;
+  }
+
+  Neovim__new -> {
+    Neovim;
+    impl__Future;
+    futures__channel__mpsc__unbounded;
+    Neovim__io_loop;
+    Neovim__handler_loop;
+    future__try_join;
+  }
+
+  Neovim -> {
+    BufWriter;
+    Queue;
+    AtomicU64;
+  }
+
+  Neovim__io_loop -> {
+     model__decode__await;
+     RcpMessage__RpcResponse;
+     find_sender;
+     future__send;
+     sender_send;
+  }
+  model__decode__await -> {
+    RpcMessage;
+    RpcMessage__RcpResponse;
+  }
+  RpcMessage -> future__send;
+
+  RcpMessage__RpcResponse -> find_sender -> future__send;
+
+  stdin__compat -> Reader -> Neovim__io_loop;
+  stdout__compat_write -> Writer;
+  Writer -> {
+    Write__all;
+    Write__flush;
+    model__encode;
+  }
+
+  future__try_join -> {
+    Neovim__handler_loop;
+    Neovim__io_loop
+  }[style_edge_data];
+
+
+  RpcMessage -> {
+    RpcRequest;
+    RpcResponse;
+    RpcNotification;
+  }
+
+  futures__channel__mpsc__unbounded -> {
+    Sender;
+    Receiver;
+  }
+  Sender -> Neovim__io_loop;
+  Receiver -> Neovim__handler_loop;
+  sender_send -> reciver__await[style_edge_data];
+
+  future__send -> reciver__await[style_edge_data];
+  Receiver__next__await -> {
+    Handler__hanlde_request__await;
+    Handler__handle_notify__await;
+  }
+  Handler__hanlde_request__await -> model__encode[style_edge_data];
+
+  neovim__api__rs -> {
+    Neovim__exttypes__Buffer;
+    Neovim__exttypes__Window;
+    Neovim__exttypes__TabPage;
+  } -> Neovim__call;
+
+  Neovim__handler_loop -> {
+    Receiver__next__await;
+    Handler__spawn;
+  }
+
+  Handler__spawn -> {
+     Handler__hanlde_request__await;
+     Handler__handle_notify__await;
+     model__encode;
+  }
+  model__encode -> {
+    Write__all;
+    Write__flush;
+  }
+
+
+  Neovim__call -> {
+    Neovim__send_msg__await;
+    reciver__await;
+    oneshot__channel;
+  }
+  Neovim__send_msg__await -> reciver__await[style_edge_data];
+  Neovim__send_msg__await -> {
+    onshot__channel;
+    RpcMessage__RpcRequest;
+    model__encode;
+    Neovim__Queue__push;
+  }
+  oneshot__channel -> {reciver__await; sender}[style_edge_data];
+  sender -> Neovim__Queue__push[style_edge_data];
+
+  find_sender -> Neovim__Queue__remove;
+
+  {
+    Neovim__Queue__push
+    Neovim__Queue__remove;
+  } -> Neovim__Queue;
+
+  //ank
+  {
+    rank=same;
+    Neovim__handler_loop;
+    Neovim__io_loop;
+  }
+  {
+    rank=same;
+    Writer;
+    Reader;
+  }
+
+  {rank=same;create__tokio__new_parent;neovim__api__rs};
+
+
+ //nodes
+  create__tokio__new_parent[style_func;label="{{
+    create.rs/tokio\l
+    new_parent\l|
+    Connect to th neovim instance\l
+    that spawn this process\l
+    over stdin\l
+    stdout\l
+  }}"]
+
+  Neovim[style_func;label="{{
+    Neovim__new\l
+      pub(crate) writer: Arc\<Mutex\<BufWriter\<W\>\>\>,\l|
+      pub(crate) queue: Queue,\l|
+      pub(crate) msgid_counter: Arc\<AtomicU64\>,\l
+  }}"]
+
+  RpcMessage[style_func;label="{{
+    RpcMessage\l
+    msgid: u64,\l|
+    method: String,\l|
+    params: Vec\<Value\>,\l
+  }}"]
+
+  RpcResponse[style_func;label="{{
+    RpcResponse\l|
+    msgid: u64,\l|
+    error: Value,\l|
+    result: Value,\l
+  }}"]
+
+  RpcNotification[style_func;label="{{
+    RpcNotification\l
+    method: String,\l|
+    params: Vec\<Value\>,\l
+  }}"]
+
+
+  neovim__api__rs[style_func;label="{{
+    nvovim_api.rs\l
+    对neovim api调用\l
+  }}"]
+
+  AtomicU64[style_func;label="{{
+    AtomicU64\l|
+    用于生成唯一的\l
+    msg_id\l
+  }}"]
+
+}

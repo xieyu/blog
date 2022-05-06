@@ -1,0 +1,95 @@
+#include "styles.h"
+digraph propose {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RaftCore__step_leader -> {
+     RaftCore__append_entry;
+     RaftCore__bcast_append;
+     RaftCore__handle_append_response;
+  }
+
+  RaftCore__append_entry[style_func;label="{{
+    RaftCore__append_entry|
+    将log entry append到leader\l
+    的raft log 上\l
+  }}"]
+  RaftCore__bcast_append[style_func;label="{{
+    RaftCore__bcast_append|
+    向progress tracker中的\l
+    所有Pr发送AppendMsg\l
+  }}"]
+
+  RaftCore__bcast_append -> {
+     RaftCore__send_append;
+  }
+  RaftCore__send_append -> {
+     RaftCore__maybe_send_append;
+  }
+  RaftCore__maybe_send_append[style_blue1;label="{{
+    RaftCore__maybe_send_append|
+    根据follower的Progress\l
+    发送log entry或者snapshot给\l
+    follower\l
+  }}"]
+  RaftCore__maybe_send_append -> {
+    Progress__next_idx;
+    RaftCore__prepare_send_snapshot;
+    RaftCore__prepare_send_entries;
+    RaftCore__try_batching;
+    Progress__pending_request_snapshot;
+  }
+
+  Progress__next_idx[style_var;label="{{
+    Progress__next_idx|
+    决定了leader该从哪个log index\l
+    发送日志给follower\l
+  }}"]
+  RaftCore__handle_append_response[style_func;label="{{
+    RaftCore__handle_append_response|
+    处理follower的append response\l
+    follower 可能reject了leader的AppendMsg\l
+    重新计算follower pr的next_idx\l
+    重新发送消息\l
+  }}"]
+  Progress__maybe_decr_to[style_func;label="{{
+    Progress__maybe_decr_to|
+    根据follower的reject_hint\l
+    重新计算pr的next_idx\l
+  }}"]
+  Progress__become_probe[style_func;label="{{
+    Progress__become_probe|
+    进入probe状态\l
+  }}"]
+  Progress__optimistic_update[style_func;label="{{
+    Progress__optimistic_update|
+    乐观的更新下一次开始要\l
+    发送的Log entry的idx\l
+  }}"]
+  Progress__maybe_decr_to -> {
+    Progress__become_probe;
+    Progress__pending_request_snapshot;
+  }
+  Progress__pending_request_snapshot[style_var;label="{{
+    Progress__pending_request_snapshot|
+    follower log entry落后太多了\l
+    需要leader发送snapshot过来\l
+  }}"]
+
+  RaftCore__handle_append_response -> {
+    Progress__maybe_decr_to;
+    RaftCore__send_append;
+    Progress__become_probe;
+  }
+
+  RaftCore__try_batching -> Progress__update_state;
+  RaftCore__prepare_send_entries -> Progress__update_state;
+  //next idx
+  Progress__update_state -> {
+    Progress__optimistic_update;
+  }
+
+  Progress__optimistic_update -> Progress__next_idx;
+  Progress__maybe_decr_to -> Progress__next_idx;
+}

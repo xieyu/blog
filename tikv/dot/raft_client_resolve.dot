@@ -1,0 +1,142 @@
+#include "styles.h"
+digraph reaft_client_resolve {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_significant_msg;
+  }
+
+  subgraph cluster_RaftStoreRouter {
+    graph[label="RaftStoreRouter";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    //>router.rs:87 fn report_resolved(&self, store_id: u64, group_id: u64) {#F/opt/github/tikv/components/raftstore/src/router.rs#L87
+    RaftStoreRouter_report_resolved[style_func;label="{{
+      report_resolved|
+      Report a StoreResolved event\l
+      to all raft groups\l
+    }}"]
+    RaftStoreRouter_report_resolved -> {
+      broadcast_normal;
+    }
+    broadcast_normal[style_func;label="{{
+      broadcast_normal|
+      SignificantMsg::StoreResolved\l
+    }}"]
+    broadcast_normal -> on_significant_msg[style_edge_data];
+  }
+
+  subgraph cluster_resolver {
+    graph[label="resolver.rs/Runner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //>resolve.rs:52 struct Runner<T, RR>#F/opt/github/tikv/src/server/resolve.rs#L52
+    Runner[style_func;label="{{
+      Runner|
+      pd_client: Arc\<T\>,\l|
+      <store_addrs> store_addrs: HashMap\<u64, StoreAddr\>,\l|
+      state: Arc\<Mutex\<GlobalReplicationState\>\>,\l|
+      router: RR,\l
+    }}"]
+    resolve[style_func;label="{{
+      resolve|
+      先从store_addrs本地cache中取addr\l
+      失败的调用get_address去pd server\l
+      获取addr地址，然后保存到cache中\l
+    }}"]
+
+    start_impl -> run;
+    run -> {
+      task_cb;
+      resolve;
+    }
+    start_impl[style_func;label="{{
+      start_impl|
+      spawn线程\l
+      在线程while循环中\l
+      从rx中获取task\l
+      然后调用run 执行task.cb
+    }}"]
+    task_cb[style_func;label="{{
+      task_cb|
+      解析完毕后调用\l
+      task的回调\l
+    }}"]
+
+    resolve -> {
+      get_address;
+      store_addrs_get;
+      store_addrs_insert;
+    }
+    store_addrs_get[style_func;label="{{
+      store_addrs.get|
+      从缓存中获取store addr\l
+      如果超过了refresh 时间\l
+      就是用pd_client去pd server\l
+      重新解析store addr\l
+    }}"]
+    store_addrs_insert[style_func;label="{{
+      store_addrs.insert|
+      将store地址和当前时间\l
+      戳插入缓存中\l
+    }}"]
+    {store_addrs_get;store_addrs_insert;} -> Runner:store_addrs[style_edge_data];
+
+    get_address -> {
+      PDClient_get_store;
+      RaftStoreRouter_report_resolved;
+      state_status_get_mode;
+      StoreGroup_register_store;
+      group_id
+      take_peer_address;
+    }
+    StoreGroup_register_store[style_func;label="{{
+      StoreGroup\n
+      register_store|
+      Registers the store \l
+      with given label\l
+      value
+    }}"]
+    get_store -> {
+      take_peer_address;
+      register_store
+    }[style_edge_data];
+
+    take_peer_address[style_func;label="{{
+      take_peer_address|
+      返回peer addr
+    }}"]
+
+    take_peer_address -> store_addrs_insert[style_edge_data];
+    resolve -> task_cb;
+  }
+
+  subgraph cluster_PdStoreResolver {
+    graph[label="PdStoreResolver";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PdStoreAddrResolver[style_func;label="{{
+      PdStoreAddrResolver|
+      sched: Scheduler\<Task\>\l|
+      使用tx发消息给runner\l
+    }}"]
+    PdStoreAddrResolver -> tx -> start_impl[style_edge_data];
+    PdStoreAddrResolver_resolve -> tx;
+    PdStoreAddrResolver_resolve[style_func;label="{{
+      resolve|
+      将Task\{store_id, cb\}发送给tx\l
+    }}"]
+  }
+  StreamBackEnd_resolve -> PdStoreAddrResolver_resolve;
+  StreamBackEnd_resolve[style_func;label="{{
+    StreamBackEnd\n
+    resolve
+  }}"]
+  task_cb -> oneshot_channel;
+  oneshot_channel[style_blue1;label="{{
+    oneshot::channel|
+    store addr解析完毕\l
+    回调中使用\l
+    oneshot::channel的tx\
+    触发rx.await\l
+  }}"]
+}

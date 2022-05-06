@@ -1,0 +1,559 @@
+digraph dbInterface {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  ReadOptions[
+    shape="record";
+    label="{{
+      ReadOptions|
+      bool verify_checksums\l|
+      bool fill_cache \l|
+      <snapshot> const Snapshot* snapshot\l
+    }}";
+  ];
+  ReadOptions:snapshot -> Snapshot;
+  WriteOptions[
+    shape="record";
+    label="{{
+      WriteOptions|
+      bool sync = false;
+    }}";
+  ];
+  Options[
+    shape="record";
+    label="{{
+      Options|
+        const Comparator* comparator;\l|
+        bool create_if_missing = false;\l|
+        bool error_if_exists = false;\l|
+        bool paranoid_checks = false;\l|
+        <env> Env* env;\l|
+        Logger* info_log = nullptr;\l|
+        size_t write_buffer_size = 4 * 1024 * 1024;\l|
+        int max_open_files = 1000;\l|
+        Cache* block_cache = nullptr;\l|
+        int block_restart_interval = 16;\l|
+        size_t max_file_size = 2 * 1024 * 1024;\l|
+        CompressionType compression = kSnappyCompression;\l|
+        bool reuse_logs = false;\l|
+        const FilterPolicy* filter_policy = nullptr\l;
+    }}";
+  ];
+  Options:env -> Env;
+  subgraph cluster_Options {
+    graph[label="Options";fontsize=20;style=rounded];
+    Options;
+    WriteOptions;
+    ReadOptions;
+    WriteBatch;
+  };
+
+
+
+  WriteBatch[
+    shape="record";
+    label="{{
+      WriteBatch|
+      std::string rep_;
+    }}";
+  ];
+
+  DB[
+    shape="record";
+    label="{{
+      DB|
+      <open> static Status Open(const Options& options, const std::string& name, DB** dbptr)\l|
+      <put> virtual Status Put(const WriteOptions& options, const Slice& key,
+                     const Slice& value) = 0;\l|
+      <delete> virtual Status Delete(const WriteOptions& options, const Slice& key) = 0;\l|
+      <write> virtual Status Write(const WriteOptions& options, WriteBatch* updates) = 0;\l|
+      <get> virtual Status Get(const ReadOptions& options, const Slice& key, std::string* value) = 0;\l|
+      <newIter> virtual Iterator* NewIterator(const ReadOptions& options) = 0;\l|
+      virtual const Snapshot* GetSnapshot() = 0;\l|
+      virtual void ReleaseSnapshot(const Snapshot* snapshot) = 0;\l|
+      virtual bool GetProperty(const Slice& property, std::string* value) = 0;\l|
+      virtual void GetApproximateSizes(const Range* range, int n,
+                                   uint64_t* sizes) = 0;\l|
+      virtual void CompactRange(const Slice* begin, const Slice* end) = 0;\l
+    }}";
+  ];
+  //DB
+  DB -> DBImpl;
+  DB:open -> Options;
+  {DB:put;DB:delete;DB:write} -> WriteOptions;
+  {DB:get;DB:newIter} -> ReadOptions;
+  {DB:write} -> WriteBatch;
+
+  DBImpl[
+    shape="record";
+    label="{{
+      DBImpl|
+      <env> Env* const env_;\l|
+      const InternalKeyComparator internal_comparator_;\l|
+      const InternalFilterPolicy internal_filter_policy_;\l|
+      <options> const Options options_;\l|
+      const bool owns_info_log_;\l|
+      const bool owns_cache_;\l|
+      const std::string dbname_;\l|
+      <TableCache> TableCache* const table_cache_;\l|
+      FileLock* db_lock_;\l|
+      port::Mutex mutex_;\l|
+      std::atomic<bool> shutting_down_;\l|
+      port::CondVar background_work_finished_signal_ GUARDED_BY(mutex_);\l|
+      <MemTable1> MemTable* mem_;\l|
+      <MemTable2> MemTable* imm_ GUARDED_BY(mutex_);\l|
+      std::atomic<bool> has_imm_;\l|
+      <logfile> WritableFile* logfile_;\l|
+      uint64_t logfile_number_ GUARDED_BY(mutex_);\l|
+      log::Writer* log_;\l|
+      uint32_t seed_ GUARDED_BY(mutex_);\l|
+      std::deque<Writer*> writers_ GUARDED_BY(mutex_);\l|
+      <WriteBatch> WriteBatch* tmp_batch_ GUARDED_BY(mutex_);\l|
+      <SnapshotList> SnapshotList snapshots_ GUARDED_BY(mutex_);\l|
+      std::set<uint64_t> pending_outputs_ GUARDED_BY(mutex_);\l|
+      bool background_compaction_scheduled_ GUARDED_BY(mutex_);\l|
+      ManualCompaction* manual_compaction_ GUARDED_BY(mutex_);\l|
+      <VersionSet> VersionSet* const versions_ GUARDED_BY(mutex_);\l|
+      Status bg_error_ GUARDED_BY(mutex_);\l|
+      CompactionStats stats_[config::kNumLevels] GUARDED_BY(mutex_);\l
+    }}";
+  ];
+  DBImpl:env -> Env;
+  DBImpl:options -> Options;
+  DBImpl:logfile -> WritableFile;
+  DBImpl:WriteBatch -> WriteBatch;
+  DBImpl:MemTable1 -> MemTable;
+  DBImpl:MemTable2 -> MemTable;
+  DBImpl:TableCache -> TableCache;
+  DBImpl:SnapshotList -> SnapshotList;
+  DBImpl:VersionSet -> VersionSet;
+
+  //env
+  Env[
+    shape="record";
+    label="{{
+      Env|
+        static Env* Default();\l|
+        <SequentialFile> virtual Status NewSequentialFile(const std::string& fname,
+                                   SequentialFile** result) = 0;\l|
+        <RandomAccessFile> virtual Status NewRandomAccessFile(const std::string& fname,
+                                     RandomAccessFile** result) = 0;\l|
+
+        <WritableFile> virtual Status NewWritableFile(const std::string& fname,
+                                 WritableFile** result) = 0;\l|
+
+        <WritableFile> virtual Status NewAppendableFile(const std::string& fname,
+                                   WritableFile** result);\l|
+
+        virtual bool FileExists(const std::string& fname) = 0;\l|
+
+        virtual Status GetChildren(const std::string& dir,
+              std::vector<std::string>* result) = 0;\l|
+
+        virtual Status RemoveFile(const std::string& fname);\l|
+        virtual Status DeleteFile(const std::string& fname);\l|
+        virtual Status CreateDir(const std::string& dirname) = 0;\l|
+        virtual Status RemoveDir(const std::string& dirname);\l|
+        virtual Status DeleteDir(const std::string& dirname);\l|
+        virtual Status GetFileSize(const std::string& fname, uint64_t* file_size) = 0;\l|
+        virtual Status RenameFile(const std::string& src,
+                                  const std::string& target) = 0;\l|
+        virtual Status LockFile(const std::string& fname, FileLock** lock) = 0;\l|
+        virtual Status UnlockFile(FileLock* lock) = 0;\l|
+        virtual void Schedule(void (*function)(void* arg), void* arg) = 0;\l|
+        virtual void StartThread(void (*function)(void* arg), void* arg) = 0;\l|
+        virtual Status GetTestDirectory(std::string* path) = 0;\l|
+        <logger> virtual Status NewLogger(const std::string& fname, Logger** result) = 0;\l|
+        virtual uint64_t NowMicros() = 0;\l|
+        virtual void SleepForMicroseconds(int micros) = 0;\l|
+    }}";
+  ];
+  SequentialFile[
+    shape="record";
+    label="{{
+      SequentialFile|
+        virtual Status Read(size_t n, Slice* result, char* scratch) = 0;\l|
+        virtual Status Skip(uint64_t n) = 0;\l
+    }}";
+  ];
+  RandomAccessFile[
+    shape="record";
+    label="{{
+      RandomAccessFile|
+        virtual Status Read(uint64_t offset, size_t n, Slice* result,
+            char* scratch) const = 0;\l
+    }}";
+  ];
+  WritableFile[
+    shape="record";
+    label="{{
+      WritableFile|
+        virtual Status Append(const Slice& data) = 0;\l|
+        virtual Status Close() = 0;\l|
+        virtual Status Flush() = 0;\l|
+        virtual Status Sync() = 0;\l
+    }}";
+  ];
+  Logger[
+    shape="record";
+    label="{{
+      Logger|
+      virtual void Logv(const char* format, va_list ap) = 0;\l
+    }}";
+  ];
+  Env:SequentialFile -> SequentialFile;
+  Env:WritableFile -> WritableFile;
+  Env:RandomAccessFile -> RandomAccessFile;
+  Env:logger -> Logger;
+  subgraph cluster_Env {
+    graph[label="Env";fontsize=20;style=rounded];
+    Env;
+    SequentialFile;
+    WritableFile;
+    RandomAccessFile;
+    Logger;
+  };
+
+  MemTable[
+    shape="record";
+    label="{{
+      MemTable|
+        void Add(SequenceNumber seq, ValueType type, const Slice& key,
+            const Slice& value);\l|
+        bool Get(const LookupKey& key, std::string* value, Status* s);\l|
+      KeyComparator comparator_;\l|
+      int refs\l|
+      Arena arena_\l|
+      <Table> Table table_\l
+    }}";
+  ];
+  MemTable:Table -> SkipList;
+
+  TableCache[
+    shape="record";
+    label="{{
+      TableCache|
+        Iterator* NewIterator(const ReadOptions& options, uint64_t file_number,\l
+                        uint64_t file_size, Table** tableptr = nullptr);\l|
+        Status Get(const ReadOptions& options, uint64_t file_number,\l
+             uint64_t file_size, const Slice& k, void* arg,\l
+             void (*handle_result)(void*, const Slice&, const Slice&));\l|
+        void Evict(uint64_t file_number);\l|
+      <env> Env* const env_;\l|
+      const std::string dbname_;\l|
+      <options> const Options& options_;\l|
+      <cache> Cache* cache_;\l
+    }}";
+  ];
+  TableCache -> Table;
+  TableCache:env -> Env;
+  TableCache:options -> Options;
+  TableCache:cache -> Cache;
+  Cache[
+    shape="record";
+    label="{{
+      Cache|
+        virtual Handle* Insert(const Slice& key, void* value, size_t charge)\l|
+        void (*deleter)(const Slice& key, void* value)) = 0;\l|
+        virtual Handle* Lookup(const Slice& key) = 0;\l|
+        virtual void Release(Handle* handle) = 0;\l|
+        virtual void* Value(Handle* handle) = 0;\l|
+        virtual void Erase(const Slice& key) = 0;\l|
+        virtual uint64_t NewId() = 0;\l|
+        virtual void Prune() \l|
+        virtual size_t TotalCharge() const = 0;\l
+    }}";
+  ];
+
+  Cache -> ShardedLRUCache;
+  ShardedLRUCache[
+    shape="record";
+    label="{{
+      ShardedLRUCache|
+      <LRUCache> LRUCache shard_[kNumShards]\l|
+      port::Mutex id_mutex_;\l|
+      uint64_t last_id_;\l|
+    }}";
+  ];
+
+  ShardedLRUCache:LRUCache -> LRUCache;
+  LRUCache[
+    shape="record";
+    label="{{
+      LRUCache|
+        size_t capacity_;\l|
+      mutable port::Mutex mutex_;\l|
+      size_t usage_ GUARDED_BY(mutex_);\l|
+      <LRUHandle1> LRUHandle lru_ GUARDED_BY(mutex_);\l|
+      <LRUHandle2> LRUHandle in_use_ GUARDED_BY(mutex_);\l|
+      <HandleTable> HandleTable table_ GUARDED_BY(mutex_);\l
+    }}";
+  ];
+  LRUCache:HandleTable -> HandleTable;
+  {LRUCache:LRUHandle1; LRUCache:LRUHandle2} -> LRUHandle;
+
+  HandleTable[
+    shape="record";
+    label="{{
+      HandleTable|
+        uint32_t length_;\l|
+        uint32_t elems_;\l|
+        <LRUHandle> LRUHandle** list_;\l
+    }}";
+  ];
+  HandleTable:LRUHandle -> LRUHandle;
+
+  LRUHandle[
+    shape="record";
+    label="{{
+      LRUHandle|
+      void* value;
+      void (*deleter)(const Slice&, void* value);\l|
+      LRUHandle* next_hash;\l|
+      LRUHandle* next;\l|
+      LRUHandle* prev;\l|
+      size_t charge; \l|
+      size_t key_length;\l|
+      bool in_cache;\l|
+      uint32_t refs;\l|
+      uint32_t hash;\l|
+      char key_data[1];\l
+    }}";
+  ];
+  subgraph cluster_Cache {
+    graph[label="Cache";fontsize=20;style=rounded];
+    Cache;
+    LRUCache;
+    LRUHandle;
+    HandleTable;
+    ShardedLRUCache;
+    TableCache;
+  };
+
+    MemTable;
+  subgraph cluster_Table {
+    graph[label="Table";fontsize=20;style=rounded];
+    Table_Rep;
+    Table;
+  };
+
+  Table[
+    fillcolor="#f38181"
+    style=filled;
+    shape="record";
+    label="{{
+      Table|
+      有序map，字符串到字符串的映射\l
+      不可变的，持久化的，线程安全的\l
+     static Status Open(const Options& options, RandomAccessFile* file,
+                        uint64_t file_size, Table** table);\l|
+     Iterator* NewIterator(const ReadOptions&) const;\l|
+     uint64_t ApproximateOffsetOf(const Slice& key) const;\l|
+     static Iterator* BlockReader(void*, const ReadOptions&, const Slice&);\l|
+     explicit Table(Rep* rep) \l|
+     Status InternalGet(const ReadOptions&, const Slice& key, void* arg,\l
+                        void (*handle_result)(void* arg, const Slice& k,\l
+                                              const Slice& v));\l|
+     <ReadMeta> void ReadMeta(const Footer& footer);\l|
+     void ReadFilter(const Slice& filter_handle_value);\l|
+     <Rep> Rep* const rep_;\l
+    }}";
+  ];
+  Table:Rep -> Table_Rep;
+  Table:ReadMeta -> Footer;
+  Table:ReadMeta -> BlockContents;
+
+  Table_Rep[
+    shape="record";
+    label="{{
+      Rep|
+      Options options;\l|
+      Status status;\l|
+      RandomAccessFile* file;\l|
+      uint64_t cache_id;\l|
+      <FilterBlockReader> FilterBlockReader* filter;\l|
+      const char* filter_data;\l|
+      <BlockHandle> BlockHandle metaindex_handle;\l|
+      <Block> Block* index_block;\l
+    }}";
+  ];
+  Table_Rep:FilterBlockReader -> FilterBlockReader;
+  Table_Rep:Block -> Block;
+  Table_Rep:BlockHandle -> BlockHandle;
+  Block[
+    shape="record";
+    label="{{
+      Block|
+      const char* data_;\l|
+      size_t size_;\l|
+      uint32_t restart_offset_; \l|
+      bool owned_;\l
+    }}";
+  ];
+  BlockHandle[
+    shape="record";
+    label="{{
+      BlockHandle|
+        void EncodeTo(std::string* dst) const;\l|
+        Status DecodeFrom(Slice* input);\l|
+        uint64_t offset_;\l|
+        uint64_t size_;\l
+    }}";
+  ];
+  BlockContents[
+    shape="record";
+    label="{{
+      BlockContents|
+      Slice data\l|
+      bool cachable;\l|
+      bool heap_allocated\l
+    }}";
+  ];
+
+  FilterBlockReader[
+    shape="record";
+    label="{{
+      FilterBlockReader|
+        FilterBlockReader(const FilterPolicy* policy, const Slice& contents);\l|
+        bool KeyMayMatch(uint64_t block_offset, const Slice& key);\l|
+        <FilterPolicy> const FilterPolicy* policy_;\l|
+        const char* data_;\l|
+        const char* offset_;\l|
+        size_t num_;\l|
+        size_t base_lg_\l
+    }}";
+  ];
+  FilterBlockReader:FilterPolicy -> FilterPolicy;
+
+  FilterPolicy[
+    shape="record";
+    label="{{
+      FilterPolicy|
+        virtual const char* Name() const = 0;\l|
+        virtual void CreateFilter(const Slice* keys, int n,
+                            std::string* dst) const = 0;\l|
+        virtual bool KeyMayMatch(const Slice& key, const Slice& filter) const = 0;\l
+    }}";
+  ];
+  FilterPolicy -> BloomFilterPolicy;
+  BloomFilterPolicy[
+    shape="record";
+    label="{{
+      BloomFilterPolicy|
+        size_t bits_per_key_;
+        size_t k_;
+    }}";
+  ];
+  Footer[
+    shape="record";
+    label="{{
+      Footer|
+      <BlockHandle> BlockHandle metaindex_handle\l|
+      BlockHandle index_handle\l
+    }}";
+  ];
+  Footer:BlockHandle -> BlockHandle;
+
+  subgraph cluster_format {
+    graph[label="format";fontsize=20;style=rounded];
+    BlockHandle;
+    Footer;
+    BlockContents;
+    Block;
+  };
+
+  // Table;
+  SnapshotList[
+    shape="record";
+    label="{{
+      SnapshotList|
+      <SnapshotImpl> SnapshotImpl head_\l
+    }}";
+  ];
+  SnapshotList:SnapshotImpl -> SnapshotImpl;
+  Snapshot[
+    shape="record";
+    label="{{
+      Snapshot|
+      ~Snapshot\l
+    }}";
+  ];
+  SnapshotImpl[
+    shape="record";
+    label="{{
+      SnapshotImpl|
+      const SequenceNumber sequence_number_\l|
+      SnapshotImpl* prev_;\l|
+      SnapshotImpl* next_;\l
+    }}";
+  ];
+  Snapshot -> SnapshotImpl;
+  subgraph cluster_Snapshot {
+    graph[label="Snapshot";fontsize=20;style=rounded];
+    Snapshot;
+    SnapshotImpl;
+    SnapshotList;
+  };
+
+  VersionSet[
+    shape="record";
+    label="{{
+      VersionSet|
+      Env* const env_;\l|
+      const std::string dbname_;\l|
+      const Options* const options_;\l|
+      <TableCache> TableCache* const table_cache_;\l|
+      const InternalKeyComparator icmp_;\l|
+      uint64_t next_file_number_;\l|
+      uint64_t manifest_file_number_;\l|
+      uint64_t last_sequence_;\l|
+      uint64_t log_number_;\l|
+      uint64_t prev_log_number_;\l|
+
+      // Opened lazily
+      WritableFile* descriptor_file_;\l|
+      log::Writer* descriptor_log_;\l|
+      Version dummy_versions_;\l|
+      <Version> Version* current_;\l|
+      std::string compact_pointer_[config::kNumLevels];\l
+    }}";
+  ];
+
+  VersionSet:TableCache -> TableCache;
+  VersionSet:Version -> Version;
+  Version[
+    shape="record";
+    label="{{
+      Version|
+      VersionSet* vset\l|
+      Version* next_\l|
+      Version* prev_\l|
+      int refs_\l|
+      <FileMetaData> std::vector\<FileMetaData*\> files_[config::kNumLevels];\l|
+      <FileMetaData> FileMetaData* file_to_compact_;\l|
+      int file_to_compact_level_;\l|
+      double compaction_score_;\l|
+      int compaction_level_;\l
+    }}";
+  ];
+  Version:FileMetaData -> FileMetaData;
+  FileMetaData[
+    shape="record";
+    label="{{
+      FileMetaData|
+      int refs;\l|
+      int allowed_seeks;\l|
+      uint64_t number;\l|
+      uint64_t file_size;\l|
+      InternalKey smallest;\l|
+      InternalKey largest;\l
+    }}";
+  ];
+
+  subgraph cluster_VersionSet {
+    graph[label="VersionSet";fontsize=20;style=rounded];
+    Version;
+    VersionSet;
+    FileMetaData;
+  };
+}

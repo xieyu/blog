@@ -1,0 +1,101 @@
+#include "styles.h"
+digraph raftsnapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RaftSnapshotData[style_func;label="{{
+    RaftSnapshotData|
+    metapb.Region region = 1;\l|
+    uint64 file_size = 2;\l|
+    repeated KeyValue data = 3;\l|
+    uint64 version = 4;\l|
+    SnapshotMeta meta = 5;\l
+  }}"]
+  KeyValue[style_func;label="{{
+    KeyValue|
+    bytes key      = 1;\l|
+    bytes value    = 2;\l
+  }}"]
+  SnapshotMeta[style_func;label="{{
+    SnapshotMeta|
+    repeated SnapshotCFFile cf_files = 1;\l|
+    bool for_balance = 2;\l
+  }}"]
+
+  RaftSnapshotData -> {
+    Region;
+    KeyValue;
+    SnapshotMeta;
+  }
+
+  SnapshotMeta -> {
+    SnapshotCFFile;
+  }
+  SnapshotCFFile[style_func;label="{{
+    SnapshotCFFile|
+    string cf = 1;\l|
+    uint64 size = 2;\l|
+    uint32 checksum = 3;\l
+  }}"]
+
+  Snapshot[style_func;label="{{
+    Snapshot|
+    bytes data = 1;\l|
+    SnapshotMetadata metadata = 2;\l
+  }}"]
+
+  Snapshot -> SnapshotMetadata;
+  SnapshotMetadata[style_func;label="{{
+    SnapshotMetadata|
+    ConfState conf_state = 1;\l|
+    uint64 index = 2;\l|
+    uint64 term = 3;\l
+  }}"]
+
+  SnapshotMetadata -> ConfState;
+  ConfState[style_func;label="{{
+    ConfState|
+    repeated uint64 voters = 1;\l|
+    repeated uint64 learners = 2;\l|
+    repeated uint64 voters_outgoing = 3;\l|
+    repeated uint64 learners_next = 4;\l|
+    bool auto_leave = 5;\l
+  }}"]
+  SnapshotCFFile -> CfFile[style_edge_data];
+  CfFile[style_blue1;label="{{
+    CfFile|
+    pub cf: CfName,\l|
+    pub path: PathBuf,\l|
+    pub tmp_path: PathBuf,\l|
+    pub clone_path: PathBuf,\l|
+    file_for_sending: Option\<Box\<dyn Read + Send\>\>,\l|
+    file_for_recving: Option\<CfFileForRecving\>,\l|
+    pub kv_count: u64,\l|
+    pub size: u64,\l|
+    pub checksum: u32,\l
+  }}"]
+  MetaFile[style_blue1;label="{{
+    MetaFile|
+    pub meta: SnapshotMeta,\l|
+    pub path: PathBuf,\l|
+    pub file: Option\<File\>,\l|
+    pub tmp_path: PathBuf,\l
+  }}"]
+  MetaFile -> SnapshotMeta;
+  Snap -> {
+    MetaFile;
+    CfFile;
+  }
+  Snap[style_func;label="{{
+    Snap|
+    key: SnapKey,\l|
+    display_path: String,\l|
+    dir_path: PathBuf,\l|
+    cf_files: Vec\<CfFile\>,\l|
+    cf_index: usize,\l|
+    meta_file: MetaFile,\l|
+    hold_tmp_files: bool,\l|
+    mgr: SnapManagerCore,\l
+  }}"]
+}

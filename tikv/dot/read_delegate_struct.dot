@@ -1,0 +1,94 @@
+#include "styles.h"
+digraph read_delegate_struct {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  StoreMeta[style_func;label="{{
+    StoreMeta|
+    region_id -\> reader\l|
+    pub readers: \l
+    HashMap\<u64, ReadDelegate\>,\l
+  }}"]
+  LocalReader[style_func;label="{{
+    LocalReader|
+    store_id: Cell\<Option\<u64\>\>,\l|
+    store_meta: Arc\<Mutex\<StoreMeta\>\>,\l|
+    kv_engine: E,\l|
+    metrics: ReadMetrics,\l|
+    delegates: \l
+    LruCache\<u64, Arc\<ReadDelegate\>\>,\l|
+    snap_cache: Option\<Arc\<E::Snapshot\>\>,\l|
+    cache_read_id: ThreadReadId,\l|
+    router: C,\l
+  }}"]
+  LocalReader -> {
+    ReadDelegate;
+    StoreMeta;
+  }
+
+  StoreMeta -> {
+    ReadDelegate;
+  }
+  ReadDelegate -> {
+    Region;
+    RemoteLease;
+    Timespec;
+    TxnExtraOp;
+    TrackVer;
+  }
+  TrackVer[style_func;label="{{
+    TrackVer\l|
+    version: Arc\<AtomicU64\>,\l|
+    local_ver: u64,\l|
+    source: bool,\l
+  }}"]
+  RemoteLease[style_func;label="{{
+    RemoteLease|
+    expired_time: Arc\<AtomicU64\>,\l|
+    term: u64,\l
+  }}"]
+  Timespec[style_func;label="{{
+    Timespec|
+    pub sec: i64\l|
+    pub nsec: i32\l
+  }}"]
+  TxnExtraOp[style_blue1;label="{{
+    TxnExtraOp|
+    Noop = 0,\l|
+    ReadOldValue = 1,\l
+  }}"]
+  ReadDelegate[style_func;label="{{
+    ReadDelegate|
+    region: Arc\<metapb::Region\>,\l|
+    peer_id: u64,\l|
+    term: u64,\l|
+    applied_index_term: u64,\l|
+    leader_lease: Option\<RemoteLease\>,\l|
+    last_valid_ts: Timespec,\l|
+    tag: String,\l|
+    pub txn_extra_op: \l
+    Arc\<AtomicCell\<TxnExtraOp\>\>,\l|
+    max_ts_sync_status: Arc\<AtomicU64\>,\l|
+    track_ver: TrackVer,\l
+  }}"]
+
+  Lease[style_func;label="{{
+    Lease|
+    bound: Option\<Either\<Timespec, Timespec\>\>,\l|
+    max_lease: Duration,\l|
+    max_drift: Duration,\l|
+    last_update: Timespec,\l|
+    remote: Option\<RemoteLease\>,\l
+  }}"]
+  Lease -> RemoteLease;
+  Peer -> Lease;
+  Peer[style_func;label="{{
+    Peer|
+    pending_reads: \l
+    ReadIndexQueue\<EK::Snapshot\>,\l|
+    leader_lease: Lease,\l
+  }}"]
+
+}

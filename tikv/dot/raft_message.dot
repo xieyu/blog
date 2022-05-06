@@ -1,0 +1,168 @@
+#include "styles.h"
+digraph raft_message {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftMessage[style_func;label="{{
+    RaftMessage|
+    uint64 region_id = 1;\l|
+    metapb.Peer from_peer = 2;\l|
+    metapb.Peer to_peer = 3;\l|
+    eraftpb.Message message = 4;\l|
+    metapb.RegionEpoch region_epoch = 5;\l|
+    bool is_tombstone = 6;\l|
+    bytes start_key = 7;\l|
+    bytes end_key = 8;\l|
+    metapb.Region merge_target = 9;\l|
+    ExtraMessage extra_msg = 10;\l|
+    bytes extra_ctx = 11;\l
+  }}"]
+
+  RaftMessage -> {
+     Message;
+     RegionEpoch;
+     Region;
+     ExtraMessage;
+     Peer;
+  }
+
+  Message[style_func;label="{{
+    Message|
+    MessageType msg_type = 1;\l|
+    uint64 to = 2;\l|
+    uint64 from = 3;\l|
+    uint64 term = 4;\l|
+    uint64 log_term = 5;\l|
+    uint64 index = 6;\l|
+    repeated Entry entries = 7;\l|
+    uint64 commit = 8;\l|
+    Snapshot snapshot = 9;\l|
+    uint64 request_snapshot = 13;\l|
+    bool reject = 10;\l|
+    uint64 reject_hint = 11;\l|
+    bytes context = 12;\l|
+    uint64 priority = 14;\l
+  }}"];
+
+  Message -> {
+    Entry;
+    Snapshot;
+    MessageType;
+  }
+  Entry[style_func;label="{{
+    Entry|
+    EntryType entry_type = 1;\l|
+    uint64 term = 2;\l|
+    uint64 index = 3;\l|
+    bytes data = 4;\l|
+    bytes context = 6;\l|
+    bool sync_log = 5;\l
+  }}"]
+
+  Entry -> EntryType;
+  EntryType[style_blue1;label="{{
+    EntryType|
+    EntryNormal = 0;\l|
+    EntryConfChange = 1;\l
+    EntryConfChangeV2 = 2;
+  }}"]
+
+
+
+
+  Snapshot[style_func;label="{{
+    Snapshot|
+    bytes data = 1;\l|
+    SnapshotMetadata metadata = 2;\l
+  }}"]
+  Snapshot -> {
+     SnapshotMetadata;
+  }
+  SnapshotMetadata[style_func;label="{{
+    SnapshotMetadata|
+    ConfState conf_state = 1;\l|
+    uint64 index = 2;\l|
+    uint64 term = 3;\l
+  }}"]
+  SnapshotMetadata -> {
+     ConfState;
+  }
+  ConfState[style_func;label="{{
+    ConfState|
+    repeated uint64 voters = 1;\l|
+    repeated uint64 learners = 2;\l|
+    repeated uint64 voters_outgoing = 3;\l|
+    repeated uint64 learners_next = 4;\l|
+    bool auto_leave = 5;\l
+  }}"]
+
+  RegionEpoch[style_func;label="{{
+    RegionEpoch|
+    uint64 conf_ver = 1;\l|
+    uint64 version = 2;\l
+  }}"]
+  Region[style_func;label="{{
+    Region|
+    uint64 id = 1;\l|
+    bytes start_key = 2;\l|
+    bytes end_key = 3;\l|
+    RegionEpoch region_epoch = 4;\l|
+    repeated Peer peers = 5;\l|
+    encryptionpb.EncryptionMeta encryption_meta = 6;\l
+  }}"]
+  Region -> RegionEpoch;
+  ExtraMessage[style_func;label="{{
+    ExtraMessage|
+    ExtraMessageType type = 1;\l|
+    uint64 premerge_commit = 2;\l|
+    repeated metapb.Peer check_peers = 3;\l
+  }}"]
+  ExtraMessageType[style_blue1;label="{{
+    enum ExtraMessageType|
+    MsgRegionWakeUp = 0;\l|
+    MsgWantRollbackMerge = 1;\l|
+    MsgCheckStalePeer = 2;\l|
+    MsgCheckStalePeerResponse = 3;\l|
+    MsgHibernateRequest = 4;\l|
+    MsgHibernateResponse = 5;\l
+  }}"]
+  ExtraMessage ->  ExtraMessageType;
+  Peer[style_func;label="{{
+    Peer|
+    uint64 id = 1;\l|
+    uint64 store_id = 2;\l|
+    PeerRole role = 3;\l
+  }}"]
+  Peer -> PeerRole;
+  PeerRole[style_blue1;label="{{
+    enum PeerRole|
+    Voter = 0;\l|
+    Learner = 1;\l|
+    IncomingVoter = 2;\l|
+    DemotingVoter = 3;\l
+  }}"]
+  MessageType[style_blue1;label="{{
+    enum MessageType|
+    MsgHup = 0;\l|
+    MsgBeat = 1;\l|
+    MsgPropose = 2;\l|
+    MsgAppend = 3;\l|
+    MsgAppendResponse = 4;\l|
+    MsgRequestVote = 5;\l|
+    MsgRequestVoteResponse = 6;\l|
+    MsgSnapshot = 7;\l|
+    MsgHeartbeat = 8;\l|
+    MsgHeartbeatResponse = 9;\l|
+    MsgUnreachable = 10;\l|
+    MsgSnapStatus = 11;\l|
+    MsgCheckQuorum = 12;\l|
+    MsgTransferLeader = 13;\l|
+    MsgTimeoutNow = 14;\l|
+    MsgReadIndex = 15;\l|
+    MsgReadIndexResp = 16;\l|
+    MsgRequestPreVote = 17;\l|
+    MsgRequestPreVoteResponse = 18;\l
+  }}"]
+}

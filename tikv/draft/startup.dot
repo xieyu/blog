@@ -1,0 +1,216 @@
+digraph startup {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_tikv_server {
+    graph[label="tikv_server";fontsize=20;];
+    run_tikv -> {
+      initial_logger;
+      log_tikv_info;
+      log_quota;
+      pre_start;
+      TiKVServer_init;
+      Monitor_default;
+      check_conflict_addr;
+      init_fs;
+      init_yatp;
+      init_encryption;
+      init_engines;
+      init_gc_worker;
+      init_servers;
+      register_services;
+      init_metrics_flusher;
+      run_server;
+      run_status_server;
+      wait_for_signal
+      tikv_stop;
+    }
+
+    init_engines -> {
+      get_env;
+      build_shared_cache;
+      raft_db_path;
+      build_cf_opts;
+      new_compaction_listener;
+      add_event_listener;
+      rocks_util_newengine_opt
+      engine_Engines_new;
+      LocalReader_new;
+      ServerRaftStoreRouter_new;
+      cfg_controller_register;
+      RaftKv_new;
+    }
+  }
+  TiKVServer[
+    shape="record";
+    label="{{
+      TiKVServer|
+        <TiKvConfig> config: TiKvConfig\l|
+        cfg_controller: Option\<ConfigController\>\l|
+        security_mgr: Arc\<SecurityManager\>\l|
+        pd_client: Arc\<RpcClient\>\l|
+        router: RaftRouter\<RocksEngine\>\l|
+        system: Option\<RaftBatchSystem\>\l|
+        resolver: resolve::PdStoreAddrResolver\l|
+        state: Arc\<Mutex\<GlobalReplicationState\>\>\l|
+        store_path: PathBuf\l|
+        encryption_key_manager: Option\<Arc\<DataKeyManager\>\>\l|
+        engines: Option\<Engines\>\l|
+        servers: Option\<Servers\>\l|
+        region_info_accessor: RegionInfoAccessor\l|
+        coprocessor_host: Option\<CoprocessorHost\<RocksEngine\>\>\l|
+        to_stop: Vec\<Box\<dyn Stop\>\>\l|
+        lock_files: Vec\<File\>\l
+    }}";
+  ];
+  TiKVServer:TiKvConfig -> TiKvConfig;
+  TiKvConfig[
+    shape="record";
+    label="{{
+      TiKvConfig|
+    pub cfg_path: String\l|
+    pub log_level: slog::Level\l|
+    pub log_file: String\l|
+    pub slow_log_file: String\l|
+    pub slow_log_threshold: ReadableDuration\l|
+    pub log_rotation_timespan: ReadableDuration\l|
+    pub log_rotation_size: ReadableSize\l|
+    pub panic_when_unexpected_key_or_data: bool\l|
+    pub readpool: ReadPoolConfig\l|
+    <ServerConfig> pub server: ServerConfig\l|
+    <StorageConfig> pub storage: StorageConfig\l|
+    <PdConfig> pub pd: PdConfig\l|
+    pub metric: MetricConfig\l|
+    pub raft_store: RaftstoreConfig\l|
+    pub coprocessor: CopConfig\l|
+    pub rocksdb: DbConfig\l|
+    pub raftdb: RaftDbConfig\l|
+    pub security: SecurityConfig\l|
+    pub import: ImportConfig\l|
+    pub pessimistic_txn: PessimisticTxnConfig\l
+    }}";
+  ];
+
+  TiKvConfig:ServerConfig -> ServerConfig;
+  TiKvConfig:PdConfig -> PdConfig;
+
+  ServerConfig[
+    shape="record";
+    label="{{
+      ServerConfig|
+    pub cluster_id: u64\l|
+    pub addr: String\l|
+    pub advertise_addr: String\l|
+    pub status_addr: String\l|
+    pub status_thread_pool_size: usize\l|
+    pub max_grpc_send_msg_len: i32\l|
+    pub grpc_compression_type: GrpcCompressionType\l|
+    pub grpc_concurrency: usize\l|
+    pub grpc_concurrent_stream: i32\l|
+    pub grpc_raft_conn_num: usize\l|
+    pub grpc_memory_pool_quota: ReadableSize\l|
+    pub grpc_stream_initial_window_size: ReadableSize\l|
+    pub grpc_keepalive_time: ReadableDuration\l|
+    pub grpc_keepalive_timeout: ReadableDuration\l|
+    pub concurrent_send_snap_limit: usize\l|
+    pub concurrent_recv_snap_limit: usize\l|
+    pub end_point_recursion_limit: u32\l|
+    pub end_point_stream_channel_size: usize\l|
+    pub end_point_batch_row_limit: usize\l|
+    pub end_point_stream_batch_row_limit: usize\l|
+    pub end_point_enable_batch_if_possible: bool\l|
+    pub end_point_request_max_handle_duration: ReadableDuration\l|
+    pub end_point_max_concurrency: usize\l|
+    pub snap_max_write_bytes_per_sec: ReadableSize\l|
+    pub snap_max_total_size: ReadableSize\l|
+    pub stats_concurrency: usize\l|
+    pub heavy_load_threshold: usize\l|
+    pub heavy_load_wait_duration: ReadableDuration\l|
+    pub enable_request_batch: bool\l|
+    pub request_batch_enable_cross_command: bool\l|
+    pub request_batch_wait_duration: ReadableDuration\l|
+    pub labels: HashMap\<String, String\>\l|
+    pub end_point_concurrency: Option\<usize\>\l|
+    pub end_point_stack_size: Option\<ReadableSize\>\l|
+    pub end_point_max_tasks: Option\<usize\>\l
+    }}";
+  ];
+
+  TiKvConfig:StorageConfig -> StorageConfig;
+  StorageConfig[
+    shape="record";
+    label="{{
+      StorageConfig|
+    pub sync_log: bool\l|
+    pub prevote: bool\l|
+    pub raftdb_path: String\l|
+    pub capacity: ReadableSize\l|
+    pub raft_base_tick_interval: ReadableDuration\l|
+    pub raft_heartbeat_ticks: usize\l|
+    pub raft_election_timeout_ticks: usize\l|
+    pub raft_min_election_timeout_ticks: usize\l|
+    pub raft_max_election_timeout_ticks: usize\l|
+    pub raft_max_size_per_msg: ReadableSize\l|
+    pub raft_max_inflight_msgs: usize\l|
+    pub raft_entry_max_size: ReadableSize\l|
+    pub raft_log_gc_tick_interval: ReadableDuration\l|
+    pub raft_log_gc_threshold: u64\l|
+    pub raft_log_gc_count_limit: u64\l|
+    pub raft_log_gc_size_limit: ReadableSize\l|
+    pub raft_entry_cache_life_time: ReadableDuration\l|
+    pub raft_reject_transfer_leader_duration: ReadableDuration\l|
+    pub split_region_check_tick_interval: ReadableDuration\l|
+    pub region_split_check_diff: ReadableSize\l|
+    pub region_compact_check_interval: ReadableDuration\l|
+    pub clean_stale_peer_delay: ReadableDuration\l|
+    pub region_compact_check_step: u64\l|
+    pub region_compact_min_tombstones: u64\l|
+    pub region_compact_tombstones_percent: u64\l|
+    pub pd_heartbeat_tick_interval: ReadableDuration\l|
+    pub pd_store_heartbeat_tick_interval: ReadableDuration\l|
+    pub snap_mgr_gc_tick_interval: ReadableDuration\l|
+    pub snap_gc_timeout: ReadableDuration\l|
+    pub lock_cf_compact_interval: ReadableDuration\l|
+    pub lock_cf_compact_bytes_threshold: ReadableSize\l|
+    pub notify_capacity: usize\l|
+    pub messages_per_tick: usize\l|
+    pub max_peer_down_duration: ReadableDuration\l|
+    pub max_leader_missing_duration: ReadableDuration\l|
+    pub abnormal_leader_missing_duration: ReadableDuration\l|
+    pub peer_stale_state_check_interval: ReadableDuration\l|
+    pub leader_transfer_max_log_lag: u64\l|
+    pub snap_apply_batch_size: ReadableSize\l|
+    pub consistency_check_interval: ReadableDuration\l|
+    pub report_region_flow_interval: ReadableDuration\l|
+    pub raft_store_max_leader_lease: ReadableDuration\l|
+    pub right_derive_when_split: bool\l|
+    pub allow_remove_leader: bool\l|
+    pub merge_max_log_gap: u64\l|
+    pub merge_check_tick_interval: ReadableDuration\l|
+    pub use_delete_range: bool\l|
+    pub cleanup_import_sst_interval: ReadableDuration\l|
+    pub local_read_batch_size: u64\l|
+    pub apply_max_batch_size: usize\l|
+    pub apply_pool_size: usize\l|
+    pub store_max_batch_size: usize\l|
+    pub store_pool_size: usize\l|
+    pub future_poll_size: usize\l|
+    pub hibernate_regions: bool\l|
+    pub early_apply: bool\l|
+    pub region_max_size: ReadableSize\l|
+    pub region_split_size: ReadableSize\l|
+    pub perf_level: PerfLevel\l|
+    }}"
+  ]
+  PdConfig[
+    shape="record";
+    label="{{
+      PdConfig|
+        pub endpoints: Vec\<String\>\l|
+        pub retry_interval: ReadableDuration\l|
+        pub retry_max_count: isize\l|
+        pub retry_log_every: usize\l
+    }}";
+  ];
+}

@@ -1,0 +1,13 @@
+#include "styles.h"
+digraph router_send {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  force_send -> send -> try_send;
+  try_send -> {
+    check_do;
+    mailbox_try_send;
+  }
+}

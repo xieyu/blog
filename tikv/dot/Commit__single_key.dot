@@ -1,0 +1,104 @@
+#include "styles.h"
+digraph process_write2 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  SnapshotReader__load_lock[style_func;label="{{
+    SnapshotReader\l
+    load_lock\l|
+    首先看lock还在不在\l
+  }}"]
+  SnapshotReader__get_txn_commit_record[style_blue1;label="{{
+    SnapshotReader\l
+    get_txn_commit_record\l|
+    看是否被rollback了\l
+  }}"]
+
+
+  commit[style_func;label="{{
+    commit\l|
+    提交单个key
+  }}"]
+  Lock__None[style_func;label="{{
+    Lock\l
+    None\l|
+    lock不存在了\l
+  }}"]
+
+  Lock__some[style_func;label="{{
+    Lock\l
+    some\l|
+    Lock还在\l
+  }}"]
+  Write__set_overlapped_rollback[style_func;label="{{
+    Write\l
+    set_overlapped_rollback\l|
+    设置overlap rollback标记\l
+  }}"]
+
+  commit -> {
+     SnapshotReader__load_lock;
+     Lock__min_commit_ts;
+     ErrorInner__CommitTsExpired;
+     Lock__some;
+     Lock__None;
+     SnapshotReader__get_txn_commit_record;
+  }
+  SnapshotReader__load_lock-> {
+    Lock__some;
+    Lock__None;
+  }
+  SnapshotReader__get_txn_commit_record -> {
+    WriteType__Rollback;
+    WriteType__other;
+  }
+  WriteType__Rollback -> ErrorInner__TxnLockNotFound;
+
+  Lock__min_commit_ts[style_func;label="{{
+    Lock\l
+    min_commit_ts\l|
+    commit_ts\>=min_commit_ts\l
+    否则返回CommitTsExpired错误\l
+  }}"]
+  Lock__min_commit_ts -> ErrorInner__CommitTsExpired[style_edge_data];
+  Lock__some -> Lock__min_commit_ts[style_edge_data];
+  Lock__None -> SnapshotReader__get_txn_commit_record[style_edge_data];
+  WriteType__other -> OK;
+  Lock__some -> {
+    MvccTxn__unlock_key;
+    MvccTxn__put_write;
+    Write__set_overlapped_rollback;
+  }
+  MvccTxn__unlock_key -> ReleasedLock__new;
+  MvccTxn__unlock_key[style_blue1;label="{{
+    MvccTxn\l
+    unlock_key|
+    清掉lock\l
+  }}"]
+  MvccTxn__put_write[style_blue1;label="{{
+    MvccTxn\l
+    put_write\l|
+    更改write\l
+  }}"]
+  ReleasedLock__new[style_func;label="{{
+    ReleasedLock\l
+    new\l
+  }}"]
+  WriteType__other[style_func;label="{{
+    WriteType\l|
+    PUT/Delete/Lock\l
+    返回Ok(None)
+  }}"]
+  OK[style_func;label="{{
+    OK(None)\l
+  }}"]
+  WriteType__Rollback[style_func;label="{{
+    WriteType\l
+    Rollback\l|
+    related rollback has been \l
+    collapsed\l
+    Rollback by concurrent transaction\l
+  }}"]
+  Write__set_overlapped_rollback -> MvccTxn__put_write[style_edge_data];
+}

@@ -1,0 +1,90 @@
+#include "styles.h"
+digraph for_update_ts_var {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  TransactionContext[style_var;label="{{
+    TransactionContext|
+      StartTS     uint64\l|
+      ForUpdate  uint32\l|
+      IsPessimistic  bool\l|
+      ...
+  }}"]
+
+  SessionVars[style_var;label="{{
+    SessionVars|
+    TxnCtx *TransactionContext\l|
+    ...
+  }}"]
+
+  SessionVars -> TransactionContext;
+  LockCtx[style_var;label="{{
+    LockCtx|
+	  Killed                *uint32\l|
+	  ForUpdateTS           uint64\l|
+	  LockWaitTime          int64\l|
+	  WaitStartTime         time.Time\l|
+	  PessimisticLockWaited *int32\l|
+	  LockKeysDuration      *int64\l|
+	  LockKeysCount         *int32\l|
+	  ReturnValues          bool\l|
+	  Values                map[string]ReturnedValue\l|
+	  ValuesLock            sync.Mutex\l|
+	  LockExpired           *uint32\l|
+	  Stats                 *util.LockKeysDetails\l|
+	  ResourceGroupTag      []byte\l
+  }}"]
+  TransactionContext -> LockCtx[style_edge_data];
+
+  LockCtx -> doLockKeys[style_edge_data];
+  doLockKeys[style_func;label="{{
+    doLockKeys
+  }}"]
+  LockKeys[style_func;label="{{
+    KVTxn\l|
+    LockKeys
+  }}"]
+  doLockKeys -> LockKeys -> pessimisticLockMutations;
+  pessimisticLockMutations[style_func;label="{{
+    twoPhaseCommitter\l|
+    pessimisticLockMutations
+  }}"]
+  pessimisticLockMutations -> actionPessimisticLock;
+  actionPessimisticLock[style_func;label="{{
+    actionPessimisticLock|
+    handleSignleBatch\l|
+    向TiKV发送CmdPessimisticLock请求\l
+    请求中包含了forUpdateTS\l
+  }}"]
+  PessimisticLockRequest[style_var;label="{{
+    PessimisticLockRequest|
+		StartVersion: c.startTS,\l|
+		ForUpdateTs:  c.forUpdateTS\l|
+    ...
+  }}"]
+  twoPhaseCommitter[style_var;label="{{
+    twoPhaseCommitter|
+      forUpdateTS uint64\l|
+      ...
+  }}"]
+  {LockKeys;LockCtx} -> twoPhaseCommitter[style_edge_data];
+  twoPhaseCommitter -> PessimisticLockRequest[style_edge_data];
+  actionPessimisticLock -> PessimisticLockRequest;
+  TransactionContext -> newLockCtx -> LockCtx[style_edge_data];
+
+  SelectLockExec_Next -> {doLockKeys;newLockCtx};
+  batch_point_get_LockKeys -> {doLockKeys;newLockCtx};
+  handlePessimisiticDML -> {LockKeys, newLockCtx}
+  subgraph cluster_ExecStmt {
+    graph[label="ExecStmt";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Exec ->  handleNoDelay -> handlePessimisiticDML;
+    Exec[style_func;label="{{
+      Exec|
+      builds an Executor from a plan\l
+      insert, update statement\l
+      it excutes in this function\l
+    }}"]
+  }
+  runStmt -> Exec;
+}

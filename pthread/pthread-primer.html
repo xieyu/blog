@@ -1,0 +1,528 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Pthread Primer笔记 - blog</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../theme/style3.css">
+
+
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../about.html">About</a></li><li class="chapter-item expanded affix "><li class="part-title">机器学习</li><li class="spacer"></li><li class="chapter-item expanded "><a href="../pytorch/index.html"><strong aria-hidden="true">1.</strong> PyTorch</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../pytorch/pytorch_pocket_reference.html"><strong aria-hidden="true">1.1.</strong> pytorch pocket reference 笔记</a></li><li class="chapter-item "><a href="../pytorch/mini-torch.html"><strong aria-hidden="true">1.2.</strong> mini torch</a></li></ol></li><li class="chapter-item expanded "><a href="../tengine/index.html"><strong aria-hidden="true">2.</strong> Tengine</a></li><li class="chapter-item expanded "><a href="../nlp/index.html"><strong aria-hidden="true">3.</strong> NLP</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nlp/bert.html"><strong aria-hidden="true">3.1.</strong> Bert</a></li></ol></li><li class="chapter-item expanded "><a href="../nncase/index.html"><strong aria-hidden="true">4.</strong> nncase</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nncase/compile_flow.html"><strong aria-hidden="true">4.1.</strong> comile流程</a></li><li class="chapter-item "><a href="../nncase/k210.html"><strong aria-hidden="true">4.2.</strong> k210 standalone sdk</a></li><li class="chapter-item "><a href="../nncase/face_detect_example.html"><strong aria-hidden="true">4.3.</strong> face detect example</a></li></ol></li><li class="chapter-item expanded "><a href="../ray/index.html"><strong aria-hidden="true">5.</strong> Ray</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../ray/paper.html"><strong aria-hidden="true">5.1.</strong> Ray Paper</a></li><li class="chapter-item "><a href="../ray/remote.html"><strong aria-hidden="true">5.2.</strong> Ray Remote</a></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Tensorflow</div><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tensorflow/index.html"><strong aria-hidden="true">6.1.</strong> tensorflow inside</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tensorflow/executor.html"><strong aria-hidden="true">6.1.1.</strong> Executor: 执行Computation Sub Graph</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tensorflow/executor-subgraph-preprocess.html"><strong aria-hidden="true">6.1.1.1.</strong> SubGraph预处理：Node/NodeItem/TaggedNode</a></li><li class="chapter-item "><a href="../tensorflow/flow-control-op.html"><strong aria-hidden="true">6.1.1.2.</strong> Flow control op: switch/merge/enter/exit/nextIteration</a></li><li class="chapter-item "><a href="../tensorflow/executor-frame.html"><strong aria-hidden="true">6.1.1.3.</strong> Frame: ControlFlowInfo/FrameInfo/FrameState/IterationState</a></li></ol></li><li class="chapter-item "><a href="../tensorflow/direct-session.html"><strong aria-hidden="true">6.1.2.</strong> DirectSession: 单机执行computation graph</a></li><li class="chapter-item "><a href="../tensorflow/rendezvous.html"><strong aria-hidden="true">6.1.3.</strong> RendezVous：跨设备，跨主机通信</a></li><li class="chapter-item "><a href="../tensorflow/device.html"><strong aria-hidden="true">6.1.4.</strong> Device：计算单元抽象(CPU/GPU)</a></li></ol></li><li class="chapter-item "><a href="../tensorflow/optimize.html"><strong aria-hidden="true">6.2.</strong> tensorflow模型对接工程优化</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tensorflow/export-keras-model-as-tf-frozen-graph.html"><strong aria-hidden="true">6.2.1.</strong> 将keras模型导出为tf frozen graph</a></li><li class="chapter-item "><a href="../tensorflow/replace-placeholder-with-iterator.html"><strong aria-hidden="true">6.2.2.</strong> 使用dataset iterator 优化keras model预测的吞吐量</a></li><li class="chapter-item "><a href="../tensorflow/stat-cpu-gpu-load.html"><strong aria-hidden="true">6.2.3.</strong> 统计cpu/gpu 负载率脚本</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../pthread/index.html"><strong aria-hidden="true">7.</strong> pthread</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../pthread/pthread-primer.html" class="active"><strong aria-hidden="true">7.1.</strong> Pthread Primer笔记</a></li><li class="chapter-item "><a href="../pthread/glibc-pthread-implement-thread-life-cycle.html"><strong aria-hidden="true">7.2.</strong> Pthread线程生命周期</a></li><li class="chapter-item "><a href="../pthread/glibc-pthread-implement-sync.html"><strong aria-hidden="true">7.3.</strong> Pthread线程同步</a></li></ol></li><li class="chapter-item expanded "><li class="part-title">Rust</li><li class="spacer"></li><li class="chapter-item expanded "><a href="../yew/index.html"><strong aria-hidden="true">8.</strong> Yew</a></li><li class="chapter-item expanded "><a href="../axum/index.html"><strong aria-hidden="true">9.</strong> Axum</a></li><li class="chapter-item expanded "><a href="../axum/hyper.html"><strong aria-hidden="true">10.</strong> Hyper</a></li><li class="chapter-item expanded "><a href="../tokio/index.html"><strong aria-hidden="true">11.</strong> tokio</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tokio/executor.html"><strong aria-hidden="true">11.1.</strong> Executor</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tokio/park.html"><strong aria-hidden="true">11.1.1.</strong> Park</a></li><li class="chapter-item "><a href="../tokio/thread-pool.html"><strong aria-hidden="true">11.1.2.</strong> thread pool</a></li></ol></li><li class="chapter-item "><a href="../tokio/driver.html"><strong aria-hidden="true">11.2.</strong> driver</a></li><li class="chapter-item "><a href="../tokio/io.html"><strong aria-hidden="true">11.3.</strong> io</a></li><li class="chapter-item "><a href="../tokio/codec.html"><strong aria-hidden="true">11.4.</strong> codec</a></li><li class="chapter-item "><a href="../tokio/channel.html"><strong aria-hidden="true">11.5.</strong> channel</a></li><li class="chapter-item "><a href="../tokio/waker.html"><strong aria-hidden="true">11.6.</strong> waker</a></li></ol></li><li class="chapter-item expanded "><a href="../crossbeam/index.html"><strong aria-hidden="true">12.</strong> crossbeam</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../crossbeam/skiplist.html"><strong aria-hidden="true">12.1.</strong> SkipList(draft)</a></li></ol></li><li class="chapter-item expanded "><a href="../rust/index.html"><strong aria-hidden="true">13.</strong> draft Rust</a></li><li class="chapter-item expanded affix "><li class="part-title">GO</li><li class="spacer"></li><li class="chapter-item expanded "><a href="../golang/index.html"><strong aria-hidden="true">14.</strong> Go</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../golang/pgm.html"><strong aria-hidden="true">14.1.</strong> Runtime PGM调度模型</a></li><li class="chapter-item "><a href="../golang/goroutine-stack.html"><strong aria-hidden="true">14.2.</strong> Goroutine Stack</a></li><li class="chapter-item "><a href="../golang/memory.html"><strong aria-hidden="true">14.3.</strong> Memory分配</a></li><li class="chapter-item "><a href="../golang/GC.html"><strong aria-hidden="true">14.4.</strong> GC</a></li><li class="chapter-item "><a href="../golang/context.html"><strong aria-hidden="true">14.5.</strong> Context</a></li><li class="chapter-item "><a href="../golang/defer-panic-recover.html"><strong aria-hidden="true">14.6.</strong> defer-panic-recover</a></li></ol></li><li class="chapter-item expanded "><li class="part-title">数据库</li><li class="spacer"></li><li class="chapter-item expanded "><a href="../leveldb/index.html"><strong aria-hidden="true">15.</strong> LevelDB</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../leveldb/draft.html"><strong aria-hidden="true">15.1.</strong> draft</a></li><li class="chapter-item "><a href="../leveldb/code-struct.html"><strong aria-hidden="true">15.2.</strong> 代码模块间关系</a></li><li class="chapter-item "><a href="../leveldb/write.html"><strong aria-hidden="true">15.3.</strong> Write 流程</a></li><li class="chapter-item "><a href="../leveldb/read.html"><strong aria-hidden="true">15.4.</strong> Read 流程</a></li><li class="chapter-item "><a href="../leveldb/table-format.html"><strong aria-hidden="true">15.5.</strong> SSTable 文件格式和读写</a></li><li class="chapter-item "><a href="../leveldb/versionset.html"><strong aria-hidden="true">15.6.</strong> versionset和Manifest</a></li><li class="chapter-item "><a href="../leveldb/table-compact.html"><strong aria-hidden="true">15.7.</strong> Do Compact</a></li><li class="chapter-item "><a href="../leveldb/iterator.html"><strong aria-hidden="true">15.8.</strong> Iterator迭代器</a></li><li class="chapter-item "><a href="../leveldb/bloom-filter.html"><strong aria-hidden="true">15.9.</strong> Bloom filter</a></li></ol></li><li class="chapter-item expanded "><a href="../rocksdb/index.html"><strong aria-hidden="true">16.</strong> RocksDB</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../rocksdb/draft.html"><strong aria-hidden="true">16.1.</strong> draft</a></li><li class="chapter-item "><a href="../rocksdb/column-family.html"><strong aria-hidden="true">16.2.</strong> 主要struct引用关系</a></li><li class="chapter-item "><a href="../rocksdb/wal.html"><strong aria-hidden="true">16.3.</strong> Write Ahead Log</a></li><li class="chapter-item "><a href="../rocksdb/write.html"><strong aria-hidden="true">16.4.</strong> write 并发控制</a></li><li class="chapter-item "><a href="../rocksdb/flush-and-compact.html"><strong aria-hidden="true">16.5.</strong> 后台flush和compact线程</a></li><li class="chapter-item "><a href="../rocksdb/leveled-compaction-picker.html"><strong aria-hidden="true">16.6.</strong> Leveled Compaction Picker</a></li><li class="chapter-item "><a href="../rocksdb/read.html"><strong aria-hidden="true">16.7.</strong> read 流程</a></li><li class="chapter-item "><a href="../rocksdb/blob.html"><strong aria-hidden="true">16.8.</strong> Blob</a></li><li class="chapter-item "><a href="../rocksdb/transaction.html"><strong aria-hidden="true">16.9.</strong> 事务</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../rocksdb/optimistic-transaction.html"><strong aria-hidden="true">16.9.1.</strong> Optimistic Transaction</a></li><li class="chapter-item "><a href="../rocksdb/transaction-lock-mgr.html"><strong aria-hidden="true">16.9.2.</strong> Transaction lock mgr</a></li><li class="chapter-item "><a href="../rocksdb/two-phase-commit.html"><strong aria-hidden="true">16.9.3.</strong> two phase commit</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../clickhouse/index.html"><strong aria-hidden="true">17.</strong> ClickHouse(daft)</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../clickhouse/server-main.html"><strong aria-hidden="true">17.1.</strong> Server main</a></li><li class="chapter-item "><a href="../clickhouse/block.html"><strong aria-hidden="true">17.2.</strong> block</a></li><li class="chapter-item "><a href="../clickhouse/blockio.html"><strong aria-hidden="true">17.3.</strong> blockio</a></li><li class="chapter-item "><a href="../clickhouse/storage.html"><strong aria-hidden="true">17.4.</strong> Storage</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../clickhouse/merge-tree-data.html"><strong aria-hidden="true">17.4.1.</strong> MergeTreeData</a></li><li class="chapter-item "><a href="../clickhouse/storage-merge-tree.html"><strong aria-hidden="true">17.4.2.</strong> StorageMergeTree</a></li></ol></li></ol></li><li class="chapter-item expanded "><li class="part-title">PingCAP</li><li class="spacer"></li><li class="chapter-item expanded "><a href="../tidb/index.html"><strong aria-hidden="true">18.</strong> TiDB</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/note.html"><strong aria-hidden="true">18.1.</strong> tidb学习资料整理</a></li><li class="chapter-item "><a href="../tidb/main.html"><strong aria-hidden="true">18.2.</strong> Server Main Loop</a></li><li class="chapter-item "><a href="../tidb/insert.html"><strong aria-hidden="true">18.3.</strong> Insert 语句</a></li><li class="chapter-item "><a href="../tidb/select.html"><strong aria-hidden="true">18.4.</strong> Select 语句</a></li><li class="chapter-item "><a href="../tidb/types.html"><strong aria-hidden="true">18.5.</strong> 数据类型</a></li><li class="chapter-item "><a href="../tidb/expression.html"><strong aria-hidden="true">18.6.</strong> expression</a></li><li class="chapter-item "><a href="../tidb/ddl.html"><strong aria-hidden="true">18.7.</strong> Online DDL</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/ddl-schema-in-tikv.html"><strong aria-hidden="true">18.7.1.</strong> Schema 存储</a></li><li class="chapter-item "><a href="../tidb/ddl-schema-load.html"><strong aria-hidden="true">18.7.2.</strong> Schema Cache和加载</a></li><li class="chapter-item "><a href="../tidb/ddl-schema-modification.html"><strong aria-hidden="true">18.7.3.</strong> Schema Modification</a></li><li class="chapter-item "><a href="../tidb/ddl-online-schema-change.html"><strong aria-hidden="true">18.7.4.</strong> Online Schema Change</a></li></ol></li><li class="chapter-item "><a href="../tidb/stat.html"><strong aria-hidden="true">18.8.</strong> 统计信息</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/basic-concepts.html"><strong aria-hidden="true">18.8.1.</strong> 基本概念</a></li><li class="chapter-item "><a href="../tidb/stat-tables.html"><strong aria-hidden="true">18.8.2.</strong> stats tables</a></li><li class="chapter-item "><a href="../tidb/stat-analyze.html"><strong aria-hidden="true">18.8.3.</strong> Analyze</a></li><li class="chapter-item "><a href="../tidb/stat-feedback.html"><strong aria-hidden="true">18.8.4.</strong> Query Feedback</a></li><li class="chapter-item "><a href="../tidb/use-stat.html"><strong aria-hidden="true">18.8.5.</strong> 统计信息使用场景</a></li></ol></li><li class="chapter-item "><a href="../tidb/logical-optimize.html"><strong aria-hidden="true">18.9.</strong> Logical Optimize</a></li><li class="chapter-item "><a href="../tidb/physical-optimize.html"><strong aria-hidden="true">18.10.</strong> Physical Optimize</a></li><li class="chapter-item "><a href="../tidb/datasource.html"><strong aria-hidden="true">18.11.</strong> DataSource</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/datasource-build.html"><strong aria-hidden="true">18.11.1.</strong> buildDataSource</a></li><li class="chapter-item "><a href="../tidb/range.html"><strong aria-hidden="true">18.11.2.</strong> 索引范围计算</a></li><li class="chapter-item "><a href="../tidb/tablecodec.html"><strong aria-hidden="true">18.11.3.</strong> table/index存储编码</a></li><li class="chapter-item "><a href="../tidb/datasource-paritionProcessor.html"><strong aria-hidden="true">18.11.4.</strong> paritionProcessor</a></li><li class="chapter-item "><a href="../tidb/datasource-predict-push-down.html"><strong aria-hidden="true">18.11.5.</strong> PredicatePushDown</a></li><li class="chapter-item "><a href="../tidb/datasource-physical-optimize.html"><strong aria-hidden="true">18.11.6.</strong> Physical Optimize</a></li><li class="chapter-item "><a href="../tidb/datasource-executors.html"><strong aria-hidden="true">18.11.7.</strong> Executors</a></li></ol></li><li class="chapter-item "><a href="../tidb/distsql.html"><strong aria-hidden="true">18.12.</strong> DistSQL</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/cop-region-cache.html"><strong aria-hidden="true">18.12.1.</strong> ReginCache</a></li><li class="chapter-item "><a href="../tidb/tikv-grpc-client.html"><strong aria-hidden="true">18.12.2.</strong> TiKV GRPC Client</a></li><li class="chapter-item "><a href="../tidb/cop-task.html"><strong aria-hidden="true">18.12.3.</strong> CopTask</a></li><li class="chapter-item "><a href="../tidb/cop-iterator-worker.html"><strong aria-hidden="true">18.12.4.</strong> CopIteratorWorker</a></li><li class="chapter-item "><a href="../tidb/coprocessor.html"><strong aria-hidden="true">18.12.5.</strong> Coprocessor</a></li></ol></li><li class="chapter-item "><a href="../tidb/join.html"><strong aria-hidden="true">18.13.</strong> Join</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/join-alg.html"><strong aria-hidden="true">18.13.1.</strong> Join算法</a></li><li class="chapter-item "><a href="../tidb/join-logical-optimize.html"><strong aria-hidden="true">18.13.2.</strong> Logical Optimize</a></li><li class="chapter-item "><a href="../tidb/join-physical-optimize.html"><strong aria-hidden="true">18.13.3.</strong> Physical Optimize</a></li><li class="chapter-item "><a href="../tidb/hash-join.html"><strong aria-hidden="true">18.13.4.</strong> Executor: Hash Join</a></li><li class="chapter-item "><a href="../tidb/merge-join.html"><strong aria-hidden="true">18.13.5.</strong> Executor: Merge Join</a></li><li class="chapter-item "><a href="../tidb/index-lookup-join.html"><strong aria-hidden="true">18.13.6.</strong> Executor: Index Lookup Join</a></li></ol></li><li class="chapter-item "><a href="../tidb/agg.html"><strong aria-hidden="true">18.14.</strong> Agg</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/agg-func.html"><strong aria-hidden="true">18.14.1.</strong> AggFunc</a></li><li class="chapter-item "><a href="../tidb/hash-agg.html"><strong aria-hidden="true">18.14.2.</strong> Executor: HashAgg</a></li><li class="chapter-item "><a href="../tidb/stream-agg.html"><strong aria-hidden="true">18.14.3.</strong> Executor: StreamAgg</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../pd/index.html"><strong aria-hidden="true">19.</strong> PD</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="../tikv/index.html"><strong aria-hidden="true">20.</strong> TiKV</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tikv/raft2.html"><strong aria-hidden="true">20.1.</strong> raft-rs</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tikv/raft_rawnode.html"><strong aria-hidden="true">20.1.1.</strong> RawNode</a></li><li class="chapter-item "><a href="../tikv/raft_storage.html"><strong aria-hidden="true">20.1.2.</strong> Storage</a></li><li class="chapter-item "><a href="../tikv/progress_tracker.html"><strong aria-hidden="true">20.1.3.</strong> ProgressTracker</a></li><li class="chapter-item "><a href="../tikv/raft_hearbeat.html"><strong aria-hidden="true">20.1.4.</strong> Hearbeat</a></li><li class="chapter-item "><a href="../tikv/raft_election.html"><strong aria-hidden="true">20.1.5.</strong> Election</a></li><li class="chapter-item "><a href="../tikv/raft_log_entry.html"><strong aria-hidden="true">20.1.6.</strong> LogEntry</a></li><li class="chapter-item "><a href="../tikv/raft_snapshot.html"><strong aria-hidden="true">20.1.7.</strong> Snapshot</a></li><li class="chapter-item "><a href="../tikv/raft_conf_change.html"><strong aria-hidden="true">20.1.8.</strong> ConfChange</a></li><li class="chapter-item "><a href="../tikv/raft_read_index.html"><strong aria-hidden="true">20.1.9.</strong> ReadIndex</a></li></ol></li><li class="chapter-item "><a href="../tikv/raft-kv.html"><strong aria-hidden="true">20.2.</strong> RaftKV</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tikv/batch-system2.html"><strong aria-hidden="true">20.2.1.</strong> BatchSystem</a></li><li class="chapter-item "><a href="../tikv/raft_message.html"><strong aria-hidden="true">20.2.2.</strong> RaftMessage</a></li><li class="chapter-item "><a href="../tikv/raft_client.html"><strong aria-hidden="true">20.2.3.</strong> Raft Client</a></li><li class="chapter-item "><a href="../tikv/region2.html"><strong aria-hidden="true">20.2.4.</strong> Region</a></li><li class="chapter-item "><a href="../tikv/peer_storage2.html"><strong aria-hidden="true">20.2.5.</strong> PeerStorage</a></li><li class="chapter-item "><a href="../tikv/thread_local_engine.html"><strong aria-hidden="true">20.2.6.</strong> Thread Local Engine</a></li><li class="chapter-item "><a href="../tikv/leader_lease.html"><strong aria-hidden="true">20.2.7.</strong> Leader Lease</a></li><li class="chapter-item "><a href="../tikv/read_index.html"><strong aria-hidden="true">20.2.8.</strong> Read Index</a></li><li class="chapter-item "><a href="../tikv/async_snapshot2.html"><strong aria-hidden="true">20.2.9.</strong> Async Snapshot</a></li><li class="chapter-item "><a href="../tikv/async_write2.html"><strong aria-hidden="true">20.2.10.</strong> Async Write</a></li><li class="chapter-item "><a href="../tikv/region_epoch.html"><strong aria-hidden="true">20.2.11.</strong> Region Epoch</a></li><li class="chapter-item "><a href="../tikv/conf_change2.html"><strong aria-hidden="true">20.2.12.</strong> Conf Change</a></li><li class="chapter-item "><a href="../tikv/split_region2.html"><strong aria-hidden="true">20.2.13.</strong> Split Region</a></li><li class="chapter-item "><a href="../tikv/merge_region2.html"><strong aria-hidden="true">20.2.14.</strong> Merge Region</a></li></ol></li><li class="chapter-item "><a href="../tikv/storage2.html"><strong aria-hidden="true">20.3.</strong> Storage</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tikv/percolator.html"><strong aria-hidden="true">20.3.1.</strong> Percolator</a></li><li class="chapter-item "><a href="../tikv/percolator_in_tikv.html"><strong aria-hidden="true">20.3.2.</strong> Percolator In TiKV</a></li><li class="chapter-item "><a href="../tikv/tikv_2pc.html"><strong aria-hidden="true">20.3.3.</strong> 2PC</a></li><li class="chapter-item "><a href="../tikv/async_commit.html"><strong aria-hidden="true">20.3.4.</strong> AsyncCommit</a></li><li class="chapter-item "><a href="../tikv/tikv_1pc.html"><strong aria-hidden="true">20.3.5.</strong> OnePC</a></li><li class="chapter-item "><a href="../tikv/pessimistic_lock.html"><strong aria-hidden="true">20.3.6.</strong> 悲观事务</a></li><li class="chapter-item "><a href="../tikv/txn_recovery.html"><strong aria-hidden="true">20.3.7.</strong> Resolve Lock</a></li><li class="chapter-item "><a href="../tikv/scheduler2.html"><strong aria-hidden="true">20.3.8.</strong> Scheduler</a></li><li class="chapter-item "><a href="../tikv/wait_lock.html"><strong aria-hidden="true">20.3.9.</strong> Wait Lock</a></li><li class="chapter-item "><a href="../tikv/dead_lock.html"><strong aria-hidden="true">20.3.10.</strong> 死锁检测</a></li><li class="chapter-item "><a href="../tikv/group_commit.html"><strong aria-hidden="true">20.3.11.</strong> TiDB分组提交</a></li><li class="chapter-item "><a href="../tikv/storage_scanner.html"><strong aria-hidden="true">20.3.12.</strong> Scanner</a></li></ol></li><li class="chapter-item "><a href="../tikv/coprocessor.html"><strong aria-hidden="true">20.4.</strong> Coprocessor</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tikv/rpn_expression.html"><strong aria-hidden="true">20.4.1.</strong> RpnExpression</a></li><li class="chapter-item "><a href="../tikv/aggr_function.html"><strong aria-hidden="true">20.4.2.</strong> AggrFunction</a></li><li class="chapter-item "><a href="../tikv/batch_executor.html"><strong aria-hidden="true">20.4.3.</strong> BatchExecutor</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tikv/ranges_scanner.html"><strong aria-hidden="true">20.4.3.1.</strong> RangesScanner</a></li><li class="chapter-item "><a href="../tikv/scan_executor.html"><strong aria-hidden="true">20.4.3.2.</strong> ScanExecutor</a></li><li class="chapter-item "><a href="../tikv/batch_executor_selection.html"><strong aria-hidden="true">20.4.3.3.</strong> Selection</a></li><li class="chapter-item "><a href="../tikv/batch_executor_agg.html"><strong aria-hidden="true">20.4.3.4.</strong> AggExecutor</a></li></ol></li></ol></li><li class="chapter-item "><a href="../tikv/performance.html"><strong aria-hidden="true">20.5.</strong> Performance(draft)</a></li><li class="chapter-item "><a href="../tikv/yatp.html"><strong aria-hidden="true">20.6.</strong> yatp</a></li></ol></li><li class="chapter-item expanded "><a href="../bevy/index.html"><strong aria-hidden="true">21.</strong> Bevy</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../bevy/first-impression-draft.html"><strong aria-hidden="true">21.1.</strong> bevy draft</a></li></ol></li><li class="chapter-item expanded "><a href="../blender/index.html"><strong aria-hidden="true">22.</strong> Blender</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../blender/manual-notes.html"><strong aria-hidden="true">22.1.</strong> blender manual notes</a></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">23.</strong> Trash</div><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../python/index.html"><strong aria-hidden="true">23.1.</strong> python</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../python/records/records.html"><strong aria-hidden="true">23.1.1.</strong> records</a></li></ol></li><li class="chapter-item "><a href="../react/index.html"><strong aria-hidden="true">23.2.</strong> react</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../react/from-jsx-to-dom.html"><strong aria-hidden="true">23.2.1.</strong> 从jsx到html dom的流程分析</a></li></ol></li><li class="chapter-item "><a href="../godot/index.html"><strong aria-hidden="true">23.3.</strong> Godot</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../godot/learning-note.html"><strong aria-hidden="true">23.3.1.</strong> godot 学习笔记</a></li><li class="chapter-item "><a href="../godot/gdquest.html"><strong aria-hidden="true">23.3.2.</strong> gdquest tutorial</a></li></ol></li><li class="chapter-item "><a href="../kafka/index.html"><strong aria-hidden="true">23.4.</strong> Kafka</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../kafka/client-producer.html"><strong aria-hidden="true">23.4.1.</strong> client: producer</a></li><li class="chapter-item "><a href="../kafka/group-coordinator.html"><strong aria-hidden="true">23.4.2.</strong> group coordinator</a></li><li class="chapter-item "><a href="../kafka/kafka-produce-fetch.html"><strong aria-hidden="true">23.4.3.</strong> produce and fetch</a></li><li class="chapter-item "><a href="../kafka/log.html"><strong aria-hidden="true">23.4.4.</strong> log</a></li><li class="chapter-item "><a href="../kafka/partition.html"><strong aria-hidden="true">23.4.5.</strong> Partition</a></li><li class="chapter-item "><a href="../kafka/controller-main.html"><strong aria-hidden="true">23.4.6.</strong> Controller</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../kafka/controller-channel-manager.html"><strong aria-hidden="true">23.4.6.1.</strong> 通信管理 channelManager</a></li><li class="chapter-item "><a href="../kafka/controller-elect.html"><strong aria-hidden="true">23.4.6.2.</strong> 选举</a></li><li class="chapter-item "><a href="../kafka/controller-zk.html"><strong aria-hidden="true">23.4.6.3.</strong> zk监听处理</a></li></ol></li><li class="chapter-item "><a href="../kafka/replica-assignment.html"><strong aria-hidden="true">23.4.7.</strong> 副本迁移</a></li><li class="chapter-item "><a href="../kafka/paritition-replica-statemachine.html"><strong aria-hidden="true">23.4.8.</strong> Partition/Replica状态机</a></li><li class="chapter-item "><a href="../kafka/txn_coordinator.html"><strong aria-hidden="true">23.4.9.</strong> 事务</a></li><li class="chapter-item "><a href="../kafka/stream.html"><strong aria-hidden="true">23.4.10.</strong> Stream</a></li></ol></li><li class="chapter-item "><a href="../java/index.html"><strong aria-hidden="true">23.5.</strong> hotspot</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../java/hotspot-debug-under-osx.html"><strong aria-hidden="true">23.5.1.</strong> osx下编译调试hotspot</a></li><li class="chapter-item "><a href="../java/hotspot-thread-created-when-init.html"><strong aria-hidden="true">23.5.2.</strong> jvm的初始化时创建的线程</a></li><li class="chapter-item "><a href="../java/hotspot-class-file-load-and-run.html"><strong aria-hidden="true">23.5.3.</strong> class文件的加载和执行</a></li></ol></li><li class="chapter-item "><a href="../papers/index.html"><strong aria-hidden="true">23.6.</strong> Paper notes</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../papers/raft.html"><strong aria-hidden="true">23.6.1.</strong> raft paper</a></li><li class="chapter-item "><a href="../papers/gfs.html"><strong aria-hidden="true">23.6.2.</strong> draft: gfs</a></li><li class="chapter-item "><a href="../papers/bw-tree.html"><strong aria-hidden="true">23.6.3.</strong> draft: Bw-tree(draft)</a></li></ol></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">blog</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <!-- Page table of contents -->
+                    <div class="sidetoc"><nav class="pagetoc"></nav></div>
+                    <main>
+                        <h1 id="pthread-primer-笔记"><a class="header" href="#pthread-primer-笔记">Pthread primer 笔记</a></h1>
+<h2 id="进程和线程"><a class="header" href="#进程和线程">进程和线程</a></h2>
+<h4 id="在kernel中process的context"><a class="header" href="#在kernel中process的context">在kernel中process的context</a></h4>
+<ul>
+<li>cpu相关：program counter pointer, stack top pointer, cpu general registers, sates.</li>
+<li>内存：memory map</li>
+<li>user: uid, gid, euid, egid, cwd.</li>
+<li>信号: signal dispatch table</li>
+<li>File: file descriptors</li>
+</ul>
+<img alt="process-struct" src="./images/process-struct.jpeg" width=500px/>
+<h4 id="thread的context-data"><a class="header" href="#thread的context-data">thread的context data</a></h4>
+<ul>
+<li>cpu相关：program counter pointer, stack top pointer, cpu general registers, sates.</li>
+<li>内存相关: stack</li>
+</ul>
+<img alt="process-struct" src="./images/thread-struct.jpeg" width=500px/>
+<p><b>线程的stack是分配在process的heap上的</b></p>
+<pre><code class="language-cpp">//设置和获取线程的stack address
+include &lt;pthread.h&gt;
+int pthread_attr_setstack(pthread_attr_t *attr, void* stackaddr, size_t stacksize);
+int pthread_attr_getstack(const pthread_attr_t* attr, void** stackaddr, size_t* stacksize);
+</code></pre>
+<p><b>整个进程只有一份signal dispatch table</b></p>
+<p>所以signal 中断的时候，说不准会中断到那个thread里面，需要加signal mask来处理。</p>
+<h4 id="使用thread的好处"><a class="header" href="#使用thread的好处">使用thread的好处</a></h4>
+<ol>
+<li><code>context switch</code>: process的上下文切换比thread的context switch 耗时间.</li>
+<li><code>memory share</code>: thread之间的通信，共享process的内存，file等资源比process之间的通信，share内存方便.</li>
+</ol>
+<h2 id="线程调度和生命周期"><a class="header" href="#线程调度和生命周期">线程调度和生命周期</a></h2>
+<h4 id="线程调度"><a class="header" href="#线程调度">线程调度</a></h4>
+<p>线程有两种调度方式，一种是完全在user space, 由thread库做调度，优点是省了system call 从而省下了从user space 到kernel space的切换, 比较快，缺点是，有一个线程挂在IO上后，整个process都会被挂起.(可以把block的system call 改成nonblock的，使用asyc io来解决这个问题).</p>
+<p>另外一种是kernel 实现的light weight process(lwp), lwp避免了整个线程被挂起的缺点，但是需要从user space 到kernel space的切换, 比完全user space实现的线程慢一点。</p>
+<p>现实中这两种的实现的方式可以混合起来， 混合方式如下：</p>
+<ul>
+<li>多个线程对应一个lwp</li>
+<li>一个线程对应一个lwp</li>
+<li>多个线程对应多个lwp</li>
+</ul>
+<p>在pthread 中可以这么设置调度的属性:</p>
+<pre><code class="language-cpp">//pthread中设置调度scope
+//PTHREAD_SCOPE_SYSTEM 表示system 全局的， PTHREAD_SCOPE_PROCESS 表示process scope的。
+pthread_attr_t attr;
+pthread_attr_init(&amp;attr);
+pthread_setscope(&amp;atttr, PTHREAD_SCOPE_SYSTEM);
+pthread_create(&amp;tid, &amp;attr, foo, NULL);
+</code></pre>
+<p><b>影响线程调度的一些属性</b></p>
+<ul>
+<li>scope: PTHREAD_SCOPE_PROCESS, PTHREAD_SCOPE_GLOBAL</li>
+<li>policy: SCHED_RR, SCHED_FIFO, SCHED_OTHER</li>
+<li>priority</li>
+<li>inheritance</li>
+</ul>
+<p><b>线程状态以及状态之间的迁移关系如下图：</b></p>
+<img alt="threads states" src="./images/thread-states.jpeg" width=500px/>
+<p><b>四种running中的线程被切出去的状况</b></p>
+<ul>
+<li>synchronization 线程require lock的失败被挂在lock的sleep queue上。</li>
+<li>preemption 被抢占了，T1在运行的时候，一个更高优先级的线程T2到了runnable的状态, T1会被T2抢占了。</li>
+<li>yielding. 线程T1主动调用sched_yield, 如果有和T1优先权一样的T2线程，就切换到T2线程，如果没有，T1就接着运行。</li>
+<li>time-slicing. T1的时间片用完了，和T1有同样优先权的T2接着运行。</li>
+</ul>
+<h4 id="创建和退出线程"><a class="header" href="#创建和退出线程">创建和退出线程</a></h4>
+<pre><code class="language-cpp">//create
+int pthread_create(pthread_t* thread, const pthread_attr_t* attr, void*(* start_routine)(void*), void* arg);
+//exit
+void pthread_exit(status);
+</code></pre>
+<p>线程的返回值，一种是函数执行结束后，直接return的值，另外一种是pthread_exit(status)这个的返回值。</p>
+<h4 id="join-等待线程执行结束"><a class="header" href="#join-等待线程执行结束">join: 等待线程执行结束</a></h4>
+<p>join之后线程会处于阻塞状态直到等待的线程T1执行完毕，join之后t1线程的相关内存会被清理掉，所以说一个子线程只能被join一次.</p>
+<p>设置线程的属性为joinable</p>
+<pre><code class="language-cpp">pthread_t thread_id;
+pthread_attr_t attr;
+pthread_attr_init(&amp;attr);
+pthread_attr_setdetachstate(&amp;attr, PTHREAD_CREATE_JOINABLE);
+pthread_create(&amp;thread_id, &amp;attr, work, (void*)arg);
+</code></pre>
+<p>阻塞等待线程的执行结果，获取线程的返回结果</p>
+<pre><code class="language-cpp">//等待t1线程执行结束, exit_status 是子线程的返回值.
+pthread_join(t1, &amp;exit_status)
+</code></pre>
+<p>joinable线程和detehced线程的区别是线程结束的时候，资源(线程对应的标识符pthread_t, 线程返回信息)该怎么释放.</p>
+<p>对于joinable线程t1, 只有当其他线程对t1调用了pthread_join之后, 线程t1才会释放所占用的资源, 否则 会进入类似于进程的zombile状态，这些资源不会被会回收掉.</p>
+<h4 id="使用信号量-等待线程执行结束"><a class="header" href="#使用信号量-等待线程执行结束">使用信号量 等待线程执行结束</a></h4>
+<p>使用信号量等待一堆子线程执行结束, 在主线程里面调用thread_signle_barrier, 然后子线程结束的时候调用<code>SEM_POST(barrier)</code></p>
+<pre><code class="language-cpp">void thread_signle_barrier(sem_t* barrier, int count){
+    while( count &gt; 0) {
+        SEM_WAIT(barrier);
+        count--;
+    }
+}
+</code></pre>
+<h4 id="detach"><a class="header" href="#detach">detach</a></h4>
+<p>如果想要t1线程执行结束收系统自动回收t1的资源, 而不是通过调用pthread_join回收资源(会阻塞线程), 我们可以将线程设置为deteched, 有三种方式可以设置线程为deteched.</p>
+<ul>
+<li>创建线程时指定线程的 detach 属性: pthread_attr_setdetachstate(&amp;attr, PTHREAD_CREATE_DETACHED);</li>
+<li>通过在子线程中调用 pthread_detach(pthread_self());</li>
+<li>在主线程中调用 pthread_detach(thread_id);(非阻塞, 执行完会立即会返回)</li>
+</ul>
+<h4 id="取消线程的执行"><a class="header" href="#取消线程的执行">取消线程的执行</a></h4>
+<p>在pthread中可以通过pthread_cancel(t1)来取消线程t1的执行, 这个会设置线程t1的cancel state, 由线程t1在自己在cancel point 检查是否退出线程, 在退出线程的时候会执行cleanup stack中的函数(比如释放自己hold的锁). 一般会block的函数调用，比如sem_wait, pthread_cond_wait或者会block的系统调用前后检查check point.</p>
+<p>如下代码段：</p>
+<pre><code class="language-cpp">void cleanup_lock2(void* arg){
+    pthread_mutex_unlock((pthread_mutex_t*)arg)
+}
+
+void thread1_run(){
+    pthread_mutex_lock(&amp;answer_lock);
+    pthread_cleanup_push(cleanup_lock2, (void*)&amp;answer_lock);
+    while(!firest_thread_to_find_answer) {
+        pthread_cond_wait(&amp;cvn, &amp;answer_lock);
+    }
+    pthread_cleanup_pop(0)
+}
+</code></pre>
+<p>也可以通过<code>pthread_setcanceltype</code>设置为异步取消PTHREAD_CANCEL_ASYNCHRONOUS，这样会给t1线程发送<code>SIGCANCEL</code>信号，t1线程在信号处理函数中结束自己的执行。</p>
+<h4 id="signal-信号处理"><a class="header" href="#signal-信号处理">Signal 信号处理</a></h4>
+<p>Linux 多线程应用中，每个线程可以通过调用 pthread_sigmask() 设置本线程的信号掩码, pthread_kill像某个线程发送signal.</p>
+<h5 id="signal-handler-异步的方式处理信号"><a class="header" href="#signal-handler-异步的方式处理信号">signal handler 异步的方式处理信号</a></h5>
+<p>多线程处理signal时候需要注意事项</p>
+<ul>
+<li>信号处理函数尽量只执行简单的操作，譬如只是设置一个外部变量，其它复杂的操作留在信号处理函数之外执行；</li>
+<li>errno 是线程安全，即每个线程有自己的 errno，但不是异步信号安全。如果信号处理函数比较复杂，且调用了可能会改变 errno 值的库函数，必须考虑在信号处理函数开始时保存、结束的时候恢复被中断线程的 errno 值；</li>
+<li>信号处理函数只能调用可以重入的 C 库函数(只能调用async safe 的函数)；譬如不能调用 malloc（），free（）以及标准 I/O 库函数等；</li>
+<li>信号处理函数如果需要访问全局变量，在定义此全局变量时须将其声明为 volatile，以避免编译器不恰当的优化</li>
+</ul>
+<h5 id="sigwait-同步串行方式"><a class="header" href="#sigwait-同步串行方式">sigwait, 同步串行方式</a></h5>
+<p>等待信号的到来，以串行的方式从信号队列中取出信号进行处理.</p>
+<pre><code class="language-cpp">void signal_hanlder_thread() {
+    sigemptyset(&amp;waitset);  
+    sigaddset(&amp;waitset, SIGRTMIN);  
+    sigaddset(&amp;waitset, SIGUSR1);  
+    while (1)  {  
+        //串行的方式处理信号
+        rc = sigwaitinfo(&amp;waitset, &amp;info);  
+        if (rc != -1) {  
+        sig_handler(info.si_signo);  
+    }
+}
+</code></pre>
+<h3 id="thread-local-storage"><a class="header" href="#thread-local-storage">Thread local storage</a></h3>
+<p>TLS是只在线程自己可见的全局数据, 而不必担心别的线程会改变这个全局数据, 比如要实现每个线程对db的connection单例模式的话，可以把线程的全局connection单例变量存在TLS中。 在使用中有两种方式，一个是pthread_key的方式，另外一个是使用gcc提供的<code>__thread</code>.</p>
+<h4 id="thread-specific-data"><a class="header" href="#thread-specific-data">Thread Specific Data</a></h4>
+<pre><code class="language-code">pthread_keycreate
+pthread_setspecific
+pthread_getspecific
+</code></pre>
+<h4 id="__thread"><a class="header" href="#__thread"><code>__thread</code></a></h4>
+<p><code>__thread</code>是gcc提内置的attr, 它只能用于修饰POD类型，不能修饰class类型，因为它无法自动调用构造函数和析构函数。 <code>__thread</code>每个线程都有一份独立的实体，线程之间相互不影响.</p>
+<pre><code class="language-cpp">int g_var; // 全局变量
+__thread int t_var; //thread变量
+</code></pre>
+<h2 id="线程的同步"><a class="header" href="#线程的同步">线程的同步</a></h2>
+<h3 id="atomic-指令"><a class="header" href="#atomic-指令">atomic 指令</a></h3>
+<p>线程执行的时候，在两个指令之间，随时都可能会被抢占掉, 所以需要一个atomic的指令来避免这种状况.</p>
+<h4 id="atomic-test-and-set-style-ldstub"><a class="header" href="#atomic-test-and-set-style-ldstub">atomic test and set style: ldstub</a></h4>
+<p>ldstub (load and store unsigned byte) 就是一个atomic test and set的指令, 从内存中载入一个unsigned字节，并且把内存中那个字节设置为1.</p>
+<p><b>一个mutex lock的实现</b></p>
+<pre><code>try_agin: ldstub address -&gt; register
+          compare register, 0
+          branch_equal got_it
+          call go_to_sleep
+          jump try_again
+got_it:  return
+</code></pre>
+<p>从这儿可以看到，线程从go_to_sleep返回之后，需要去重新获取lock, 如果获取失败，就接着go_to_sleep.</p>
+<h3 id="basic-primitive"><a class="header" href="#basic-primitive">basic primitive</a></h3>
+<p>所有线程之前shared的数据需要被用lock保护起来，比如全局数据，传入到另外一个线程的Data struct， 还有static数据。</p>
+<h4 id="mutex-lock互斥锁"><a class="header" href="#mutex-lock互斥锁">mutex lock(互斥锁)</a></h4>
+<p>线程获取mutex lock失败以后，会被放到mutex对应的sleep队列中。</p>
+<pre><code class="language-cpp">pthread_mutex_lock
+//critical section
+pthread_mutex_unlock
+</code></pre>
+<img alt="mutex lock sleep queue" src="./images/mutex-lock.jpeg" width=500px/>
+<p>另外一种非阻塞的获取锁的方法<code>pthread_mutex_trylock</code> 如果获取锁成功返回0，否则返回<code>EBUSY</code>.</p>
+<h4 id="semaphores信号量"><a class="header" href="#semaphores信号量">semaphores(信号量)</a></h4>
+<p>信号量机制用于协调多个资源的使用(比如一个队列或者缓冲区)，semaphores的值表示可用资源的数量(队列中可用资源的个数)。常用于解决生产者和消费者问题.</p>
+<pre><code>// 初始化
+int sem_init(sem_t *sem, int pshared, unsigned int val);
+// 没有可用的信号量就等待，否则
+int sem_wait(sem_t *sem);
+// 释放一个信号量，信号量的值加1
+int sem_post(sem_t *sem);
+</code></pre>
+<p>信号量处理流程</p>
+<img src="./images/semaphore-flow.jpeg" width=400px/>
+<p>生产者消费者问题, 假设队列的长度是20:</p>
+<img src="./images/producer-consumer.jpeg" width=340px/>
+<pre><code class="language-cpp">#include &lt;semaphore.h&gt;
+
+//shared global vars
+sem_t sem_producer;
+sem_t sem_consumer;
+//list
+
+void producer(){
+    while(1){
+        sem_wait(sem_consumer);
+        pthread_mutex_lock(list_lock);
+        add(list);
+        pthread_mutex_unlock(list_lock);
+        sem_post(sem_producer);
+    }
+}
+
+void consumer(){
+    while(1) {
+        sem_wait(sem_producer);
+        pthread_mutex_lock(list_lock);
+        consume(list);
+        pthread_mutex_unlock(list_lock);
+        sem_post(sem_consumer);
+    }
+}
+void main(){
+    sem_init(&amp;sem_producer, 0);
+    sem_init(&amp;sem_consumer, 20);
+
+    pthread_t producer_tid;
+    pthread_t consumer_tid;
+
+    pthread_create(&amp;producer_tid, nullptr, producer, nullptr);
+    pthread_create(&amp;consumer_tid, nullptr, consumer, nullptr);
+}
+</code></pre>
+<h4 id="condition-var-条件变量"><a class="header" href="#condition-var-条件变量">condition var (条件变量)</a></h4>
+<p>condition var 的流程, condition var 访问需要用个mutex lock保护起来, condition判断失败之后，会unlock 保护condition var 的lock, 然后进入sleep, 之后被唤醒的时候，会再次去获取condition var的lock。</p>
+<img src="./images/condition-flow.jpeg" width=400px/>
+<pre><code class="language-cpp">&lt;code&gt;
+// 初始化
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+// 动态初始化
+int pthread_cond_init(pthread_cond_t* restrict cond, const pthread_condattr_t* restrict attr);
+
+//销毁
+int pthread_cond_destroy(pthread_cond_t* cond);
+
+//等待
+int pthread_cond_wait( pthread_cond_t*   restrict cond, pthread_mutex_t*  restrict mutex );
+int pthread_cond_timedwait( pthread_cond_t*         restrict cond, pthread_mutex_t*        restrict mutex, const struct timespec*  restrict abstime );
+
+
+// 通知
+// singal 函数一次只能唤醒一个线程, 而 broadcast 会唤醒所有在当前条件变量下等待的线程.
+int pthread_cond_broadcast(pthread_cond_t* cond);
+int pthread_cond_signal(pthread_cond_t* cond);
+
+</code></pre>
+<p>wait for condition</p>
+<pre><code class="language-cpp">// safely examine the condition, prevent other threads from
+// altering it
+pthread_mutex_lock (&amp;lock);
+while ( SOME-CONDITION is false)
+    pthread_cond_wait (&amp;cond, &amp;lock);
+
+// Do whatever you need to do when condition becomes true
+do_stuff();
+pthread_mutex_unlock (&amp;lock);
+</code></pre>
+<p>signal condition</p>
+<pre><code class="language-cpp">// ensure we have exclusive access to whathever comprises the condition
+pthread_mutex_lock (&amp;lock);
+
+ALTER-CONDITION
+
+// Wakeup at least one of the threads that are waiting on the condition (if any)
+pthread_cond_signal (&amp;cond);
+
+// allow others to proceed
+pthread_mutex_unlock (&amp;lock)
+</code></pre>
+<h3 id="read-write-lock-读写锁"><a class="header" href="#read-write-lock-读写锁">read write lock (读写锁)</a></h3>
+<p>在某个时间内，多个线程可以同时获得读锁, 如果已经有线程获得了读锁，那么尝试获取写锁的将被block, 如果已经有线程获取了读锁，那么其他线程的尝试获取读锁或者写锁将会被block.</p>
+<img src="./images/rw-lock.jpeg" width=400px/>
+<pre><code class="language-cpp">pthread_rwlock_t rwlock;
+int pthread_rwlock_init(pthread_rwlock_t* restrict rwlock, const pthread_rwlockattr_t * restrict attr);
+int pthread_rwlock_destroy(pthread_rwlock_t* rwlock);
+
+// 获取读锁
+int pthread_rwlock_rdlock(pthread_rwlock_t* rwlock);
+// 获取写锁
+int pthread_rwlock_wrlock(pthread_rwlock_t* rwlock);
+// 释放锁  
+int pthread_rwlock_unlock(pthread_rwlock_t* rwlock);
+</code></pre>
+<h3 id="spin-lock-自旋锁"><a class="header" href="#spin-lock-自旋锁">Spin lock (自旋锁)</a></h3>
+<p>多次trylock, 如果失败了再block, 它的出发点是trylock这个指令的时间很短（比如2us)然后mutex block一次可能需要42us,所以它先尝试几次, 如果在这几us内，lock被释放了，那么能够成功的获取锁了。</p>
+<pre><code class="language-cpp">spin_lock(mutex_t* m) {
+    for(int i = 0; i &lt; SPIN_COUNT; i++) {
+        if (pthread_mutex_trylock(m) != EBUSY) {
+            return;
+        }
+    }
+    pthread_mutex_lock(m);
+    return;
+}
+</code></pre>
+<p><b>Adaptive Spin lock</b></p>
+<p>在很多kernel里面使用的，kernel先看拥有锁的线程在不在running(如果在跑的话，那么线程可能短时间内会释放这个锁，所以值得spin几次去尝试下), 如果不在running 状态的话，就直接去require lock了,然后线程会被block.</p>
+<p>使用spin lock的时候，需要好好的评估下到底值不值得，就是critical section hold住lock的时间会不会很长。。如果一般很短的话，值得用spin lock，否则的话用spin lock反而浪费时间。</p>
+<h3 id="barriers"><a class="header" href="#barriers">Barriers</a></h3>
+<pre><code class="language-cpp">pthread_barrier_t mybarrier;
+//初始化
+pthread_barrier_init(&amp;mybarrier, NULL, THREAD_COUNT + 1);
+pthread_barrier_destroy(&amp;mybarrier);
+pthread_barrier_wait(&amp;mybarrier);
+</code></pre>
+<p>等待最后一个线程达到barrier点。
+<img src="./images/barrier-wait.jpeg" width=500px/></p>
+<h2 id="附录"><a class="header" href="#附录">附录</a></h2>
+<ol>
+<li>linux中的process的virutal memory layout 参见<a href="http://www.enseignement.polytechnique.fr/informatique/INF583/INF583_5.pdf">Processes and Memory Management</a></li>
+</ol>
+<img src="./images/process-memeroy-address-layout.png" width=500px/>
+<h2 id="参考"><a class="header" href="#参考">参考</a></h2>
+<ol>
+<li><a href="http://www8.cs.umu.se/kurser/TDBC64/VT03/pthreads/pthread-primer.pdf">pthread primer</a></li>
+<li><a href="http://www.enseignement.polytechnique.fr/informatique/INF583/INF583_5.pdf">Processes and Memory Management</a></li>
+<li><a href="http://blog.zhangjikai.com/2016/04/25/%E3%80%90Pthreads%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%E3%80%91%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/">pthread学习笔记, 基本使用</a></li>
+</ol>
+
+                        <div id="giscus-container"></div>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../pthread/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../pthread/glibc-pthread-implement-thread-life-cycle.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../pthread/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../pthread/glibc-pthread-implement-thread-life-cycle.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+        <script type="text/javascript" charset="utf-8">
+        var pagePath = "pthread/pthread-primer.md"
+        </script>
+
+
+        <!-- Custom JS scripts -->
+        <script type="text/javascript" src="../assets/custom.js"></script>
+        <script type="text/javascript" src="../assets/bigPicture.js"></script>
+
+
+    </body>
+</html>

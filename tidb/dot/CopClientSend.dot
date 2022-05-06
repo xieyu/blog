@@ -1,0 +1,82 @@
+#include "styles.h"
+digraph CopClientSend {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Send[style_func;label="{{
+    Send|
+    bulds the request and gets the\l
+    coprocessor iterator response\l
+  }}"]
+
+  Send ->{
+    buildCopTasks;
+    open;
+  }
+
+  open -> {
+    taskSender_run;
+    copIteratorWorker_run;
+  };
+  taskSender_run[style_func;label="{{
+    copIteratorTaskSender.run|
+    Send tasks to feed the\l 
+    worker goroutines\l
+  }}"]
+  copIteratorWorker_run [style_func;label="{{
+    copIteratorWorker.run |
+    get a copTask from channel\l
+    handle it and send result back\l
+  }}"]
+
+  open[style_func;label="{{
+    open|
+    starts worker and sender\l
+    go routine\l
+  }}"]
+  copIteratorWorker_run-> {
+    handleTask;
+    sendToRespCh;
+  }
+  handleTask -> {
+    sendToRespCh;
+    handleTaskOnce;
+  };
+
+  handleTaskOnce -> {
+    SendReqCtx;
+    handleCopStreamResult;
+    handleCopResponse;
+  }
+  splitRange[style_func;label="{{
+    splitRange|
+    将copRanges按照Region分割
+  }}"]
+  SendReqCtx[style_func;label="{{
+    SendReqCtx|
+    向TikV 发送GRPC请求\l
+  }}"]
+  onRegionError[style_func;label="{{
+    onRegionError|
+    处理Region Cache过期等问题\l
+  }}"]
+  LocateKey[style_func;label="{{
+    LocateKey|
+    获取Key所在的Region
+  }}"]
+
+  SendReqCtx -> onRegionError;
+
+  handleCopStreamResult -> {
+    handleCopResponse;
+    buildCopTasksFromRemain;
+  }
+  handleCopResponse -> {
+    buildCopTasks;
+    buildCopTasksFromRemain;
+    sendToRespCh;
+  }
+  buildCopTasksFromRemain -> buildCopTasks;
+  buildCopTasks -> splitRange -> LocateKey;
+}

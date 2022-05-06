@@ -1,0 +1,197 @@
+digraph handleTask {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_task {
+    graph[label="task";fontsize=20;style="rounded,dashed";color="slategrey"]
+    doneCh;
+    outerMatch[
+      shape=record;
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        outerMatch\l|
+        [][] bool
+      }}"
+    ];
+    outerResult[
+      shape="record";
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        outerResult|
+        由outerWorker go routine\l
+        从outer Executor读取的数据\l
+      }}"];
+    lookupMap[
+      shape="record";
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        lookupMap|
+          lookupMap *mvmap.MVMap
+      }}"];
+    innerResult[
+      shape="record";
+      style=filled;
+      fillcolor="#95e1d3"
+      label="{{
+        innerResult|
+        由inner Worker根据OutResult\l
+        的key range获取的inner table数据\l
+      }}"];
+    innerResult;
+    outerResult;
+    lookupMap;
+  }
+  innerWorker_run -> {
+    handleTask;
+  };
+  innerWorker_run -> doneCh[label="send";color=red];
+  handleTask[
+    shape="record";
+    label="{{
+      handleTask|
+      根据outeResult读取对应的\l
+      innerResult并创立对应的map\l
+    }}"];
+  doneCh -> getFinishedTask[label="recv"; color="blue"];
+  getFinishedTask[
+    shape="record";
+    label="{{
+      getFinishedTask|
+      等待task.DoneCh信号\l
+    }}"];
+  handleTask -> {
+    constructLookupContent;
+    fetchInnerResults;
+    buildLookUpMap;
+  }[color="#b83b5e"];
+  sortAndDedupLookUpContents[
+    shape="record";
+    label="{{
+      sortAndDedupLookUpContents|
+      查询前对joinKey值去重
+    }}"];
+
+  buildLookUpMap[
+    shape="record";
+    label="{{
+      buildLookUpMap|
+      根据JoinKey构建hash表\l
+    }}"];
+
+  buildExecutorForIndexJoin[
+    shape="record";
+    label="{{
+      buildExecutorForIndexJoin|
+      根据lookupContents 创建相应的\l
+      inner reader\l
+    }}"];
+
+  buildExecutorForIndexJoin -> buildKvRangesForIndexJoin;
+  outerWorker_run[
+    shape=record;
+    style=filled;
+    fillcolor="#ff577f"
+    label="{{
+      outerWorker.run\l|
+      单个outerWorker goroutine
+    }}"
+  ];
+  innerWorker_run[
+    shape=record;
+    style=filled;
+    fillcolor="#ff577f"
+    label="{{
+      innerWorker.run\l|
+      多个inner worker go routine\l
+    }}"
+  ];
+
+
+  fetchInnerResults -> {
+    buildExecutorForIndexJoin;
+    innerExec_Next;
+  }
+  innerExec_Next[
+    shape="record";
+    label="{{
+      innerExec_Next|
+      只读取outerResult JoinKey\l
+      KVrange对应的值\l
+    }}"];
+  innerExec_Next -> innerResult;
+  buildLookUpMap -> {
+    EncodeKey;
+    lookupMap;
+  }
+  buildKvRangesForIndexJoin[
+    shape="record";
+    label="{{
+      buildKvRangesForIndexJoin|
+      根据lookupContents 构建\l 
+      内表的kvRange\l
+    }}"];
+
+  constructLookupContent -> {
+    constructDatumLookupKey;
+    encodedLookUpKeys;
+    sortAndDedupLookUpContents;
+    lookUpContents;
+  } [color="#3f72af"];
+
+  lookUpContents[
+    shape=record;
+    style=filled;
+    fillcolor="#f6d887";
+    label="{{
+      lookUpContents|
+        []*indexJoinLookUpContent\l|
+	        keys    []types.Datum\l|
+	        row     chunk.Row\l|
+	        keyCols []int\l
+    }}"
+  ];
+  IndexLookUpJoin_Next[
+    shape=record;
+    style=filled;
+    fillcolor="#ff577f"
+    label="{{
+      IndexLookUpJoin.Next\l|
+      main goroutine\l
+    }}"
+  ];
+  IndexLookUpJoin_Next[
+    shape="record";
+    label="{{
+      IndexLookUpJoin_Next|
+      主线程Join outeResult\l 
+      和InnerResult\l
+    }}"];
+  IndexLookUpJoin_Next -> {
+    lookUpMatchedInners;
+    getFinishedTask;
+  }
+  outerWorker_run -> buildTask -> {
+    outerResult;
+    outerMatch;
+    }
+
+  edge[style=dashed;color=blue];
+  buildExecutorForIndexJoin -> innerExec_Next;
+  innerResult -> buildLookUpMap[label="GetChunk"];
+  lookupMap -> {
+    lookUpMatchedInners;
+  }
+  lookUpContents -> buildKvRangesForIndexJoin;
+  lookUpContents -> buildExecutorForIndexJoin;
+  lookUpContents -> fetchInnerResults;
+  outerResult -> {
+    constructLookupContent;
+    constructDatumLookupKey;
+    IndexLookUpJoin_Next;
+  }
+  outerMatch -> constructDatumLookupKey;
+}

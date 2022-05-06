@@ -1,0 +1,89 @@
+digraph table_read_cache {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_BlockBasedTable {
+    graph[label="BlockBasedTable";fontsize=20;];
+    BlockBasedTable[
+      shape="record"
+      label="{{
+        BlockBasedTable|
+        rep_\l
+      }}"
+    ];
+    BlockBasedTable -> BlockBasedTable_Rep;
+    BlockBasedTable_Rep[
+      shape="record"
+      label="{{
+        BlockBasedTable_Rep|
+          存放index数据\l|
+          <IndexReader> std::unique_ptr\<IndexReader\> index_reader;\l|
+          存放bloomfilter数据\l|
+          <FilterBlockReader> std::unique_ptr\<FilterBlockReader\> filter;\l|
+          std::unique_ptr\<UncompressionDictReader\> uncompression_dict_reader;\l
+      }}"
+    ];
+    BlockBasedTable_Rep:IndexReader -> {
+      IndexReaderCommon;
+    }
+    BlockBasedTable_Rep:FilterBlockReader -> FilterBlockReaderCommon;
+    FilterBlockReaderCommon[
+      shape="record"
+      label="{{
+        FilterBlockReaderCommon|
+          const BlockBasedTable* table_;\l|
+          CachableEntry\<TBlocklike\> filter_block_;\l|
+      }}"
+    ];
+    IndexReaderCommon[
+      shape="record"
+      label="{{
+        IndexReaderCommon|
+          const BlockBasedTable* table_;\l|
+          CachableEntry\<Block\> index_block_;\l
+      }}"
+    ];
+    BlockBasedTable -> BlockBasedTableOptions;
+    BlockBasedTableOptions[
+      shape="record"
+      label="{{
+        BlockBasedTableOptions|
+          bool no_block_cache = false;\l|
+          std::shared_ptr\<Cache\>\l block_cache = nullptr;\l|
+          存放BlockData cache\l
+      }}"
+    ];
+  }
+
+  ImmutableDBOptions[
+    shape="record"
+    label="{{
+      ImmutableDBOptions|
+        <row_cache> std::shared_ptr\<Cache\> row_cache;\l
+    }}"
+  ];
+
+  TableCache[
+    shape="record"
+    label="{{
+      TableCache|
+        <Cache> Cache* const cache_;\l
+        Key: FileName\l
+        Value: TableReader\l
+        |
+        <row_cache_id> std::string row_cache_id_;\l
+    }}"
+  ];
+  TableCache:Cache -> BlockBasedTable;
+  TableCache:row_cache_id -> ImmutableDBOptions:row_cache;
+  Version[
+    shape="record"
+    label="{{
+      Version|
+      <TableCache> TableCache* table_cache
+    }}"
+  ];
+  Version:TableCache -> TableCache;
+}

@@ -1,0 +1,78 @@
+#include "styles.h"
+digraph LockKeys {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  LockKeys -> {
+    MemDB_GetFlags;
+    deduplicateKeys;
+    pessimisticLockMutations;
+    asyncPessimisticRollback;
+    MemDB_UpdateFlags;
+  }
+  subgraph cluster_MemDB {
+    graph[label="MemDB";fontsize=20;style="rounded,dashed";color="slategrey"]
+    MemDB_GetFlags;
+    MemDB_UpdateFlags;
+  }
+
+  MemDB_GetFlags[style_func;label="{{
+    MemDB.GetFlags|
+    检查key在MemDB中的flag\l
+    locked, valueExist, checkKeyExists\l
+  }}"]
+  MemDB_UpdateFlags[style_func;label="{{
+    MemDB.UpdateFlags|
+    加完悲观lock之后\l
+    更新key对应的flags\l
+  }}"]
+
+  pessimisticLockMutations -> {
+    doActionOnMutations;
+  }
+  doActionOnMutations -> actionPessimisticLock_handleSingleBatch;
+  actionPessimisticLock_handleSingleBatch -> {
+    CmdPessimisticLock;
+    GetRegionError;
+  }
+  GetRegionError[style_func;label="{{
+    GetRegionError|
+    region error 重试\l
+  }}"]
+
+  GetRegionError -> pessimisticLockMutations[style_edge_data];
+  asyncPessimisticRollback[style_func;label="{{
+    asyncPessimisticRollback|
+    处理pessimisticLockMutations\l
+    返回的错误\l|
+    启动一个goroutine\l
+    rollback pessimictic lock\l
+  }}"]
+  asyncPessimisticRollback -> {
+    pessimisticRollbackMutations;
+  }
+
+  pessimisticRollbackMutations -> actionPessimisticRollback_handleSingleBatch;
+  actionPessimisticRollback_handleSingleBatch -> CmdPessimisticRollback;
+
+  pessimisticLockMutations -> asyncPessimisticRollback[style_edge_data];
+
+  CmdPessimisticLock -> AcquirePessimisticLock_process_write[style_edge_data];
+  CmdPessimisticRollback -> PessimisticRollback_process_write[style_edge_data];
+
+  subgraph cluster_TiKV {
+    graph[label="TiKV";fontsize=20;style="rounded,dashed";color="slategrey"]
+      AcquirePessimisticLock_process_write[style_func;label="{{
+        AcquirePessimisticLock|
+          process_write\l|
+          获取悲观锁\l
+      }}"]
+    PessimisticRollback_process_write[style_func;label="{{
+      PessimisticRollback|
+        process_write
+    }}"]
+
+  }
+
+}

@@ -1,0 +1,124 @@
+#include "styles.h"
+digraph peer_propose_normal {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Peer__propose -> {
+    Peer__propose_normal;
+    Peer__post_propose;
+    CmdEpochChecker__attach_to_conflict_cmd;
+    CmdEpochChecker__post_propose;
+    Proposal;
+  }
+  Peer__post_propose[style_func;label="{{
+    Peer\l
+    post_propose\l|
+    将Proposal加入队列\l
+  }}"]
+  Peer__post_propose -> {
+    Peer__proposals;
+    monotonic_raw_now;
+  }
+  monotonic_raw_now[style_func;label="{{
+    monotonic_raw_now|
+    作为Proposal的\l
+    renew_lease_time\l
+  }}"]
+  monotonic_raw_now -> Proposal:renew_lease_time;
+  Peer__next_proposal_index -> Proposal:index;
+
+  Peer__proposals[style_var;label="{{
+    Peer\l
+    proposals\l|
+    ProposalQueue\<EK::Snapshot\>,\l
+  }}"]
+  Peer__proposals -> ProposalQueue;
+  ProposalQueue[style_func;label="{{
+    ProposalQueue|
+    tag: String,\l|
+    queue: VecDeque\<Proposal\<S\>\>,\l
+  }}"]
+  Proposal -> Peer__proposals[style_edge_data];
+  ProposalQueue;
+  Proposal[style_func;label="{{
+    Proposal|
+    pub is_conf_change: bool,\l|
+    <index> pub index: u64,\l|
+    pub term: u64,\l|
+    pub cb: Callback\<S\>,\l|
+    <renew_lease_time> pub renew_lease_time: Option\<Timespec\>,\l
+    pub must_pass_epoch_check: bool,\l
+  }}"]
+  Peer__propose_normal[style_func;label="{{
+    Peer\l
+    propose_normal\l
+    返回proposal\l
+    index\l
+  }}"]
+
+
+  Peer__propose_normal -> {
+    Peer__pre_propose;
+    Peer__has_applied_to_current_term;
+    Peer__next_proposal_index;
+    RawNode__propose;
+    CmdEpochChecker__propose_check_epoch;
+    Peer__last_proposed_prepare_merge_idx;
+  }
+  Peer__pre_propose[style_func;label="{{
+    Peer\l
+    pre_propose\l|
+    创建ProposalContext\l
+  }}"]
+
+  Peer__pre_propose -> {
+    ProposalContext;
+    Peer__pre_propose_prepare_merge;
+    CoprocessorHost__pre_propose;
+    get_sync_log_from_request;
+  }
+  ProposalContext[style_blue1;label="{{
+    ProposalContext|
+    bitflags\l
+    const SYNC_LOG       = 0b0000_0001;\l|
+    const SPLIT          = 0b0000_0010;\l|
+    const PREPARE_MERGE  = 0b0000_0100;\l
+  }}"]
+  RaftCmdRequest[style_blue1;label="{{
+    RaftCmdRequest|
+    proposal 的raft cmd\l
+  }}"]
+  RawNode__propose[style_blue1;label="{{
+    RawNode\l
+    propose\l|
+    调用raft的propsal\l
+  }}"]
+  Peer__propose[style_func;label="{{
+    Peer\l
+    propose\l
+  }}"]
+
+  {
+    ProposalContext;
+    RaftCmdRequest;
+  } -> RawNode__propose[style_edge_data];
+
+  Peer__has_applied_to_current_term -> CmdEpochChecker__propose_check_epoch[style_edge_data];
+  Peer__next_proposal_index[style_func;label="{{
+    Peer\l
+    next_proposal_index\l|
+    raft_group.raft.raft_log.last_index +1\l
+    在调用RawNode::Propose前后调用\l
+    用来检查message 是否\l
+    被drop silently\l|
+    也会被用来设置后面\l
+    的Proposal的index字段\l
+  }}"]
+  CmdEpochChecker__propose_check_epoch[style_func;label="{{
+    CmdEpochChecker\l
+    propose_check_epoch\l
+  }}"]
+
+}

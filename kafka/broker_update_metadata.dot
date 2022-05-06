@@ -1,0 +1,50 @@
+digraph broker_update_metadata {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_BrokerServer {
+    graph[label="BrokerServer";fontsize=20;style=rounded];
+    subgraph cluster_MetaDataCache {
+      graph[label="MetaDataCache";fontsize=20;style=rounded];
+      StateChangeLogger;
+      MetadataSnapshot[
+        fillcolor="#95e1d3";
+        style=filled;
+        shape="record";
+        label="{{
+          MetadataSnapshot|
+          partitionStates\l|
+          controllerId\l|
+          aliveBrokers\l|
+          aliveNodes\l
+        }}";
+      ];
+    };
+
+    subgraph cluster_ReplicaManager {
+      graph[label="ReplicaManager";fontsize=20;style=rounded];
+      maybeUpdateMetadataCache;
+      metadataCache[
+        fillcolor="#95e1d3";
+        style=filled;
+        shape="box3d";
+        label="metadataCache"
+      ];
+      maybeUpdateMetadataCache -> updateMetadata -> metadataCache ->{
+        StateChangeLogger;
+        MetadataSnapshot;
+      };
+    };
+    subgraph cluster_KafkaApi {
+      graph[label="KafkaApi";fontsize=20;style=rounded];
+      handleUpdateMetadataRequest;
+    };
+  };
+
+  subgraph cluster_Controller {
+    graph[label="Controller";fontsize=20;style=rounded];
+    sendUpdateMetadataRequests;
+  };
+  sendUpdateMetadataRequests -> handleUpdateMetadataRequest;
+  handleUpdateMetadataRequest -> maybeUpdateMetadataCache;
+}

@@ -1,0 +1,40 @@
+digraph frame_write {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  FramedWrite[shape="record";
+    label="{{
+      FramedWrite|
+        <i> inner: FramedWrite2\<Fuse\<T,E\>\>\l|
+        <e> + encoder\l|
+        <r> + get_ref\l|
+        <m> + get_mut\l|
+        <into> + into_inner\l
+    }}";
+  ]
+
+  FramedWrite2[shape="record";
+    label="{{
+      FramedWrite2|
+        <i> inner: T \l|
+        buffer: BytesMut
+    }}";
+  ]
+
+  Fuse[shape="record";
+    label="{{
+      Fuse|
+        <0> 0: T\l|
+        <1> 1: U\l
+    }}";
+  ]
+
+
+  FramedWrite:i -> FramedWrite2;
+  FramedWrite2:i -> Fuse;
+  FramedWrite:e -> Fuse:1[label="encoder/encoder_mut"];
+  FramedWrite:r -> Fuse:0[label="ref"];
+  FramedWrite:m -> Fuse:0[label="mut"];
+  FramedWrite:into -> Fuse:0[label="into_inner"];
+}

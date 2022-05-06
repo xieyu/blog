@@ -1,0 +1,124 @@
+#include "styles.h"
+digraph fromrequest {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  FromRequest -> {
+    Rejection;
+    RequestParts;
+  }
+  Rejection -> IntoResponse;
+  FromRequest -> Extension[style_edge_data];
+
+  Extension -> {
+    ExtensionRejection;
+    ExtensionsAlreadyExtracted;
+    Extension__from_request;
+  }
+
+  Extension__from_request -> {
+    RequestParts:extensions
+  }
+
+  RequestParts[style_func;label="{{
+    RequestParts\l|
+    method: Method,\l|
+    uri: Uri,\l|
+    version: Version,\l|
+    headers: Option\<HeaderMap\>,\l|
+    <extensions> extensions: Option\<Extensions\>,\l|
+    body: Option\<B\>,\l
+  }}"];
+
+  Extentions[style_func;label="{{
+    Extentions\l|
+    map: Option\<Box\<AnyMap\>\>,\l
+  }}"];
+
+  RequestParts:extensions -> Extentions;
+  Extentions -> AnyMap;
+
+  Layer -> AddExtensionLayer;
+  Layer[style_func;label="{{
+    Layer\l|
+    fn layer(&self, inner: S) -\> Self::Service\l
+  }}"];
+  AddExtensionLayer -> AddExtension;
+
+  AddExtension[style_func;label="{{
+    AddExtension\l|
+    inner: S,\l|
+    value: T,\l|
+    实现了Service trait\l
+  }}"];
+
+  AddExtension -> {
+    Service;
+    AddExtension__call;
+  }
+  Service -> AddExtension__call[style_edge_data];
+
+  Service[style_func;label="{{
+    Service\l|
+    service接口\l
+  }}"];
+
+  Extension[style_func;label="{{
+    Extension\l|
+    实现了FromRequest接口\l
+  }}"];
+
+  Extension__from_request[style_func;label="{{
+    Extension::from_request\l|
+    实现FromRequest接口\l
+  }}"];
+
+  AddExtension__call -> req__extentions_mut__insert;
+  req__extentions_mut__insert -> Extentions;
+  req__extentions_mut__insert[style_func;label="{{
+    Request.extentions_mut.insert\l|
+    insert(self.value.clone())\l
+    在这个地方插入value.clone\l
+    到extensions中\l
+    后面可以在get出来\l
+  }}"];
+  Router__layer -> {
+    Layer__layer;
+    MapResponseBodyLayer__new;
+    MethodRouter;
+  }
+
+  Layer__layer[style_func;label="{{
+    Layer__layer\l|
+    trait Layer\l
+  }}"];
+  Layer__layer -> Layer[style_edge_data];
+  Layer__layer -> AddExtensionLayer__layer -> AddExtension[style_edge_data];
+  Layer__layer -> {
+    Stack__new;
+  }
+  Stack__new[style_func;label="{{
+    Stack__new\l|
+    inner: Inner\l
+    outer: Outer\l|
+    将两个中间件\l 
+    chained 在一起\l
+  }}"];
+  Stack__new -> Stack__layer[style_edge_data];
+  Layer -> Stack__layer;
+  Stack__layer[style_func;label="{{
+    Stacklayer\l|
+    let inner = self.inner.layer(service);\l
+    self.outer.layer(inner)\l
+  }}"];
+  MethodRouter -> {
+    MethodRouter__on;
+  }
+
+  MethodRouter__on -> {
+    MethodRouter__on_service_boxed_response_body;
+  }
+}

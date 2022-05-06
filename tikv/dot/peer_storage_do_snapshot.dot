@@ -1,0 +1,130 @@
+#include "styles.h"
+digraph peer_storage_do_snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  do_snapshot[style_func;label="{{
+    do_snapshot|
+    生成snapshot metadata部分\l
+    调动build 生成数据部分\l
+  }}"]
+
+  subgraph cluster_SnapManager {
+    graph[label="SnapManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    register;
+    get_snapshot_for_building;
+  }
+
+  subgraph cluster_metadata {
+    graph[label="metadata";fontsize=20;style="rounded,dashed";color="slategrey"]
+    {
+    set_index;
+    set_term;
+    set_conf_state;
+    } -> metadata;
+  }
+
+  do_snapshot -> {
+    register;
+    SnapKey_new;
+    kv_snap_get_msg_cf_CF_RAFT;
+    apply_state_key;
+    region_state_key;
+    conf_state_from_region;
+    get_snapshot_for_building;
+    build;
+    get_applied_index;
+  }
+  conf_state_from_region[style_func;label="{{
+    conf_state_from_region|
+    从region的peers信息中\l
+    创建ConfState\l
+  }}"]
+  kv_snap_get_msg_cf_CF_RAFT[style_func;label="{{
+    kv_snap.get_msg_cf(CF_RAFT, ...)\l
+    从kv_snap中读取\l
+    RaftApplyState\l
+  }}"]
+
+  get_snapshot_for_building -> build -> snap_data;
+  apply_state_key -> kv_snap_get_msg_cf_CF_RAFT[style_edge_data];
+  apply_state_key -> apply_state[style_edge_data];
+
+  region_state_key -> kv_snap_get_msg_cf_CF_RAFT[style_edge_data] 
+  region_state_key -> region_state[style_edge_data];
+  apply_state -> SnapKey_new[style_edge_data];
+  region_state -> conf_state_from_region -> set_conf_state[style_edge_data];
+
+  apply_state -> get_applied_index -> set_index[style_edge_data];
+  last_applied_index_term -> SnapKey_new[style_edge_data];
+  last_applied_index_term -> set_term[style_edge_data];
+
+  SnapKey_new -> {
+    set_index;
+    set_term;
+    register;
+  }[style_edge_data];
+  SnapKey_new[style_func;label="{{
+    SnapKey::new(\l 
+     region_id,\l
+     last_applied_index_term\l
+     apply_state.get_applied_index)\l
+  }}"]
+
+  {
+    snap_data;
+    metadata;
+  } -> snapshot;
+  
+  last_applied_index_term[style_func;label="{{
+    last_applied_index_term|
+    在ApplyFsm.handle_snapshot设置\l
+    ApplyDelegate.applied_index_term\l
+  }}"]
+
+  subgraph cluster_snap_data {
+    graph[label="snap kv数据";fontsize=20;style="rounded,dashed";color="slategrey"]
+    snap_data[style_func;label="{{
+      snap_data|
+      RaftSnapshotData\l|
+      Region\l|
+      file_size: u64\l|
+      data: repeated KeyValue\l|
+      version: u64\l|
+      meta: SnapshotMeta\l
+    }}"]
+    SnapshotMeta[style_func;label="{{
+      SnapshotMeta|
+      cf_files repeated SnapshotCfFile\l|
+      for_balance: bool\l
+    }}"]
+    SnapshotCfFile[style_func;label="{{
+      SnapshotCfFile|
+      pub cf: string\l
+      pub size: u64\l
+      pub checksum: u32\l
+    }}"]
+    SnapshotMeta -> SnapshotCfFile;
+    snap_data -> SnapshotMeta
+  }
+  metadata[style_blue1;label="{{
+    metadata|
+      SnapshotMetadata\l|
+      ConfState conf_state = 1;\l|
+      uint64 index = 2;\l|
+      uint64 term = 3;\l
+  }}"]
+  snapshot[style_blue1;label="{{
+    Snapshot\l|
+    bytes data = 1;\l|
+    SnapshotMetadata metadata = 2;\l
+  }}"]
+
+  build[style_func;label="{{
+    build|
+    store/snap.rs\l|
+    生成snapshot数据部分\l
+    应该是写到cf文件中\l
+  }}"]
+}

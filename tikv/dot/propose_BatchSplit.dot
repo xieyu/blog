@@ -1,0 +1,47 @@
+#include "styles.h"
+digraph propose_batch_split {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate__handle_msgs -> {
+    PeerFsmDelegate__propose_raft_command;
+  }
+  PeerFsmDelegate__propose_raft_command -> {
+    PeerFsmDelegate__pre_pose_raft_command;
+    Callback__invoke_with_response_Err;
+    bind_term;
+    Peer__propose;
+    PeerFsmDelegate__check_merge_proposal;
+    Peer__pending_remove;
+    notify_req_region_removed;
+  }
+  PeerFsmDelegate__pre_pose_raft_command -> {
+    Error__RegionNotIntialized;
+    Error__Other;
+    check_term;
+    check_region_epoch;
+  }
+  check_region_epoch -> Error__EpochNotMatch;
+  PeerFsmDelegate__on_raft_message -> {
+    PeerFsmDelegate__check_msg;
+    Peer__step;
+  }
+
+  PeerFsmDelegate__check_msg -> {
+    is_epoch_stale;
+    PollContext__handle_stale_msg;
+    need_gc_msg;
+  }
+  need_gc_msg -> PollContext__trans__send;
+  PollContext__handle_stale_msg -> PollContext__trans__send;
+  Peer__send_raft_message -> {
+    Peer__prepare_raft_message;
+  }
+  Peer__prepare_raft_message -> {
+    set_region_epoch;
+    Peer__region__get_region_epoch;
+  }
+
+}

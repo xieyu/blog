@@ -1,0 +1,154 @@
+#include "styles.h"
+digraph peer__on_ready_prepare_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  PeerFsmDelegate__on_ready_prepare_merge[style_func;label="{{
+    PeerFsmDelegate\l
+    on_ready_prepare_merge\l|
+    比CatchUpLogs消息\l
+    先执行PrepareMerge消息\l
+  }}"]
+  StoreMeta__set_region[style_func;label="{{
+    StoreMeta\l
+    set_region\l|
+    不知道这个地方\l
+    set_region的作用是什么\l
+  }}"]
+  PeerFsmDelegate__on_check_merge[style_func;label="{{
+    PeerFsmDelegate\l
+    on_check_merge\l|
+    schedule_merge\l
+    然后不断的check\l
+  }}"]
+
+  PeerFsmDelegate__on_ready_prepare_merge -> {
+    StoreMeta__set_region;
+    PeerFsmDelegate__on_check_merge;
+  }
+  PeerFsmDelegate__register_merge_check_tick[style_func;label="{{
+    PeerFsmDelegate\l
+    register_merge_check_tick|
+    注册merge tick\l
+  }}"]
+  PeerFsmDelegate__schedule_tick__PeerTicks__CHECK_MERGE[style_func;label="{{
+    PeerFsmDelegate\l
+    schedule_tick\l
+    PeerTicks::CHECK_MERGE\l|
+    会接着on_check_merge函数\l
+  }}"]
+  PeerFsmDelegate__schedule_tick__PeerTicks__CHECK_MERGE -> PeerFsmDelegate__on_check_merge[style_edge_data];
+
+  PeerFsmDelegate__on_check_merge -> {
+    PeerFsmDelegate__register_merge_check_tick;
+    PeerFsmDelegate__schedule_merge;
+    schedule_return_error;
+  }
+
+  PeerFsmDelegate__schedule_merge -> schedule_return_error[style_edge_data];
+  schedule_return_error[style_func;label="{{
+   schedule_merge返回\l|
+   1.RegionNotFound错误\l
+   本地没找到对应的target region\l|
+   2.本地target region\l
+   比mergeState中的target region\l
+   epoch新\l
+  }}"]
+
+  PeerFsmDelegate__register_merge_check_tick -> {
+    PeerFsmDelegate__schedule_tick__PeerTicks__CHECK_MERGE;
+  }
+
+  PeerFsmDelegate__schedule_merge -> {
+     Peer__pending_merge_state;
+     Peer__validate_merge_peer;
+     Peer__get_min_progress;
+     CommitMergeRequest;
+     RaftRouter__force_send__target_id;
+     PeerStorage__entries;
+  }
+  PeerStorage__entries[style_blue1;label="{{
+    PeerStorage\l
+    entries\l|
+    取min, get_commit+1\l
+    的log entries\l
+    放入CommitMergeRequest\l
+  }}"]
+
+  Peer__pending_merge_state[style_var;label="{{
+    Peer\l
+    pending_merge_state\l|
+    MergeState\l
+  }}"]
+
+  Peer__validate_merge_peer[style_func;label="{{
+    Peer\l
+    validate_merge_peer\l|
+    检查mergeState中的\l
+    target region\l
+    和当前本地target region\l
+    epoch是否一致\l
+  }}"]
+  Peer__validate_merge_peer -> {
+    target_region__get_region_epoch;
+    is_epoch_stale;
+    Peer__is_merge_target_region_stale;
+  }
+  Peer__is_merge_target_region_stale[style_func;label="{{
+    Peer\l
+    is_merge_target_region_stale\l|
+    如果StoreMeta中没有\l
+    target region信息\l
+    去kv engin中读取该信息\l
+    然后check  region epoch\l
+  }}"]
+  Peer__is_merge_target_region_stale -> {
+    is_epoch_stale;
+  }
+  Peer__validate_merge_peer-> schedule_return_error[style_edge_data];
+  Peer__validate_merge_peer -> PeerFsmDelegate__schedule_tick__PeerTicks__CHECK_MERGE[style_edge_data];
+
+  ExecResult__PrepareMerge[style_func;label="{{
+    ExecResult__PrepareMerge|
+    region\l
+    MergeState\l
+  }}"]
+  ExecResult__PrepareMerge -> {
+    Peer__pending_merge_state;
+    PeerFsmDelegate__on_ready_prepare_merge;
+  } [style_edge_data];
+  Peer__pending_merge_state -> PeerStorage__entries;
+
+  CommitMergeRequest[style_blue1;label="{{
+    CommitMergeRequest|
+      AdminCmdType::CommitMerge\l
+      entries\l
+      commit\l
+  }}"]
+  PeerStorage__entries -> CommitMergeRequest[style_edge_data];
+  RaftRouter__force_send__target_id[style_blue1;label="{{
+    RaftRouter\l
+    force_send\l
+    target_id\l|
+    发送CommitMergeRequest\l
+    到TargetRegion\l|
+    由targetRegion Leader\l
+    propose该request\l
+  }}"]
+  PeerFsmDelegate__schedule_merge[style_func;label="{{
+    PeerFsmDelegate\l
+    schedule_merge\l
+  }}"]
+  Peer__get_min_progress[style_func;label="{{
+    Peer\l
+    get_min_progress\l|
+    再get一次集群中最小\l
+    matched index\l|
+    这时候machted index\l
+    可能会增大了一些\l
+  }}"]
+  Peer__get_min_progress -> PeerStorage__entries[style_edge_data];
+
+  CommitMergeRequest -> RaftRouter__force_send__target_id[style_edge_data];
+}

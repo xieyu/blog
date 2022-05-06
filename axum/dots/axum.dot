@@ -1,0 +1,252 @@
+#include "styles.h"
+digraph axum {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  Router[style_func;label="{{
+    Router\l|
+    routes: HashMap\<RouteId, Endpoint\<B\>\>,\l|
+    node: Node,\l|
+    fallback: Fallback\<B\>,\l|
+    nested_at_root: bool,\l
+  }}"];
+
+  Router -> {
+    Fallback;
+    Endpoint;
+    RouteId;
+    _Node;
+  }
+
+  Endpoint[style_func;label="{{
+    EndPoint\l|
+    MethodRouter(MethodRouter\<B\>),\l|
+    Route(Route\<B\>),\l
+  }}"];
+
+  Endpoint -> {
+    MethodRouter;
+    Route;
+  }
+
+  Route[style_func;label="{{
+    Route\l|
+      BoxCloneService\<Request\<B\>, Response, E\>\l
+  }}"];
+
+  MethodRouter[style_func;label="{{
+    MethodRouter\l|
+    get: Option\<Route\<B, E\>\>,\l|
+    head: Option\<Route\<B, E\>\>,\l|
+    delete: Option\<Route\<B, E\>\>,\l|
+    options: Option\<Route\<B, E\>\>,\l|
+    patch: Option\<Route\<B, E\>\>,\l|
+    post: Option\<Route\<B, E\>\>,\l|
+    put: Option\<Route\<B, E\>\>,\l|
+    trace: Option\<Route\<B, E\>\>,\l|
+    fallback: Fallback\<B, E\>,\l|
+    _request_body: PhantomData\<fn() -\> (B, E)\>,\l
+  }}"];
+
+  MethodRouter -> {
+    Route;
+    Body;
+    Fallback;
+    _request_body;
+    Infallible;
+  }
+
+  Route -> {
+    tower__BoxCloneService;
+    http__Request;
+    Response;
+    Infallible;
+  }
+  tower__BoxCloneService -> {
+    BoxCloneService;
+  }
+  BoxCloneService -> CloneService;
+  CloneService -> tower__Service;
+
+  Response -> {
+    http__Response;
+    BoxBody;
+  }
+
+
+  tower__Service[style_func;label="{{
+    trait tower::Service\l|
+    poll_ready: return PollReady when the \l
+    service is able to\l
+    process requests\l|
+    call: 异步处理request\l
+    返回response\l
+  }}"];
+
+  tower__Service -> {
+    http__Request;
+    Future;
+  }[style_edge_data];
+  Future -> http__Response[style_edge_data];
+
+  _Node[style_func;label="{{
+    _Node\l|
+    inner: matchit::Node\<RouteId\>,\l|
+    route_id_to_path: HashMap\<RouteId, Arc\<str\>\>,\l|
+    path_to_route_id: HashMap\<Arc\<str\>, RouteId\>,\l
+  }}"];
+
+  _Node -> {
+    matchit__Node;
+    RouteId;
+  }
+
+  matchit__Node[style_func;label="{{
+    matchit__Node\l|
+    priority: u32,\l|
+    wild_child: bool,\l|
+    indices: Vec\<u8\>,\l|
+    node_type: NodeType,\l|
+    value: Option\<UnsafeCell\<T\>\>,\l|
+    pub(crate) prefix: Vec\<u8\>,\l|
+    pub(crate) children: Vec\<Self\>,\l
+  }}"];
+
+
+  RouteId[style_func;label="{{
+    RouteId\l|
+    u32\l
+  }}"];
+
+  http__Request[style_func;label="{{
+    http::Request\l|
+    head: Parts,\l|
+    body: T,\l
+  }}"];
+
+  http__Response[style_func;label="{{
+    http::Response\l|
+    head: Parts,\l|
+    body: T,\l
+  }}"];
+
+  BoxBody -> UnsyncBoxBody;
+  http__Response -> Parts;
+  Parts[style_func;label="{{
+    Parts\l|
+    pub status: StatusCode,\l|
+    pub version: Version\l|
+    pub headers: HeaderMap\<HeaderValue\>,\l|
+    pub extensions: Extensions\l|
+    _priv: (),\l|
+  }}"];
+  http__Request -> Parts;
+  Parts -> {
+    StatusCode;
+    HeaderValue;
+    Extensions;
+  }
+
+  HeaderValue[style_func;label="{{
+    HeaderValue\l|
+    inner: Bytes,\l|
+    is_sensitive: bool,\l
+  }}"];
+
+  Extensions[style_func;label="{{
+    Extensions\l|
+    map: Option\<Box\<AnyMap\>\>,\l
+  }}"];
+  Extensions -> AnyMap;
+  AnyMap -> TypeId;
+
+  Infallible[style_func;label="{{
+    enum Infallible\l|
+  }}"];
+  Fallback -> {
+    Infallible;
+    Route;
+  }
+
+  Fallback[style_func;label="{{
+    Fallback\l|
+    Default(Route\<B, E\>),\l|
+    Custom(Route\<B, E\>),\l
+  }}"];
+
+
+  Body[style_func;label="{{
+    Body\l|
+    kind: Kind,\l|
+    extra: Option\<Box\<Extra\>\>\l
+  }}"];
+  Body -> {
+    Kind;
+    Extra;
+  }
+
+  Kind[style_func;label="{{
+    Kind\l|
+    Once(Option\<Bytes\>\l|
+    Chan\l|
+    H2\l|
+    Ffi\l|
+    wrapped\l
+  }}"];
+
+  Kind -> {
+    SyncWrapper;
+    Chan;
+    H2;
+    Ffi;
+    Wrapped;
+  }
+  Chan[style_func;label="{{
+    Chan\l|
+        content_length: DecodedLength,\l|
+        want_tx: watch::Sender,\l|
+        data_rx: mpsc::Receiver\<Result\<Bytes, crate::Error\>\>,\l|
+        trailers_rx: oneshot::Receiver\<HeaderMap\>,\l
+    
+  }}"];
+
+  H2[style_func;label="{{
+    H2\l|
+        ping: ping::Recorder,\l|
+        content_length: DecodedLength,\l|
+        recv: h2::RecvStream,\l|
+  }}"];
+
+  Extra[style_func;label="{{
+    Extra\l|
+    delayed_eof: Option\<DelayEof\>,\l
+  }}"];
+
+  Extra -> {
+    DelayEof;
+  }
+
+  DelayEof[style_func;label="{{
+    DelayEof\l|
+    NotEof(DelayEofUntil),\l|
+    Eof(DelayEofUntil),\l
+  }}"];
+  DelayEof -> {
+    DelayEofUntil;
+  }
+
+  DelayEofUntil[style_func;label="{{
+    DelayEofUntil\l|
+    oneshot::Receiver\<Never\>\l
+  }}"];
+
+  DelayEofUntil -> Never;
+
+  Never[style_func;label="{{
+    Never\l|
+    enum Never \{\}\l
+  }}"];
+}

@@ -1,0 +1,52 @@
+#include "styles.h"
+digraph process_v1 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  value[style_var;label="{{
+    value|
+    数据layout如下:\l|
+    {col_id_1|value1|col_id_2|value2|...}|
+    每个element是datum encoded\l|
+    columnId是var i64 datum\l
+  }}"]
+  value -> process_v1;
+
+  process_v1 -> {
+     read_var_i64;
+     column_id_index_get;
+     split_datum;
+  }
+  subgraph cluster_while {
+    graph[label="while: 循环读ncolumnId,value\n直到所有数据都读完";fontsize=20;style="rounded,dashed";color="slategrey"]
+    read_var_i64[style_func;label="{{
+      read_var_i64|
+      读取var_i64类型的columnId\l
+    }}"]
+    split_datum[style_func;label="{{
+      split_datum|
+      读取column_Id对应的datum\l
+    }}"]
+    read_var_i64 -> column_id -> column_id_index_get -> index[style_edge_data];
+    split_datum -> val[style_edge_data];
+  }
+  index[style_var;label="{{
+    index|
+    在输出的columns中的位置
+  }}"]
+  column_id_index_get[style_func;label="{{
+    column_id_index.get(column_id)|
+    coumn_id 到index的映射\l
+  }}"]
+
+  columns[style_var;label="{{
+    columns|
+    最后输出结果\l
+    &mut LazyBatchColumnVec\l
+  }}"]
+
+  {index;val} -> columns;
+  {rank=same;index;val}
+  //{rank=same;read_var_i64;split_datum}
+}

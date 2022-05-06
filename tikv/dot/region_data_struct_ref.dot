@@ -1,0 +1,115 @@
+#include "styles.h"
+digraph region_ref {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftPoller -> PollContext;
+  PollContext -> StoreMeta;
+
+  ApplyFsm -> ApplyFsmDelegate;
+  ApplyFsmDelegate -> Region;
+
+  PeerFsm -> Peer -> PeerStorage;
+  PeerStorage -> Region;
+
+  TiKVServer -> TiKVEngines -> StoreMeta;
+  StoreMeta -> Region;
+  StoreMeta[style_blue1;label="{{
+    StoreMeta|
+    pub store_id: Option\<u64\>,\l|
+    pub region_ranges: BTreeMap\<Vec\<u8\>, u64\>,\l|
+    pub regions: HashMap\<u64, Region\>,\l|
+    pub pending_snapshot_regions: Vec\<Region\>,\l|
+    pub pending_merge_targets: HashMap\<u64,\l
+    HashMap\<u64, metapb::Region\>\>,\l
+    ...
+  }}"]
+
+  PeerStorage[style_blue1;label="{{
+    PeerStorage|
+    peer_id: u64,\l|
+    region: metapb::Region,\l|
+    raft_state: RaftLocalState,\l|
+    apply_state: RaftApplyState,\l|
+    applied_index_term: u64,\l
+  }}"]
+  ApplyFsmDelegate[style_blue1;label="{{
+    ApplyFsmDelegate|
+    id: u64,\l|
+    term: u64,\l|
+    region: Region,\l|
+    apply_state: RaftApplyState,\l
+  }}"]
+
+  ApplyFsm[style_func;label="{{
+    ApplyFsm|
+    delegate: ApplyDelegate\<EK\>,\l|
+    receiver: Receiver\<Msg\<EK\>\>,\l|
+    mailbox: Option\<BasicMailbox\<ApplyFsm\<EK\>\>\>,\l
+  }}"]
+
+  PollContext[style_func;label="{{
+    PollContext|
+    pub store_meta: Arc\<Mutex\<StoreMeta\>\>,\l
+    ...\l
+  }}"]
+  RaftPoller[style_func;label="{{
+    RaftPoller|
+    poll_ctx: PollContext\<EK, ER, T\>,\l|
+    ...\l
+  }}"]
+  PeerFsm[style_func;label="{{
+    PeerFsm|
+    pub peer: Peer\<EK, ER\>,\l|
+    ...\l
+  }}"]
+  Peer[style_func;label="{{
+    Peer|
+    pub peer: metapb::Peer,\l|
+    pub raft_group: RawNode\<PeerStorage\<EK, ER\>\>,\l
+  }}"]
+  TiKVServer[style_func;label="{{
+    TiKVServer|
+    engines: Option\<TiKVEngines\<ER\>\>,\l
+  }}"]
+  TiKVEngines[style_func;label="{{
+    TiKVEngines|
+    engines: Engines\<RocksEngine, ER\>,\l|
+    store_meta: Arc\<Mutex\<StoreMeta\>\>,\l|
+    engine: RaftKv\<ServerRaftStoreRouter\<RocksEngine, ER\>\>,\l
+  }}"]
+  PeerStorage -> {
+    RaftLocalState;
+    RaftApplyState;
+  }
+  ApplyFsmDelegate -> RaftApplyState;
+  InvokeContext[style_func;label="{{
+    InvokeContext|
+    Returned by `PeerStorage::handle_raft_ready`\l
+    used for recording changed status of\l
+    RaftLocalState and RaftApplyState\l
+  }}"]
+
+  InvokeContext -> {
+    RaftLocalState;
+    RaftApplyState;
+  }
+
+  ApplyContext -> ExecContext;
+  ExecContext[style_func;label="{{
+    fsm/apply.rs\l|
+    ExecContext\l|
+    apply_state: RaftApplyState,\l|
+    index: u64,\l|
+    term: u64,\l|
+    apply_state为\l
+    ApplyFsmDelegate的clone\l
+  }}"]
+  ExecContext -> ApplyFsmDelegate[style_edge_data];
+  ExecContext -> {
+    RaftApplyState;
+  }
+  InvokeContext -> PeerStorage[style_edge_data];
+}

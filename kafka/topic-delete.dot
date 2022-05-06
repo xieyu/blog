@@ -1,0 +1,172 @@
+digraph topic_delete {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_controllerContext {
+    graph[label="controllerContext";fontsize=20;style=rounded];
+    removeTopic -> {
+      allTopics;
+      partitionAssignments;
+      partitionLeadershipInfo;
+    }
+    replicasInState -> replicasForTopic;
+    partitionsForTopic -> partitionAssignments;
+    areAllReplicasInState -> replicasForTopic;
+    replicasForPartition -> partitionReplicaAssignment -> partitionAssignments;
+    allTopics[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        allTopics
+      }}";
+    ];
+    partitionsBeingReassigned[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        partitionsBeingReassigned
+      }}";
+    ];
+    partitionAssignments[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        partitionAssignments
+      }}";
+    ];
+    topicsToBeDeleted[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        topicsToBeDeleted
+      }}";
+    ];
+    topicsWithDeletionStarted[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        topicsWithDeletionStarted
+      }}";
+    ];
+    beginTopicDeletion -> topicsWithDeletionStarted;
+    queueTopicDeletion -> topicsToBeDeleted;
+    isAnyReplicaInState -> replicasForTopic -> partitionAssignments;
+  };
+  subgraph cluster_PartionStateMachine {
+    graph[label="PartionStateMachine";fontsize=20;style=rounded];
+    pm_NonExisten;
+    pm_Offline;
+  };
+
+  subgraph cluster_zkClient {
+    graph[label="zkClient";fontsize=20;style=rounded];
+    getTopicDeletions -> {
+      GetChildrenRequest;
+    };
+    GetChildrenRequest[
+      shape="record";
+      label="{{
+        GetChildrenRequest|
+        获取DeleteTopicsTopicZNode\l 
+        下的数据
+      }}";
+    ];
+    deleteTopicDeletions -> {
+      DeleteRequest;
+    };
+    DeleteRequest[
+      shape="record";
+      label="{{
+        DeleteRequest|
+        删除DeleteTopicsTopicZNode\l下数据
+      }}";
+    ];
+  };
+  subgraph cluster_ReplicaStateMachine {
+    graph[label="ReplicaStateMachine";fontsize=20;style=rounded];
+    rm_ReplicaDeletionSuccessfull;
+    rm_ReplicaDeletionIneligible;
+    rm_OfflineReplica;
+    rm_NonExisten;
+    rm_ReplicaDeletionStarted;
+  };
+
+  subgraph cluster_client {
+    graph[label="client";fontsize=20;style=rounded];
+    mutePartitionModifications;
+    deleteTopic;
+  };
+
+  subgraph cluster_topicDeletionManager {
+    graph[label="topicDeletionManager";fontsize=20;style=rounded];
+    enqueueTopicsForDeletion;
+    markTopicIneligibleForDeletion;
+    enqueueTopicsForDeletion -> {
+      queueTopicDeletion;
+      resumeDeletions;
+    }
+    resumeDeletions -> {
+      topicsToBeDeleted;
+      areAllReplicasInState;
+      completeDeleteTopic;
+      isAnyReplicaInState;
+      retryDeletionForIneligibleReplicas;
+      isTopicEligibleForDeletion;
+      onTopicDeletion;
+    }
+    onTopicDeletion -> {
+      pm_Offline;
+      pm_NonExisten
+      beginTopicDeletion
+      sendMetadataUpdate;
+      onPartitionDeletion;
+      partitionsForTopic;
+    }
+    onPartitionDeletion -> {
+      replicasForPartition;
+      startReplicaDeletion;
+    }
+    startReplicaDeletion -> {
+      rm_ReplicaDeletionSuccessfull;
+      rm_ReplicaDeletionIneligible;
+      rm_OfflineReplica;
+      rm_ReplicaDeletionStarted;
+    }
+    completeDeleteTopic -> {
+      mutePartitionModifications;
+      replicasInState;
+      rm_ReplicaDeletionSuccessfull;
+      rm_NonExisten;
+      topicsToBeDeleted;
+      topicsWithDeletionStarted;
+      deleteTopic;
+      removeTopic;
+    }
+  };
+  processTopicDeletion[
+    shape="record";
+    label="{{
+      processTopicDeletion|
+      1.从zk中获取要删除哪些topic\l
+      2.和allTopic比较，去掉不存在的topic\l
+      3.如果要删除的topic下的parition\l 
+      在迁移中，topic 则标记不可删除\l
+      4.将topic放入topicDeleteManager的队列中\l
+      5.删掉zk中DeleteTopics节点下的数据\l
+    }}";
+  ];
+
+  processTopicDeletion -> {
+    getTopicDeletions;
+    deleteTopicDeletions;
+    allTopics;
+    partitionsBeingReassigned;
+    markTopicIneligibleForDeletion;
+    enqueueTopicsForDeletion;
+  }
+}

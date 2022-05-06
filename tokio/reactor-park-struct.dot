@@ -1,0 +1,67 @@
+digraph reactor_park_struct {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  Reactor [
+    shape="record";
+    label="{{
+      Reactor |
+      events: mio::Events\l|
+      <inner> inner: Arc Inner|
+      _wakeup_registration|
+    }}";
+  ];
+
+  Inner[
+    shape="record";
+    label="{{
+      Inner|
+      io:  mio::Poll\l|
+      next_aba_guard: AtomicUsize\l|
+      <scheduleio> io_dispatch: RwLock Slab ScheduleIo \l|
+      wakeup: mio::SetReadiness\l
+    }}";
+  ];
+
+  Handle [
+    shape="record";
+    label="{{
+      Handle |
+      <inner> inner \l
+    }}";
+  ];
+
+  HandlePriv[
+    shape="record";
+    label="{{
+      HandlePriv|
+      <inner> inner \l
+    }}";
+  ];
+
+  ScheduleIo[
+    shape="record";
+    label="{{
+      ScheduleIo|
+      readiness: AtomicUsize\l|
+      <r>reader: AtomicWaker\l|
+      <w>writer: AtomicWaker\l|
+    }}";
+  ]
+
+  AtomicWaker [
+    shape="record";
+    label="{{
+      AtomicWaker |
+      state: AtomicUsize\l|
+      waker: CausalCell\<Option\<Waker\>\>\l
+    }}";
+  ]
+
+  Handle:inner -> HandlePriv[label="Option"];
+  HandlePriv:inner -> Inner[label="Weak"];
+  Reactor:inner -> Inner[label="Arc"];
+  Inner:scheduleio -> ScheduleIo[label="Rwlock\<Slab\>"];
+  {ScheduleIo:r, ScheduleIo:w} -> AtomicWaker;
+}

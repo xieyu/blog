@@ -1,0 +1,85 @@
+#include "styles.h"
+digraph write_result {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  WriteResult[style_struct;label="{{
+    WriteResult|
+    pub ctx: Context,\l|
+    pub to_be_write: WriteData,\l|
+    pub rows: usize,\l|
+    pub pr: ProcessResult,\l|
+    pub lock_info: Option\<(lock_manager::Lock, bool, Option\<WaitTimeout\>)\>,\l|
+    pub lock_guards: Vec\<KeyHandleGuard\>,\l|
+    pub response_policy: ResponsePolicy,\l
+  }}"]
+  WriteResult -> {
+    Context
+    WriteData
+    ProcessResult
+    Lock
+    KeyHandleGuard
+    ResponsePolicy
+  }
+
+  WriteData[style_struct;label="{{
+    WriteData|
+    pub modifies: Vec\<Modify\>,\l|
+    pub extra: TxnExtra,\l
+  }}"]
+  WriteData -> {
+    Modify;
+    TxnExtra
+  }
+  TxnExtra[style_struct;label="{{
+    TxnExtra|
+    pub old_values: OldValues,\l|
+    pub one_pc: bool,\l
+  }}"]
+  ProcessResult -> {
+    Res;
+    MultiRes;
+    PrewriteResult
+    MvccKey
+    MvccStartTs
+    Locks
+    TxnStatus
+    NextCommand
+    Failed
+    PessimisticLockRes
+    SecondaryLocksStatus
+  }
+  ResponsePolicy -> {
+    OnApplied
+    OnCommitted
+    OnProposed
+  }
+  Lock[style_struct;label="{{
+    Lock|
+    pub ts: TimeStamp,\l|
+    pub hash: u64,\l
+  }}"]
+  KeyHandleGuard[style_struct;label="{{
+    KeyHandleGuard|
+    _mutex_guard: AsyncMutexGuard\<'static, ()\>,\l|
+    handle: Arc\<KeyHandle\>,\l
+  }}"]
+  KeyHandleGuard -> KeyHandle;
+  KeyHandle[style_struct;label="{{
+    KeyHandle|
+    pub key: Key,\l|
+    table: UnsafeCell\<Option\<LockTable\>\>,\l|
+    mutex: AsyncMutex\<()\>,\l|
+    lock_store: Mutex\<Option\<Lock\>\>,\l
+  }}"]
+  KeyHandle -> {
+     LockTable;
+     Lock;
+  }
+  LockTable[style_struct;label="{{
+    LockTable|
+      pub Arc\<SkipMap\<Key, Weak\<KeyHandle\>\>\>\l
+  }}"]
+  
+}

@@ -1,0 +1,93 @@
+#include "styles.h"
+digraph raft_apply_poller {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_RaftPoller {
+    graph[label="RaftPoller\n线程池";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RaftPoller_poll -> {
+       RaftPoller_handle_normal;
+       RaftPoller_end;
+    }
+    RaftPoller_poll[style_func;label="{{
+      poll|
+      poll主循环
+    }}"]
+    RaftPoller_handle_normal[style_func;label="{{
+      handle_normal\l|
+      处理消息，将修改\l
+      写入writeBatch\l|
+      通过ApplyRouter\l
+      让Apply router落盘\l
+    }}"]
+    RaftPoller_end[style_func;label="{{
+      end|
+      将write batch数据写入\l
+      kv engine和raft engine\l
+    }}"]
+    RaftPoller_handle_normal -> RaftPoller_end[style_edge_data];
+  }
+  RaftPoller_end -> {RaftLogEngine;KvEngine};
+  ApplyPoller_end -> KvEngine;
+  subgraph cluster_ApplyPoller {
+    graph[label="ApplyPoller\n线程池";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ApplyPoller_poll -> {
+       ApplyPoller_handle_normal;
+       ApplyPoller_end;
+    }
+    ApplyPoller_poll[style_func;label="{{
+      poll|
+      poll主循环
+    }}"]
+    ApplyPoller_handle_normal[style_func;label="{{
+      handle_normal|
+      处理msg, 将修改写入\l
+      write batch\l
+    }}"]
+    ApplyPoller_end[style_func;label="{{
+      end|
+      将write batch写入\l
+      底层rocksdb\l|
+      然后向raftPoller\l
+      发送ApplyRes消息\l
+    }}"]
+    ApplyPoller_handle_normal -> ApplyPoller_end[style_edge_data];
+  }
+  TaskApply[style_var;label="{{
+    TaskApply|
+    pub peer_id: u64,\l|
+    pub region_id: u64,\l|
+    pub term: u64,\l|
+    pub entries: Vec\<Entry\>,\l|
+    pub cbs: Vec\<Proposal\<S\>\>,\l|
+    entries_mem_size: i64,\l|
+    entries_count: i64,\l
+  }}"]
+
+  ApplyRes[style_var;label="{{
+    ApplyRes|
+    pub region_id: u64,\l|
+    pub apply_state: RaftApplyState,\l|
+    pub applied_index_term: u64,\l|
+    pub exec_res: VecDeque\<ExecResult\<S\>\>,\l|
+    pub metrics: ApplyMetrics,\l
+  }}"]
+
+  RaftPoller_handle_normal -> TaskApply -> ApplyPoller_handle_normal;
+  ApplyPoller_end -> ApplyRes -> RaftPoller_handle_normal;
+  {rank=same;RaftLogEngine;KvEngine;}
+  {rank=same;ApplyPoller_handle_normal;RaftPoller_handle_normal};
+  RaftLogEngine[style_blue1;label="{{
+    RaftLogEngine|
+    存储raft log, raft state等\l
+    实现为RocksDbEngine或者\l
+    RaftLogEngine\l
+  }}"]
+  KvEngine[style_blue1;label="{{
+    KvEngine|
+    存储KV\l
+    实现为RocksdbEngine\l
+  }}"]
+}

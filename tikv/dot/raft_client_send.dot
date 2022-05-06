@@ -1,0 +1,137 @@
+#include "styles.h"
+digraph raft_client_send {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Queue {
+    graph[label="Queue";fontsize=20;style="rounded,dashed";color="slategrey"]
+    push[style_func;label="{{
+      push|
+      向消息队列中push\l
+      RaftMessage\l
+    }}"]
+    notify[style_func;label="{{
+      notify|
+      如果push返回Full错误\l
+      调用notify\l
+      通知RaftCall发送消息\l
+    }}"]
+
+    Queue[style_func;label="{{
+      Queue|
+      <buf> buf: ArrayQueue\<RaftMessage\>,\l|
+      connected: AtomicBool,\l|
+      <waker> waker: Mutex\<Option\<Waker\>\>,\l
+    }}"]
+    push -> Queue:buf;
+    notify -> Queue:waker;
+  }
+
+  subgraph cluster_LruCache{
+    graph[label="LruCache";fontsize=20;style="rounded,dashed";color="slategrey"]
+    cache_get_mut[style_func;label="{{
+      get_mut|
+      从cache中获取\l
+      store_id, conn_id\l
+      的Queue\l
+    }}"]
+    cache_insert[style_func;label="{{
+      insert|
+      将queue放入LRUCache
+    }}"]
+
+    CachedQueue[style_func;label="{{
+      CachedQueue|
+        queue: Arc\<Queue\>,\l|
+        dirty: bool,\l|
+        full: bool,\l
+    }}"]
+  }
+  subgraph cluster_ConnectionPool {
+    graph[label="ConnectionPool";fontsize=20;style="rounded,dashed";color="slategrey"]
+    entry_or_insert_with[style_func;label="{{
+      connections\l 
+      .entry((store_id, conn_id))\l 
+      .or_insert_with\l|
+      先从connections获取\l 
+      store_id, conn_id的Queue\l
+      如果没有就创建一个\l 
+      然后插入到hashmap中
+    }}"]
+    ConnectionPool[style_func;label="{{
+      ConnectionPool|
+        connections: HashMap\<(u64, usize), Arc\<Queue\>\>,\l|
+        tombstone_stores: HashSet\<u64\>,\l
+    }}"]
+    ConnectionPool -> Queue;
+  }
+
+  subgraph cluster_RaftClient {
+    graph[label="RaftClient";fontsize=20;style="rounded,dashed";color="slategrey"]
+    conn_id[style_func;label="{{
+      conn_id|
+      msg.region_id %\l
+      grpc_raft_conn_num\l
+    }}"]
+
+    load_stream[style_func;label="{{
+      load_stream|
+      load connection from pool\l
+      Lru cache中没有store_id,conn_id的stream\l
+      从connection pool中获取一个\l
+      没有的话创建一个StreamBackend;
+    }}"]
+    //>raft_client.rs:831 pub fn send(&mut self, msg: RaftMessage) -> result::Result<(), DiscardReason> {#F/opt/github/tikv/src/server/raft_client.rs#L831
+    send -> {
+      conn_id;
+      push;
+      cache_get_mut;
+      need_flush;
+      full_stores;
+      load_stream;
+      notify;
+    }
+    conn_id -> cache_get_mut -> push[style_edge_data];
+
+    load_stream -> {
+      entry_or_insert_with;
+      StreamBackEnd;
+      Queue;
+      cache_insert;
+      CachedQueue;
+      start;
+      spawn;
+    }
+    start[style_func;label="{{
+      start|
+      生成一个future\l
+      1.resolve adress\l
+      2.connect\l
+      3.make batch call\l
+      4.fallback to legacy API if incompatible\l|
+      batch call中会不断的去\l 
+      Queue中pop raftMessage\l
+      然后send\l
+    }}"]
+    spawn[style_func;label="{{
+      spawn|
+      在future thread pool中执行 start
+    }}"]
+    StreamBackEnd -> start[style_edge_data];
+
+    spawn -> start[style_edge_data];
+    StreamBackEnd -> Queue[style_edge_data];
+    CachedQueue -> Queue[style_edge_data];
+    need_flush[style_func;label="{{
+      need_flush|
+      need_flush: Vec\<(u64, usize)\>,\l
+    }}"]
+    need_flush[style_func;label="{{
+      need_flush|
+      need_flush: Vec\<(u64, usize)\>,\l
+    }}"]
+  }
+  
+}

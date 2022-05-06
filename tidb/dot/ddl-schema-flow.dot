@@ -1,0 +1,106 @@
+digraph ddl_schema_flow {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  ddl_exec[
+    shape="record";
+    label="{{
+      executor/ddl.go|
+      Next\l
+    }}";
+  ];
+
+  ddl_api[
+    shape="record";
+    label="{{
+      ddl/ddl_api.go\l将请求封装为ddl job|
+      CreateSchema\l|
+      AlterSchema\l|
+      DropSchema\l|
+      CreateTable\l|
+      DropTable\l|
+      AlterTable\l|
+      ...
+    }}";
+  ];
+
+  ddl_ddl[
+    shape="record";
+    label="{{
+      ddl/ddl.go\l将job加入队列中|
+      doDDLJob\l
+    }}";
+  ];
+  ddl_worker[
+    shape="record";
+    label="{{
+      ddl/ddl_worker.go\l由Owner来执行|
+      addDDLJob\l|
+      handleDDLJobQueue\l|
+      runDDLJob\l
+    }}";
+  ];
+
+  ddl_schema[
+    shape="record";
+    label="{{
+      ddl/schema.go|
+      onCreateSchema\l|
+      onDropSchema\l|
+      onModifySchemaCharsetAndCollate\l
+    }}";
+  ];
+
+  ddl_table[
+    shape="record";
+    label="{{
+      ddl/table.go|
+      onCreateTable \l|
+      onDropTableOrView \l
+    }}";
+  ];
+
+  meta [
+    shape="record";
+    label="{{
+      meta \l封装对DBInfo/tableInfo的增删改\l封装key的prefix|
+      ListDatabases\l|
+      GetDatabase\l|
+      DropDatabase\l|
+      CreateDatabase\l|
+      CreateTableOrView\l|
+      DropTableOrView\l|
+      ListTables\l|
+      ...\l
+    }}";
+  ];
+
+  meta_ddl_job_queue[
+    shape="record";
+    label="{{
+      meta|
+      EnQueueDDLJob\l|
+      DeQueueDDLJob\l|
+      GetDDLJobByIdx\l|
+      ...
+    }}";
+  ];
+
+  {rank=same; meta; meta_ddl_job_queue};
+
+  subgraph cluster_meta {
+    graph[label="meta";fontsize=20;style=rounded]
+    
+  }
+
+  ddl_exec -> ddl_api;
+  ddl_api -> ddl_ddl;
+  ddl_ddl -> ddl_worker[label="QueueDDLJob"];
+  ddl_worker -> meta_ddl_job_queue[label="enque/deque job"];
+  ddl_worker -> ddl_schema;
+  ddl_worker -> ddl_table;
+  ddl_schema -> meta;
+  ddl_table -> meta;
+
+}

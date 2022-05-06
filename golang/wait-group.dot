@@ -1,0 +1,61 @@
+digraph waitgroup {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  WaitGroup[shape="record";
+    label="{{
+      WaitGroup|
+        noCopy noCopy\l|
+        state1 [3]uint32\l
+    }}";
+  ];
+  state[shape="record";
+    label="{{
+      state()|
+        TODO:\l
+    }}";
+  ];
+  runtime_Semacquire[shape="record";
+    label="{{
+      runtime_Semacquire|
+        Semacquire waits until \l 
+        *s \> 0 and then atomically\l 
+        decrements it.\l
+    }}";
+  ];
+  runtime_Semrelease[shape="record";
+    label="{{
+      runtime_Semrelease|
+        Semrelease atomically \l 
+        increments *s and notifies\l 
+        a waiting goroutine\l
+    }}";
+  ];
+  state-> WaitGroup;
+  subgraph cluster_atomic {
+    graph[label="atomic";fontsize=20;];
+    AddUint64;
+    LoadUint64;
+    CompareAndSwapUint64;
+  }
+  {AddUint64, LoadUint64, CompareAndSwapUint64} -> statep;
+  {runtime_Semrelease, runtime_Semacquire} -> semap;
+  {statep, semap} -> state;
+
+  Add ->{
+    AddUint64;
+    runtime_Semrelease;
+  };
+  Done -> Add[label="-1"];
+
+  Wait -> {
+    LoadUint64;
+    runtime_Semacquire;
+  }
+  {
+    rank=same;
+    Wait;
+    Done;
+    Add;
+  }
+}

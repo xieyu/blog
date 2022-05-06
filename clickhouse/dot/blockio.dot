@@ -1,0 +1,83 @@
+digraph BlockIO {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+  label=<<B>BlockIO</B>>
+  BlockIO[
+    shape="record";
+    label="{{
+      BlockIO|
+        <out> BlockOutputStreamPtr out;\l|
+        <in> BlockInputStreamPtr in;\l|
+        QueryPipeline pipeline;\l
+    }}";
+  ];
+
+  BlockIO:in -> BlockInputStreamPtr -> IBlockInputStream;
+  BlockIO:out -> BlockOutputStreamPtr -> IBlockOutputStream;
+  BlockIO:pipeline -> QueryPipeline;
+
+  IBlockInputStream[
+    shape="record";
+    label="{{
+      IBlockInputStream|
+        \l|
+        interface\l|
+        virtual String getName() const = 0;\l|
+        virtual Block getHeader() const = 0;\l|
+        virtual bool isSortedOutput() const\l
+        virtual void readPrefix();\l|
+        Block read();\l|
+        virtual void readSuffix();\l|
+        virtual Block getTotals();\l|
+        virtual Block getExtremes();\l|
+        virtual void setProgressCallback(const ProgressCallback & callback);\l
+        virtual void cancel(bool kill);\l|
+        virtual void setLimits(const LocalLimits & limits_);\l|
+        virtual void setQuota(const std::shared_ptr<const EnabledQuota> & new_quota)\l|
+        \l|
+        data members\l|
+        <table_locks> std::vector\<TableLockHolder\> table_locks;\l|
+        BlockInputStreams children;\l|
+        std::shared_mutex children_mutex;\l|
+        <info> BlockStreamProfileInfo info;\l|
+        std::atomic\<bool\> is_cancelled;\l|
+        std::atomic\<bool\> is_killed;\l|
+        ProgressCallback progress_callback;\l|
+        QueryStatus * process_list_elem = nullptr;\l|
+        UInt64 last_profile_events_update_time = 0;\l|
+        Block totals;\l|
+        Block extremes;
+    }}";
+  ];
+
+  IBlockInputStream:info -> BlockStreamProfileInfo;
+  IBlockInputStream:table_locks -> RWLockImpl_LockHolder;
+  BlockStreamProfileInfo[
+    shape="record";
+    label="{{
+      BlockStreamProfileInfo|
+      Information for profiling\l|
+      size_t rows = 0;\l|
+      size_t blocks = 0;\l|
+      size_t bytes = 0;\l
+    }}";
+  ];
+
+  IBlockOutputStream[
+    shape="record";
+    label="{{
+      IBlockOutputStream|
+        virtual Block getHeader() const = 0;\l|
+        virtual void write(const Block & block) = 0;\l|
+        virtual void writePrefix()\l|
+        virtual void writeSuffix()\l|
+        virtual void flush()\l
+        <table_locks> std::vector\<TableLockHolder\> table_locks;\l|
+    }}";
+  ];
+  IBlockOutputStream:table_locks -> RWLockImpl_LockHolder;
+
+}

@@ -1,0 +1,293 @@
+#include "styles.h"
+digraph conf {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ProgressTracker[style_struct;label="{{
+    ProgressTracker|
+    progress: ProgressMap\l|
+    <conf> conf: Configuration\l|
+    votes: HashMap\<u64, bool\>\l|
+    max_inflight: usize\l|
+    group_commit: bool\l|
+    pub(crate) logger: Logger\l
+  }}"]
+  ProgressState[style_struct;label="{{
+    ProgressState|
+    Probe\l|
+    Replicate\l|
+    Snapshot\l
+  }}"]
+  Configuration[style_struct;label="{{
+    Configuration|
+    <voters> pub(crate) voters: JointConfig\l|
+    <learners> pub(crate) learners: HashSet\<u64\>\l|
+    <learners_next> pub(crate) learners_next: HashSet\<u64\>\l|
+    <auto_leave> pub(crate) auto_leave: bool\l
+  }}"]
+  Configuration -> JointConfig;
+
+  JointConfig[style_struct;label="{{
+    JointConfig|
+    <incoming> pub(crate) incoming: MajorityConfig\l|
+    <outgoing> pub(crate) outgoing: MajorityConfig\l
+  }}"]
+  JointConfig -> MajorityConfig;
+  MajorityConfig[style_struct;label="{{
+    MajorityConfig|
+    pub struct Configuration \{\l
+        voters: HashSet\<u64\>\l
+    \}\l
+  }}"]
+  ProgressTracker:conf -> Configuration;
+
+  ProgressTracker -> ProgressMap -> Progress -> ProgressState;
+  ProgressMap[style_struct;label="{{
+    ProgressMap|
+    pub type ProgressMap = HashMap\<u64, Progress\>
+  }}"]
+  Progress[style_struct;label="{{
+    Progress|
+    <matched> pub matched: u64\l|
+    <next_idx> pub next_idx: u64\l|
+    pub state: ProgressState\l|
+    <committed_index> pub committed_index: u64\l|
+    pub ins: Inflights\l|
+    <recent_active> pub recent_active: bool,
+    ...\l
+  }}"]
+
+  ConfChangeV2[style_struct;label="{{
+    ConfChangeV2|
+    pub transition: ConfChangeTransition\l|
+    pub changes: ::protobuf::RepeatedField\<ConfChangeSingle\>\l|
+    pub context: ::std::vec::Vec\<u8\>\l
+  }}"]
+  ConfChange[style_struct;label="{{
+    ConfChange|
+    pub change_type: ConfChangeType\l|
+    pub node_id: u64\l|
+    pub context: ::std::vec::Vec<u8>\l|
+    pub id: u64\l
+  }}"]
+
+  propose_conf_change -> {
+    msgEntryConfChange;
+    msgEntryConfChangeV2;
+    msgPropose;
+  }
+  {
+    msgEntryConfChange
+    msgEntryConfChangeV2
+  } -> msgPropose[style_edge_data];
+  msgPropose -> step_leader[style_edge_data];
+
+  propose_conf_change -> step -> step_leader;
+  step_leader -> {
+    merge_from_bytes;
+    has_pending_conf;
+    append_entry;
+    bcast_append;
+  }
+  {
+    ConfChange
+    ConfChangeV2
+  } -> raw_node_apply_conf_change[style_edge_data];
+
+  raw_node_apply_conf_change[style_func;label="{{
+    raw_node_apply_conf_change|
+    Applies a config change to the\l 
+    local node. The app must call this when it\l
+    applies a configuration change, \l 
+    except when it decides to reject the\l
+    configuration change, in which\l 
+    case no call must take place.\
+  }}"]
+
+  raw_node_apply_conf_change -> {
+    apply_conf_change;
+    cc_as_v2;
+  }
+  apply_conf_change -> ConfState[style_edge_data];
+
+  EntryConfChange -> raw_node_apply_conf_change;
+  Changer[style_struct;label="{{
+    Changer|
+    tracker: &'a ProgressTracker\l
+  }}"]
+  ConfChangeV2 -> {
+    cc_enter_joint;
+    cc_leave_joint;
+  }
+
+  apply_conf_change -> {
+    Changer_new;
+    prs_apply_conf;
+    cc_leave_joint;
+    changer_leave_joint;
+    cc_enter_joint;
+    changer_enter_joint;
+    changer_simple;
+    post_conf_change;
+  };
+  cc_enter_joint-> {
+    get_transition;
+    is_empty;
+  }
+  cc_enter_joint -> changer_enter_joint[style_edge_data];
+  Changer -> ProgressTracker;
+  //JointConfig:outgoing -> super_joint[style_edge_data];
+
+  subgraph cluster_Changer {
+    graph[label="Changer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Changer_new -> Changer[style_edge_data];
+    Changer -> {
+      changer_leave_joint;
+      changer_enter_joint;
+      changer_simple;
+    }[style_edge_data];
+    changer_apply;
+    changer_remove;
+    make_voter;
+    make_learner;
+    check_and_copy;
+    check_invariants;
+    super_joint;
+  }
+
+  changer_enter_joint -> {
+    super_joint;
+    check_and_copy;
+    JointConfig:incoming;
+    JointConfig:outgoing;
+    changer_apply;
+    Configuration:auto_leave;
+    check_invariants;
+    IncrChangeMap;
+  }[color="#3f72af"];
+
+  check_and_copy -> {
+    check_invariants;
+  }
+  changer_apply -> {
+    make_voter;
+    make_learner;
+    changer_remove;
+  }
+  changer_remove -> {
+    //prs_contains;
+    IncrChangeMap;
+    //cfg_voters_incoming_remove;
+    //cfg_voters_outgoing_contains;
+    JointConfig:incoming;
+    JointConfig:outgoing;
+    Configuration:learners;
+    Configuration:learners_next;
+    //cfg_learners_remove;
+    //cfg_learners_next_remove;
+    //prs_changes_push;
+    IncrChangeMap:changes;
+  }
+  super_joint -> {
+    JointConfig:outgoing;
+  }
+
+  make_voter -> {
+    IncrChangeMap;
+    //prs_contains;
+    init_progress;
+    //cfg_voters_incoming_insert;
+    JointConfig:incoming;
+    Configuration:learners;
+    Configuration:learners_next;
+    //cfg_learners_remove;
+    //cfg_learners_next_remove;
+  }
+
+  make_learner -> {
+    //prs_contains;
+    IncrChangeMap;
+    init_progress;
+    //cfg_learners_contains
+    Configuration:learners;
+    //cfg_voters_incoming_remove;
+    JointConfig:incoming;
+    //cfg_learners_remove;
+    //cfg_learners_next_remove;
+    //cfg_voters_outgoing_contains;
+    JointConfig:outgoing;
+    Configuration:learners_next;
+    //cfg_learners_next_insert;
+    //cfg_learners_insert;
+  }
+  IncrChangeMap -> init_progress[style_edge_data];
+  ConfChangeV2:changes -> is_empty;
+
+  apply_conf -> {
+    ProgressTracker:conf
+  };
+
+  changer_simple -> {
+    JointConfig:incoming;
+    check_invariants;
+    changer_apply;
+    super_joint;
+  }
+
+  cc_leave_joint -> changer_leave_joint;
+  changer_leave_joint -> {
+    super_joint;
+    check_and_copy;
+    JointConfig:outgoing;
+
+    Configuration:learners;
+    Configuration:learners_next;
+    IncrChangeMap;
+    Configuration:auto_leave;
+    check_invariants;
+  }[color="#b83b5e"]
+
+  post_conf_change -> {
+    prs_conf_to_conf_state;
+    prs_conf_voters_contains;
+    maybe_commit;
+    bcast_append;
+    maybe_send_append;
+    last_pending_request_ctx;
+    prs_has_quorum;
+    r_read_only_advance;
+    handle_ready_read_index;
+    r_send;
+    prs_conf_voters_contains;
+    abort_leader_transfer;
+  }
+
+  post_conf_change[style_func;label="{{
+    post_conf_change|
+    Updates the in-memory state and\l 
+    , when necessary, carries out 
+    additional actions such as reacting \l 
+    to the removal of nodes or \l 
+    changed quorum requirements.\l
+  }}"]
+  maybe_commit -> bcast_append;
+  post_conf_change -> ConfState[style_edge_data];
+  prs_conf_to_conf_state -> ConfState[style_edge_data];
+  ConfState[style_struct;label="{{
+    ConfState|
+    pub voters: ::std::vec::Vec\<u64\>\l|
+    pub learners: ::std::vec::Vec\<u64\>\l|
+    pub voters_outgoing: ::std::vec::Vec\<u64\>\l|
+    pub learners_next: ::std::vec::Vec\<u64\>\l|
+    pub auto_leave: bool\l
+  }}"]
+  IncrChangeMap[style_struct;label="{{
+    IncrChangeMap|
+    changes: MapChange\l|
+    <ProgressMap> base: &'a ProgressMap\l
+  }}"]
+  IncrChangeMap:ProgressMap -> ProgressMap;
+  IncrChangeMap -> prs_apply_conf[style_edge_data];
+ }

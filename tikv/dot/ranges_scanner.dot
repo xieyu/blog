@@ -1,0 +1,90 @@
+#include "styles.h"
+digraph ranges_scanner {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RangesScanner[style_func;label="{{
+    RangesScanner|
+    storage: T,\l|
+    ranges_iter: RangesIterator,\l|
+    scan_backward_in_range: bool,\l|
+    is_key_only: bool,\l|
+    scanned_rows_per_range: Vec\<usize\>,\l|
+    is_scanned_range_aware: bool,\l|
+    current_range: IntervalRange,\l|
+    working_range_begin_key: Vec\<u8\>,\l|
+    working_range_end_key: Vec\<u8\>,\l
+  }}"]
+
+  RangesScanner -> {
+    RangesIterator;
+    IntervalRange;
+  }
+  RangesIterator[style_func;label="{{
+    RangesIterator|
+    in_range: bool,\l|
+    iter: std::vec::IntoIter\<Range\>,\l|
+    An iterator like structure that\l
+    produces user key ranges\l
+  }}"]
+
+  RangesIterator -> {
+     Range;
+  }
+  Range[style_blue1;label="{{
+    enum Range|
+    Point(PointRange),\l|
+    Interval(IntervalRange),\l
+  }}"]
+  Range -> {
+     PointRange;
+     IntervalRange;
+  }
+  PointRange[style_func;label="{{
+    PointRange|
+    pub Vec\<u8\>\l
+  }}"]
+  IntervalRange[style_func;label="{{
+    IntervalRange|
+    pub lower_inclusive: Vec\<u8\>,\l|
+    pub upper_exclusive: Vec\<u8\>,\l
+  }}"]
+  IterStatus[style_blue1;label="{{
+    enum IterStatus|
+    Drained,\l|
+    <Range> NewRange(Range),\l|
+    <continue> Continue,\l|
+    next方法返回类型
+  }}"]
+  IterStatus:Range -> Range;
+  RangesIterator -> IterStatus;
+  RangesScanner -> Storage;
+
+  PointRange -> get[style_edge_data];
+  IntervalRange -> {
+     begin_scan;
+     scan_next;
+  }[style_edge_data];
+  IterStatus:continue -> scan_next;
+  subgraph cluster_Storage {
+    graph[label="Storage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Storage[style_func;label="{{
+      trait Storage|
+      begin_scan\l|
+      scan_next\l|
+      get\l|
+      met_uncacheable_data\l|
+      collect_statistics\l
+    }}"]
+    get;
+    begin_scan;
+    scan_next;
+    get[style_func;label="{{
+      get|
+      获取PointRange的key,value
+    }}"]
+  }
+  
+}

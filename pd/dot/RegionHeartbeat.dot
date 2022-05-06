@@ -1,0 +1,124 @@
+#include "styles.h"
+
+digraph RegionHeartbeat {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RegionHeartbeat -> {
+    validateRequest;
+    GetAddress;
+    RegionFromHeartbeat;
+    HandleRegionHeartbeat;
+  }
+  HandleRegionHeartbeat -> {
+    processRegionHeartbeat;
+    Dispatch;
+  }
+  Dispatch -> {
+    GetOperator;
+    checkStaleOperator;
+    SendScheduleCommand;
+    pushHistory;
+    RemoveOperator;
+    PromoteWaitingOperator;
+  }
+  GetOperator -> OperatorController;
+  OperatorController[style_struct;label="{{
+    OperatorController|
+	    sync.RWMutex\l|
+	    ctx             context.Context\l|
+	    cluster         opt.Cluster\l|
+	    operators       map[uint64]*operator.Operator\l|
+	    hbStreams       *hbstream.HeartbeatStreams\l|
+	    histories       *list.List\l|
+	    counts          map[operator.OpKind]uint64\l|
+	    opRecords       *OperatorRecords\l|
+	    storesLimit     map[uint64]map[storelimit.Type]*storelimit.StoreLimit\l|
+	    wop             WaitingOperator\l|
+	    wopStatus       *WaitingOperatorStatus\l|
+	    opNotifierQueue operatorQueue
+  }}"]
+  PromoteWaitingOperator -> {
+    wop_GetOperator;
+    buryOperator;
+    addOperatorLocked;
+  }
+  msgCh -> HeartbeatStreams_run
+  HeartbeatStreams_run -> stream_Send;
+  stream_Send[style_func;label="{{
+    stream_Send|
+    通过GRPC stream Operator请求给TiKV
+  }}"]
+
+  SendScheduleCommand -> {
+    RegionHeartbeatResponse;
+    SendMsg;
+  }
+  SendMsg -> msgCh;
+  RegionHeartbeatResponse [style_struct;label="{{
+    RegionHeartbeatResponse |
+	    Header *ResponseHeader\l|
+	    ChangePeer *ChangePeer\l|
+	    TransferLeader *TransferLeader\l|
+	    RegionId    uint64\l|
+	    RegionEpoch *metapb.RegionEpoch\l|
+	    TargetPeer *metapb.Peer\l|
+	    Merge      *Merge\l|
+	    SplitRegion *SplitRegion\l|
+	    ChangePeerV2         *ChangePeerV2\l
+  }}"]
+
+  RegionFromHeartbeat -> RegionInfo;
+  RegionInfo[style_struct;label="{{
+    RegionInfo|
+	    term              uint64\l|
+	    <meta> meta              *metapb.Region\l|
+	    learners          []*metapb.Peer\l|
+	    voters            []*metapb.Peer\l|
+	    leader            *metapb.Peer\l|
+	    downPeers         []*pdpb.PeerStats\l|
+	    pendingPeers      []*metapb.Peer\l|
+	    writtenBytes      uint64\l|
+	    writtenKeys       uint64\l|
+	    readBytes         uint64\l|
+	    readKeys          uint64\l|
+	    approximateSize   int64\l|
+	    approximateKeys   int64\l|
+	    interval          *pdpb.TimeInterval\l|
+	    replicationStatus *replication_modepb.RegionReplicationStatus\l
+  }}"]
+  RegionInfo:meta -> Region;
+  Region[style_struct;label="{{
+    Region|
+	    Id uint64\l|
+	    StartKey    []byte      \l|
+	    EndKey      []byte      \l|
+	    RegionEpoch *RegionEpoch\l|
+	    Peers       []*Peer     \l|
+  }}"]
+
+  processRegionHeartbeat -> {
+    SaveRegion;
+    PreCheckPutRegion;
+    CheckWriteStatus;
+    CheckReadStatus;
+    GetRegionEpoch;
+    GetDownPeers;
+    GetPendingPeers;
+    PreCheckPutRegion;
+    PutRegion;
+    updateStoreStatusLocked;
+    takeRegionStoresLocked;
+  }
+
+  PutRegion -> {
+    SetRegion;
+  }
+  SetRegion -> {
+    removeRegionFromTreeAndMap;
+    removeRegionFromSubTree;
+    AddRegion;
+  }
+}

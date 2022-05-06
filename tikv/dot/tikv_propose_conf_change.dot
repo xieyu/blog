@@ -1,0 +1,59 @@
+#include "styles.h"
+digraph propose_conf_change {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Raft {
+    graph[label="raft-rs";fontsize=20;style="rounded,dashed";color="slategrey"]
+    raft_propose_conf_change[style_func;label="{{
+      propose_conf_change\l|
+      向raft prpose conf change\l
+    }}"]
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    propose -> {
+      inspect;
+      propose_conf_change;
+    }
+    RequestPolicy_ProposeConfChange[style_func;label="{{
+      RequestPolicy::ProposeConfChange
+    }}"]
+    inspect -> RequestPolicy_ProposeConfChange -> propose_conf_change[style_edge_data];
+    propose_conf_change -> {
+      propose_conf_change_internal;
+    }
+    propose_conf_change_internal -> {
+      check_conf_change;
+      next_proposal_index;
+      raft_propose_conf_change;
+    }
+    check_conf_change -> {
+      should_wake_up;
+    }
+    propose_conf_change[style_func;label="{{
+      propose_conf_change|
+      做一些检查,然后调用\l 
+      propose_conf_change_internal\l
+      统一处理v1/v2的change_peer\l
+    }}"]
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_msgs -> propose[style_edge_data];
+    collect_ready;
+  }
+
+  subgraph cluster_RaftPoller {
+    graph[label="RaftPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_normal -> {
+      handle_msgs;
+      collect_ready;
+    }
+  }
+  
+}

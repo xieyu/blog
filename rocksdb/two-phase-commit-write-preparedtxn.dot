@@ -1,0 +1,219 @@
+digraph write_prepared_txn {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    WriteImpl_Prepare;
+    WriteImpl_Commited;
+  }
+
+  WAL_REP -> {
+    WriteImpl_Commited;
+    WriteImpl_Prepare;
+  }[style=dashed];
+
+  subgraph cluster_WriteBatchInternal {
+    graph[label="WriteBatchInternal";fontsize=20;];
+    MarkEndPrepare[
+      shape="record"
+      label="{{
+        MarkEndPrepare|
+        1.开始时rep_[12]这个char是TypeNoop\l
+        2.将rep_[12]这个地方写入kTypeBeginPrepareXID\l
+        3.在rep_结尾写入kTypeEndPrepareXID\l
+      }}"
+    ];
+    MarkEndPrepare -> {
+      kTypeBeginPrepareXID;
+      kTypeEndPrepareXID;
+      PutLengthPrefixedSlice;
+      content_flags_;
+      WAL_REP;
+    }[color="#3f72af"];
+
+    MarkCommit -> {
+      kTypeCommitXID;
+      PutLengthPrefixedSlice;
+      content_flags_;
+      WAL_REP;
+    }[color="#b83b5e"];
+
+    MarkRollback -> {
+      kTypeRollbackXID;
+      PutLengthPrefixedSlice;
+      content_flags_;
+    }[color="#17b978"];
+
+    content_flags_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        content_flags_|
+          mutable std::atomic\<uint32_t\>\l content_flags_;
+      }}"
+    ];
+    PutLengthPrefixedSlice[
+      shape="record"
+      label="{{
+        PutLengthPrefixedSlice|
+        向writeBatch的rep_中写入xid
+      }}"
+    ];
+
+    WAL_REP[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        Write batch Rep_|
+          Seq\l|
+          recod num \l|
+          ktypeBeginPrepare(xid)\l|
+          put(key1, value1)\l|
+          delete(key2, value2)\l|
+          ...\l|
+          kTypeEndPrepareXID(xid)\l|
+          <commit> kTypeCommitXID(xid)\l
+      }}";
+    ];
+  }
+  subgraph cluster_WritePreparedTxnDB {
+    graph[label="WritePreparedTxnDB";fontsize=20;];
+    AddPrepared -> {
+      CheckPreparedAgainstMax;
+      prepared_txns_;
+      future_max_evicted_seq_;
+    }[color="#3f72af"];
+
+    CheckPreparedAgainstMax -> {
+      prepared_txns_;
+    }
+
+    prepared_txns_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        prepared_txns_|
+        PreparedHeap\l
+      }}"
+    ];
+    prepared_txns_ -> PreparedHeap;
+    PreparedHeap[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        PreparedHeap|
+            port::Mutex push_pop_mutex_;\l|
+            std::deque\<uint64_t\> heap_;\l|
+            std::priority_queue\<uint64_t, std::vector\<uint64_t\>, std::greater\<uint64_t\>\>\l|
+                erased_heap_;\l|
+            std::atomic<uint64_t> heap_top_ = \{kMaxSequenceNumber\};\l
+      }}";
+    ];
+
+    AddCommitted -> {
+      CheckAgainstSnapshots;
+      AddCommitted;
+      AdvanceMaxEvictedSeq;
+      ExchangeCommitEntry;
+      GetCommitEntry;
+    }[color="#b83b5e"]
+
+    AdvanceMaxEvictedSeq -> {
+      future_max_evicted_seq_;
+      CheckPreparedAgainstMax;
+      GetSnapshotListFromDB;
+      UpdateSnapshots;
+      max_evicted_seq_;
+    }
+
+    RemovePrepared -> {
+      delayed_prepared_empty_;
+      prepared_txns_;
+    }[color="#b83b5e"]
+
+    CheckAgainstSnapshots -> {
+      MaybeUpdateOldCommitMap;
+    }
+
+    //commit cache
+    GetCommitEntry -> {
+      commit_cache_;
+    }
+    ExchangeCommitEntry -> {
+      commit_cache_;
+    }
+    AddCommitEntry -> {
+      commit_cache_;
+    }
+    commit_cache_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        commit_cache_|
+          std::unique_ptr\<std::atomic\<CommitEntry64b\>[]\>\l commit_cache_;
+      }}";
+    ];
+    CommitEntry64b[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        CommitEntry64b|
+        uint64_t rep_;
+      }}";
+    ];
+    commit_cache_ -> CommitEntry64b;
+    IsVisibleFullCheck -> IsInSnapshot;
+
+    IsInSnapshot -> {
+      GetCommitEntry;
+      max_evicted_seq_;
+    }
+  }
+  subgraph cluster_ReadCallback {
+    graph[label="ReadCallback";fontsize=20;];
+    ReadCallback_IsVisible -> IsVisibleFullCheck;
+    
+  } // end of ReadCallback
+
+  subgraph cluster_WritePreparedTxn {
+    graph[label="WritePreparedTxn";fontsize=20;];
+    PrepareInternal -> {
+      MarkEndPrepare;
+      WriteImpl_Prepare;
+    }[color="#3f72af"]
+
+    PrepareInternal -> AddPreparedCallback[style=dashed];
+    WriteImpl_Prepare -> AddPreparedCallback;
+    AddPreparedCallback -> {
+      AddPrepared;
+      prepared_txns_;
+    }
+
+    CommitInternal -> {
+      MarkCommit;
+    }[color="#b83b5e"]
+    CommitInternal -> {
+      WritePreparedCommitEntryPreReleaseCallback;
+      AddPreparedCallback;
+      WriteImpl_Commited;
+    }[style=dashed;color="#b83b5e"];
+
+    WriteImpl_Commited -> {
+      WritePreparedCommitEntryPreReleaseCallback;
+      AddPreparedCallback;
+    }
+    WritePreparedCommitEntryPreReleaseCallback -> {
+      AddCommitted;
+      RemovePrepared;
+    }[color="#b83b5e"];
+  }
+}

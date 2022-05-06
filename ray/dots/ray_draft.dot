@@ -1,0 +1,119 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  distributed_data_analysis -> {
+    batch;
+    streaming;
+    graph_processing_system;
+  }
+
+  supervised_learning -> {
+    deep_neural_networks;
+  } -> {
+    pytorch;
+    mxnet;
+    tensorflow;
+  }
+
+  Emerging_AI_Applications -> {
+    Dynamic_environment;
+    sequnce_of_actions;
+    log_term_goals;
+  } -> RL;
+
+  RL -> {
+    RL_apply;
+    RL_goal;
+    RL_methods;
+    RL_system_require;
+  }
+  RL_apply -> {
+    alphaGo;
+    DialogueSsytem;
+    UAV;
+    Robotic_Manipulation;
+  }
+
+  RL_goal -> policy -> map_state_to_action_choice;
+
+  RL_methods -> {
+    simulation;
+    distributed_training;
+    serve_policy;
+  }
+  RL_system_require -> {
+    fine_grained_computations;
+    support_heterogeneity_time_resource;
+    dynamic_execution;
+    millions_of_heterogeneours_tasks_per_second_ms_latency;
+  }
+
+  Ray -> {
+    unified_interface_task_parallel_actor_based_computations;
+    tasks;
+    actors;
+    task_scheduler;
+    metadata_store;
+    global_control_store;
+    unify_framework;
+  }
+  global_control_store -> metadata_store;
+  bottom_up_distributed_scheduler -> task_scheduler;
+
+  unify_framework -> {
+    training;
+    simulations;
+    serving;
+  }
+
+  unified_interface_task_parallel_actor_based_computations -> {
+    tasks;
+    actors;
+  }
+
+
+  tasks -> {
+    load_balace_simulations;
+    process_large_inputs;
+    process_large_state_space;
+    recover_from_failure;
+    bottom_up_distributed_scheduler;
+  }
+  actors -> {
+    support_stateful_computations;
+    export_shared_mut_state_to_clients;
+  }
+  support_stateful_computations -> model_traning;
+  metadata_store -> {
+    compuattion_lineage;
+    directory_for_data_objects;
+    lineage_base_fault_tolerance;
+    replicatoin_based_fault_tolerence;
+  }
+
+  simulations -> process_large_state_space[style_edge_data];
+  training -> model_training;
+
+  agent -> repeat_interacts -> environment;
+  policy_compute_state -> action -> environment_step -> new_state
+
+  training -> {
+    stochasticc_gradient_descent;
+    desitributed_update_policy;
+  }
+  stochasticc_gradient_descent -> {
+    param_server;
+  }
+  serving -> {
+    minimize_latency;
+  }
+  simulations -> {
+    sample_efficient;
+  }
+
+}

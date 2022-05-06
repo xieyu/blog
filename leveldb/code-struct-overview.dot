@@ -1,0 +1,342 @@
+digraph code_struct_overview {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  DB[
+    shape="record";
+    label="{{
+      DB|
+      对外接口:\l
+      Get/Put/Iter/Dlete等接口\l
+    }}";
+  ];
+  DBImpl[
+    shape="record";
+    label="{{
+      DBImpl|
+      实现DB对外接口\l
+    }}";
+  ];
+  Options[
+    shape="record";
+    label="{{
+      Options|
+      数据库相关配置项\l
+    }}";
+  ];
+  VersionSet[
+    shape="record";
+    label="{{
+      VersionSet|
+      管理db所有的版本
+    }}";
+  ];
+  Version[
+    shape="record";
+    label="{{
+      Version|
+      记录了某个版本所有level\l 
+      的Filemetada列表\l
+    }}";
+  ];
+  VersionEdit[
+    shape="record";
+    label="{{
+      VersionEdit|
+      记录两个version之间的变化\l
+      增加和删除的file\l
+    }}";
+  ];
+  FileMetaData[
+    shape="record";
+    label="{{
+      FileMetaData|
+      记录SStable文件的文件号\l
+      key的最大值，最小值\l
+    }}";
+  ];
+  TableCache[
+    shape="record";
+    label="{{
+      TableCache|
+      在table上加了\l 
+      cache\l
+    }}";
+  ];
+  Cache[
+    shape="record";
+    label="{{
+      Cache|
+      LRUCache标准实现\l
+    }}";
+  ];
+  ShardedLRUCache[
+    shape="record";
+    label="{{
+      ShardedLRUCache|
+      LRUCache上加了\l 
+      根据key做分片\l
+    }}";
+  ];
+  LRUCache[
+    shape="record";
+    label="{{
+      LRUCache|
+      LRUCache具体实现
+    }}";
+  ];
+  MemTable[
+    shape="record";
+    label="{{
+      MemTable|
+      在skiplist上\l 
+      加了引用计数,Arena内存分配等\l
+    }}";
+  ];
+  SkipList[
+    shape="record";
+    label="{{
+      SkipList|
+      跳表具体实现\l
+    }}";
+  ];
+  Snapshot[
+    shape="record";
+    label="{{
+      Snapshot|
+      数据库的快照\l 
+      SequenceNumber\l
+    }}";
+  ];
+  Table[
+    shape="record";
+    label="{{
+      Table|
+      封装了Table 查找和写入操作\l
+    }}";
+  ];
+  Footer[
+    shape="record";
+    label="{{
+      Footer|
+      封装了文件结尾\l 
+      读写操作\l
+    }}";
+  ];
+  BlockHandle[
+    shape="record";
+    label="{{
+      BlockHandle|
+      记录了文件中某个\l 
+      数据block所在\l 
+      的offset和大小\l
+    }}";
+  ];
+  Rep_[
+    shape="record";
+    label="{{
+      Rep_|
+      Table对应的底层实现\l
+    }}";
+  ];
+  Block[
+    shape="record";
+    label="{{
+      Block|
+      封装了数据块的读写\l
+      包含了校验和压缩等\l
+    }}";
+  ];
+  FilterBlockReader[
+    shape="record";
+    label="{{
+      FilterBlockReader|
+      读取filterblock块的内容
+    }}";
+  ];
+  FilterPolicy[
+    shape="record";
+    label="{{
+      FilterPolicy|
+      过滤策略\l
+      目前只实现了bloomfilter\l
+    }}";
+  ];
+  BloomFilterPolicy[
+    shape="record";
+    label="{{
+      BloomFilterPolicy|
+      布隆过滤器
+    }}";
+  ];
+  Iterator[
+    shape="record";
+    label="{{
+      Iterator|
+      封装了Seek/Next\l 
+      /value/key等操作\l
+    }}";
+  ];
+  MergingIterator[
+    shape="record";
+    label="{{
+      MergingIterator|
+      归并迭代器\l
+    }}";
+  ];
+  TwoLevelIterator[
+    shape="record";
+    label="{{
+      TwoLevelIterator|
+      双层迭代器，一层为index\l
+      另一层为具体的datablock iter\l
+    }}";
+  ];
+  Block_Iter[
+    shape="record";
+    label="{{
+      Block_Iter|
+      SSTable中数据块(key,value)的iter\l
+      和TwoLevelIterator结合起来使用;\l
+      组成了TableIterator\l
+    }}";
+  ];
+  LevelFileNumIterator[
+    shape="record";
+    label="{{
+      LevelFileNumIterator|
+      遍历level的所有文件\l
+      和TwoLevelIterator结合起来使用\l
+      用于遍历某个level下所有Sstable\l
+    }}";
+  ];
+  IteratorWrapper[
+    shape="record";
+    label="{{
+      IteratorWrapper|
+      对valid和key做了cache\l
+      Iterator的一层包装\l
+    }}";
+  ];
+  TableBuilder[
+    shape="record";
+    label="{{
+      TableBuilder|
+      负责写sstable到文件\l
+    }}";
+  ];
+  BlockBuilder[
+    shape="record";
+    label="{{
+      BlockBuilder|
+      写入一块data数据
+    }}";
+  ];
+
+  DB -> {
+    DBImpl;
+    ReadOptions;
+    WriteOptions;
+    Options;
+  }
+
+  DBImpl -> {
+    TableCache;
+    Options;
+    VersionSet;
+    MemTable;
+    Snapshot;
+    SnapshotList;
+    Env;
+    Iterator;
+  }
+
+  TableCache -> {
+    Cache;
+    ShardedLRUCache;
+    LRUCache;
+    HandleTable;
+    LRUHandle;
+    Table;
+  }
+  Options -> Env;
+  subgraph cluster_Iterator {
+    graph[label="Iterator";fontsize=20;style=rounded];
+    Iterator -> {
+      MergingIterator;
+      IteratorWrapper;
+      Block_Iter;
+      MemTableIterator;
+      TwoLevelIterator;
+      SKipListIterator;
+      LevelFileNumIterator;
+    }
+  };
+
+  subgraph cluster_Env {
+    graph[label="Env";fontsize=20;style=rounded];
+    Env[
+      shape="record";
+      label="{{
+        Env|
+        1.封装平台的文件，文件夹操作\l
+        2.封装平台的线程相关操作\l
+      }}";
+    ];
+  };
+
+  subgraph cluster_Memory {
+    graph[label="Memory";fontsize=20;style=rounded];
+    MemTable -> SkipList;
+  };
+  subgraph cluster_SnapShot {
+    graph[label="SnapShot";fontsize=20;style=rounded];
+    {Snapshot;SnapshotList} -> SnapshotImpl;
+  };
+  subgraph cluster_Options {
+    graph[label="Options";fontsize=20;style=rounded];
+    ReadOptions;
+    WriteOptions;
+    Options;
+  };
+  subgraph cluster_on {
+    graph[label="Version";fontsize=20;style=rounded];
+    VersionSet -> {
+      Env;
+      Version;
+      VersionEdit;
+    };
+    Version -> FileMetaData;
+  };
+  subgraph cluster_Table {
+    graph[label="Table";fontsize=20;style=rounded];
+    Table -> {
+      Rep_;
+      Footer;
+      BlockContents;
+      TableBuilder;
+      BlockBuilder;
+    };
+    TableBuilder -> BlockBuilder;
+    Rep_ -> {
+      Block;
+      BlockHandle;
+      FilterBlockReader;
+    };
+    FilterBlockReader -> FilterPolicy;
+    FilterPolicy -> BloomFilterPolicy;
+    Footer -> BlockHandle;
+  };
+
+  subgraph cluster_Cache {
+    graph[label="Cache";fontsize=20;style=rounded];
+    TableCache;
+    Cache;
+    ShardedLRUCache;
+    LRUCache;
+    HandleTable;
+    LRUHandle;
+    Cache -> ShardedLRUCache -> LRUCache -> LRUHandle;
+    HandleTable -> LRUHandle;
+  };
+}

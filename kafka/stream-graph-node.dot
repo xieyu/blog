@@ -1,0 +1,247 @@
+digraph stream_graph_node {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  GlobalStoreNode[shape="record";
+    label="{{
+      GlobalStoreNode|
+        <sb> storeBuilder\l|
+        String sourceName\l|
+        String topic\l|
+        <ci> ConsumedInternal consumed\l|
+        String processorName \l|
+        <ps> ProcessorSupplier stateUpdateSupplier\l
+    }}";
+  ];
+  StateStoreNode[shape="record";
+    label="{{
+      StateStoreNode|
+        <sb> StoreBuilder
+    }}";
+  ];
+  StoreBuilder[shape="record";
+    label="{{
+      Interface StoreBuilder|
+        withCachingEnabled\l|
+        withCachingDisabled\l|
+        withLoggingEnabled\l|
+        withLoggingDisabled\l|
+        loadConfig\l|
+        name\l
+    }}";
+  ];
+  ProcessorGraphNode[shape="record";
+    label="{{
+      ProcessorGraphNode|
+        <pp> ProcessorParameters\<K,V\>
+    }}";
+  ];
+  ProcessorParameters[shape="record";
+    label="{{
+      ProcessorParameters|
+        <ps> ProcessorSupplier\<K,V\> processorSupplier\l|
+        String processorName\l
+    }}";
+  ];
+  ProcessorSupplier[shape="record";
+    label="{{
+      Interface ProcessorSupplier|
+        <p> Processor\<K, V\> get();\l
+    }}";
+  ];
+  Processor[shape="record";
+    label="{{
+      Interface Processor|
+        <pc> void init(ProcessorContext context);\l|
+        void process(K key, V value);\l|
+        void close();\l
+    }}";
+  ];
+  StateStore[shape="record";
+    label="{{
+      Interface StateStore|
+      init(ProcessorContext, StateStore root)\l|
+      flush()\l|
+      close()\l|
+      persistent()\|
+      isOpen()\l
+    }}";
+  ];
+  ProcessorContext[shape="record";
+    label="{{
+      Interface ProcessorContext|
+        String applicationId()\l|
+        TaskId taskId();\l|
+        Serde\<?\> keySerde();\l|
+        Serde\<?\> valueSerde();\l|
+        File stateDir();\l|
+        StreamsMetrics metrics();\l|
+        void register(final StateStore store,\l
+                  final StateRestoreCallback stateRestoreCallback);\l|
+                  
+        <store> StateStore getStateStore(final String name);\l|
+        schedule\l|
+        forward\l|
+        commit\l|
+        String topic \l|
+        int partition\l|
+        long offset \l|
+        Headers headers\l|
+        long timestamp\l|
+        Map<String, Object> appConfigs\l|
+        Map<String, Object> appConfigsWithPrefix\l
+    }}";
+  ];
+  StreamsGraphNode[shape="record";
+    label="{{
+      StreamsGraphNode|
+        childNodes\l|
+        parentNode\l|
+        String nodeName\l|
+        boolean keyChangingOperation\l|
+        boolean valueChangingOperation\l|
+        boolean mergeNode\l|
+        Integer buildPriority\l|
+        bool hasWrittenToTopology \l
+    }}";
+  ];
+  StatefulProcessorNode[shape="record";
+    label="{{
+      StatefulProcessorNode|
+        String[] storeNames;|
+        <sb> StoreBuilder\<? extends StateStore\> storeBuilder\l
+    }}";
+  ];
+  StreamSinkNode[shape="record";
+    label="{{
+      StreamSinkNode|
+        TopicNameExtractor\l|
+        <pi> ProducedInternal\l
+    }}";
+  ];
+  StreamSourceNode[shape="record";
+    label="{{
+      StreamSourceNode|
+      Collection\<String\> topicNames\l|
+      ConsumedInternal\<K,V\> consumedInternal\l|
+      regex.Pattern topicPattern\l
+    }}";
+  ];
+  TableProcessorNode[shape="record";
+    label="{{
+      TableProcessorNode|
+        ProcessorParameters\<K,V\> processorParameters\l|
+        StoreBuilder\<TimestampedKeyValueStore\<K, V\>\> storeBuilder\l|
+        String[] storeNames;\l
+    }}";
+  ];
+  StreamTableJoinNode[shape="record";
+    label="{{
+      StreamTableJoinNode|
+        String[] storeNames\l|
+        <pp> ProcessorParameters\<K,V\> processorParameters\l|
+        string otherJoinSideNodeName\l|
+    }}";
+  ];
+  BaseRepartitionNode[
+    shape="record";
+    label="{{
+      BaseRepartitionNode|
+      Serde\<K\> keySerde\l|
+      Serde\<V\> valueSerde\l|
+      String sinkName\l|
+      String sourceName\l|
+      String repartitionTopic\l|
+      StreamPartitioner\<K,V\> partitioner\l|
+      <pp> ProcessorParameters processorParameters\l
+    }}";
+  ];
+  BaseJoinProcessorNode[
+    shape="record";
+    label="{{
+      BaseJoinProcessorNode|
+      <pp> ProcessorParameters joinThisProcessorParameters\l|
+      ProcessorParameters joinOtherProcessorParameters\l|
+      ProcessorParameters joinMergeProcessorParameters\l|
+      ValueJoiner \l|
+      String thisJoinSideNodeName\l|
+      String otherJoinSideNodeName\l
+    }}";
+  ];
+  KTableKTableForeignKeyJoinResolutionNode[
+    shape="record";
+    label="{{
+      KTableKTableForeignKeyJoinResolutionNode|
+      <pp> ProcessorParameters\<KO, SubscriptionWrapper\<K\>\> joinOneToOneProcessorParameters;\l|
+      ProcessorParameters\<KO, Change\<VO\>\> joinByPrefixProcessorParameters;\l|
+      ProcessorParameters\<K, SubscriptionResponseWrapper\<VO\>\> resolverProcessorParameters;\l|
+      String finalRepartitionTopicName;\l|
+      String finalRepartitionSinkName;\l|
+      String finalRepartitionSourceName;\l|
+      Serde\<K\> keySerde;\l|
+      Serde\<SubscriptionResponseWrapper\<VO\>\> subResponseSerde;\l|
+      KTableValueGetterSupplier\<K, V\> originalValueGetter;\l
+    }}";
+  ];
+  ProducedInternal[
+    shape="record";
+    label="{{
+      ProducedInternal|
+      Serde\<K\> keySerde\l|
+      Serde\<V\> valueSerde\l|
+      StreamPartitioner\l|
+      String name\l
+    }}";
+  ];
+  ConsumedInternal[
+    shape="record";
+    label="{{
+      ConsumedInternal|
+      Serde\<K\> keySerde\l|
+      Deserializer\<K\> keyDeserializer\l|
+      Serde\<V\> valueSerde\l|
+      Deserializer\<V\> valueDeserializer\l|
+      Topology.AutoOffsetReset offsetResetPolicy\l|
+      TimestampExtractor timestampExtractor \l|
+      String name\l
+    }}";
+  ];
+
+  BaseJoinProcessorNode -> {
+    StreamStreamJoinNode;
+    KTableKTableJoinNode;
+  }
+
+  Produced -> ProducedInternal;
+  Consumed -> ConsumedInternal;
+  StreamSinkNode:pi -> ProducedInternal;
+
+  BaseJoinProcessorNode:pp -> ProcessorParameters;
+  KTableKTableForeignKeyJoinResolutionNode:pp -> ProcessorParameters;
+  BaseRepartitionNode:pp -> ProcessorParameters;
+  StreamTableJoinNode:pp -> ProcessorParameters;
+  GlobalStoreNode:sb -> StoreBuilder;
+  GlobalStoreNode:ps -> ProcessorSupplier;
+  GlobalStoreNode:ci -> ConsumedInternal;
+  StatefulProcessorNode:sb -> {StateStore; StoreBuilder}
+  ProcessorContext:store -> StateStore;
+  ProcessorGraphNode:pp -> ProcessorParameters;
+  ProcessorParameters:ps -> ProcessorSupplier;
+  ProcessorSupplier:p -> Processor;
+  Processor:pc -> ProcessorContext;
+  StateStoreNode:sb -> StoreBuilder;
+  StreamsGraphNode -> {
+    StateStoreNode;
+    StreamSinkNode;
+    StreamSourceNode;
+    TableProcessorNode;
+    ProcessorGraphNode;
+    StreamTableJoinNode;
+    BaseRepartitionNode
+    BaseJoinProcessorNode;
+    KTableKTableForeignKeyJoinResolutionNode;
+  };
+  StateStoreNode -> GlobalStoreNode;
+  StreamSourceNode -> TableSourceNode;
+  ProcessorGraphNode -> StatefulProcessorNode;
+}

@@ -1,0 +1,159 @@
+#include "styles.h"
+digraph Raft_step {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  step -> {
+    get_msg_type;
+    become_follower;
+    log_vote_approve;
+    vote_resp_msg_type;
+    log_vote_reject;
+    send;
+    become_follower;
+    maybe_commit_by_vote;
+    is_up_to_date;
+    step_follower;
+    step_leader;
+    step_candidate;
+  }
+
+  step_leader -> {
+    bcast_heartbeat;
+    check_quorum_active;
+    become_follower;
+    merge_from_bytes;
+    append_entry;
+    set_entry_type;
+    bcast_append;
+    handle_ready_read_index;
+    bcast_heartbeat_with_ctx;
+  }
+  append_entry -> {
+    maybe_increase_uncommitted_size;
+    raft_log_append;
+  }
+  RaftLog[style_struct;label="{{
+    RaftLog|
+    raft_log_append -> {
+      truncate_and_append;
+      last_index;
+    }
+  }}"]
+
+  bcast_heartbeat -> {
+    last_pending_request_ctx;
+    bcast_heartbeat_with_ctx;
+  }
+  bcast_heartbeat_with_ctx -> {
+    prs;
+    send_heartbeat;
+  }
+  prs[style_struct;label="{{
+    prs|
+    prs: ProgressTracker
+  }}"]
+  send_heartbeat -> {
+    set_msg_type;
+    send;
+  }
+
+  step_candidate -> {
+    become_follower;
+    handle_append_entries;
+    poll;
+    handle_snapshot;
+    maybe_commit_by_vote;
+  }
+
+  step_follower -> {
+    send;
+    handle_append_entries;
+    handle_heartbeat;
+    handle_snapshot;
+    hup;
+    push;
+    maybe_commit;
+  }
+
+  handle_append_entries -> {
+    send_request_snapshot;
+    send;
+    maybe_append;
+    set_index;
+    set_commit;
+  }
+
+  handle_heartbeat -> {
+    commit_to;
+    send_request_snapshot;
+    take_context;
+    send;
+  }
+
+  handle_snapshot -> {
+    get_snapshot;
+    take_snapshot;
+    restore;
+    send;
+  }
+
+  poll -> {
+    tally_votes;
+    record_vote;
+    become_follower;
+    campaign;
+    become_leader;
+    bcast_append;
+  }
+  tally_votes ->  {
+    vote_result;
+  }
+  bcast_append -> {
+    send_append;
+    prs;
+  }
+  send_append -> {
+    maybe_send_append;
+  }
+
+  maybe_send_append -> {
+    prepare_send_entries;
+    prepare_send_snapshot;
+  }
+
+  handle_append_entries -> {
+    update_committed;
+    maybe_decr_to;
+    send_append;
+    become_probe;
+    is_paused;
+    become_replicate;
+    maybe_commit;
+    should_bcast_commit;
+    bcast_append;
+    maybe_send_append;
+    send_timeout_now;
+  }
+
+  maybe_commit -> {
+    raft_log_maybe_commit;
+    update_committed;
+    maximal_committed_index;
+  }
+
+  maybe_commit -> {
+    commit_to;
+  }
+  commit_to -> commited;
+  committed[style_struct;label="{{
+    committed|
+    RaftLog|
+    pub committed: u64\l|
+    The highest log position\l 
+    that is known to be\l 
+    in stable storage\l
+  }}"]
+}

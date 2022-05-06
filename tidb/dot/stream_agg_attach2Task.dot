@@ -1,0 +1,9 @@
+digraph stream_agg_attach2Task {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  attach2Task -> {
+  }
+}

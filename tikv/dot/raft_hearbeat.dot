@@ -1,0 +1,68 @@
+#include "styles.h"
+
+digraph raft_hearbeat {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftCore__bcast_hearbeat -> {
+    ReadOnly__last_pending_request_ctx;
+    RaftCore__bcast_hearbeat_with_ctx;
+  }
+  RaftCore__bcast_hearbeat_with_ctx[style_func;label="{{
+    RaftCore__bcast_hearbeat_with_ctx|
+    遍历所有的prs\l
+    给每个peers发送心跳\l
+    心跳信息中包含了committed index\l
+  }}"]
+  RaftCore__bcast_hearbeat_with_ctx -> {
+    RaftCore__send_heartbeat;
+  }
+  RaftCore__send_heartbeat -> {
+    Progress__mached;
+    RaftLog__committed;
+    RaftCore__send;
+  }
+  RaftCore__step_leader -> {
+    RaftCore__bcast_hearbeat;
+  }
+  Raft__ping -> {
+    RaftCore__bcast_hearbeat;
+  }
+  RaftCore__send[style_func;label="{{
+    RaftCore__send|
+    设置消息的term\l
+    为self.term\l
+    然后将消息append\l
+    到Raft__msgs\l
+  }}"]
+
+  ReadOnly__last_pending_request_ctx -> Message:context[style_edge_data];
+  Message[style_blue1;label="{{
+    Message|
+    MessageType msg_type = 1;\l|
+    uint64 to = 2;\l|
+    uint64 from = 3;\l|
+    uint64 term = 4;\l|
+    uint64 log_term = 5;\l|
+    uint64 index = 6;\l|
+    repeated Entry entries = 7;\l|
+    <commit> uint64 commit = 8;\l|
+    Snapshot snapshot = 9;\l|
+    uint64 request_snapshot = 13;\l|
+    bool reject = 10;\l|
+    uint64 reject_hint = 11;\l|
+    <context> bytes context = 12;\l|
+    uint64 priority = 14;\l
+  }}"]
+  {
+      Progress__mached;
+      RaftLog__committed;
+  } -> Message:comitted[style_edge_data];
+  Progress__mached[style_func;label="{{
+    Progress__mached|
+    使用min(pr.mached,raftlog.comitted)\l
+    作为commit index\l
+  }}"]
+}

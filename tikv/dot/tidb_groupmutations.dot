@@ -1,0 +1,71 @@
+#include "styles.h"
+digraph group_mutations {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_TiKV {
+    graph[label="TiKV";fontsize=20;style="rounded,dashed";color="slategrey"]
+    CmdSplitRegion;
+  }
+
+  subgraph cluster_KVStore {
+    graph[label="KVStore";fontsize=20;style="rounded,dashed";color="slategrey"]
+    preSplitRegion[style_func;label="{{
+      preSplitRegion|
+      avoid too much write workload\l
+      into a single region\l
+      In the large transaction case\l
+      this operation is import to avoid TiKV\l
+      server is busy error\l
+    }}"]
+    preSplitRegion -> {
+      SplitRegions;
+      WaitScatterRegionFinish;
+      InvalidateCachedRegion;
+    };
+    SplitRegions -> CmdSplitRegion[style_edge_data];
+  }
+
+  subgraph cluster_twoPhaseCommiter {
+    graph[label="twoPhaseCommiter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    groupMutations;
+  }
+  subgraph cluster_regionCache {
+    graph[label="regionCache";fontsize=20;style="rounded,dashed";color="slategrey"]
+    groupSortedMutationsByRegion[style_func;label="{{
+      groupSortedMutationsByRegion|
+      mutations已经按照key做了sort\l
+      所以遍历一次就行了\l
+    }}"]
+    groupSortedMutationsByRegion;
+    LocateKey;
+
+    groupSortedMutationsByRegion -> {
+       LocateKey;
+    }
+
+    LocateKey[style_func;label="{{
+      LocateKey|
+      searches for the region and range\l
+      that key is located\l
+    }}"]
+  }
+  groupMutations[style_func;label="{{
+    groupMutations|
+    对于mutation做分组，然后检查\l
+    每个group的mutaions个数\l
+    如果超过阈值，则先对region\l
+    做split, 然后再重新分组\l
+  }}"]
+
+  groupMutations -> {
+    groupSortedMutationsByRegion;
+    preSplitDetectThreshold;
+    preSplitRegion;
+  }
+  preSplitDetectThreshold[style_var;label="{{
+    preSplitDetectThreshold|
+    全局变量值为100 000\l
+  }}"]
+}

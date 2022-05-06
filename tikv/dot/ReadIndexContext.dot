@@ -1,0 +1,87 @@
+#include "styles.h"
+digraph ReadIndexContext {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  ReadIndexContext -> {
+    Uuid;
+    ReadIndexRequest;
+    LockInfo;
+  }
+
+  ReplicaReadLockChecker__on_step -> {
+    ReadIndexContext__parse;
+    ConcurrencyManager__read_range_check;
+    check_ts_conflict;
+  }
+  CoprocessorHost__on_step_read_index -> ReplicaReadLockChecker__on_step;
+  //PeerFsmDelegate__handle_msgs -> PeerFsmDelegate__on_raft_messsage;
+
+ // PeerFsmDelegate__on_raft_messsage -> {
+ //   Peer__step;
+ // }
+ Peer__read_index[style_func;label="{{
+   Peer\l
+   read_index\l|
+   follower节点发起read index请求\l
+   调用raft时，会带上ReadIndexContext\l
+   里面的lock为None\l
+ }}"]
+ Peer__step[style_func;label="{{
+   Peer\l
+   step\l|
+   leader节点收到\l
+   follower的readIndex请求\l
+   检查read_range_check\l
+   并将Lockinfo放到ReadIndexContext\l
+   中返回给follower\l
+ }}"]
+ CoprocessorHost__on_step_read_index[style_func;label="{{
+   CoprocessorHost\l
+   on_step_read_index\l
+ }}"]
+
+ ReplicaReadLockChecker__on_step[style_func;label="{{
+   ReplicaReadLockChecker\l
+   on_step\l
+ }}"]
+
+  Peer__read_index -> {
+    raft_group__read_index;
+    ReadIndexContext;
+  }
+  Peer__step -> {
+    CoprocessorHost__on_step_read_index;
+  }
+  ConcurrencyManager__read_range_check -> LockInfo[style_edge_data]
+  LockInfo[style_var;label="{{
+    LockInfo|
+    bytes primary_lock = 1;\l|
+    uint64 lock_version = 2;\l|
+    bytes key = 3;\l|
+    uint64 lock_ttl = 4;\l|
+    uint64 txn_size = 5;\l|
+    Op lock_type = 6;\l|
+    uint64 lock_for_update_ts = 7;\l|
+    bool use_async_commit = 8;\l|
+    uint64 min_commit_ts = 9;\l|
+    repeated bytes secondaries = 10;\l
+  }}"]
+  {
+    rank=same;
+    Peer__step;
+    Peer__read_index;
+  }
+  ReadIndexContext -> raft_group__read_index[style_edge_data];
+  raft_group__read_index[style_func;label="{{
+    raft_group\l
+    read_index\l|
+    调用raft的read_index\l
+    并附带上序列化后的\l
+    ReadIndexContext\l
+  }}"]
+
+}

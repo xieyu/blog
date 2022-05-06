@@ -1,0 +1,147 @@
+#include "styles.h"
+digraph raft_client_start {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PdStoreAddrResolver {
+    graph[label="PdStoreAddrResolver";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PdStoreAddrResolver_resolve[style_red;label="{{
+      resolve\l
+      发消息给resolver \l
+      runner channel\l
+      并等待callback\l
+    }}"]
+    PdStoreAddrResolver_resolve;
+  }
+  subgraph cluster_RaftCall {
+    graph[label="RaftCall";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RaftCall[style_func;label="{{
+      RaftCall|
+      sender/receive为\l
+      grpc stream的输入输出\l
+      RaftCall会不断的去Queue中pop消息\l
+      使用sender发送出去\l
+      sender: ClientCStreamSender\<M\>,\l|
+      receiver: ClientCStreamReceiver\<Done\>,\l|
+      queue: Arc\<Queue\>,\l|
+      buffer: B,\l|
+      router: R,\l|
+      snap_scheduler: Scheduler\<SnapTask\>,\l|
+      lifetime: Option\<oneshot::Sender\<()\>\>,\l|
+      store_id: u64,\l|
+      addr: String,\l
+    }}"]
+    poll -> {
+      fill_msg;
+      sender_poll_ready;
+      sender_poll_flush;
+      receiver_poll;
+      buffer_flush;
+    };
+    fill_msg[style_struct;label="{{
+      fill_msg|
+      从queue中pop消息\l
+      放入buffer中\l
+      skip掉 hassnapshot的消息\l
+    }}"]
+    fill_msg -> buffer_flush[style_edge_data];
+    buffer_flush[style_func;label="{{
+      buffer.flush(sender)|
+      使用grpc stream sender\l
+      发送消息\l
+    }}"]
+    pop[style_func;label="{{
+      Queue::pop|
+      self.queue.pop\l
+      从queue中pop消息\l
+    }}"]
+    fill_msg -> {
+      pop;
+      send_snapshot_sock;
+    }
+    sender_poll_ready[style_func;label="{{
+      sender.poll_ready(ctx)|
+      等待sender ready\l
+    }}"]
+    send_snapshot_sock[style_red;label="{{
+      send_snapshot_sock|
+      使用scheduler 由snap handler\l
+      处理包含snapshot 的message
+    }}"]
+  }
+
+
+  subgraph cluster_TikvClient {
+    graph[label="TikvClient";fontsize=20;style="rounded,dashed";color="slategrey"]
+    TikvClient;
+    {
+      client_batch_raft;
+      client_raft
+    } -> RaftCall;
+    client_batch_raft[style_func;label="{{
+      batch_raft|
+      调用grpc batch_raft接口\l
+      将返回的stream, sink\l
+      放入RaftCall\l
+    }}"]
+    client_raft[style_func;label="{{
+      raft|
+      调用grcp raft接口\l
+      将返回的stream, sink\l
+      放入RaftCall\l
+    }}"]
+
+    spawn -> RaftCall[style_edge_data];
+    spawn -> poll;
+  }
+
+
+  subgraph cluster_StreamBackend {
+    graph[label="StreamBackend";fontsize=20;style="rounded,dashed";color="slategrey"]
+    resolve[style_func;label="{{
+      resolve|
+      解析store_id的addr\l
+    }}"]
+    connect[style_func;label="{{
+      connect|
+        创建grpc channel\l
+        返回TiKVClient\l
+    }}"]
+
+    resolve -> PdStoreAddrResolver_resolve;
+    connect -> TikvClient;
+    batch_call[style_func;label="{{
+      batch_call|
+      使用新接口batch_raft\l
+      如果失败的话，fallback到\l
+      兼容模式\l
+    }}"]
+    call[style_func;label="{{
+      call|
+      fallback到兼容模式\l
+      调用grpc raft接口
+    }}"]
+    batch_call -> {
+     client_batch_raft;
+     spawn;
+    }
+    call -> {
+      client_raft;
+      spawn;
+    }
+    {
+      batch_call;
+      call;
+    } -> RaftCall[style_edge_data];
+  }
+
+  start -> {
+    maybe_backoff;
+    resolve;
+    connect;
+    batch_call;
+    call;
+    broadcast_unreachable;
+  }
+}

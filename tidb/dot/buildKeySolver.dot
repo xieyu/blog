@@ -1,0 +1,317 @@
+digraph build_key_solver {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  baseLogicalPlan_BuildKeyInfo[
+    shape="record";
+    label="{{
+      baseLogicalPlan_BuildKeyInfo|
+      构建MaxOneRow属性
+    }}"];
+  child_MaxOneRow[
+    shape="record";
+    label="{{
+      child_MaxOneRow|
+      调用子节点的MaxOneRow接口
+    }}"];
+  HasMaxOneRow[
+    shape="record";
+    label="{{
+      HasMaxOneRow|
+      根据plan类型和子节点的MaxOneRow\l
+      来返回是否有maxOneRow
+    }}"];
+  maxOneRow[
+    shape="record";
+    label="{{
+      maxOneRow|
+      数据成员maxOneRow保存结果
+    }}"];
+  buildKeyInfo[
+    shape="record";
+    label="{{
+      buildKeyInfo|
+      调用logicalplan的BuilKeyInfo
+    }}"];
+  buildKeyInfo -> buildKeyInfo[label="1.每个child递归调用"]
+  child_Schema[
+    shape="record";
+    label="{{
+      child_Schema|
+      每个child先分配Schema\l
+    }}"];
+  BuildKeyInfo[
+    shape="record";
+    label="{{
+      BuildKeyInfo|
+      LogicalPlan的接口\l
+      收集unique keys\l
+    }}"];
+
+
+  child_Schema -> logicalSchemaProducer_Schema -> NewSchema;
+
+  buildKeyInfo -> {
+    child_Schema;
+    BuildKeyInfo;
+  }
+  baseLogicalPlan_BuildKeyInfo -> {
+    HasMaxOneRow;
+    maxOneRow;
+    child_MaxOneRow;
+  }
+  BuildKeyInfo -> {
+    LogicalAggregation_BuildKeyInfo;
+    LogicalProjection_BuildKeyInfo;
+    DataSource_BuildKeyInfo;
+    LogicalJoin_BuildKeyInfo;
+    LogicalTopN_BuildKeyInfo;
+    LogicalTableDual_BuildKeyInfo;
+    LogicalLimit_BuildKeyInfo;
+    LogicalSelection_BuildKeyInfo;
+    LogicalTableScan_BuildKeyInfo;
+    LogicalIndexScan_BuildKeyInfo;
+    TiKVSingleGather_BuildKeyInfo;
+  }[color="#b83b5e"];
+
+  logicalSchemaProducer_BuildKeyInfo -> baseLogicalPlan_BuildKeyInfo;
+
+  DataSource_BuildKeyInfo[
+    shape="record";
+    label="{{
+      DataSource.BuildKeyInfo|
+      DataSource作为叶子节点\l
+      它的schema是最先算的\l
+    }}"];
+
+  DataSource_BuildKeyInfo -> {
+    checkIndexCanBeKey;
+    HasPriKeyFlag;
+    PKIsHandle;
+  }[color=lime]
+  checkIndexCanBeKey[
+    shape="record";
+    label="{{
+      checkIndexCanBeKey|
+      检查Colum和Index\l 
+      名字是否匹配\l
+    }}"];
+  HasPriKeyFlag[
+    shape="record";
+    label="{{
+      HasPriKeyFlag|
+      check if column's\l
+      PriKeyFlag is set\l
+    }}"];
+  PKIsHandle[
+    shape="record";
+    label="{{
+      PKIsHandle|
+      true when primary key is\l 
+      a single integer column\l
+    }}"];
+  PKIsHandle -> HasPriKeyFlag[style=dashed];
+
+  checkIndexCanBeKey -> {
+    HasNotNullFlag;
+  }
+
+  LogicalProjection_BuildKeyInfo[
+    shape="record";
+    label="{{
+      LogicalProjection.BuildKeyInfo|
+      该lp只有一个child\l|
+      首先build self schema\l
+      self schema中col在child key中的\l
+      算如self schema key中\l
+    }}"];
+
+  LogicalProjection_BuildKeyInfo -> {
+    buildSchemaByExprs;
+    ColumnsIndices;
+    logicalSchemaProducer_BuildKeyInfo;
+  }[color="#3fc1c9"];
+
+  buildSchemaByExprs[
+    shape="record";
+    label="{{
+      buildSchemaByExprs|
+      遍历exprs\l
+      如果expr是column就直接加入到schema中\l
+      否则就新建一个占位的\l
+    }}"];
+  buildSchemaByExprs -> {
+    expr_GetType;
+    AllocPlanColumnID;
+    expression_Column;
+  }
+  ColumnsIndices[
+    shape="record";
+    label="{{
+      ColumnsIndices|
+      return a slice which contains\l
+      the position of each column in schema\l
+    }}"];
+  ColumnIndex[
+    shape="record";
+    label="{{
+      ColumnIndex|
+      遍历schema数组\l
+      比较column的UniqueID\l
+      返回在column数据中的下标\l
+    }}"];
+  ColumnsIndices -> ColumnIndex;
+
+  LogicalAggregation_BuildKeyInfo[
+    shape="record";
+    label="{{
+      LogicalAggregation.BuildKeyInfo|
+      该lp只有一个child\l|
+      self schema column在child key中的\l
+      算入key中\l|
+      在groupByCols中column也算入key中\l
+    }}"];
+
+  LogicalAggregation_BuildKeyInfo -> {
+    logicalSchemaProducer_BuildKeyInfo;
+    IsPartialModeAgg;
+    ColumnsIndices;
+    GetGroupByCols;
+    maxOneRow;
+  }[color="#f08a5d"];
+
+  IsPartialModeAgg[
+    shape="record";
+    label="{{
+      IsPartialModeAgg|
+      如果是partionMode agg就\l 
+      直接返回\l
+    }}"];
+  GetGroupByCols -> GroupByItems;
+
+  LogicalJoin_BuildKeyInfo[
+    shape="record";
+    label="{{
+      LogicalJoin.BuildKeyInfo|
+      根据join类型\l
+      选择两个child的Keys\l
+    }}"];
+  LogicalJoin_BuildKeyInfo -> {
+    join1;
+    join2;
+  }
+  join1[
+    shape="record";
+    label="{{
+	  SemiJoin,\l
+    LeftOuterSemiJoin,\l
+    AntiSemiJoin,\l 
+    AntiLeftOuterSemiJoin\l|
+    childSchema[0].Clone().Keys
+    }}"];
+  join2[
+    shape="record";
+    label="{{
+      InnerJoin\l
+      LeftOuterJoin\l 
+      RightOuterJoin\l|
+      遍历EqualConditions\l
+    }}"];
+  EqualConditions[
+    shape="record";
+    label="{{
+      EqualConditions|
+      expression.ScalarFunction\l
+    }}"];
+  GetArgs[
+    shape="record";
+    label="{{
+      GetArg|
+      获取eque condition的\l 
+      左右column\l
+    }}"];
+  join2 -> {
+    GetArgs;
+    EqualConditions;
+  }
+
+  {
+    LogicalTopN_BuildKeyInfo
+    LogicalLimit_BuildKeyInfo;
+    LogicalTableDual_BuildKeyInfo;
+  } -> {
+    baseLogicalPlan_BuildKeyInfo;
+    maxOneRow;
+  }
+  LogicalSelection_BuildKeyInfo -> {
+    baseLogicalPlan_BuildKeyInfo;
+    Conditions;
+    checkMaxOneRowCond;
+  }[color="#17b978"];
+
+  checkMaxOneRowCond -> {
+    IsUniqueKey;
+    Const;
+    CorrelatedColumn;
+  }
+  Conditions -> checkMaxOneRowCond[style=dashed];
+  LogicalTableScan_BuildKeyInfo -> DataSource_BuildKeyInfo;
+  LogicalIndexScan_BuildKeyInfo -> {
+    checkIndexCanBeKey;
+    getPKIsHandleCol;
+  }
+  TiKVSingleGather_BuildKeyInfo[
+    shape="record";
+    label="{{
+      TiKVSingleGather_BuildKeyInfo|
+      childSchema[0].Keys
+    }}"];
+
+  subgraph cluster_Schema {
+    graph[label="Schema";fontsize=20;style="rounded,dashed";color="slategrey"]
+    IsUniqueKey;
+    ColumnsIndices;
+    ColumnIndex;
+  }
+  subgraph cluster_expression {
+    graph[label="expression";fontsize=20;style="rounded,dashed";color="slategrey"]
+    CorrelatedColumn;
+    Const;
+    expression_Column;
+    expr_GetType;
+    GetArgs;
+  }
+
+  subgraph cluster_LogicalAggregation {
+    graph[label="LogicalAggregation";fontsize=20;style="rounded,dashed";color="slategrey"]
+    LogicalAggregation_BuildKeyInfo;
+    IsPartialModeAgg;
+    GetGroupByCols;
+    GroupByItems;
+  }
+
+  subgraph cluster_LogicalProjection {
+    graph[label="LogicalProjection";fontsize=20;style="rounded,dashed";color="slategrey"]
+    LogicalProjection_BuildKeyInfo;
+    buildSchemaByExprs;
+  }
+  subgraph cluster_LogicalIndexScan {
+    graph[label="LogicalIndexScan";fontsize=20;style="rounded,dashed";color="slategrey"]
+    LogicalIndexScan_BuildKeyInfo;
+    getPKIsHandleCol;
+  }
+  subgraph cluster_LogicalSelection {
+    graph[label="LogicalSelection";fontsize=20;style="rounded,dashed";color="slategrey"]
+    LogicalSelection_BuildKeyInfo;
+    Conditions;
+  }
+  subgraph cluster_LogicalJoin {
+    graph[label="LogicalJoin";fontsize=20;style="rounded,dashed";color="slategrey"]
+    LogicalJoin_BuildKeyInfo;
+    join1;
+    join2;
+    EqualConditions;
+  }
+
+}

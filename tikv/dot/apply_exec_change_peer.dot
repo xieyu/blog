@@ -1,0 +1,54 @@
+
+#include "styles.h"
+digraph apply__handle_raft_entry_conf_change {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ApplyDelegate__exec_change_peer -> {
+    Region__get_region_epoch__get_conf_ver;
+    Region__mut_region_epoch__set_conf_ver;
+    Region__mut_peers__push;
+
+    ApplyDelegate__stopped;
+    ApplyDelegate__pending_remove;
+    remove_peer;
+    find_peer;
+    PeerState__TombStone;
+    PeerState__Normal;
+    write_peer_state;
+    ApplyRes;
+  }
+
+  {
+    Region__mut_region_epoch__set_conf_ver;
+    Region__mut_peers__push;
+    Region__mut_peers_remove;
+  } -> Region[style_edge_data];
+
+  {
+    PeerState__TombStone;
+    PeerState__Normal;
+  } -> PeerState[style_edge_data];
+
+  {PeerState;Region} -> RaftLocalState -> write_peer_state[style_edge_data];
+  write_peer_state -> {
+     region_state_key;
+  }
+  write_peer_state[style_blue1;label="{{
+    write_peer_state|
+    将RaftLocalState写入kv_wb\l
+    cf为CF_RAFT\l
+    key为:region_state_key\l
+  }}"]
+
+
+  remove_peer -> {
+    Region__mut_peers_remove;
+  }
+
+  ApplyDelegate__pending_remove -> PeerState__TombStone[style_edge_data];
+
+
+}

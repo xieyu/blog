@@ -1,0 +1,29 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  LockResolver__resolveLocks -> {
+    resolve;
+  }
+  resolve -> {
+    resolve;
+    LockResolver__GetTxnStatusFromLock;
+    LockResolver__resolveLockAsync;
+    LockResolver__resolvePessimisticLock;
+    LockResolver__resolveLock;
+  }
+  LockResolver__GetTxnStatusFromLock -> TxnStatus;
+  TxnStatus[style_blue1;label="{{
+    TxnStatus\l|
+      ttl         uint64\l|
+      commitTS    uint64\l|
+      action      kvrpcpb.Action\l|
+      primaryLock *kvrpcpb.LockInfo\l
+  }}"]
+  TxnStatus ->LockInfo;
+
+
+}

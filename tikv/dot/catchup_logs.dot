@@ -1,0 +1,85 @@
+#include "styles.h"
+digraph catchup_logs {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate__on_catch_up_logs_for_merge[style_func;label="{{
+    PeerFsmDelegate\l
+    on_catch_up_logs_for_merge\l|
+    处理target region\l
+    发来的CatchUpLogs\l
+  }}"]
+
+  PeerFsmDelegate__on_catch_up_logs_for_merge -> {
+    Peer__maybe_append_merge_entries;
+    Peer__catch_up_logs;
+    Peer__pending_merge_state;
+  }
+  Peer__catch_up_logs[style_blue1;label="{{
+    Peer\l
+    catch_up_logs\l|
+    pub target_region_id: u64,\l|
+    pub merge: CommitMergeRequest,\l|
+    pub logs_up_to_date: Arc\<AtomicU64\>,\l
+  }}"]
+  Peer__maybe_append_merge_entries[style_func;label="{{
+    Peer\l
+    maybe_append_merge_entries\l|
+    Directly append thes logs \l
+    to raft log and then commit\l
+    them\l
+  }}"]
+  RaftLog__maybe_append[style_blue1;label="{{
+    RaftLog\l
+    maybe_append\l
+    用CommitMerge中的log\l
+    补齐raft log\l|
+    并设置committed 为\l
+    CommitMerge中的comitted\l
+  }}"]
+
+  Peer__maybe_append_merge_entries -> {
+    RaftLog__maybe_append;
+    RaftLog__commit_to;
+    merge__get_entries__is_empty;
+  }
+
+  CatchUpLogs[style_func;label="{{
+    CatchUpLogs|
+    pub target_region_id: u64,\l|
+    pub merge: CommitMergeRequest,\l|
+    pub logs_up_to_date: Arc\<AtomicU64\>,\l
+  }}"]
+  CatchUpLogs -> CommitMergeRequest;
+  CommitMergeRequest[style_func;label="{{
+    CommitMergeRequest|
+    source: Region\l|
+    <commit> commit: u64\l
+    <entries> entries\l
+  }}"]
+
+  CommitMergeRequest -> {
+    merge__get_entries__is_empty;
+    RaftLog__maybe_append;
+  }
+  PeerFsmDelegate__on_ready_prepare_merge -> {
+     Peer__pending_merge_state;
+     Peer__catch_up_logs;
+  }
+  PeerFsmDelegate__on_ready_prepare_merge[style_func;label="{{
+    PeerFsmDelegate\l
+    on_ready_prepare_merge\l|
+  }}"]
+  Peer__pending_merge_state[style_var;label="{{
+    Peer\l
+    pending_merge_state\l
+  }}"]
+  Peer__catch_up_logs[style_var;label="{{
+    Peer\l
+    catch_up_logs\l
+  }}"]
+  RaftLog__maybe_append -> PeerFsmDelegate__on_ready_prepare_merge[style_edge_data];
+}
+

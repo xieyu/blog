@@ -1,0 +1,85 @@
+digraph WriteThread {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+	edge[weight=5;color=gray40];
+  subgraph cluster_State {
+    graph[label="State";fontsize=20;style=rounded];
+    STATE_INIT[
+      shape="record";
+      label="{{
+        STATE_INIT|
+        1.JoinBatchGroup: 如果没有\l 
+        其他writer在队列中，则成为group leader\l
+        2.AwaitState: 等待leader转换自己的状态\l
+        3.轮询后没变化，转入wait阶段\l 
+        等待group leader安排\l
+      }}";
+    ];
+    STATE_LOCKED_WAITING[
+      shape="record";
+      label="{{
+        STATE_LOCKED_WAITING|
+        使用StateMutext\l
+        StateCondVar等待\l
+        等待groupleader安排\l
+      }}";
+    ];
+    STATE_MEMTABLE_WRITER_LEADER[
+      shape="record";
+      label="{{
+        STATE_MEMTABLE_WRITER_LEADER|
+        如果enable_pipelined_write为真\l
+        每个写入线程分为写WAL\l 
+        和写MemTable阶段\l
+        Group leader负责WAL阶段\l
+        负责Memtable阶段\l
+      }}";
+    ];
+    STATE_PARALLEL_MEMTABLE_WRITER[
+      shape="record";
+      label="{{
+        STATE_PARALLEL_MEMTABLE_WRITER|
+        每个writer并行的\l 
+        写自己的MemTable\l
+      }}";
+    ];
+    STATE_GROUP_LEADER[
+      shape="record";
+      label="{{
+        STATE_GROUP_LEADER|
+        1.把writeGroup的合并起来\l 
+        一起写入WAL日志\l
+        并把所有writer标记为COMPLETE状态\l
+        如果有新的writer进来，把它设为leader\l|
+        2.满足并发写条件，将每个writer状态设置为\l
+        并发写，等在最后一个memtable写完后退出group\l
+      }}";
+    ];
+
+    STATE_INIT -> {
+      STATE_GROUP_LEADER
+      STATE_COMPLETED
+      STATE_PARALLEL_MEMTABLE_WRITER
+      STATE_LOCKED_WAITING
+      STATE_MEMTABLE_WRITER_LEADER
+    }[color="#3f72af"];
+
+    STATE_GROUP_LEADER -> {
+      STATE_PARALLEL_MEMTABLE_WRITER;
+      STATE_COMPLETED;
+    } [color="#17b978"];
+
+    STATE_LOCKED_WAITING -> {
+      STATE_COMPLETED
+      STATE_PARALLEL_MEMTABLE_WRITER
+      STATE_MEMTABLE_WRITER_LEADER
+    }[color="#b83b5e"];
+
+    STATE_PARALLEL_MEMTABLE_WRITER -> STATE_COMPLETED
+    STATE_MEMTABLE_WRITER_LEADER -> {
+      STATE_PARALLEL_MEMTABLE_WRITER
+      STATE_COMPLETED
+    }[color="#f08a5d"];
+  };
+}

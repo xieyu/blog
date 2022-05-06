@@ -1,0 +1,38 @@
+#include "styles.h"
+
+digraph pruneHashPartition {
+  edge[color=gray40];
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  newrank=true;
+  rankdir=LR;
+  pruneHashPartition -> findUsedPartitions;
+  findUsedPartitions[style_func;label="{{
+    findUsedPartitions|
+    从查询条件conds中\l 
+    分离出partition col上的range\l
+    计算每个range对应的hash partition\l
+		idx := math.Abs(pos % int64(pi.Num))\l
+  }}"]
+  findUsedPartitions -> {
+    generateHashPartitionExpr;
+    ExtractColumns;
+    DetachCondAndBuildRangeForPartition;
+    findByName;
+  }
+
+  DetachCondAndBuildRangeForPartition[style_func;label="{{
+    DetachCondAndBuildRangeForPartition|
+    detach the index filters from table filters\l
+    
+  }}"]
+
+  DetachCondAndBuildRangeForPartition -> Ranges -> used;
+  Ranges[style_var;label="{{
+    Ranges []*Range
+  }}"];
+  used[style_var;label="{{
+    used|
+    [] int
+  }}"]
+  used -> convertToRangeOr;
+}

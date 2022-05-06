@@ -1,0 +1,42 @@
+digraph nodetree {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  node1[
+    shape="record";
+    label="{{
+      node|
+      name\l|
+      group(tags) 每个node可以有多个tag\l|
+      editable property:\l 可以在编辑器中编辑的属性\l|
+      callback per frame:\l 每帧的回调\l
+    }}";
+  ];
+  AddToGroup[
+    shape="record";
+    label="{{
+      AddToGroup|
+      添加到某一组
+    }}";
+  ];
+  node1 -> {
+    AddToGroup;
+    GetNodesInGroup;
+    CallGroup
+  }
+  scene1[
+    shape="record";
+    label="{{
+      scene1|
+      1.至少有个root node\l
+      2.可以save/load disk\l
+      3.可以instance实例化\l
+      感觉有点想unity中的prefab?\l
+    }}";
+  ];
+  node1 -> {node2;node3;}
+  node2 -> {node4;node5;}
+  node3 -> {node6;node7;}
+  project -> scene1 -> node1;
+}

@@ -1,0 +1,144 @@
+#include "styles.h"
+digraph main {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  main -> {
+    LogPanic;
+    SetupLogger;
+    ReplaceGlobals;
+    InitLogger;
+    PrepareJoinCluster;
+    CreateServer;
+    signal_Notify;
+    Server_Run;
+  }
+  CreateServer -> {
+    Server;
+    NewPersistOptions;
+    NewDiagnosticsServer;
+    GenEmbedEtcdConfig;
+    combineBuilderServerHTTPService;
+    RegisterPDServer;
+    RegisterDiagnosticsServer;
+  }
+  combineBuilderServerHTTPService -> {
+    api_NewHandler;
+    autoscaling_NewHandler;
+    swaggerserver_NewHandler;
+  }
+  api_NewHandler -> {
+    createRouter;
+    NewRuntimeServiceValidator;
+    NewRedirector;
+  }
+  Server_Run -> {
+    startEtcd;
+    startServer;
+    startServerLoop;
+  }
+  startEtcd-> {
+    StartEtcd;
+    CheckClusterID;
+    ListEtcdMembers;
+    NewMember;
+  }
+  startServer -> {
+    SetMemberDeployPath;
+    SetMemberGitHash;
+    SetMemberBinaryVersion;
+    initClusterID;
+    NewAllocatorManager;
+    SetUpAllocator;
+    SetLocalTSOConfig;
+    NewEtcdKVBase;
+    NewRegionStorage;
+    NewStorage;
+    NewBasicCluster;
+    NewRaftCluster;
+    GetClusterRootPath;
+    NewHeartbeatStreams;
+  }
+  initClusterID -> {
+    initOrGetClusterID;
+  }
+
+  NewRegionStorage -> {
+    NewLeveldbKV;
+    backgroundFlush;
+  }
+  backgroundFlush -> {
+    FlushRegion;
+  }
+  FlushRegion -> flush -> {
+    SaveRegions
+  };
+  SaveRegions -> {
+    prot_Marshal;
+    leveldb_Batch;
+    Write;
+  }
+  NewBasicCluster -> {
+    NewStoresInfo;
+    NewRegionsInfo;
+  }
+  NewHeartbeatStreams -> newHbStreams;
+  newHbStreams -> {
+    HeartbeatStreams_run;
+  }
+  HeartbeatStreams_run -> {
+    stream_Send;
+  }
+  PrepareJoinCluster -> {
+    ReadFile；
+    ListEtcdMembers;
+    AddEtcdMember;
+  }
+
+  startServerLoop -> {
+    leaderLoop;
+    etcdLeaderLoop;
+    serverMetricsLoop;
+    tsoAllocatorLoop;
+    encryptionKeyManagerLoop;
+  }[label="go"];
+
+  leaderLoop -> {
+    CheckLeader;
+    reloadConfigFromKV;
+    ClusterDCLocationChecker;
+    GetRegionSyncer;
+    IsUseRegionStorage;
+    StartSyncWithLeader;
+    WatchLeader;
+    StopSyncWithLeader;
+    GetEtcdLeader;
+    campaignLeader;
+  }
+  etcdLeaderLoop -> {
+    CheckPriority;
+  }
+  serverMetricsLoop -> {
+    collectEtcdStateMetrics;
+  }
+
+  tsoAllocatorLoop -> {
+    logutil_LogPanic;
+    serverLoopWg_Done;
+    AllocatorDaemon;
+  }
+  encryptionKeyManagerLoop -> {
+    logutil_LogPanic;
+    serverLoopWg_Done;
+    StartBackgroundLoop;
+  }
+  StartBackgroundLoop -> {
+    Watch;
+    loadKeysFromKV;
+    checkOnTick;
+    eventAfterTicker;
+  }
+
+}

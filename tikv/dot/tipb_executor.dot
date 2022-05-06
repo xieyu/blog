@@ -1,0 +1,226 @@
+#include "styles.h"
+digraph tipb_executor {
+  node[style=invis];
+  1 -> 2 -> 3 -> 4 -> 5[style=invis];
+
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Executor -> {
+    ExecType;
+    TableScan;
+    IndexScan;
+    Selection;
+    Aggregation;
+    TopN;
+    Limit;
+    ExchangeReceiver;
+    Join;
+    Kill;
+    ExchangeSender;
+    Projection;
+  }[color=red];
+
+  TableScan[style_func;label="{{
+    TableScan|
+	  optional int64 table_id = 1\l|
+	  <column_info> repeated ColumnInfo columns = 2;\l|
+	  optional bool desc = 3\l|
+	  repeated int64 primary_column_ids = 4;\l|
+	  optional EngineType next_read_engine = 5\l|
+	  repeated KeyRange ranges = 6\l|
+	  repeated int64 primary_prefix_column_ids = 7;\l
+  }}"]
+  TableScan -> {
+     EngineType;
+     KeyRange;
+  }
+  ColumnInfo[style_func;label="{{
+    ColumnInfo|
+	optional int64 column_id = 1\l|
+	optional int32 tp = 2\l|
+	optional int32 collation = 3\l|
+	optional int32 columnLen = 4\l|
+	optional int32 decimal = 5\l|
+	optional int32 flag = 6\l|
+	repeated string elems = 7;
+	optional bytes default_val = 8;\l|
+	optional bool pk_handle = 21\l
+  }}"]
+  
+  TableScan:column_info -> ColumnInfo;
+  KeyRange[style_func;label="{{
+    KeyRange|
+	optional bytes low = 1;\l|
+	optional bytes high = 2;\l
+  }}"]
+
+  IndexScan[style_func;label="{{
+    IndexScan|
+	optional int64 table_id = 1\l|
+	optional int64 index_id = 2\l|
+	repeated ColumnInfo columns = 3;\l|
+	optional bool desc = 4\l|
+	optional bool unique = 5;\l
+  }}"]
+
+  IndexScan -> ColumnInfo;
+  Selection[style_func;label="{{
+    Selection|
+	  repeated Expr conditions = 1;\l|
+	  repeated RpnExpr rpn_conditions = 2;\l|
+	  optional Executor child = 3;\l
+  }}"]
+  Aggregation[style_func;label="{{
+    Aggregation|
+	repeated Expr group_by = 1;\l|
+	repeated RpnExpr rpn_group_by = 4;\l|
+	repeated Expr agg_func = 2;\l|
+	repeated RpnExpr rpn_agg_func = 5;\l|
+	optional bool streamed = 3\l|
+	optional Executor child = 6;\l
+  }}"]
+  Selection -> {
+     Expr;
+     RpnExpr;
+     Executor_child;
+  }
+  Projection[style_func;label="{{
+    Projection|
+	repeated Expr exprs = 1;\l|
+	repeated RpnExpr rpn_exprs = 2;\l|
+	optional Executor child = 3;\l
+  }}"]
+  Projection -> {
+    Expr;
+    RpnExpr;
+    Executor_child;
+  }
+  TopN[style_func;label="{{
+    TopN|
+	repeated ByItem order_by = 1;\l|
+	optional uint64 limit = 2 \l|
+	optional Executor child = 3;\l
+  }}"]
+  Limit[style_func;label="{{
+    Limit|
+	optional uint64 limit = 1;\l|
+	optional Executor child = 2;\l
+  }}"]
+  Limit -> Executor_child;
+  TopN -> Executor_child;
+  Aggregation -> Executor_child;
+  RpnExpr[style_func;label="{{
+    RpnExpr|
+    repated Expr exprs = 1;
+  }}"]
+  RpnExpr -> Expr;
+  {rank=same; Executor_child; IndexScan;TableScan}
+  Executor_child[style_blue1;label="{{
+    Executor|
+    子Executor\l
+    作为上层的数据源\l
+  }}"]
+
+  Join[style_func;label="{{
+    Join|
+    Join有多个数据源\l
+	optional JoinType join_type = 1\l|
+	optional JoinExecType join_exec_type = 2;\l|
+	repeated Executor children = 3;\l|
+	optional int64 inner_idx = 4\l|
+	repeated Expr left_join_keys = 5;\l|
+	repeated Expr right_join_keys = 6;\l|
+	repeated FieldType probe_types = 7;\l|
+	repeated FieldType build_types = 8;\l|
+	repeated Expr left_conditions = 9;\l|
+	repeated Expr right_conditions = 10;\l|
+	repeated Expr other_conditions = 11;\l|
+	repeated Expr other_eq_conditions_from_in = 12;\l
+  }}"]
+
+  Join -> {
+    Expr;
+    Executor_child;
+  }
+
+  Kill[style_func;label="{{
+    Kill|
+	optional uint64 connID = 1;\l|
+	optional bool query = 2;\l
+  }}"]
+
+  EngineType[style_func;label="{{
+    EngineType|
+	Local = 0;\l|
+	TiKV = 1;\l|
+	TiFlash = 2;\l
+  }}"]
+  ExchangeSender[style_func;label="{{
+    ExchangeSender|
+	optional ExchangeType tp = 1;\l|
+	repeated bytes encoded_task_meta = 2;\l|
+	repeated Expr partition_keys = 3; \l|
+	optional Executor child = 4;\l
+  }}"]
+  ExchangeSender -> {
+    Expr;
+    Executor_child;
+  }
+
+  ExchangeReceiver[style_func;label="{{
+    ExchangeReceiver|
+	repeated bytes encoded_task_meta = 1;\l|
+	repeated FieldType field_types = 2;\l|
+	optional ExchangeType tp = 3;\l
+  }}"]
+  ExchangeType[style_func;label="{{
+    ExchangeType|
+	PassThrough = 0;\l|
+	Broadcast = 1;\l|
+        Hash = 2;\l
+  }}"]
+  Expr[style_var;label="{{
+    Expr
+  }}"]
+
+  TopN -> ByItem;
+  ByItem[style_func;label="{{
+    ByItem|
+	optional Expr expr = 1;\l|
+	optional RpnExpr rpn_expr = 3;\l|
+	optional bool desc = 2;\l
+  }}"]
+  ByItem -> {
+    Expr;
+    RpnExpr;
+  }
+
+  subgraph cluster_Exchange {
+    graph[label="Exchange";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ExchangeReceiver;
+    ExchangeSender;
+    ExchangeType;
+  }
+
+  subgraph cluster_DataSource {
+    graph[label="DataSource\n最底层数据源\n从storage中scan数据";fontsize=20;style="rounded,dashed";color="slategrey"]
+    TableScan;
+    IndexScan;
+    ColumnInfo;
+    KeyRange;
+  }
+
+  subgraph cluster_Expr {
+    graph[label="Expr";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RpnExpr;
+    Expr;
+  }
+
+  ExchangeReceiver -> ExchangeType;
+  {rank=same;1;Executor}
+  //{rank=same; 3;ExchangeReceiver;ExchangeSender;}
+  {rank=same;5;Executor_child};
+}

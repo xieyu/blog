@@ -1,0 +1,34 @@
+#include "styles.h"
+digraph on_merge_result {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate__on_merge_result -> {
+    MergeResultKind__FromTargetSnapshotStep1;
+    MergeResultKind__FromTargetSnapshotStep2;
+    MergeResultKind__FromTargetLog;
+    MergeResultKind__Stale;
+    Peer__destroy_peer;
+    PeerFsmDelegate__on_stale_merge;
+  }
+
+  MergeResultKind__FromTargetLog -> Peer__destroy_peer[style_edge_data];
+  MergeResultKind__FromTargetSnapshotStep2 -> Peer__destroy_peer[style_edge_data];
+  MergeResultKind__Stale -> PeerFsmDelegate__on_stale_merge;
+  MergeResultKind__FromTargetSnapshotStep1 -> {
+    Peer__pending_remove;
+    ApplyRouter__schedule_task__ApplyTask__destroy;
+  };
+  PeerFsmDelegate__on_stale_merge -> {
+    Peer__maybe_destory;
+    Peer__handle_destory_peer;
+  }
+
+  Peer__handle_destory_peer -> {
+    Peer__destroy_peer;
+    ApplyRouter__schedule_task__ApplyTask__destroy;
+  }
+
+}

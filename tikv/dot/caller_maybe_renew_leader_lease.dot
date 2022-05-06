@@ -1,0 +1,96 @@
+#include "styles.h"
+digraph readers {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Peer__apply_reads -> Peer__maybe_renew_leader_lease;
+  Peer__handle_raft_comitted_entries -> Peer__maybe_renew_leader_lease;
+  Peer__on_role_changed -> Peer__maybe_renew_leader_lease;
+  Peer__handle_raft_ready_append -> {
+    Peer__on_role_changed;
+    Peer__handle_raft_comitted_entries;
+    Peer__apply_reads;
+  }
+  PeerFsmDelegate__collect_ready -> Peer__handle_raft_ready_append;
+  Peer__handle_raft_comitted_entries[style_func;label="{{
+    Peer\l
+    handle_raft_comitted_entries\l|
+    跟据write propose时间\l
+    更新leader lease\l
+  }}"]
+
+  PeerFsmDelegate__collect_ready[style_func;label="{{
+    PeerFsmDelegate\l
+    collect_ready\l|
+    调用raftgroup.ready\l
+    然后处理 它返回的ready\l
+  }}"]
+  Peer__handle_raft_ready_append[style_func;label="{{
+    Peer\l
+    handle_raft_ready_append\l|
+    1.调用raft_group.ready()\l
+  }}"]
+  Peer__handle_raft_ready_append -> {
+    RawNode__ready;
+  }
+  RawNode__ready[style_blue1;label="{{
+    RawNode\l
+    ready\l
+  }}"]
+  Peer__apply_reads[style_func;label="{{
+    Peer\l
+    apply_reads\l|
+    1.处理ready中的read_states\l
+    2.如果是leader\l
+    使用pending_reads中的last_ready\l
+    的renew_lease_time 更新leader_lease\l
+  }}"]
+  Peer__apply_reads -> {
+    Peer__pending_reads;
+    Lease__inspect;
+  }
+  Lease__inspect[style_func;label="{{
+    Lease__inspect|
+    检查ts和自己的bound\l
+    如果是Suspect phase\l
+    就不更新leader lease\l
+  }}"]
+  Peer__pending_reads[style_var;label="{{
+    Peer\l
+    pending_reads\l|
+    使用pending_reads中的last_ready\l
+    的renew_lease_time 更新leader_lease\l
+  }}"]
+  Peer__maybe_renew_leader_lease[style_blue1;label="{{
+    Peer\l
+    maybe_renew_leader_lease\l|
+    try to renew leader lease\l|
+    1.如果正在spliting/merging则不会更新\l
+    2.如果自己是leader且\l
+    read_progress不为None\l
+    则尝试更新read_progress\l
+  }}"]
+  Peer__handle_raft_comitted_entries -> {
+    ProposalQueue__find_propose_time;
+  }
+  ProposalQueue__find_propose_time[style_func;label="{{
+    ProposalQueue\l
+    find_propose_time\l|
+    找到log entry的proposal time\l
+    根据他来更新刷新\l
+    自己的leader lease\
+  }}"]
+  Peer__on_role_changed[style_func;label="{{
+    Peer\l
+    on_role_changed\l|
+    如果自己刚成为leader也\l
+    刷新leader lease\l
+  }}"]
+  Lease__inspect[style_func;label="{{
+    Lease\l
+    inspect\l
+  }}"]
+
+}

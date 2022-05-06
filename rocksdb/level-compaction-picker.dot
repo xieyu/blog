@@ -1,0 +1,437 @@
+digraph level_compactoin_picker {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_FileMetadata {
+    graph[label="FileMetadata";fontsize=20;];
+    FileMetaData;
+    TryGetOldestAncesterTime;
+  } // end of FileMetadata
+
+  subgraph cluster_VersionStorageInfo {
+    graph[label="VersionStorageInfo";fontsize=20;];
+    GetOverlappingInputs[shape="record";
+      label="{{
+        GetOverlappingInputs\l|
+        搜索指定level中和\l 
+        KeyRange (begin, end)\l
+        overlap的vector\<FileMetadata\>\l|
+        分别处理level0\l 
+        level\>0情况\l
+      }}";
+    ];
+    switch_level[shape="record";
+      label="{{
+        switch|
+        <case_1> level \> 0 使用二分查找|
+        <case_2> level == 0 迭代遍历查找\l
+        level0由于文件之间overlap\l
+        所以要特殊处理\l
+      }}";
+    ];
+    GetOverlappingInputs -> {
+      switch_level
+    }
+    switch_level:case_1 -> GetOverlappingInputsRangeBinarySearch;
+    switch_level:case_2 -> {
+      level_files_brief_;
+      CompareWithoutTimestamp;
+    }
+
+    GetCleanInputsWithinInterval -> GetOverlappingInputsRangeBinarySearch;
+    GetOverlappingInputsRangeBinarySearch[
+      shape="record";
+      label="{{
+        GetOverlappingInputsRangeBinarySearch|
+        搜索指定level中和\l 
+        KeyRange (begin, end)\l
+        overlap的vector\<FileMetadata\>\l
+      }}";
+    ];
+    GetOverlappingInputsRangeBinarySearch -> {
+      lower_bound;
+      upper_bound;
+      sstableKeyCompare;
+      level_files_brief_;
+    }
+    lower_bound[shape="record";
+      label="{{
+        lower_bound|
+        使用标准库二分查找\l
+        定位到start_index\l
+      }}";
+    ];
+    upper_bound[shape="record";
+      label="{{
+        upper_bound|
+        使用标准库二分查找\l
+        定位到end_index\l
+      }}";
+    ];
+    {lower_bound;upper_bound} -> LevelFilesBrief;
+
+    level_files_brief_[
+      shape="record"
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        level_files_brief_|
+          autovector\<ROCKSDB_NAMESPACE\l::LevelFilesBrief\>\l level_files_brief_\l
+      }}"
+    ];
+    LevelFilesBrief[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        LevelFilesBrief|
+          size_t num_files;\l|
+          FdWithKeyRange* files;\l
+      }}"
+    ];
+    FdWithKeyRange[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        FdWithKeyRange|
+          FileDescriptor fd;\l|
+          FileMetaData* file_metadata;\l|
+          Slice smallest_key;\l|
+          Slice largest_key;\l
+      }}"
+    ];
+    level_files_brief_ -> LevelFilesBrief -> FdWithKeyRange -> FileMetaData;
+    ComputeCompactionScore -> {
+      files_;
+      MaxBytesForLevel;
+      ComputeFilesMarkedForCompaction;
+      ComputeExpiredTtlFiles;
+      ComputeBottommostFilesMarkedForCompaction;
+      ComputeFilesMarkedForPeriodicCompaction;
+      EstimateCompactionBytesNeeded;
+      compaction_score_;
+      compaction_level_;
+    }
+
+    files_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        files_|
+          std::vector\<FileMetaData*\>* files_
+      }}";
+    ];
+    files_ -> FileMetaData;
+    CompactionScore -> compaction_score_;
+    CompactionScoreLevel -> compaction_level_;
+    NextCompactionIndex[shape="record";
+      label="{{
+        NextCompactionIndex|
+        从上次被选择的index开始选\l
+      }}";
+    ];
+    SetNextCompactionIndex[shape="record";
+      label="{{
+        SetNextCompactionIndex|
+        设置下一次compaction开始的index\l
+      }}";
+    ];
+    NextCompactionIndex -> next_file_to_compact_by_size_;
+    SetNextCompactionIndex -> next_file_to_compact_by_size_;
+    BottommostFilesMarkedForCompaction;
+
+    //ExpiredTtlFiles
+    ExpiredTtlFiles -> expired_ttl_files_;
+    ComputeExpiredTtlFiles -> {
+      expired_ttl_files_;
+      TryGetOldestAncesterTime;
+      GetCurrentTime;
+    }
+    ComputeFilesMarkedForCompaction -> files_marked_for_compaction_;
+    FilesMarkedForCompaction -> files_marked_for_compaction_;
+    FilesMarkedForPeriodicCompaction -> files_marked_for_periodic_compaction_;
+    ComputeFilesMarkedForPeriodicCompaction -> files_marked_for_periodic_compaction_;
+
+    BottommostFilesMarkedForCompaction -> bottommost_files_marked_for_compaction_;
+    ComputeBottommostFilesMarkedForCompaction -> bottommost_files_marked_for_compaction_;
+
+  }//end of subgraph VersionStorageInfo
+
+
+  subgraph cluster_Compaction {
+    graph[label="Compaction";fontsize=20;];
+    Compaction[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        Compaction|
+          VersionStorageInfo* input_vstorage_;\l|
+          const int start_level_;\l|
+          const int output_level_;\l|
+          ColumnFamilyData* cfd_;\l|
+          const std::vector\<CompactionInputFiles\> inputs_;\l
+          std::vector\<FileMetaData*\> grandparents_;\l
+      }}";
+    ];
+  }
+
+  subgraph cluster_CompactionPicker {
+    graph[label="CompactionPicker";fontsize=20;];
+    SetupOtherInputs -> {
+      ExpandInputsToCleanCut;
+      TotalCompensatedFileSize;
+      GetRange;
+      GetOverlappingInputs;
+      AreFilesInCompaction;
+      GetCleanInputsWithinInterval;
+    }[color="#3f72af"];
+
+    GetOverlappingL0Files[shape="record";
+      label="{{
+        GetOverlappingL0Files|
+        获取VersionStorage level0中和\l 
+        CompactionInputfiles\l
+        overlap的files\l
+      }}";
+    ];
+
+    GetOverlappingL0Files -> {
+      GetOverlappingInputs;
+      IsRangeInCompaction;
+      level0_compactions_in_progress_;
+    }[color="#b83b5e"]
+
+    FilesRangeOverlapWithCompaction -> {
+      GetRange;
+      RangeOverlapWithCompaction;
+    }
+    AreFilesInCompaction -> {
+      FileMetaData_being_compacted;
+    }
+    IsRangeInCompaction -> {
+      GetOverlappingInputs;
+      AreFilesInCompaction;
+    }
+    RangeOverlapWithCompaction -> {
+      compactions_in_progress_;
+    }
+    GetGrandparents -> {
+      GetOverlappingInputs;
+    }
+    RegisterCompaction -> {
+      compactions_in_progress_;
+      level0_compactions_in_progress_;
+    }
+    level0_compactions_in_progress_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        level0_compactions_in_progress_|
+          std::set\<Compaction*\> \l level0_compactions_in_progress_;
+      }}";
+    ];
+    level0_compactions_in_progress_ -> Compaction;
+
+    compactions_in_progress_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        compactions_in_progress_|
+          std::unordered_set\<Compaction*\>\l compactions_in_progress_\l;
+      }}";
+    ];
+    compactions_in_progress_ -> Compaction;
+
+    PickFilesMarkedForCompaction[
+      shape="record";
+      label="{{
+        PickFilesMarkedForCompaction|
+        选择被标记为compaction的\l
+      }}";
+    ];
+    PickFilesMarkedForCompaction -> {
+      FilesMarkedForCompaction;
+      level0_compactions_in_progress_;
+      ExpandInputsToCleanCut;
+    }
+  }
+
+  subgraph cluster_LevelCompactionBuilder {
+    graph[label="LevelCompactionBuilder";fontsize=20;];
+    LevelCompactionBuilder_PickCompaction[
+      shape="record"
+      label="{{
+        PickCompaction
+      }}"
+    ];
+    LevelCompactionBuilder_PickCompaction -> {
+      SetupOtherL0FilesIfNeeded;
+      SetupOtherInputsIfNeeded;
+      GetCompaction;
+      SetupInitialFiles;
+    }[color="#b83b5e"];
+
+    SetupOtherL0FilesIfNeeded[shape="record";
+      label="{{
+        SetupOtherL0FilesIfNeeded|
+        如果start_level_为0 \l 
+        且output level不为0\l
+        选择level0中其他和start_level_inputs_\l
+        重叠的file\l
+      }}";
+    ];
+    SetupOtherL0FilesIfNeeded -> {
+      GetOverlappingL0Files;
+      start_level_inputs_;
+    }
+    SetupOtherInputsIfNeeded -> {
+      SetupOtherInputs;
+      FilesRangeOverlapWithCompaction;
+      GetGrandparents;
+      compaction_inputs_;
+    }
+    compaction_inputs_ -> GetCompaction[stye=dashed;color=gray40];
+    GetCompaction -> {
+      RegisterCompaction;
+      ComputeCompactionScore;
+      MaxFileSizeForLevel;
+      Compaction;
+    }[color="#f08a5d"]
+    SetupInitialFiles[shape="record";
+      label="{{
+        SetupInitialFiles|
+        根据compaction score\l
+        选择start_level_\l
+      }}";
+    ];
+
+    SetupInitialFiles -> {
+      CompactionScore;
+      CompactionScoreLevel;
+      PickIntraL0Compaction;
+      PickFileToCompact;
+      PickExpiredTtlFiles;
+      ExpandInputsToCleanCut;
+      PickFilesMarkedForCompaction;
+      PickFilesMarkedForPeriodicCompaction;
+      BottommostFilesMarkedForCompaction;
+      start_level_inputs_;
+      start_level_;
+    }[color="#3f72af"];
+
+    start_level_[shape="record";
+      label="{{
+        start_level_|
+        确定要compact的level
+      }}";
+    ];
+    start_level_ -> {
+      start_level_inputs_;
+      PickFileToCompact;
+    }[style=dashed;color=gray40];
+    {CompactionScore;CompactionScoreLevel} -> start_level_[style=dashed;]
+
+    PickFileToCompact[shape="record";
+      label="{{
+        PickFileToCompact|
+        选择start_level_中\l 
+        需要compact的file\l
+        以及下一层和该file overlap的文件\l
+      }}";
+    ];
+    PickFileToCompact -> {
+      NextCompactionIndex;
+      SetNextCompactionIndex;
+      ExpandInputsToCleanCut;
+      FilesRangeOverlapWithCompaction;
+      GetOverlappingInputs;
+      start_level_inputs_;
+    }[color="#17b978"];
+
+    start_level_inputs_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        start_level_inputs_\l|
+        类型: CompactionInputFiles\l|
+          int level;\l|
+          std::vector\<FileMetaData*\> files;\l|
+          std::vector\<AtomicCompactionUnitBoundary\>\l 
+          atomic_compaction_unit_boundaries;\l
+      }}";
+    ];
+
+    start_level_inputs_ -> {
+      SetupOtherL0FilesIfNeeded
+      SetupOtherInputsIfNeeded
+      compaction_inputs_;
+    } [style=dashed;color=gray;];
+
+    PickIntraL0Compaction[
+      shape="record";
+      label="{{
+        PickIntraL0Compaction|
+        level 0 file之间compaction\l
+        输出还是level 0\l
+        增加read效率，降低写放大\l
+      }}";
+    ];
+
+    PickIntraL0Compaction -> {
+      FindIntraL0Compaction;
+      level0_file_num_compaction_trigger;
+    }
+    FindIntraL0Compaction[shape="record";
+      label="{{
+        FindIntraL0Compaction|
+        将Level0中需要compaction的\l
+        放到start_level_inputs中\l
+      }}";
+    ];
+    FindIntraL0Compaction -> start_level_inputs_[style=dashed];
+
+
+    //PickExpiredTtlFiles
+    PickExpiredTtlFiles[
+      shape="record";
+      label="{{
+        PickExpiredTtlFiles|
+        选择过期的文件\l
+      }}";
+    ];
+    PickExpiredTtlFiles -> {
+      ExpiredTtlFiles;
+      ExpandInputsToCleanCut;
+      start_level_inputs_;
+    }
+
+    PickFilesMarkedForPeriodicCompaction[
+      shape="record";
+      label="{{
+        PickFilesMarkedForPeriodicCompaction|
+        选择标记为需要\l 
+        周期性compact的文件\l
+      }}";
+    ];
+    PickFilesMarkedForPeriodicCompaction -> {
+      FilesMarkedForPeriodicCompaction;
+      level0_compactions_in_progress;
+      ExpandInputsToCleanCut;
+      start_level_inputs_;
+    }
+    PickFilesMarkedForCompaction -> start_level_inputs_;
+  }
+
+  subgraph cluster_LevelCompactionPicker {
+    graph[label="LevelCompactionPicker";fontsize=20;];
+    PickCompaction -> LevelCompactionBuilder_PickCompaction;
+  }
+}

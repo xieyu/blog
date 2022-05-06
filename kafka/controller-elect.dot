@@ -1,0 +1,247 @@
+digraph controller_elect {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_zkClient {
+    graph[label="zkClient";fontsize=20;style=rounded];
+    registerZNodeChangeHandlerAndCheckExistence -> {
+      registerZNodeChangeHandler;
+    };
+    deleteController[
+      shape="record";
+      label="{{
+        deleteController|
+        删掉ControllerZnode\l
+      }}";
+    ];
+    registerZNodeChangeHandler[
+      shape="record";
+      label="{{
+        registerZNodeChangeHandler|
+        在ControllerZNode路径上注册\l 
+        ControllerChangeHandler
+      }}";
+    ];
+    unregisterZNodeChangeHandler[
+      shape="record";
+      label="{{
+        unregisterZNodeChangeHandler|
+        取消controller注册的各种handler
+      }}";
+    ];
+    registerControllerAndIncrementControllerEpoch -> {
+      tryCreateControllerZNodeAndIncrementEpoch;
+      getControllerEpoch;
+    };
+    tryCreateControllerZNodeAndIncrementEpoch -> {
+      checkControllerAndEpoch;
+      CreateOp;
+      SetDataOp;
+    }
+    CreateOp[
+      shape="record";
+      label="{{
+        CreateOp|
+        创建ControllerZnode路径\l
+      }}";
+    ];
+    SetDataOp[
+      shape="record";
+      label="{{
+        SetDataOp|
+        设置新的Epoch
+      }}";
+    ];
+    checkControllerAndEpoch[
+      shape="record";
+      label="{{
+        checkControllerAndEpoch|
+        如果返回节点已存在或者Bad Version\l 
+        那么就检查Controller和Epoch\l
+      }}";
+    ];
+    checkControllerAndEpoch -> getControllerEpoch;
+    tryCreateControllerZNodeAndIncrementEpoch[
+      shape="record";
+      label="{{
+        tryCreateControllerZNodeAndIncrementEpoch|
+        尝试成为controller并增加Epoch\l
+      }}";
+    ];
+  };
+  subgraph cluster_Controller {
+    graph[label="Controller";fontsize=20;style=rounded];
+    elect[
+      shape="record";
+      label="{{
+        elect|
+        controller选举\l
+        如果zk注册成功则\l 
+        该broker成为controller\l
+        如果该过程中出现ControllerMoved异常\l
+        则触发退位\l
+      }}";
+    ];
+    isActive[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="isActive"
+    ];
+    maybeResign[
+      shape="record";
+      label="{{
+        maybeResign|
+        可能退位\l
+      }}";
+    ];
+    controller_startup[
+      shape="record";
+      label="{{
+        startup
+      }}";
+    ];
+    ControllerChangeHandler[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        controllerChangeHandler|
+        ControllerZNode发生\l 
+        变化回调函数\l
+        每个broker都在zk上注册\l 
+        了该回调函数\l
+      }}";
+    ];
+    ControllerChange[
+      shape="record";
+      label="{{
+        ControllerChange|
+        controller节点\l 
+        内容发生了变化\l
+      }}";
+    ];
+
+    controller_startup -> processStartup;
+    controller_startup -> { registerStateChangeHandler;}
+    registerStateChangeHandler -> StateChangeHandler -> {
+      afterInitializingSession;
+      beforeInitializingSession;
+    }
+    afterInitializingSession -> RegisterBrokerAndReelect -> processRegisterBrokerAndReelect -> {
+      processReelect;
+      registerBroker;
+    }
+
+    beforeInitializingSession[
+      shape="record";
+      label="{{
+        beforeInitializingSession|
+        清空controller的eventmanager队列\l
+        等待处理消息
+      }}";
+    ];
+    elect -> {
+      registerControllerAndIncrementControllerEpoch;
+      onControllerFailover;
+      maybeResign;
+      triggerControllerMove;
+    }
+    registerZNodeChangeHandler -> ControllerChangeHandler[style=dashed];
+    ControllerChangeHandler -> {
+      ControllerChange;
+      Reelect;
+    }
+    Reelect[
+      shape="record";
+      label="{{
+        Reelect|
+        controller节点被删除了\l
+        触发重新选举\l
+      }}";
+    ];
+    processControllerChange[
+      shape="record";
+      label="{{
+        processControllerChange|
+        controller节点数据发生了变化\l 
+        可能要退位\l
+      }}";
+    ];
+    ControllerChange -> processControllerChange -> maybeResign;
+    Reelect -> processReelect -> {
+      maybeResign;
+      elect;
+    }
+    maybeResign -> {
+      registerZNodeChangeHandlerAndCheckExistence;
+      getControllerId;
+      isActive;
+      onControllerResignation;
+    }
+    onControllerResignation[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        onControllerResignation|
+        controller退位\l
+        1.取消在zk上的各种注册\l
+        2.关闭replicaStateMachine\l
+        3.关闭ParititonStateMachine\l
+        4.关闭channelManager\l
+        5.关闭KafkaScheduler\l
+      }}";
+    ];
+    triggerControllerMove -> {
+      getControllerId;
+      deleteController;
+      onControllerResignation;
+      isActive;
+    }
+    onControllerResignation -> {
+      unregisterZNodeChangeHandler;
+      unregisterZNodeChildChangeHandler;
+      unregisterPartitionModificationsHandlers;
+      KafkaScheduler_shutDown;
+      tokenCleanScheduler_shutDown;
+      unregisterPartitionModificationsHandlers;
+      partitionStateMachine_shutDown;
+      channelManager_shutdown;
+      controllerContext_reset;
+    }
+    onControllerFailover[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        onControllerFailover|
+        broker被选举为controller\l
+        1.更新ControllerContext中的cache.\l
+        2.启动channelManager\l
+        3.启动replicaStateMachine\l
+        4.启动ParitionStteMachine\l
+        5.在zk上注册各种handler\l
+        6.向所有的broker发送updatedateMetaData请求\l
+      }}";
+    ];
+  };
+  processStartup -> {
+    registerZNodeChangeHandlerAndCheckExistence;
+    elect;
+  }
+  subgraph cluster_kafkaSServer{
+    graph[label="kafkaServer";fontsize=20;style=rounded];
+    startup[
+      shape="record";
+      label="{{
+        startup|
+        每个broker启动时候\l 
+        会调用controller startup\l
+        注册controllerChange handler\l
+        触发选举\l
+      }}";
+    ];
+    startup -> controller_startup;
+  };
+}

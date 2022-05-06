@@ -1,0 +1,182 @@
+digraph replica_target_state {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ReplicaState {
+    graph[label="Replica State Machine";fontsize=20;];
+    NewReplica[shape="record";
+      label="{{
+        NewReplica|
+          刚创建时候状态\l 
+          只能作为follower\l
+      }}";
+    ];
+    OnlineReplica[shape="record";
+      label="{{
+        onlineReplicas|
+          replica开始后的状态\l
+          可以作为leader和follower\l
+      }}";
+    ];
+    OfflineReplica[shape="record";
+      label="{{
+        OfflineReplica|
+          replica下线了,由于\l 
+          存储该replica的broker下线了\l
+      }}";
+    ];
+    ReplicaDeletionStarted[shape="record";
+      label="{{
+        ReplicaDeletionStarted|
+          replica开始进入删除状态\l
+      }}";
+    ];
+    ReplicaDeletionSuccessful[shape="record";
+      label="{{
+        ReplicaDeletionSuccessful|
+          replica删除请求返回成功\l
+      }}";
+    ];
+    ReplicaDeletionIneligible[shape="record";
+      label="{{
+        ReplicaDeletionIneligible|
+          replica删除失败\l
+      }}";
+    ];
+    NonExistentReplica[shape="record";
+      label="{{
+        NonExistentReplica|
+         replica删除成功\l
+      }}";
+    ];
+
+    NonExistentReplica -> NewReplica;
+    {NewReplica, OnlineReplica,OfflineReplica} -> OnlineReplica;
+    {NewReplica, OnlineReplica} -> OfflineReplica;
+    {OfflineReplica} -> ReplicaDeletionStarted;
+    {ReplicaDeletionStarted} -> ReplicaDeletionSuccessful;
+    {ReplicaDeletionStarted, OfflineReplica} -> ReplicaDeletionIneligible;
+    ReplicaDeletionStarted -> NonExistentReplica;
+    startup[shape="record";
+      label="{{
+        startup|
+          将存活的副本状态设置为online\l
+          将离线的副本状态设置为offline
+      }}";
+    ];
+  }
+  startup -> onlineAndOfflineReplicas;
+  onlineAndOfflineReplicas[shape="record";
+    label="{{
+      onlineAndOfflineReplicas|
+      获取和离线副本
+    }}";
+  ];
+  isReplicaOnline[shape="record";
+    label="{{
+      isReplicaOnline|
+      判断replica是否在线
+    }}";
+  ];
+  stopRemovedReplicasOfReassignedPartition[shape="record";
+    label="{{
+      stopRemovedReplicasOfReassignedPartition|
+        副本迁移时，下线旧的replica\l
+    }}";
+  ];
+  onPartitionReassignment[shape="record";
+    label="{{
+      onPartitionReassignment|
+        Partition replica迁移\l
+    }}";
+  ];
+  onlineAndOfflineReplicas -> {
+    partitionAssignments;
+    isReplicaOnline;
+  };
+
+  partitionAssignments[
+    fillcolor="#95e1d3"
+    style=filled;
+    shape=box3d;
+    label="partitionAssignments"
+  ];
+  onBrokerStartup[shape="record";
+    label="{{
+      onBrokerStartup|
+      将该broker节点的replicas\l 
+      设置为在线装状态
+    }}";
+  ];
+  onNewPartitionCreation[shape="record";
+    label="{{
+      onNewPartitionCreation|
+      新建partition
+    }}";
+  ];
+  onBrokerFailure[shape="record";
+    label="{{
+      onBrokerFailure|
+      broker下线，将该broker\l 
+     上的replica设为离线状态
+    }}";
+  ];
+
+  onNewPartitionCreation -> {
+    NewReplica;
+    OnlineReplica;
+  }
+  startNewReplicasForReassignedPartition[shape="record";
+    label="{{
+      startNewReplicasForReassignedPartition|
+      副本迁移中，新增的副本
+    }}";
+  ];
+  startNewReplicasForReassignedPartition -> {NewReplica;}
+  startup -> {
+    OnlineReplica;
+    OfflineReplica;
+  }
+
+  {
+    onBrokerStartup 
+    onBrokerLogDirFailure 
+    onPartitionReassignment
+  }-> OnlineReplica;
+  
+  processLogDirEventNotification -> onBrokerLogDirFailure;
+  {onReplicasBecomeOffline} -> OfflineReplica;
+  onBrokerFailure -> onReplicasBecomeOffline;
+
+  stopRemovedReplicasOfReassignedPartition -> {
+    OfflineReplica;
+    ReplicaDeletionStarted;
+    ReplicaDeletionSuccessful;
+    NonExistentReplica;
+  }
+  startReplicaDeletion -> {
+    ReplicaDeletionIneligible;
+    OfflineReplica;
+    ReplicaDeletionStarted;
+  }
+  processTopicChange -> onNewPartitionCreation;
+  processPartitionModifications -> onNewPartitionCreation;
+  onPartitionReassignment ->{
+    startNewReplicasForReassignedPartition;
+    stopRemovedReplicasOfReassignedPartition;
+  }
+
+  subgraph cluster_zk {
+    graph[label="zk";fontsize=20;];
+    TopicChangeHandler
+    PartitionModificationsHandler;
+  }
+  TopicChangeHandler -> processTopicChange;
+  PartitionModificationsHandler -> processPartitionModifications;
+
+  subgraph cluster_TopicDeletionManager {
+    graph[label="TopicDeletionManager";fontsize=20;];
+    startReplicaDeletion;
+  }
+}

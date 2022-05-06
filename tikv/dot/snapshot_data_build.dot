@@ -1,0 +1,154 @@
+#include "styles.h"
+digraph snapshot_data_build {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Snap_build -> {
+    Snap_do_build;
+    RaftSnapshotData;
+  }
+
+  Snap_do_build -> {
+    enc_start_key_region;
+    enc_end_key_region;
+    SNAPSHOT_CFS_ENUM_PAIR;
+    Snap_switch_to_cf_file;
+    snap_io_build_plain_cf_file;
+    snap_io_build_sst_cf_file;
+    SnapManagerCore_rename_tmp_cf_file_for_send;
+    delete_file_if_exist_cf_file_tmp_path;
+    SnapManagerCore_encryption_key_manager;
+
+    gen_snapshot_meta;
+    Snap_save_meta_file;
+  }
+  {
+    gen_snapshot_meta;
+    SnapManagerCore_rename_tmp_cf_file_for_send;
+  } -> SnapshotMeta -> RaftSnapshotData[style_edge_data]
+  SnapshotMeta[style_blue1;label="{{
+    SnapshotMeta|
+    repeated SnapshotCFFile cf_files = 1;\l|
+    bool for_balance = 2;\l|
+  }}"]
+
+  gen_snapshot_meta -> Snap_save_meta_file[style_edge_data];
+  Snap_save_meta_file[style_func;label="{{
+    Snap\l
+    save_meta_file\l
+  }}"]
+
+  enc_start_key_region[style_func;label="{{
+    enc_start_key(region)|
+    获取region的start key\l
+    DATA_PREFIX_KEY: b'z'\l|
+    前缀为b'z'\l
+  }}"]
+  enc_end_key_region[style_func;label="{{
+    enc_end_key(region)|
+    获取region的end key\l
+  }}"]
+
+  {
+    enc_start_key_region;
+    enc_end_key_region
+  } -> {
+    kv_snap_scan_cf;
+  }[style_edge_data];
+
+  SNAPSHOT_CFS_ENUM_PAIR[style_func;label="{{
+    SNAPSHOT_CFS_ENUM_PAIR|
+    (CfNames::default, CF_DEFAULT),\l|
+    (CfNames::lock, CF_LOCK),\l|
+    (CfNames::write, CF_WRITE),\l|
+    遍历上面的column faimly\l
+  }}"]
+  Snap_switch_to_cf_file[style_func;label="{{
+    Snap::switch_to_cf_file|
+    遍历self.cf_files \l
+    找到cf对应的index\l
+    设置self.cf_index\l
+  }}"]
+  snap_io_build_plain_cf_file[style_func;label="{{
+    snap_io::build_plain_cf_file|
+    将cf_file.cf 的\l
+    begin_key, end_key\l
+    将数据写入cf_file.tmp_path\l
+  }}"]
+  snap_io_build_sst_cf_file[style_func;label="{{
+    snap_io::build_sst_cf_file|
+    将cf_file.cf 的\l
+    begin_key, end_key\l
+    将数据写入cf_file.tmp_path\l|
+    创建的是sst format\l
+  }}"]
+
+  {
+    snap_io_build_plain_cf_file;
+    snap_io_build_sst_cf_file
+  } -> SnapManagerCore_rename_tmp_cf_file_for_send[style_edge_data];
+
+  SnapManagerCore_rename_tmp_cf_file_for_send[style_func;label="{{
+    SnapManagerCore\l
+    rename_tmp_cf_file_for_send\l|
+    如果cf.kv_count \>0\l
+    重命名cf.tmp_pah到cf_file.path\l|
+    设置cf file的checksum和size\l
+  }}"];
+
+  SnapManagerCore_rename_tmp_cf_file_for_send -> calc_checksum_and_size;
+  calc_checksum_and_size[style_func;label="{{
+    calc_checksum_and_size|
+    计算文件的checksum和size\l
+  }}"]
+  delete_file_if_exist_cf_file_tmp_path[style_func;label="{{
+    delete_file_if_exist(cf_file.tmpe_path)|
+    如果cf_file.kv_count == 0\l
+    删除临时文件\l
+  }}"]
+  {
+    rank=same;
+    delete_file_if_exist_cf_file_tmp_path;
+    SnapManagerCore_rename_tmp_cf_file_for_send;
+  };
+  SnapManagerCore_encryption_key_manager[style_func;label="{{
+    SnapManagerCore\l
+    encryption_key_manager\l
+  }}"]
+  Snap_do_build[style_func;label="{{
+    Snap\l
+    do_build\l|
+    生成Region的cf\l
+    (default, lock, write)file\l
+  }}"]
+
+  SnapManagerCore_encryption_key_manager -> snap_io_build_plain_cf_file[style_edge_data];
+
+  SNAPSHOT_CFS_ENUM_PAIR -> {
+    Snap_switch_to_cf_file;
+    snap_io_build_plain_cf_file;
+    snap_io_build_sst_cf_file;
+    delete_file_if_exist_cf_file_tmp_path;
+  }[style_edge_data];
+  RaftSnapshotData[style_blue1;label="{{
+    RaftSnapshotData|
+    metapb.Region region = 1;\l|
+    uint64 file_size = 2;\l|
+    repeated KeyValue data = 3;\l|
+    uint64 version = 4;\l|
+    SnapshotMeta meta = 5;\l
+  }}"]
+
+  snap_io_build_sst_cf_file -> {
+    create_sst_file_writer;
+    kv_snap_scan_cf;
+  }
+  kv_snap_scan_cf[style_func;label="{{
+    kv_snap_scan_cf|
+    扫描cf [start_key,end_key) range\l
+    内所有的key，将key,value写入sst_file\l
+  }}"]
+  snap_io_build_plain_cf_file -> kv_snap_scan_cf;
+}

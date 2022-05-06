@@ -1,0 +1,87 @@
+digraph txn_write_marks {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_ReplicaManager {
+    graph[label="ReplicaManager";fontsize=20;style=rounded];
+    appendRecords;
+    
+  };
+  subgraph cluster_groupCoordinator {
+    graph[label="groupCoordinator";fontsize=20;style=rounded];
+    scheduleHandleTxnCompletion[
+      shape="record";
+      label="{{
+        scheduleHandleTxnCompletion|
+        将提交的事务对group可见\l
+      }}";
+    ];
+    scheduleHandleTxnCompletion -> handleTxnCompletion;
+    handleTxnCompletion -> {
+      completePendingTxnOffsetCommit;
+      removeProducerGroup;
+    }
+    completePendingTxnOffsetCommit -> {
+      pendingTransactionalOffsetCommits;
+      offsets;
+    }
+    offsets[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        offsets|
+        field \l
+      }}";
+    ];
+    pendingTransactionalOffsetCommits[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        pendingTransactionalOffsetCommits|
+        field \l
+      }}";
+    ];
+  };
+  subgraph cluster_MemoryRecord {
+    graph[label="MemoryRecord";fontsize=20;style=rounded];
+    withEndTransactionMarker -> {
+      writeEndTransactionalMarker;
+    };
+    writeEndTransactionalMarker[
+      shape="record";
+      label="{{
+        writeEndTransactionalMarker|
+        向记录中写入特殊的marker
+      }}";
+    ];
+    writeEndTransactionalMarker -> appendEndTxnMarker;
+    appendEndTxnMarker -> EndTransactionMarker;
+    EndTransactionMarker[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        EndTransactionMarker|
+        short CURRENT_END_TXN_MARKER_VERSION|
+        Schema END_TXN_MARKER_SCHEMA_VERSION_V0|
+        CURRENT_END_TXN_MARKER_VALUE_SIZE|
+        CURRENT_END_TXN_SCHEMA_RECORD_SIZE|
+        ControlRecordType type|
+        coordinatorEpoch
+      }}";
+    ];
+  };
+
+  subgraph cluster_KafkaApi {
+    graph[label="KafkaApi";fontsize=20;style=rounded];
+    handleWriteTxnMarkersRequest -> {
+      appendRecords;
+      EndTransactionMarker;
+      withEndTransactionMarker;
+    };
+    appendRecords -> maybeSendResponseCallback;
+    maybeSendResponseCallback -> scheduleHandleTxnCompletion;
+  };
+}

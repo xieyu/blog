@@ -1,0 +1,106 @@
+#include "styles.h"
+digraph batch_executor {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  BatchExecutor[style_var;label="{{
+    BatchExecutor|
+    The interface for pull-based executors\l|
+    fn schema(&self) -\> &[FieldType];\l|
+    fn next_batch(&mut self, scan_rows: usize)\l -\> BatchExecuteResult;\l|
+  }}"]
+
+  ScanExecutor[style_func;label="{{
+    ScanExecutor|
+    A shared executor implementation\l 
+    for both table scan and index scan.\l|
+    imp: I\l|
+    scanner: RangesScanner\<S\>,\l|
+    is_ended: bool,\l|
+  }}"]
+
+  ScanExecutorImpl[style_func;label="{{
+    ScanExecutorImpl|
+    fn mut_context(&mut self) -\> &mut EvalContext;\l|
+    fn build_column_vec(&self, scan_rows: usize)\l -\> LazyBatchColumnVec;\l|
+    fn process_kv_pair(...\l
+  }}"]
+
+  BatchExecutor -> {
+     ScanExecutor;
+     BatchTableScanExecutor;
+     BatchIndexScanExecutor;
+  }
+
+  ScanExecutor -> {
+     ScanExecutorImpl;
+     RangesScanner;
+  }
+
+  RangesScanner[style_func;label="{{
+    RangesScanner|
+    storage: T,\l|
+    ranges_iter: RangesIterator,\l|
+    scan_backward_in_range: bool,\l|
+    is_key_only: bool,\l|
+    scanned_rows_per_range: Vec\<usize\>,\l|
+    is_scanned_range_aware: bool,\l|
+    current_range: IntervalRange,\l|
+    working_range_begin_key: Vec\<u8\>,\l|
+    working_range_end_key: Vec\<u8\>,\l
+  }}"]
+  ScanExecutorImpl -> {
+     TableScanExecutorImpl
+     IndexScanExecutorImpl;
+  }
+  TableScanExecutorImpl[style_func;label="{{
+    TableScanExecutorImpl|
+    context: EvalContext,\l|
+    schema: Vec\<FieldType\>,\l|
+    columns_default_value: Vec\<Vec\<u8\>\>,\l|
+    column_id_index: HashMap\<i64, usize\>,\l|
+    handle_indices: HandleIndicesVec,\l|
+    primary_column_ids: Vec\<i64\>,\l|
+    is_column_filled: Vec\<bool\>,\l
+  }}"]
+  TableScanExecutorImpl -> {
+    EvalContext;
+  }
+
+  IndexScanExecutorImpl[style_func;label="{{
+    IndexScanExecutorImpl|
+    context: EvalContext,\l|
+    schema: Vec\<FieldType\>,\l|
+    columns_id_without_handle: Vec\<i64\>,\l|
+    columns_id_for_common_handle: Vec\<i64\>,\l|
+    decode_handle_strategy: DecodeHandleStrategy,\l|
+    pid_column_cnt: usize,\l|
+    index_version: i64,\l
+  }}"]
+  IndexScanExecutorImpl -> EvalContext;
+
+  BatchTableScanExecutor -> {
+    ScanExecutor;
+    TableScanExecutorImpl;
+  }
+
+  BatchIndexScanExecutor -> {
+    ScanExecutor;
+    IndexScanExecutorImpl;
+  }
+  RangesScanner[style_func;label="{{
+    RangesScanner|
+    A scanner that scans over multiple ranges\l
+  }}"]
+
+  RangesScanner -> {
+     RangesIterator;
+  }
+
+  RangesIterator[style_struct;label="{{
+    RangesIterator|
+    从Storage 中point_get\l 
+    或者scan数据\l
+  }}"]
+}

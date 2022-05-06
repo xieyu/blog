@@ -1,0 +1,154 @@
+#include "styles.h"
+digraph read_index {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ReadIndexRequest {
+    graph[label="ReadIndexRequest";fontsize=20;style="rounded,dashed";color="slategrey"]
+    read_push_command[style_func;label="{{push_command|
+        self.cmds.push((req, cb, Some(read_index)));
+    }}"]
+    ReadIndexRequest;
+      
+  }
+  subgraph cluster_RaftRs {
+    graph[label="raft-rs";fontsize=20;style="rounded,dashed";color="slategrey"]
+    raft_group_raft_pending_read_count[style_func;label="{{
+      raft.pending_read_count
+    }}"]
+    raft_group_raft_ready_read_count[style_func;label="{{
+      raft.ready_read_count
+    }}"]
+    raft_group_read_index[style_func;label="{{
+      read_index\l|
+      调用raft的read_index\l
+      后面调用ready\l
+      根据read_states字段\l
+      获取可以read的id\l
+    }}"]
+  }
+  subgraph cluster_ReadIndexQueue {
+    graph[label="ReadIndexQueue";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ReadIndexQueue[style_struct;label="{{
+      ReadIndexQueue|
+    <reads>reads: VecDeque\<ReadIndexRequest\<S\>\>,\l|
+    ready_cnt: usize,\l|
+    handled_cnt: usize,\l|
+    <context> contexts: HashMap\<Uuid, usize\>,\l|
+    retry_countdown: usize,\l
+    }}"]
+    context_insert -> ReadIndexQueue:context;
+    reads_push_back -> ReadIndexQueue:reads;
+    context_insert;
+    reads_push_back;
+    
+  }
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    propose -> {
+      read_index;
+    }
+    subgraph cluster_leader {
+      graph[label="if is_leader";fontsize=20;style="rounded,dashed";color="slategrey"]
+      is_leader;
+      inspect_lease;
+      get_store_commit_index;
+      pending_reads_back_mut;
+    }
+    subgraph cluster_not_leader {
+      graph[label="not_leader and\l no_leader_id";fontsize=20;style="rounded,dashed";color="slategrey"]
+      bcast_wake_up_message;
+      PdTask_QueryRegionLeader;
+      pd_scheduler_schedule;
+      should_wake_up
+    }
+
+    read_index -> {
+      pre_read_index;
+      is_leader;
+      inspect_lease;
+      get_store_commit_index;
+      pending_reads_back_mut;
+      read_push_command;
+
+      bcast_wake_up_message;
+      PdTask_QueryRegionLeader;
+      pd_scheduler_schedule;
+      should_wake_up
+
+      raft_group_raft_pending_read_count;
+      raft_group_raft_ready_read_count;
+      raft_group_read_index;
+      Uuid_new_v4;
+      ReadIndexRequest;
+    }[color="#b83b5e"]
+
+    Uuid_new_v4[style_var;label="{{
+      id = Uuid::new_v4()\l
+      生成唯一的id\l
+      作为readctx传入raft中\l
+      在ready时候，raft会回传回来\l
+    }}"]
+    ReadIndexRequest[style_var;label="{{
+      ReadIndexRequest|
+      id\l|
+      req: RaftCmdRequest\l|
+      cb: Callback\l
+      renew_lease_time: TimeSpec\l
+    }}"]
+
+    Uuid_new_v4 -> raft_group_read_index[style_edge_data];
+    Uuid_new_v4 -> ReadIndexRequest -> reads_push_back[style_edge_data];
+
+    is_leader -> {
+      inspect_lease;
+      get_store_commit_index;
+      pending_reads_back_mut;
+      read_push_command;
+    }[style_edge_data];
+    subgraph cluster_pending_reads {
+      graph[label="pending_reads";fontsize=20;style="rounded,dashed";color="slategrey"]
+      pending_reads[style_var;label="{{
+        pending_reads|
+          pending_reads: ReadIndexQueue\<EK::Snapshot\>,\l
+      }}"]
+      ReadIndexQueue -> pending_reads;
+      pending_reads_back_mut;
+      reads_push_back[style_func;label="{{
+        pending_reads_push_back|
+        将ReadIndexRequest放入队列中\l
+        并且放入ctx Hashmap中\l
+        key为id\l
+      }}"]
+
+      reads_push_back -> {
+        context_insert;
+      }
+      {
+        pending_reads_back_mut
+      } -> pending_reads[style_edge_data];
+    }
+    pre_read_index -> {
+      is_splitting;
+      is_merging;
+    }
+    is_splitting[style_func;label="{{
+      if is_splitting()|
+      如果正在splitting\l
+      返回错误\l
+      Error::ReadIndexNotReady
+    }}"]
+    is_merging[style_func;label="{{
+      if self.is_merging()|
+      如果正在splitting\l
+      返回错误\l
+      Error::ReadIndexNotReady\l
+    }}"]
+    pre_read_index[style_func;label="{{
+      pre_read_index|
+      做一些检查
+    }}"]
+  }
+}

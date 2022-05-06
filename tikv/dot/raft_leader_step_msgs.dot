@@ -1,0 +1,128 @@
+#include "styles.h"
+digraph leader_step_msgs {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftCore__step_leader -> {
+    Raft__bcast_heartbeat;
+    RaftCore__handle_append_response;
+    RaftCore__handle_transfer_leader;
+    RaftCore__handle_hearbeat_response;
+    RaftCore__send;
+  }
+  Raft__bcast_heartbeat[style_func;label="{{
+    Raft__bcast_heartbeat|
+    self.read_only.last_pending_request_ctx();\l
+    遍历所有的ProgressTracker\l
+    给所有的peer发送heartbeat\l
+  }}"]
+  RaftCore__send_heartbeat[style_func;label="{{
+    RaftCore__send_heartbeat|
+    发送MsgHeartbeat\l
+    并附带上commit index\l
+    let commit = cmp::min(pr.matched,\l
+    self.raft_log.committed);\l|
+    m.context= context\l
+  }}"]
+
+  Raft__bcast_heartbeat -> {
+     Raft__bcast_heartbeat_with_ctx;
+  }
+  Raft__bcast_heartbeat_with_ctx -> RaftCore__send_heartbeat;
+  RaftCore__send_heartbeat -> RaftCore__send;
+
+  RaftCore__handle_hearbeat_response -> {
+     RaftCore__send_append;
+     RaftCore__send;
+  }
+
+
+  RaftCore__handle_append_response[style_func;label="{{
+    RaftCore__handle_append_response|
+    如果被follower reject了\l
+    重新计算log entries\l
+    然后发给follower\l
+  }}"]
+
+  RaftCore__maybe_commit[style_func;label="{{
+    RaftCore__maybe_commit|
+    Attempts to advance\l
+    the commit index\l
+  }}"]
+  RaftCore__handle_hearbeat_response[style_func;label="{{
+    RaftCore__handle_hearbeat_response|
+    如果folower matched \< last_index\l
+    发送新log entry给follower\l
+  }}"]
+
+  RaftCore__handle_append_response -> {
+     RaftCore__send_append;
+     RaftCore__maybe_commit;
+     RaftCore__should_bcast_commit;
+     Raft__bcast_append;
+  }
+
+  RaftCore__handle_transfer_leader -> {
+    RaftCore__send_append;
+    RaftCore__send_timeout_now;
+  }
+  RaftCore__send_timeout_now -> RaftCore__send;
+  RaftCore__send_timeout_now[style_func;label="{{
+    RaftCore__send_timeout_now|
+    如果leader transfee 有足够\l
+    新的日志，立刻发送TimeoutNow\l
+    消息给它\l
+  }}"]
+
+/*
+  Raft__send_append -> {
+    RaftCore__send_append;
+  }
+  */
+
+  Raft__bcast_append[style_func;label="{{
+    Raft__bcast_append|
+    Sends RPC, with entries to\l
+    all peers that are\l
+    not up-to-date\l
+  }}"]
+  Raft__bcast_append -> {
+    RaftCore__send_append;
+  }
+
+  RaftCore__send_append[style_func;label="{{
+    RaftCore__send_append|
+    Sends an append RPC with \l
+    new entries (if any) and the \l
+    current commit index to the given\l
+    peer.\l
+  }}"]
+  RaftCore__send_append -> RaftCore__maybe_send_append;
+
+  RaftCore__maybe_send_append[style_func;label="{{
+    RaftCore__maybe_send_append|
+    发送entries或空的message\l
+    covey updated Committed indexes\l
+    或snapshot给peer\l
+  }}"]
+  RaftCore__maybe_send_append -> RaftCore__send;
+  RaftCore__send_append -> {
+    RaftCore__send;
+  }
+
+  {
+     RaftCore__maybe_commit;
+     RaftCore__should_bcast_commit;
+  } -> Raft__bcast_append[style_edge_data];
+
+  RaftCore__send -> Raft__msgs;
+
+  {
+    rank=same;
+    RaftCore__handle_append_response;
+    RaftCore__handle_hearbeat_response;
+    RaftCore__handle_transfer_leader;
+  }
+}

@@ -1,0 +1,47 @@
+#include "./styles.h"
+digraph TableByName {
+  edge[color=gray40];
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  newrank=true;
+  rankdir=LR;
+  infoSchema[style_struct;label="{{
+    infoSchema|
+    field(schemaMap, map[string]*schemaTables)
+    ...\l
+  }}"]
+  infoSchema:schemaMap -> schemaTables;
+  schemaTables[style_struct;label="{{
+    schemaTables|
+      field(dbInfo, *model.DBInfo)
+      tail_field(tables, map[string]table.Table)
+  }}"]
+  schemaTables:tables -> Table;
+  TableByName[
+    shape="record";
+    label="{{
+      TableByName|
+      根据schema(db名字)\l 
+      和table名字找到对应的Table\l
+    }}"];
+  Table[style_struct;label="{{
+    Table interface|
+      Cols() []*Column\l|
+      WritableCols() []*Column\l|
+      Indices() []Index\l|
+      <Meta> Meta() *model.TableInfo\l
+  }}"]
+  Table:Meta -> TableInfo;
+  TableInfo[style_struct;label="{{
+    TableInfo|
+    field(ID, int64)
+    field(Name, CIStr)
+    field(Columns, []*ColumnInfo)
+    field(Indices, []*IndexInfo)
+    field(Constraints, []*ConstraintInfo)
+    ...\l
+  }}"]
+
+  buildDataSource -> TableByName -> {
+    infoSchema:schemaMap
+  };
+}

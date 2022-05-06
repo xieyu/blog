@@ -1,0 +1,91 @@
+digraph ds_findBestTask {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  findBestTask -> {
+    skylinePruning;
+    storeTask;
+    convertToPartialIndexScan;
+    convertToTableScan;
+    convertToIndexScan;
+    convertToIndexMergeScan;
+    tryToGetDualTask;
+  };
+
+  subgraph cluster_Index {
+    graph[label="Index";fontsize=20;];
+    getIndexMergeCandidate;
+    getIndexCandidate;
+    getOriginalPhysicalIndexScan;
+    convertToIndexMergeScan;
+    convertToPartialIndexScan;
+    PhysicalIndexScan;
+    convertToIndexScan;
+    buildIndexMergeTableScan;
+  }
+
+  subgraph cluster_table {
+    graph[label="table";fontsize=20;];
+    convertToTableScan;
+    convertToPartialTableScan;
+    getOriginalPhysicalTableScan;
+    getTableCandidate;
+  }
+
+  subgraph cluster_stat {
+    graph[label="stat";fontsize=20;];
+    GetTableAvgRowSize;
+    Selectivity;
+    Histogram;
+    
+  }
+  buildIndexMergeTableScan -> {
+    PhysicalTableScan;
+    PhysicalSelection;
+    GetTableAvgRowSize;
+    Selectivity;
+    Histogram;
+  }
+
+  skylinePruning -> {
+    getIndexMergeCandidate;
+    getTableCandidate;
+    getIndexCandidate;
+    compareCandidates;
+  };
+
+  convertToIndexMergeScan -> {
+    buildIndexMergeTableScan;
+    finishCopTask;
+    convertToPartialIndexScan;
+    convertToPartialTableScan;
+  };
+
+  convertToPartialTableScan -> {
+    getOriginalPhysicalTableScan;
+    PhysicalSelection;
+  };
+
+  convertToPartialIndexScan -> {
+    getOriginalPhysicalIndexScan;
+    PhysicalSelection;
+  };
+
+  convertToIndexScan -> {
+    getOriginalPhysicalIndexScan;
+    addPushedDownSelection;
+  }
+
+  convertToTableScan -> {
+    getOriginalPhysicalTableScan;
+    addPushedDownSelection;
+  }
+
+  getOriginalPhysicalIndexScan -> PhysicalIndexScan;
+  getOriginalPhysicalTableScan -> PhysicalTableScan;
+  addPushedDownSelection -> {
+    splitSelCondsWithVirtualColumn;
+    PhysicalSelection;
+  }
+
+}

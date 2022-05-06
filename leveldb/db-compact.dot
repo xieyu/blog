@@ -1,0 +1,162 @@
+digraph db_compact {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_BlockBuilder {
+    graph[label="BlockBuilder";fontsize=20;];
+    BlockBuilder_Add;
+    BlockBuilder_Add[shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        BlockBuilder_Add|
+        写入新的block中
+      }}";
+    ];
+    
+  }
+  subgraph cluster_Compaction {
+    graph[label="Compaction";fontsize=20;];
+    new_Compaction;
+    inputs_;
+    inputs_push_back;
+    IsTrivialMove;
+    input_version_;
+  }
+  subgraph cluster_VersionSet {
+    graph[label="VersionSet";fontsize=20;];
+    subgraph cluster_compactManual {
+      graph[label="compactManual";fontsize=20;];
+      CompactRange -> {
+        GetOverlappingInputs;
+        MaxFileSizeForLevel;
+        SetupOtherInputs;
+        new_Compaction;
+      }
+      manual_compaction_;
+    }
+    subgraph cluster_PickCompaction {
+      graph[label="PickCompaction";fontsize=20;];
+      PickCompaction -> {
+        new_Compaction;
+        Compare;
+        inputs_push_back;
+        files_;
+        file_to_compact_level_;
+        compact_pointer_;
+        compaction_score_;
+        compaction_level_;
+        input_version_;
+      }
+      FileMetaData[
+        fillcolor="#95e1d3";
+        style=filled;
+        shape="record";
+        label="{{
+          FileMetaData|
+          int refs;\l|
+          int allowed_seeks;\l|
+          uint64_t number;\l|
+          uint64_t file_size;\l|
+          InternalKey smallest;\l|
+          InternalKey largest;\l
+        }}";
+      ];
+      files_[
+        fillcolor="#95e1d3";
+        style=filled;
+        shape="record";
+        label="{{
+          files_|
+          <FileMetaData> std::Vector\<FileMetaData*\>\l files_[config::kNumLevels];
+        }}";
+      ];
+      levels[
+        shape="record";
+        label="{{
+          levels|
+          level0: [FileMetaData .. FileMetaData]\l|
+          level1: [FileMetaData .. FileMetaData]\l|
+          ...
+          levelN\l
+        }}";
+      ];
+      files_ -> levels;
+      levels -> FileMetaData;
+    }
+    LogAndApply;
+    inputs_push_back -> inputs_;
+    subgraph cluster_MergeIter {
+      graph[label="归并遍历";fontsize=20;];
+      MakeInputIterator -> {
+        inputs_;
+        NewTwoLevelIterator;
+        TableCache_NewIterator
+        LevelFileNumIterator;
+        NewMergingIterator;
+      }
+    }
+
+  }
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    MaybeScheduleCompaction -> {
+      env_Schedule;
+      NeedsCompaction;
+    };
+    env_Schedule -> BGWork -> BackgroundCall;
+    BackgroundCall -> {
+      BackgroundCompaction;
+      MaybeScheduleCompaction;
+      background_work_finished_signal__SignalAll;
+    }
+    BackgroundCompaction -> {
+      CompactMemTable;
+      CompactRange;
+      Compaction_input;
+      PickCompaction;
+      DoCompactionWork;
+      CleanupCompaction;
+      Compaction_ReleaseInputs;
+      RemoveObsoleteFiles;
+      manual_compaction_;
+      IsTrivialMove;
+      new_CompactionState;
+    };
+    DoCompactionWork[shape="record";
+      label="{{
+        DoCompactionWork|
+        做归并排序\l
+      }}";
+    ];
+    PickCompaction[shape="record";
+      label="{{
+        PickCompaction|
+        选择需要压缩合并的文件\l
+      }}";
+    ];
+    CompactRange[shape="record";
+      label="{{
+        CompactRange|
+        使用手动制定的KeyRange范围
+      }}";
+    ];
+
+    DoCompactionWork -> {
+      smallest_snapshot;
+      MakeInputIterator;
+      CompactMemTable;
+      FinishCompactionOutputFile;
+      OpenCompactionOutputFile;
+      MaxOutputFileSize;
+      IsBaseLevelForKey;
+      BlockBuilder_Add;
+    }
+
+    CompactMemTable -> {
+      WriteLevel0Table;
+      LogAndApply;
+      RemoveObsoleteFiles;
+    }
+  }
+}

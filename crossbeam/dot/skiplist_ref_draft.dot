@@ -1,0 +1,54 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  {
+    Index__index
+    Node__alloc
+  } -> Tower__pointers;
+
+  SkipList__insert_internal -> Node__alloc;
+
+  {
+    SkipList__get_or_insert
+    SkipList__get_or_insert_with
+    SkipList__insert
+  } -> SkipList__insert_internal;
+
+  {
+    SkipMap__get_or_insert;
+    get_or_insert;
+    get_or_insert_with_parallel_run;
+  } -> SkipList__get_or_insert;
+  {
+    get_or_insert_with
+    get_or_insert_with_panic
+    get_or_insert_with_parallel_run
+    SkipMap__get_or_insert_with
+  } -> SkipList__get_or_insert_with;
+
+  SkipMap__insert -> SkipList__insert;
+
+  SkipList__insert_internal -> {
+    SkipList__search_position;
+    Node__mark_tower;
+    SkipList__random_height;
+    SkipList__hot_data__len__fetch_add;
+    search__left__00__compare_exchange;
+  }
+
+  SkipList__search_position -> Position;
+
+  Position -> Tower;
+
+
+  Position[style_func;label="{{
+    Position\l
+    found: Option\<&'a Node\<K, V\>\>,\l|
+    left: [&'a Tower\<K, V\>; MAX_HEIGHT],\l|
+    right: [Shared\<'a, Node\<K, V\>\>; MAX_HEIGHT],\l
+  }}"]
+}

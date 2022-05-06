@@ -1,0 +1,112 @@
+#include "styles.h"
+digraph latches_acquire {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Latch {
+    graph[label="Latch";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Latch[style_struct;label="{{
+      Latch|
+        存放hash_value和command id pair\l|
+        <waiting> pub waiting: VecDeque\l 
+        \<Option\<(u64, u64)\>\>,\l
+    }}"]
+    get_first_req_by_hash[style_func;label="{{
+      get_first_req_by_hash|
+      根据hash遍历waiting队列\l
+      返回cid
+    }}"]
+
+    get_first_req_by_hash -> Latch:waiting;
+    wait_for_wake -> Latch:waiting;
+    wait_for_wake[style_func;label="{{
+      wait_for_wake|
+        self.waiting.push_back\l 
+        (Some((key_hash, cid)));\l
+    }}"]
+    pop_front[style_func;label="{{
+      pop_front|
+      扫描waiting 队列\l
+      根据key_hash获取key_hash\l 
+      和command id\l
+    }}"]
+  }
+  subgraph cluster_Latches {
+    graph[label="Latches";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Latches[style_struct;label="{{
+      Latches|
+        slots: Vec\<CachePadded\<Mutex\<Latch\>\>\>,\l|
+        size: usize,\l
+    }}"]
+    Latches -> Latch;
+    acquire[style_func;label="{{
+      acquire|
+      Tries to acquire the laches\l
+      specified by the lock \l 
+      for command with ID who\l|
+      遍历lock的key hashes\l
+    }}"]
+    acquire -> {
+      lock_latch;
+      get_first_req_by_hash;
+      wait_for_wake;
+    }
+    lock_latch -> Latch;
+    release -> {
+      lock_latch;
+      pop_front;
+      get_first_req_by_hash;
+    }
+    lock_latch[style_func;label="{{
+      lock_latch|
+      获取对latch操作\l 
+      的lock guard\l
+    }}"]
+    lock_latch -> pop_front[style_edge_data];
+    pop_front -> wakeup_list[style_edge_data];
+    release[style_func;label="{{
+      release|
+      Releases all latches owned\l
+      owned by the `lock` of command\l
+      with ID `who`\l|
+      return the wakeup list\l
+    }}"]
+  }
+
+  subgraph cluster_Scheduler {
+    graph[label="Scheduler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    run_cmd -> schedule_command;
+    Lock[style_struct;label="{{
+      Lock|
+        pub required_hashes: Vec\<u64\>,\l|
+        pub owned_count: usize,\l
+    }}"]
+    Lock -> acquire_lock;
+    Lock -> release;
+
+    schedule_command -> {
+      acquire;
+      execute;
+    }
+    release_lock -> {
+      release;
+      try_to_wake_up;
+    }
+    try_to_wake_up[style_func;label="{{
+      try_to_wake_up|
+      重新获取cid的lock\l 
+      然后重新再执行cmd\l
+    }}"]
+    try_to_wake_up -> {
+      acquire_lock;
+      execute;
+    }
+    acquire_lock -> {
+      acquire;
+    }
+    wakeup_list -> try_to_wake_up;
+    {rank=same; run_cmd; release_lock}
+  }
+  
+}

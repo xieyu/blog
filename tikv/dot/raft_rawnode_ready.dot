@@ -1,0 +1,147 @@
+#include "styles.h"
+digraph rawnode_ready {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Ready[style_func;label="{{
+    Ready|
+    number: u64,\l|
+    ss: Option\<SoftState\>,\l|
+    hs: Option\<HardState\>,\l|
+    read_states: Vec\<ReadState\>,\l|
+    entries: Vec\<Entry\>,\l|
+    snapshot: Snapshot,\l|
+    light: LightReady,\l|
+    must_sync: bool,\l
+  }}"]
+
+  Ready -> {
+      SoftState;
+      HardState;
+      ReadState;
+      Entry;
+      Snapshot;
+      LightReady;
+  }
+
+  SoftState[style_func;label="{{
+    SoftState|
+    pub leader_id: u64,\l|
+    pub raft_state: StateRole,\l
+  }}"]
+  SoftState -> StateRole;
+  StateRole[style_func;label="{{
+    StateRole|
+    Follower,\l|
+    Candidate,\l|
+    Leader,\l|
+    PreCandidate,\l
+  }}"]
+
+  HardState[style_func;label="{{
+    HardState|
+    pub term: u64,\l|
+    pub vote: u64,\l|
+    pub commit: u64,\l
+  }}"]
+
+  ReadState[style_func;label="{{
+    ReadState|
+    pub index: u64,\l|
+    pub request_ctx: Vec\<u8\>,\l
+  }}"]
+
+  LightReady[style_func;label="{{
+    LightReady|
+    commit_index: Option\<u64\>,\l|
+    committed_entries: Vec\<Entry\>,\l|
+    messages: Vec\<Vec\<Message\>\>,\l
+  }}"]
+
+  LightReady -> {
+    Entry;
+    Message;
+  }
+  Entry[style_func;label="{{
+    Entry|
+    EntryType entry_type = 1;\l|
+    uint64 term = 2;\l|
+    uint64 index = 3;\l|
+    bytes data = 4;\l|
+    bytes context = 6;\l
+  }}"]
+  Entry -> EntryType;
+  EntryType[style_func;label="{{
+    EntryType|
+    EntryNormal = 0;\l|
+    EntryConfChange = 1;\l|
+    EntryConfChangeV2 = 2;\l
+  }}"]
+  Message[style_func;label="{{
+    Message|
+    MessageType msg_type = 1;\l|
+    uint64 to = 2;\l|
+    uint64 from = 3;\l|
+    uint64 term = 4;\l|
+    uint64 log_term = 5;\l|
+    uint64 index = 6;\l|
+    repeated Entry entries = 7;\l|
+    uint64 commit = 8;\l|
+    Snapshot snapshot = 9;\l|
+    uint64 request_snapshot = 13;\l|
+    bool reject = 10;\l|
+    uint64 reject_hint = 11;\l|
+    bytes context = 12;\l|
+    uint64 priority = 14;\l
+  }}"]
+  Message -> MessageType;
+  MessageType[style_func;label="{{
+    MessageType|
+    MsgHup = 0;\l|
+    MsgBeat = 1;\l|
+    MsgPropose = 2;\l|
+    MsgAppend = 3;\l|
+    MsgAppendResponse = 4;\l|
+    MsgRequestVote = 5;\l|
+    MsgRequestVoteResponse = 6;\l|
+    MsgSnapshot = 7;\l|
+    MsgHeartbeat = 8;\l|
+    MsgHeartbeatResponse = 9;\l|
+    MsgUnreachable = 10;\l|
+    MsgSnapStatus = 11;\l|
+    MsgCheckQuorum = 12;\l|
+    MsgTransferLeader = 13;\l|
+    MsgTimeoutNow = 14;\l|
+    MsgReadIndex = 15;\l|
+    MsgReadIndexResp = 16;\l|
+    MsgRequestPreVote = 17;\l|
+    MsgRequestPreVoteResponse = 18;\l
+  }}"]
+  Snapshot[style_func;label="{{
+    Snapshot|
+    bytes data = 1;\l|
+    SnapshotMetadata metadata = 2;\l
+  }}"]
+  SnapshotMetadata[style_func;label="{{
+    SnapshotMetadata|
+    ConfState conf_state = 1;\l|
+    uint64 index = 2;\l|
+    uint64 term = 3;\l
+  }}"]
+
+  Snapshot -> {
+    SnapshotMetadata;
+  }
+
+  SnapshotMetadata -> ConfState;
+  ConfState[style_func;label="{{
+    ConfState|
+    repeated uint64 voters = 1;\l|
+    repeated uint64 learners = 2;\l|
+    repeated uint64 voters_outgoing = 3;\l|
+    repeated uint64 learners_next = 4;\l|
+    bool auto_leave = 5;\l
+  }}"]
+
+}

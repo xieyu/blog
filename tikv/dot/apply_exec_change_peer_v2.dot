@@ -1,0 +1,61 @@
+#include "styles.h"
+digraph exec_change_peer_v2 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ApplyDelegate__exec_change_peer_v2 -> {
+    ApplyDelegate__apply_leave_joint;
+    ApplyDelegate__apply_conf_change;
+    ApplyDelegate__pending_remove;
+    PeerState__TombStone;
+    PeerState__Normal;
+    write_peer_state;
+  }
+
+  ApplyDelegate__apply_conf_change -> {
+    util__find_peer;
+    Region__mut_peers__push;
+    util__remove_peer;
+    ApplyDelegate__pending_remove;
+    ApplyDelegate__stopped;
+    Region__get_region_epoch__get_conf_ver;
+    Region__mut_region_epoch__set_conf_ver;
+  }
+  util__remove_peer -> {
+    Region__mut_peers__remove;
+  }
+  {
+    Region__mut_region_epoch__set_conf_ver;
+    Region__mut_peers__remove;
+    Region__mut_peers__push;
+  } -> {
+    Region;
+  }[style_edge_data];
+  {
+    PeerState__Normal;
+    PeerState__TombStone
+  } -> PeerState;
+  {
+    PeerState;
+    Region;
+  } -> write_peer_state;
+
+  ApplyDelegate__pending_remove -> PeerState__TombStone[style_edge_data];
+
+
+  ApplyDelegate__apply_leave_joint -> {
+    Peer__set_role;
+    Region__get_region_epoch__get_conf_ver;
+    Region__mut_region_epoch__set_conf_ver;
+  }
+  Peer__set_role[style_blue1;label="{{
+    Peer\l
+    set_role\l|
+    将IncomingVoters 变为Voter\l
+    将DemotingVoter变为Learner\l
+  }}"]
+  Peer__set_role -> Region[style_edge_data];
+
+}

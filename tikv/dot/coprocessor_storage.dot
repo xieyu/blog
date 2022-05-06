@@ -1,0 +1,130 @@
+#include "styles.h"
+digraph storage {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_ScanPolicy {
+    graph[label="ScanPolicy";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_lock;
+    handle_write;
+    ScanPolicy -> {
+      DeltaEntryPolicy;
+      LatestEntryPolicy;
+      LatestKvPolicy;
+    }
+  }
+
+  subgraph cluster_ForwardKvScanner {
+    graph[label="ForwardKvScanner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ForwardKvScanner -> ScanPolicy;
+    forward_read_next;
+    forward_read_next[style_func;label="{{
+      read_next|
+    }}"]
+    forward_read_next ->{
+      cursors_write_seek;
+      cursors_lock_seek;
+      cursors_write_seek_to_first;
+      cursors_lock_seek_to_first;
+      cursors_write_valid;
+      cursors_lock_valid;
+      cursors_lock_key;
+      cursors_write_key;
+      move_write_cursor_to_ts;
+      handle_lock;
+      handle_write;
+    }
+  }
+  subgraph cluster_BackwardKvScanner {
+    graph[label="BackwardKvScanner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BackwardKvScanner;
+    back_read_next[style_func;label="{{
+      read_next
+    }}"]
+    back_read_next -> {
+      write_cursor_reverse_seek;
+      lock_cursor_reverse_seek;
+      write_cursor_seek_to_last;
+      lock_cursor_seek_to_last;
+      write_cursor_valid;
+      write_cursor_key;
+      truncate_ts_for_wk;
+      cfg_isolation_level;
+      lock_cursor_value;
+      has_lock;
+      has_write;
+      check_ts_conflict;
+      lock_cursor_prev;
+      reverse_get;
+      move_write_cursor_to_prev_user_key;
+    };
+  }
+
+  subgraph cluster_Scanner {
+    graph[label="Scanner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Scanner -> {
+      ForwardKvScanner;
+      BackwardKvScanner;
+    }
+    Scanner_next -> {
+      forward_read_next;
+      back_read_next;
+    }
+  }
+
+  subgraph cluster_ScannerBuilder {
+    graph[label="ScannerBuilder";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ScannerBuilder_new;
+    ScannerBuilder_build;
+    ScannerBuilder_build -> {
+      Scanner_Backward;
+      Scanner_Forward;
+    }
+  }
+  subgraph cluster_SnapshotStore {
+    graph[label="SnapshotStore";fontsize=20;style="rounded,dashed";color="slategrey"]
+    SnapshotStore[style_func;label="{{
+      SnapshotStore|
+       snapshot: S,\l|
+       start_ts: TimeStamp,\l|
+       isolation_level: IsolationLevel,\l|
+       fill_cache: bool,\l|
+       bypass_locks: TsSet,\l|
+       check_has_newer_ts_data: bool,\l|
+       point_getter_cache: Option\<PointGetter\<S\>\>,\l
+    }}"]
+    SnapshotStore;
+    store_scanner;
+    incremental_get_met_newer_ts_data;
+    store_scanner -> {
+      ScannerBuilder_new;
+      ScannerBuilder_build;
+    }
+  }
+
+  Store -> SnapshotStore;
+  subgraph cluster_TiKVStorage {
+    graph[label="TiKVStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    TiKVStorage -> {
+      Store;
+      Scanner;
+      NewerTsCheckState;
+    }
+    begin_scan -> {
+      store_scanner
+      self_scanner;
+    }
+    scan_next -> {
+      Scanner_next;
+    }
+    get -> {
+      store_incremental_get;
+    }
+    met_uncacheable_data -> {
+      met_newer_ts_data;
+      incremental_get_met_newer_ts_data;
+    }
+  }
+  
+}

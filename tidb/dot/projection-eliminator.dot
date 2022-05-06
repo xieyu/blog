@@ -1,0 +1,54 @@
+digraph projectionEliminator {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  eliminate[
+    shape="record";
+    label="{{
+      eliminate|
+      eliminates the redundant\l
+      projection in a logical plan\l
+    }}"];
+  canProjectionBeEliminatedLoose[
+    shape="record";
+    label="{{
+      canProjectionBeEliminatedLoose|
+      return tue if every expression \l
+      is a single column\l
+    }}"];
+  FoldConstant[
+    shape="record";
+    label="{{
+      FoldConstant|
+      const folding optimization\l
+      on an expression\l
+      excluding deferred ones\l
+    }}"];
+
+  eliminate -> eliminate[label="child"];
+  eliminate -> {
+    LogicalUnionAll;
+    buildLogicalJoinSchema;
+    resolveColumnAndReplace;
+    replaceExprColumns;
+    FoldConstant;
+    canProjectionBeEliminatedLoose;
+  }
+  FoldConstant -> {
+    foldConstant;
+    SetCoercibility;
+  }
+  foldConstant -> caseScalarFunction ->  unFoldableFunctions;
+  foldConstant -> caseConstant -> {
+    caseParamMarker ;
+    DeferredExpr;
+  }
+
+  buildLogicalJoinSchema -> {
+    leftSchema_clone;
+    MergeSchema;
+    resetNotNullFlag;
+  }
+}

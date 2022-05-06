@@ -1,0 +1,156 @@
+#include "styles.h"
+digraph PeerStorage {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PollContext {
+    graph[label="PollContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    raft_wb_mut;
+    kv_wb_mut;
+    poll_ctx_engines_raft_consume_and_shrink[style_func;label="{{
+      poll_ctx.engines.raft\l.consume_and_shrink()|
+      将raft_wb 写入磁盘\l
+    }}"]
+    poll_ctx_kv_wb_write_opt[style_func;label="{{
+      poll_ctx.kv_wb.write_opt()|
+      将kv_wb写入磁盘\l
+    }}"]
+
+    poll_ctx_engines_raft_consume_and_shrink;
+    kv_wb_mut -> poll_ctx_kv_wb_write_opt;
+    raft_wb_mut -> poll_ctx_engines_raft_consume_and_shrink[style_edge_data];
+  }
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PeerStorage_handle_raft_ready;
+    PeerStorage_handle_raft_ready[style_func;label="{{
+      handle_raft_ready|
+      将memory states写入raft\l
+      write batch\l
+    }}"]
+    PeerStorage_handle_raft_ready -> {
+       save_raft_state_to;
+       save_apply_state_to;
+       save_snapshot_raft_state_to;
+       append;
+    }
+    append[style_func;label="{{
+      append|
+      将ready中的entries\l 
+      写入raft_wb\l
+    }}"]
+    append -> {
+       raft_wb_mut;
+    }
+    subgraph cluster_InvokeContext {
+      graph[label="InvokeContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+      save_raft_state_to -> raft_wb_mut;
+      save_apply_state_to -> kv_wb_mut;
+      save_snapshot_raft_state_to -> kv_wb_mut;
+    }
+    //set_applied_state;
+    //set_applied_term;
+    post_ready;
+    post_ready[style_func;label="{{
+      post_ready|
+      update memory state after\l
+      ready changed are flushed \l 
+      to disk successfully\l|
+      self.raft_state = ctx.raft_state\l 
+      self.apply_state = ctx.apply_state\l
+      self.last_term = ctx.last_term\l
+      ...
+    }}"]
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_raft_ready_append -> {
+       PeerStorage_handle_raft_ready;
+       raft_group_ready;
+    }
+    raft_group_ready[style_func;label="{{
+      self.raft_group.ready()|
+      获取raft_group ready的\l 
+      log entries等信息
+    }}"]
+    //on_apply_res -> post_apply;
+    //post_apply -> {
+    //   set_applied_state;
+    //   set_applied_term;
+    //}
+    peer_post_raft_ready_append -> {
+      post_ready;
+    }
+    peer_post_raft_ready_append[style_func;label="{{
+      post_raft_ready_append|
+      raft ready 写入磁盘后回调\l
+    }}"]
+    Peer_propose -> propose_normal -> raft_group_propose;
+    Peer_propose[style_func;label="{{
+      propose|
+      处理RaftCmdRequest消息\l
+    }}"]
+    raft_group_propose[style_func;label="{{
+      raft_group.propose()
+    }}"]
+    subgraph cluster_RaftGroup {
+      graph[label="RaftGroup";fontsize=20;style="rounded,dashed";color="slategrey"]
+      raft_group_propose;
+      raft_group_ready;
+    }
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //handle_msgs;
+    collect_ready -> {
+       handle_raft_ready_append;
+    };
+    //handle_msgs -> on_apply_res;
+    post_raft_ready_append -> {
+       peer_post_raft_ready_append;
+    }
+    handle_msgs -> Peer_propose;
+  }
+  
+  subgraph cluster_RaftPoller {
+    graph[label="RaftPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_raft_ready -> {
+       poll_ctx_engines_raft_consume_and_shrink;
+       post_raft_ready_append;
+       poll_ctx_kv_wb_write_opt;
+    }
+    end -> {
+       handle_raft_ready;
+    }
+    begin;
+    handle_normal -> {
+       handle_msgs;
+       collect_ready;
+    };
+    {rank=same;begin;end}
+  }
+  subgraph cluster_Poller{
+    graph[label="RaftPoller thread";fontsize=20;style="rounded,dashed";color="slategrey"]
+    poll -> {
+       begin;
+       handle_normal;
+       end;
+    }
+    handle_normal[style_func;label="{{
+      handle_normal|
+      在begin,end之间\l 
+      会被多次调用\l
+      将state, log entries 等\l 
+      写入write_batch中\l
+    }}"]
+    end[style_func;label="{{
+      end|
+      整批消息处理完毕\l
+      将write batch批量\l 
+      写入磁盘\l
+    }}"]
+  }
+}

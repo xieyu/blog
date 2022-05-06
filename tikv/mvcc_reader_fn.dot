@@ -1,0 +1,21 @@
+#include "styles.h"
+digraph mvcc_reader2_fn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  MvccReader__seek_write -> {
+    Write;
+    MvccReader__create_write_cursor;
+    WriteRef__parse;
+    Cursor__near_seek;
+    Key__decode_ts_from_write_key;
+  }
+  Key__decode_ts_from_write_key -> commit_ts;
+  WriteRef__parse -> Write;
+
+  Write -> load_data;
+  load_lock;
+
+}

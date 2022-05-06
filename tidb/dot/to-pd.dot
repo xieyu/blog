@@ -1,0 +1,91 @@
+digraph ToPB {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ToPB[
+    shape="record";
+    label="{{
+      ToPB|
+      生成physcial plan的\l
+      TiKV端对应的executor tree\l
+    }}";
+  ];
+
+  subgraph cluster_PhysicalPlan {
+    graph[label="PhysicalPlan";fontsize=20;];
+    PhysicalIndexReader;
+    PhysicalTableReader;
+    PhysicalIndexMergeReader;
+    PhysicalIndexJoin; 
+    PhysicalIndexLookUpReader;
+  }
+
+  subgraph cluster_LogicalPlan {
+    graph[label="LogicalPlan";fontsize=20;];
+    DataSource -> {
+      PhysicalTableReader;
+      PhysicalIndexReader;
+      PhysicalIndexMergeReader;
+    }
+    LogicalJoin -> {
+      PhysicalIndexJoin;
+      PhysicalIndexHashJoin;
+      PhysicalHashJoin;
+      PhysicalBroadCastJoin;
+      PhysicalIndexMergeJoin;
+    }
+  }
+  PhysicalIndexReader -> buildIndexReader;
+  PhysicalTableReader -> buildTableReader;
+  PhysicalIndexMergeReader -> buildIndexMergeReader -> buildNoRangeIndexMergeReader;
+  PhysicalIndexJoin -> IndexLookUpJoin -> fetchInnerResults[style=dashed];
+
+  fetchInnerResults -> buildExecutorForIndexJoin -> buildExecutorForIndexJoinInternal -> buildIndexReaderForIndexJoin;
+  buildExecutorForIndexJoinInternal -> buildTableReaderForIndexJoin;
+  PhysicalIndexLookUpReader -> buildIndexLookUpReader;
+  buildExecutorForIndexJoinInternal -> {
+    buildIndexLookUpReaderForIndexJoin;
+  }
+
+  {
+    buildIndexLookUpReaderForIndexJoin ;
+    buildIndexLookUpReader;
+    buildCheckTable;
+  }-> buildNoRangeIndexLookUpReader
+  {
+    buildIndexReader;
+    buildIndexReaderForIndexJoin;
+  } -> buildNoRangeIndexReader;
+  {
+    buildTableReader;
+    buildTableReaderForIndexJoin;
+  } -> buildNoRangeTableReader;
+
+  {
+    buildNoRangeIndexLookUpReader;
+    buildNoRangeIndexMergeReader;
+  } -> buildIndexReq;
+
+  {
+    buildNoRangeIndexMergeReader;
+  } -> buildTableReq
+
+  {
+    buildNoRangeTableReader;
+    buildNoRangeIndexReader;
+    buildIndexReq;
+    buildTableReq;
+  } -> constructDAGReq;
+
+  constructDAGReq -> {
+    constructDistExecForTiFlash;
+    constructDistExec;
+  }
+  constructDistExec -> {
+    ToPB;
+  }
+  constructDistExecForTiFlash -> {
+    ToPB;
+  }
+}

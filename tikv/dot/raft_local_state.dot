@@ -1,0 +1,127 @@
+#include "styles.h"
+digraph raft_local_state {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Ready -> PeerStorage_handle_raft_ready;
+  Ready[style_blue1;label="{{
+    Ready|
+    number: u64,\l|
+    ss: Option\<SoftState\>,\l|
+    hs: Option\<HardState\>,\l|
+    read_states: Vec\<ReadState\>,\l|
+    entries: Vec\<Entry\>,\l|
+    snapshot: Snapshot,\l|
+    light: LightReady,\l|
+    must_sync: bool,\l
+  }}"]
+
+  InvokeContext[style_func;label="{{
+    InvokeContext|
+    pub region_id: u64,\l|
+    pub raft_state: RaftLocalState,\l|
+    pub apply_state: RaftApplyState,\l|
+    last_term: u64,\l|
+    pub has_new_entries: bool,\l|
+    pub snap_region: Option\<Region\>,\l|
+    pub destroyed_regions: Vec\<metapb::Region\>,\l|
+    raft_state为PeerStorage\l
+    raft state的clone\l
+  }}"]
+  PeerStorage_handle_raft_ready[style_func;label="{{
+    PeerStorage\l
+    handle_raft_ready\l|
+    创建InvokeContext\l
+    设置ctx的hardstate\l
+    将log entrie写入write batch\l
+  }}"]
+  InvokeContext_set_hard_state[style_func;label="{{
+    InvokeContext\l|
+    raft_state\l
+    set_hard_state\l
+  }}"]
+  InvokeContext -> PeerStorage_raft_state[style_edge_data];
+  InvokeContext_save_snapshot_raft_state_to[style_func;label="{{
+    InvokeContext\l
+    save_snapshot_raft_state_to\l
+  }}"]
+
+  PeerStorage_handle_raft_ready -> {
+     InvokeContext_save_raft_state_to;
+     InvokeContext_save_snapshot_raft_state_to;
+     PeerStorage_append;
+     InvokeContext_set_hard_state;
+     InvokeContext;
+  }
+  PeerStorage_append[style_func;label="{{
+    PeerStorage\lappend\l|
+    将Ready中的entries\l
+    写入raft  write batch\l
+    然后更新InvokeContext的\l
+    last_index 和last_term\l
+  }}"]
+  PeerStorage_append -> {
+     InvokeContext;
+     raft_wb;
+  }
+  raft_wb[style_blue1;label="{{
+    raft_wb|
+    raft 的entries和raft state\l
+    一起被写入raft log engine\l
+    的write batch\l
+  }}"]
+  InvokeContext_save_raft_state_to[style_func;label="{{
+    InvokeContext\l
+    save_raft_state_to\l|
+    将raft state写入raft_wb
+  }}"]
+  InvokeContext_save_raft_state_to -> {
+    raft_wb;
+  };
+  InvokeContext_save_snapshot_raft_state_to -> {
+    raft_wb;
+  };
+  RaftPoller_handle_raft_ready -> PeerStorage_post_ready[style_edge_data];
+  RaftPoller_handle_raft_ready -> raft_wb;
+  RaftPoller_handle_raft_ready[style_func;label="{{
+    RaftPoller\l
+    handle_raft_ready\l|
+    将raft_wb写入raft log engine\l
+    写入成功后，回调PeerStorage\l
+    的post_ready\l
+  }}"]
+  PeerStorage_post_ready[style_func;label="{{
+    PeerStorage\l
+    post_ready\l|
+    使用InvokeContext的\l
+    raft_state, apply_state, last_term\l
+    更新PeerStorage的成员变量\l
+  }}"]
+  PeerStorage_raft_state[style_var;label="{{
+    PeerStorage\l
+    raft_state\l
+  }}"]
+  PeerStorage_append -> InvokeContext_set_last_index;
+  InvokeContext_set_last_index[style_func;label="{{
+    InvokeContext\l
+    raft_state\l
+    set_last_index|
+    更新last index\l
+    和last term\l
+  }}"]
+
+  {
+    InvokeContext_set_hard_state;
+    InvokeContext_set_last_index;
+    rank=same;
+  } -> PeerStorage_raft_state[style_edge_data];
+  {
+  Ready;
+  RaftPoller_handle_raft_ready;
+  rank=same;
+  }
+
+  PeerStorage_post_ready -> PeerStorage_raft_state;
+}

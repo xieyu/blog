@@ -1,0 +1,135 @@
+#include "styles.h"
+digraph call_lease_suspect{
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Lease__suspect -> {
+    Lease__bound;
+  }
+  Lease__suspect -> {
+   RemoteLease__expire;
+  }[style_edge_data];
+
+  RemoteLease__expire[style_func;label="{{
+    RemoteLease\l
+    expire\l|
+    将Local reader的\l
+    remoteLease expire\l
+  }}"]
+  Lease__bound[style_var;label="{{
+    Lease__bound\l|
+    bound: Option\<\l
+    Either\<Timespec, Timespec\>\>,\l
+  }}"]
+  Peer__on_leader_commit_idx_changed[style_func;label="{{
+    Peer\l
+    on_leader_commit_idx_changed\l|
+    处理PrepareMerge\l
+    leader不知道target\l
+    merge进度\l
+    prevent unsafe\l
+    local read\l
+  }}"]
+
+  Peer__on_leader_commit_idx_changed -> {
+    Lease__suspect;
+  }
+  Peer__send_MsgTimeoutNow -> {
+    Lease__suspect;
+  }
+  Peer__send_MsgTimeoutNow[style_func;label="{{
+    Peer::send|
+    如果发送的消息为\l
+    MsgTimeoutNow\l
+    说明开始了leader transfer\l
+    则调用Lease::suspect\l
+  }}"]
+  //Peer__step_MsgReadIndex -> {
+  //  Store__commit_index;
+  //  Peer__inspect_lease;
+  //};
+  Peer__handle_raft_ready_advance -> {
+    Peer__on_leader_commit_idx_changed;
+    Peer__send_MsgTimeoutNow;
+  }
+  Peer__handle_raft_ready_append -> {
+    Peer__on_leader_commit_idx_changed;
+    Peer__send_MsgTimeoutNow;
+  }
+  PeerFsmDelegate__collect_ready ->{
+    Peer__handle_raft_ready_append;
+  }
+  PeerFsmDelegate__post_raft_ready_append -> {
+    Peer__handle_raft_ready_advance;
+  }
+
+  RaftPoller__end -> RaftPoller__handle_raft_ready;
+  RaftPoller__handle_raft_ready -> {
+    PeerFsmDelegate__post_raft_ready_append;
+  }
+  RaftPoller__handle_normal -> {
+    PeerFsmDelegate__collect_ready;
+    PeerFsmDelegate__handle_msgs;
+  }
+  PollHandler_poll -> {
+    RaftPoller__end;
+    RaftPoller__handle_normal;
+  }
+  Lease__suspect[style_blue1;label="{{
+    Lease:::suspect|
+    self.bound = \l
+    Some(Either::Left(bound))\l
+    并将remoteLease expire\l
+  }}"]
+  PollHandler_poll[style_func;label="{{
+    PollHandler::poll|
+    RaftPoll 线程主循环\l
+  }}"]
+  RaftPoller__end[style_func;label="{{
+    RaftPoller::end|
+    Poller处理完一批消息后
+  }}"]
+  RaftPoller__handle_raft_ready[style_func;label="{{
+    RaftPoller\l
+    handle_raft_ready\l|
+    将writebatch写入磁盘\l
+  }}"]
+  RaftPoller__handle_normal[style_func;label="{{
+    RaftPoller\l
+    handle_normal\l|
+    处理normal消息\l
+  }}"]
+  PeerFsmDelegate__post_raft_ready_append[style_func;label="{{
+    PeerFsmDelegate\l
+    post_raft_ready_append\l
+    raft state\l
+    日志保存完毕后\l
+    开始发送消息\l
+    调用raft group的advance\l
+  }}"]
+
+  PeerFsmDelegate__collect_ready[style_func;label="{{
+    PeerFsmDelegate\l
+    collect_ready\l|
+    处理raft ready\l
+  }}"]
+  Peer__handle_raft_ready_append[style_func;label="{{
+    Peer\l
+    handle_raft_ready_append\l|
+    调用raft ready\l
+    处理里面的messages\l|
+    如果ready.hs不为None\l
+    发生了变化\l
+    并且自己是leader\l
+    调用on_leader_commit_idx_changed\l
+  }}"]
+  Peer__handle_raft_ready_advance[style_func;label="{{
+    Peer\l
+    handle_raft_ready_advance\l
+    调用raft ready\l
+    处理里面的messages\l
+  }}"]
+
+}

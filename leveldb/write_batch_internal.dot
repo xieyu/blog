@@ -1,0 +1,115 @@
+digraph write_batch{
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RecordFormat {
+    graph[label="RecordFormat";fontsize=20;];
+    rep_;
+    record;
+    varstring;
+  }
+
+  rep_[
+    shape="record";
+    label="{{
+      rep_|
+      最后写入日志中的slice\l|
+      <sequnce> sequence: fixed64\l|
+      <count> count: fixed32\l|
+      <data> data: record[count]\l
+    }}";
+  ];
+  record[
+    shape="record";
+    label="{{
+      record|
+        kTypeValue varstring varstring\l|
+        或者kTypeDeletion varstring\l
+    }}";
+  ];
+  varstring[
+    shape="record";
+    label="{{
+      varstring|
+      len: varint32\l|
+      data: uint8[len]\l
+    }}";
+  ];
+  rep__push_back[
+    shape="record";
+    label="{{
+      rep__push_back|
+      在后面增加key类型\l
+    }}";
+  ];
+  PutLengthPrefixedSlice[
+    shape="record";
+    label="{{
+      PutLengthPrefixedSlice|
+      将key/value追加在后面\l
+    }}";
+  ];
+  WriteBatch_Put[
+    shape="record";
+    label="{{
+      WriteBatch::Put|
+      增加key/value
+    }}";
+  ];
+  SetSequence -> rep_:sequence;
+  WriteBatch_Delete[
+    shape="record";
+    label="{{
+      WriteBatch::Delete|
+      删除key 在日志中\l 
+      写入特殊标记key\l
+    }}";
+  ];
+  SetSequence[
+    shape="record";
+    label="{{
+      WriteBatch::SetSequence|
+      这次batch的sequnce\l
+    }}";
+  ];
+  kTypeDeletion[
+    shape="record";
+    label="{{
+      kTypeDeletion|
+      0x0
+    }}";
+  ];
+  kTypeValue[
+    shape="record";
+    label="{{
+      kTypeValue|
+      0x1
+    }}";
+  ];
+  SetCount -> rep_:count;
+  rep_ -> record -> varstring;
+  PutLengthPrefixedSlice -> varstring;
+  rep_ -> AddRecord[style=dashed;color=gray];
+  AddRecord[
+    shape="record";
+    label="{{
+      Writer::AddRecord|
+      将日志写入文件\l
+    }}";
+  ];
+
+  WriteBatch_Put -> {
+    SetCount;
+    kTypeValue;
+    rep__push_back;
+    PutLengthPrefixedSlice;
+  }[color="#75daad"];
+
+  WriteBatch_Delete ->  {
+    SetCount;
+    kTypeDeletion;
+    rep__push_back;
+  }[color="#FF7272"];
+  {rank=same;WriteBatch_Delete;WriteBatch_Put;SetSequence};
+  rep__push_back -> rep_:data;
+}

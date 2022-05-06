@@ -1,0 +1,52 @@
+#include "styles.h"
+digraph rpn_fn_struct {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+   ItemFn[style_func;label="{{
+     ItemFn|
+       pub attrs: Vec\<Attribute\>,\l|
+       pub vis: Visibility,\l|
+       pub sig: Signature,\l|
+       pub block: Box\<Block\>,\l
+   }}"]
+   Signature[style_func;label="{{
+     Signature|
+        pub constness: Option\<Token![const]\>,\l|
+        pub asyncness: Option\<Token![async]\>,\l|
+        pub unsafety: Option\<Token![unsafe]\>,\l|
+        pub abi: Option\<Abi\>,\l|
+        pub fn_token: Token![fn],\l|
+        pub ident: Ident,\l|
+        pub generics: Generics,\l|
+        pub paren_token: token::Paren,\l|
+        pub inputs: Punctuated\<FnArg, Token![,]\>,\l|
+        pub variadic: Option\<Variadic\>,\l|
+        pub output: ReturnType,\l
+   }}"]
+   ItemFn -> Signature;
+   Signature -> {
+      Generics;
+      FnArg;
+      ReturnType;
+   }
+   Generics[style_func;label="{{
+     Generics|
+        pub lt_token: Option\<Token![\<]\>,\l|
+        pub params: Punctuated\<GenericParam, Token![,]\>,\l|
+        pub gt_token: Option\<Token![\>]\>,\l|
+        pub where_clause: Option\<WhereClause\>,\l
+   }}"]
+   Generics -> {
+     GenericParam;
+     WhereClause;
+   }
+   GenericParam -> {
+      TypeParam;
+      LifetimeDef;
+      ConstParam;
+   } -> Attribute;
+  
+}

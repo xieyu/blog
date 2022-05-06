@@ -1,0 +1,109 @@
+#include "styles.h"
+digraph on_ready_commit_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_StoreMeta {
+    graph[label="StoreMeta";fontsize=20;style="rounded,dashed";color="slategrey"]
+    region_ranges[style_var;label="{{
+      region_ranges|
+        pub region_ranges: BTreeMap\<Vec\<u8\>, u64\>,\l|
+        region_end_key -\> region_id\l
+    }}"]
+    meta_region_ranges_remove -> region_ranges
+    meta_region_ranges_remove[style_func;label="{{
+      remove|
+      删除source region\l
+      对应的ranges\l
+    }}"]
+    insert -> region_ranges;
+    insert[style_func;label="{{
+      insert|
+      插入target region 的ranges\l
+      insert(enc_end_key(&region),\l 
+      region.get_id());\l
+    }}"]
+    store_meta_lock -> {
+      insert;
+      meta_region_ranges_remove;
+    }[style_edge_data];
+  }
+  subgraph cluster_PdTask {
+    graph[label="PdTask";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PdTask_UpdateMaxTimestamp;
+    PdTask_HeartBeat[style_var;label="{{
+      PdTask::HeartBeat|
+      向pd发送region信息\l
+      包含term, region, \l 
+      peer, down_peers,\l
+      pending_peers等信息\l
+    }}"]
+    {
+      PdTask_HeartBeat;
+      PdTask_UpdateMaxTimestamp;
+    } -> pd_scheduler_schedule;
+  }
+  subgraph cluster_PeerFsm {
+    graph[label="PeerFsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+    heartbeat_pd[style_func;label="{{
+      heartbeat_pd|
+      如果是leader\l
+      向pd发送心跳\l
+    }}"]
+    heartbeat_pd-> {
+      PdTask_HeartBeat;
+      pd_scheduler_schedule;
+    }
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_ready_commit_merge -> {
+      register_split_region_check_tick;
+      meta_region_ranges_remove;
+      store_meta_lock;
+      insert;
+      drop_meta;
+      require_updating_max_ts;
+      heartbeat_pd;
+      SignificantMsg_MergeResult;
+    }
+    require_updating_max_ts[style_func;label="{{
+      require_updating_max_ts|
+        If a follower merges into\l 
+        a leader, a more recent\l 
+        read may happen on the leader\l 
+        of the follower. So max ts\l 
+        should be updated after\l
+        a region merge.\l
+    }}"]
+    store_meta_lock[style_func;label="{{
+      store_meta_lock|
+      self.ctx.store_meta.lock()\l
+      获取store_meta的Lock\l
+      下面会对该store_meta做更改
+    }}"]
+    store_meta_lock -> {
+      drop_meta;
+    }[style_edge_data];
+
+    drop_meta[style_func;label="{{
+      drop_meta|
+      释放meta的lock
+    }}"]
+
+    SignificantMsg_MergeResult[style_var;label="{{
+      SignificantMsg::MergeResult|
+      向source region PeerFsm\l
+      发送MergeResult消息\l
+      MergeResultKind::FromTargetLog\l
+    }}"]
+    require_updating_max_ts -> {
+      pd_scheduler_schedule;
+      PdTask_UpdateMaxTimestamp;
+    }
+  }
+  
+}

@@ -1,0 +1,25 @@
+digraph group_state {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_GroupStateMachine {
+    graph[label="GroupState 迁移";fontsize=20;style=rounded];
+    node[shape=egg];
+    PreparingRebalance -> CompletingRebalance -> Stable;
+    {Stable, PreparingRebalance, CompletingRebalance, Empty, Dead} -> Dead;
+    PreparingRebalance -> Empty;
+    {CompletingRebalance, Empty} -> PreparingRebalance;
+    Stable -> PreparingRebalance[label="member failure\lleve group\l join"]
+    Stable -> Dead[label="group is removed"];
+  };
+
+  PreparingRebalance ->{heartbeat, sync}[label="REBALANCE_\lIN_PROGRESS"];
+  CompletingRebalance ->{heartbeat, offset_commit}[label="REBALANCE_\lIN_PROGRESS"];
+  Stable -> heartbeat[label="normally";color="green"];
+  Stable -> sync[label="currentAssignment"];
+  Stable -> {join;leave}[label="group metadata"];
+  Empty -> join[label="normally";color="green";labelcolor="green"];
+  Dead -> {heartbeat, sync, leave, offset_commit}[label="UNKNOWN_\lMEMBER_ID"];
+  Empty -> {heartbeat, sync,leave, offset_commit}[label="UNKNOWN_\lMEMBER_ID"];
+  {rank=same; join;leave};
+}

@@ -1,0 +1,79 @@
+#include "styles.h"
+digraph raft_client_send_1 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  cacheKey[style_func;label="{{
+    cacheKey|
+    store_id, conn_id\l|
+    conn_id为:\l
+    msg.region_id % \l
+    grpc_raft_conn_num\l
+  }}"]
+
+  send -> cacheKey -> LRUCache_get_mut;
+  send[style_func;label="{{
+    send|
+    将消息push到\l
+    store_id, conn_id\l
+    对应的Queue中\l
+  }}"]
+
+  send -> {
+     load_stream;
+     LRUCache_get_mut;
+     ErrDiscardReasonFull;
+     Queue_push;
+     Queue_notify;
+     need_flush_push;
+  }
+  subgraph cluster_Loop {
+    graph[label="Loop\n直到消息push成功";fontsize=20;style="rounded,dashed";color="slategrey"]
+     load_stream;
+     LRUCache_get_mut;
+     Queue_push;
+     Queue_notify;
+     cacheKey;
+
+     LRUCache_get_mut[style_func;label="{{
+       1.LRUCache.get_mut|
+       根据cacheKey获取\l
+       对应的queue\l
+     }}"]
+     Queue_push[style_blue1;label="{{
+       2.Queue_push|
+       向Queue中push消息\l
+     }}"]
+     need_flush_push[style_func;label="{{
+       need_flush_push|
+       RaftClient.need_flush.push\l
+       ((store_id, conn_id))\l
+       标记这个queue需要flush\l
+     }}"]
+     Queue_push -> ErrDiscardReasonFull -> Queue_notify[style_edge_data];
+     Queue_push -> need_flush_push[style_edge_data];
+     Queue_notify -> need_flush_push[style_edge_data];
+     Queue_notify[style_blue1;label="{{
+      3.Queue_notify|
+       队列满了，使用waker\l
+       通知RaftCall\l
+       从队里中Pop,发送消息\l
+     }}"]
+     load_stream[style_func;label="{{
+       load_stream|
+       如果从LRU中获取失败\l
+       从ConnectionPool\l
+       中loadConnection\l
+       或者创建StreamBackEnd\l
+       并插入LRUCache\l
+     }}"]
+     load_stream -> LRUCache_insert[style_edge_data];
+     {LRUCache_get_mut;LRUCache_insert} -> LRUCache;
+     LRUCache[style_var;label="{{
+       LRUCache
+     }}"]
+     LRUCache_get_mut -> Queue_push[style_edge_data];
+  }
+
+}

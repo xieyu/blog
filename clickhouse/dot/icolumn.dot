@@ -1,0 +1,239 @@
+digraph icolumn {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+  label="IColumn"
+
+  IColumn[
+    shape="record";
+    label="{{
+      IColumn|
+        virtual StringRef getDataAt(size_t n) const = 0;\l|
+        virtual UInt64 get64(size_t /*n*/) const\l|
+        virtual Float64 getFloat64(size_t /*n*/) const\l|
+        virtual Float32 getFloat32(size_t /*n*/) const\l|
+        virtual UInt64 getUInt(size_t /*n*/) const\l|
+        virtual bool isDefaultAt(size_t n) const \l|
+        virtual bool isNullAt(size_t /*n*/) const \l|
+        virtual bool getBool(size_t /*n*/) const\l
+    }}";
+  ];
+  IColumn -> {
+    ColumnConst;
+    IColumnDummy;
+    IColumnUnique;
+    ColumnVectorHelper;
+    ColumnTuple;
+    ColumnArray;
+    ColumnString;
+    ColumnFunction;
+    ColumnNullable;
+    ColumnLowCardinality;
+    ColumnAggregateFunction;
+  }
+  IColumnUnique -> ColumnUnique;
+  IColumnDummy -> ColumnSet;
+  IColumnDummy -> ColumnNothing;
+  ColumnConst[
+    shape="record";
+    label="{{
+      ColumnConst|
+      ColumnConst contains another \l 
+      column with single element\l
+      but looks like a column with\l 
+      arbitrary amount of same elements.\l
+    }}";
+  ];
+  ColumnTuple[
+    shape="record";
+    label="{{
+      ColumnTuple\l|
+      TupleColumns columns\l
+    }}";
+  ];
+
+  ColumnTuple -> TupleColumns;
+  TupleColumns[
+    shape="record";
+    label="{{
+      TupleColumns|
+        using TupleColumns = std::vector\<WrappedPtr\>;\l
+    }}";
+  ];
+
+  ColumnString[
+    shape="record";
+    label="{{
+      ColumnString|
+      Chars: PaddedPODArray\<UInt8\>\l|
+      Offsets\l
+    }}";
+  ];
+  ColumnArray[
+    shape="record";
+    label="{{
+      ColumnArray|
+      A column of array values.\l
+      In memory, it is represented\l 
+      as one column of a nested type,\l 
+      whose size is equal to the sum of\l 
+      the sizes of all arrays,\l
+      and as an array of offsets \l 
+      in it, which allows you to get each element.|
+      WrappedPtr data;\l|
+      WrappedPtr offsets;\l
+    }}";
+  ];
+
+  ColumnUnique[
+    shape="record";
+    label="{{
+      ColumnUnique|
+      IColumn::WrappedPtr column_holder\l|
+      bool is_nullable;\l|
+      size_t size_of_value_if_fixed = 0;\l
+      ReverseIndex\<UInt64, ColumnType\> index;\l
+      mutable IncrementalHash hash;\l
+    }}";
+  ];
+  ColumnSet[
+    shape="record";
+    label="{{
+      ColumnSet|
+        ConstSetPtr data;
+    }}";
+  ];
+  ColumnNothing[
+    shape="record";
+    label="{{
+      ColumnNothing|
+      size_t s\l
+    }}";
+  ];
+
+  ColumnFunction[
+    shape="record";
+    label="{{
+      ColumnFunction|
+      size_t size_\l|
+      FunctionBasePtr function\l|
+      ColumnWithTypeAndName captured_columns\l
+    }}";
+  ];
+  ColumnFunction -> IFunctionBase;
+  ColumnNullable[
+    shape="record";
+    label="{{
+      ColumnNullable|
+      WrappedPtr nested_column\l|
+      WrappedPtr null_map\l
+    }}";
+  ];
+  ColumnAggregateFunction[
+    shape="record";
+    label="{{
+      ColumnAggregateFunction|
+      ConstArenas foreign_arenas\l|
+      ArenaPtr my_arena;\l|
+      AggregateFunctionPtr func\l|
+      ColumnPtr src;\l|
+      Container data;\l|
+      String type_string;\l
+    }}";
+  ];
+  ColumnAggregateFunction -> IAggregateFunction;
+  ColumnLowCardinality[
+    shape="record";
+    label="{{
+      ColumnLowCardinality|
+      Dictionary dictionary;\l|
+      Index idx;\l
+    }}";
+  ];
+  Dictionary[
+    shape="record";
+    label="{{
+      Dictionary|
+        WrappedPtr column_unique;
+        bool shared = false;
+    }}";
+  ];
+  ColumnLowCardinality -> Dictionary;
+
+  ColumnVectorHelper -> {
+    ColumnVector;
+    ColumnDecimal;
+    ColumnFixedString;
+  }
+  ColumnFixedString[
+    shape="record";
+    label="{{
+      ColumnFixedString|
+      A column of values of \l 
+      \"fixed-length string\" type.\l
+    }}";
+  ];
+
+  ColumnDecimal[
+    shape="record";
+    label="{{
+      ColumnDecimal|
+      A ColumnVector for Decimals\l|
+      Container data;\l|
+      Uint32 scale\l
+    }}";
+  ];
+  ColumnVectorHelper[
+    shape="record";
+    label="{{
+      ColumnVectorHelper|
+      Allows to access internal array\l 
+      of ColumnVector or ColumnFixedString\l
+      without cast to concrete type.\l
+    }}";
+  ];
+  ColumnVector[
+    shape="record";
+    label="{{
+      ColumnVector|
+      A template for columns\l 
+      that use a simple array to store\l
+    }}";
+  ];
+  ColumnVector -> {
+    ColumnUInt8;
+    ColumnUInt16;
+    ColumnUInt32;
+    ColumnUInt64;
+    ColumnInt8;
+    ColumnInt16;
+    ColumnInt32;
+    ColumnInt64;
+
+    ColumnFloat32;
+    ColumnFloat64;
+  }
+
+  IFunctionBase[
+    shape="record";
+    label="{{
+      IFunctionBase|
+        Function with known arguments\l 
+        and return type (when the specific\l 
+        overload was chosen).\l
+        It is also the point where\l 
+        all function-specific properties are known.\l|
+        公共接口: 获取名字，参数，返回值类型|
+        virtual String getName() const = 0;\l|
+        virtual const DataTypes & getArgumentTypes() const = 0;\l|
+        virtual const DataTypePtr & getReturnType() const = 0;\l|
+        virtual ExecutableFunctionPtr prepare(...) const = 0;\l|
+        virtual void execute(...)\l|
+        LLVM JIT 编译:\l|
+        virtual bool isCompilable() const\l|
+        virtual llvm::Value * compile(...) const\l
+    }}";
+  ];
+}

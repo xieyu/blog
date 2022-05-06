@@ -1,0 +1,77 @@
+#include "styles.h"
+digraph stream_agg {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  process_batch_input -> {
+    ensure_columns_decoded_1_group_by_exps;
+    ensure_columns_decoded_2;
+    eval_exprs_decoded_no_lifetime_1;
+    eval_exprs_decoded_no_lifetime_2;
+    group_match;
+    keys_rchunk_exact;
+    update_current_states;
+    get_logical_scalar_ref;
+    self_keys_extend;
+    aggr_fn_create_state;
+  }
+  aggr_fn_create_state -> self_states;
+
+  update_current_states -> {
+     states_rchunk_exact_mut;
+     macro_match_template_evaluable;
+     macro_update_repeat;
+     macro_update_vector;
+  }
+
+  ensure_columns_decoded_1_group_by_exps[style_func;label="{{
+    ensure_columns_decoded|
+    group_by_exps\l
+  }}"]
+  ensure_columns_decoded_2[style_func;label="{{
+    ensure_columns_decoded|
+    entities.each_aggr_exprs\l
+  }}"]
+  eval_exprs_decoded_no_lifetime_1[style_func;label="{{
+    eval_exprs_decoded_no_lifetime|
+    group_by_exps\l
+  }}"]
+  eval_exprs_decoded_no_lifetime_2[style_func;label="{{
+    eval_exprs_decoded_no_lifetime|
+    entities.each_aggr_exprs\l
+  }}"]
+  ensure_columns_decoded_1_group_by_exps -> eval_exprs_decoded_no_lifetime_1 -> group_by_results_unsafe[style_edge_data];
+  ensure_columns_decoded_2 -> eval_exprs_decoded_no_lifetime_2 -> aggr_expr_results_unsafe[style_edge_data];
+  group_by_results_unsafe -> get_logical_scalar_ref -> self_keys_extend;
+
+  aggr_expr_results_unsafe -> update_current_states;
+  
+  self_keys_extend -> self_keys -> keys_rchunk_exact -> group_match;
+  group_match -> {
+    update_current_states;
+    group_key_ref_clear;
+  }
+  group_key_ref_clear -> group_key_ref;
+  group_key_ref -> self_keys_extend;
+
+  self_keys[style_var;label="{{
+    self_keys|
+  }}"]
+  group_by_results_unsafe[style_var;label="{{
+    group_by_results_unsafe|
+  }}"]
+  aggr_expr_results_unsafe[style_var;label="{{
+    aggr_expr_results_unsafe|
+  }}"]
+  group_key_ref -> group_match;
+  group_match[style_var;label="{{
+    group_match|
+  }}"]
+  group_key_ref[style_var;label="{{
+    group_key_ref|
+  }}"]
+  update_current_states -> self_states;
+  {rank=same;group_key_ref;self_keys}
+}

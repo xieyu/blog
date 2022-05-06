@@ -1,0 +1,64 @@
+#include "styles.h"
+digraph simpleExec {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  finishStmt -> {
+    autoCommitAfterStmt;
+    checkStmtLimit;
+  }
+
+  autoCommitAfterStmt -> {
+    InTxn;
+    CommitTxn;
+  }
+  InTxn -> CommitTxn[style_edge_data];
+
+  subgraph cluster_txn {
+    graph[label="txn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    txn_Commit;
+    txn_Rollback;
+    txn_Commit[style_func;label="{{
+      Commit|
+      开始两阶段提交\l
+    }}"]
+    txn_Rollback -> {
+       rollbackPessimisticLocks;
+       txn_close;
+    }
+
+    rollbackPessimisticLocks -> {
+      collectLockedKeys;
+      pessimisticRollbackMutations;
+    }
+  }
+
+  subgraph cluster_SimpleExec {
+    graph[label="SimpleExec";fontsize=20;style="rounded,dashed";color="slategrey"]
+      executeBegin -> InTxn;
+      executeRollback;
+      executeCommit[style_func;label="{{
+        executeCommit|
+        执行完后InTxn为False\l
+      }}"]
+      executeCommit;
+      executeRollback -> txn_Rollback;
+      executeBegin[style_func;label="{{
+        executeBegin|
+        从TSO服务获取\l 
+        事务startTS\l
+      }}"];
+      {rank=same; executeCommit;executeBegin;executeRollback};
+  }
+  runStmt -> finishStmt;
+  execStmtResult_Close -> finishStmt;
+  executeCommit -> InTxn[style_edge_data];
+  subgraph cluster_session {
+    graph[label="session";fontsize=20;style="rounded,dashed";color="slategrey"]
+      
+    CommitTxn -> doCommitWitRetry -> doCommit -> txn_Commit;
+  }
+  
+}

@@ -1,0 +1,50 @@
+#include "styles.h"
+digraph raft_rawnode_ready2 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  {rank=same;RawNode__advance;RawNode__ready};
+
+  RawNode__ready -> {
+    RawNode__records__drain__new_leader;
+    RawNode__messages__push__new_leader;
+    RawNode__records__push_back;
+    RawNode__gen_light_ready;
+    RaftCore__soft_state;
+    RaftCore__hard_state;
+    RaftCore__read_states;
+    RaftLog__unstable_snapshot;
+    RaftLog__unstable_entries;
+    RaftCore__msgs
+  }
+  RawNode__on_persist_ready -> {
+    RawNode__records;
+    RawNode__messages;
+  }
+  RawNode__advance -> RawNode__advance_append;
+  RawNode__advance_append -> RawNode__on_persist_ready;
+
+  RaftCore__read_states -> Ready__read_states;
+  RaftLog__unstable_entries -> Ready__entries;
+  RaftLog__unstable_snapshot -> Ready__snapshot;
+  RaftCore__hard_state -> Ready__hs;
+  RaftCore__soft_state -> Ready__ss;
+  RaftCore__msgs -> ReadyRecord__messages;
+  ReadyRecord__messages -> RawNode__records__push_back ->  RawNode__records[style_edge_data];
+  RawNode__records -> RawNode__records__drain__new_leader -> RawNode__messages__push__new_leader[style_edge_data];
+  RawNode__messages__push__new_leader -> RawNode__messages[style_edge_data];
+  {rank=same;RawNode__messages;RawNode__records};
+
+
+  RawNode__gen_light_ready -> {
+    RaftLog__next_entries_since__committed_entries;
+    RawNode__messages;
+    RaftCore__msgs__leader;
+  }
+  RawNode__messages -> LightReady__messages;
+  RaftCore__msgs__leader -> LightReady__messages;
+  RaftLog__next_entries_since__committed_entries -> LightReady__committed_entries;
+
+}

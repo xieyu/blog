@@ -1,0 +1,39 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  {
+    check_txn_status_lock_exists
+    Lock__fmt
+    Lock__new
+    Lock__to_bytes
+    Lock__to_bytes
+    Lock__pre_allocate_size
+    Lock__into_lock_info
+    Lock__is_pessimistic_txn
+    Delegate__sink_put
+    decode_lock
+    cleanup
+    MvccChecker__check_mvcc_key
+    MvccChecker__check_mvcc_key
+    DeltaEntryPolicy__handle_lock
+    PessimisticRollback__process_write
+  } -> Lock__for_update_ts;
+
+  CheckTxnStatus__process_write -> {
+    check_txn_status_lock_exists
+  }
+
+  acquire_pessimistic_lock -> Lock__new;
+
+  cleanup[style_func;label="{{
+    cleanup\l
+    如果lock的for_update_ts\l
+    不为zero\l
+    则是悲观事务\l
+  }}"]
+  cleanup -> rollback_lock;
+
+}

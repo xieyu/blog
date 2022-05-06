@@ -1,0 +1,103 @@
+digraph partition_target_state {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PartitionStateMachine {
+    graph[label="PartitionStateMachine";fontsize=20;];
+    NonExistentPartition[shape="record";
+      label="{{
+        NonExistentPartition|
+        partition不存在，或者\l 
+        创建之后又被删掉了
+      }}";
+    ];
+
+    NewPartition[shape="record";
+      label="{{
+        NewPartition|
+        parition 新建状态
+      }}";
+    ];
+    OnlinePartition[shape="record";
+      label="{{
+        OnlinePartition|
+        leader is elected
+      }}";
+    ];
+    OfflinePartition[shape="record";
+      label="{{
+        OfflinePartition|
+        partition选举好的leader挂了
+      }}";
+    ];
+
+    OfflinePartition -> NonExistentPartition;
+    NonExistentPartition -> NewPartition;
+    {NewPartition, OfflinePartition} -> OnlinePartition;
+    {NewPartition, OnlinePartition} -> OfflinePartition;
+  }
+  onPartitionReassignment[shape="record";
+    label="{{
+      onPartitionReassignment|
+      parition replica迁移\l
+      可能leader也需要迁移
+    }}";
+  ];
+  moveReassignedPartitionLeaderIfRequired[shape="record";
+    label="{{
+      moveReassignedPartitionLeaderIfRequired\l|
+      可能leader也需要迁移\l重新选举新的leader\l
+    }}";
+  ];
+  onBrokerFailure[shape="record";
+    label="{{
+      onBrokerFailure|
+        broker 故障\l
+    }}";
+  ];
+  onReplicaBecomeOffline[shape="record";
+    label="{{
+      onReplicaBecomeOffline|
+        标记给定的replica为offline\l
+    }}";
+  ];
+  subgraph cluster_zk {
+    graph[label="zk";fontsize=20;];
+    TopicChangeHandler
+    PartitionModificationsHandler;
+  }
+  startup[shape="record";
+    label="{{
+      startup|
+        partition machine startup\l
+    }}";
+  ];
+
+  startup -> triggerOnlinePartitionStateChange;
+  triggerOnlinePartitionStateChange -> triggerOnlineStateChangeForPartitions;
+  {processTopicChange, processPartitionModifications} -> onNewPartitionCreation -> NewPartition;
+
+  onPartitionReassignment -> moveReassignedPartitionLeaderIfRequired;
+  {
+    moveReassignedPartitionLeaderIfRequired;
+    triggerOnlineStateChangeForPartitions;
+    doControlledShutdown;
+  }-> OnlinePartition
+
+  {
+    onReplicaBecomeOffline;
+    triggerOnlinePartitionStateChange;
+  } -> OfflinePartition;
+
+  onTopicDeletion -> NonExistentPartition;
+  onBrokerFailure -> onReplicaBecomeOffline;
+  onReplicaBecomeOffline -> triggerOnlinePartitionStateChange;
+  TopicChangeHandler -> processTopicChange;
+  PartitionModificationsHandler -> processPartitionModifications;
+  processControlledShutdown -> doControlledShutdown;
+  startup -> initializePartitionState -> {
+    OnlinePartition;
+    OfflinePartition;
+    NewPartition;
+  }
+}

@@ -1,0 +1,93 @@
+#include "styles.h"
+digraph mvcc_reader2_fn {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RawKey -> MvccReader__seek_write;
+  StartTS -> MvccReader__seek_write;
+  RawKey -> MvccReader__load_lock;
+
+  MvccReader__seek_write -> {
+    Write;
+    MvccReader__create_write_cursor;
+    WriteRef__parse;
+    Cursor__near_seek;
+    Key__decode_ts_from_write_key;
+  }
+  Key__decode_ts_from_write_key -> commit_ts;
+  WriteRef__parse -> Write;
+
+  Write -> MvccReader__load_data;
+  StartTS[style_func;label="{{
+    StartTS|
+    事务t的start_ts\l
+  }}"]
+  RawKey[style_func;label="{{
+    RawKey|
+    要读取的key\l
+  }}"]
+  MvccReader__seek_write[style_blue1;label="{{
+    MvccReader\l
+    seek_write\l|
+    查找事务T start_ts之前\l
+    最新的commit_ts 对应的write record\l|
+    write record for key\l
+    comitted before or equal to ts\l|
+    所以write CF 控制了事务\l
+    写数据数据的可见性\l
+  }}"]
+  WriteRef__parse[style_func;label="{{
+    WriteRef::parse|
+    解析Write info\l
+  }}"]
+  Write[style_func;label="{{
+    Write|
+    pub write_type: WriteType,\l|
+    pub start_ts: TimeStamp,\l|
+    pub short_value: Option\<Value\>,\l|
+    pub has_overlapped_rollback: bool,\l|
+    pub gc_fence: Option\<TimeStamp\>,\l
+  }}"]
+
+  MvccReader__create_write_cursor -> CF_WRITE;
+  MvccReader__load_lock -> {
+    MvccReader__create_lock_cusor;
+    CF_LOCK;
+    Lock;
+  }
+  MvccReader__create_lock_cusor -> CF_LOCK;
+  MvccReader__load_data -> {
+    MvccReader__create_data_cursor;
+    Write__short_vlaue;
+    key__append__write__start_ts;
+    cursor__get;
+  }
+  MvccReader__create_data_cursor -> CF_DEFAULT;
+  key__append__write__start_ts -> cursor_get;
+  cursor__get -> {
+     value;
+  }
+  Write__short_vlaue -> value;
+  MvccReader__load_lock[style_blue1;label="{{
+    MvccReader\l
+    load_lock\l|
+    读取key对应的Lock\l
+  }}"]
+  MvccReader__load_data[style_blue1;label="{{
+    MvccReader\l
+    load_data\l
+  }}"]
+  CF_DEFAULT[style_var;label="{{
+    CF_DEFAULT
+  }}"]
+  CF_LOCK[style_var;label="{{
+    CF_LOCK
+  }}"]
+  CF_DEFAULT[style_var;label="{{
+    CF_WRITE
+  }}"]
+
+
+}

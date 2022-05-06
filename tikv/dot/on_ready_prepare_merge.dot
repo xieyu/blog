@@ -1,0 +1,90 @@
+#include "styles.h"
+digraph on_check_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  SignificantMsg_CatchUpLogs[style_func;label="{{
+    SignificantMsg::CatchUpLogs|
+    由本地target region\l
+    在执行commit merge消息时\l
+    发的消息\l|
+  }}"]
+  SignificantMsg_CatchUpLogs -> on_catch_up_logs_for_merge;
+  on_catch_up_logs_for_merge[style_func;label="{{
+    on_catch_up_logs_for_merge|
+    此时本地的source region\l 
+    可能还没commit \l 
+    到PrepareMerge这个消息\l
+    但source region 的leader已经\l
+    apply该消息了\l|
+    先设置下catch_up_logs变量\l
+  }}"]
+
+  pending_merge_state[style_var;label="{{
+    pending_merge_state|
+    Option\<MergeState\>\l
+    pub min_index: u64,\l|
+    pub target: ::protobuf::SingularPtrField\l 
+    \<super::metapb::Region\>,\l|
+    pub commit: u64,\l
+  }}"]
+
+  {pending_merge_state;pending_remove} -> on_check_merge;
+  on_ready_prepare_merge -> {
+     pending_merge_state;
+     pending_remove;
+     catch_up_logs;
+  }
+
+  on_ready_prepare_merge -> {
+    schedule_task;
+    on_check_merge;
+  }
+  propose_normal -> pending_merge_state;
+  propose_normal[style_func;label="{{
+    propose_normal|
+    在设置完pending_merge_state 之后\l
+    propose_normal 对于非RollbackMerge的\l
+    propose会返回错误\l
+    Error::ProposalInMergingMode\l
+  }}"]
+  propose_conf_change[style_func;label="{{
+    propose_conf_change|
+      在pending_merge_state不为None时候\l
+      会返回Error::ProposalInMergingMode\l
+  }}"]
+  propose_conf_change -> pending_merge_state
+  on_ready_prepare_merge[style_func;label="{{
+    on_ready_prepare_merge|
+    设置了pending_merge_state\l
+    如果有catch_up_logs\l
+    则先让ApplyFsm执行LogsUpToDate\l
+    否则就直接执行on_check_merge\l
+  }}"]
+  catch_up_logs[style_var;label="{{
+    catch_up_logs|
+    Option\<CatchUpLogs\>\l
+    pub target_region_id: u64,\l|
+    pub merge: CommitMergeRequest,\l|
+    pub logs_up_to_date: Arc\<AtomicU64\>,\l
+  }}"]
+  on_catch_up_logs_for_merge -> catch_up_logs;
+  schedule_task[style_func;label="{{
+    schedule_task|
+    发送LogsUpToDate消息给source 的ApplyFsm\l
+    destroy source ApplyFsm\l
+  }}"]
+  catch_up_logs -> schedule_task;
+
+  on_check_merge -> router_force_send;
+  router_force_send[style_func;label="{{
+    router_force_send|
+    向本地的target_id\l 
+    发送RaftCommand \l 
+    非leader的peer会丢弃该消息\l
+    leader处理完该epoch后会将epcho +1\l
+    避免多次重复提交\l
+  }}"]
+}

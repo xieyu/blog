@@ -1,0 +1,16 @@
+global iot_stat;
+
+probe vfs.read {
+  iot_stat[pid(), execname(), "R"] += bytes_to_read
+}
+
+probe vfs.write {
+  iot_stat[pid(), execname(), "W"] += bytes_to_write
+}
+
+probe timer.s(5) {
+  printf("top io in 5 seconds------------>\n")
+  foreach([pid, name, action] in iot_stat- limit 10) {
+    printf("%15s[%5d] %s %d KB\n", name, pid, action, iot_stat[pid, name, action]/1024)
+  }
+}

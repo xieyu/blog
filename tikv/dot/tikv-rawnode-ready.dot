@@ -1,0 +1,114 @@
+#include "styles.h"
+digraph rawnode_ready {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  poll -> {
+    fetch_fsm;
+    handle_normal;
+  }
+  handle_normal -> { 
+    collect_ready;
+    handle_msgs;
+  }
+  handle_normal[style_func;label="{{
+    handle_normal|
+    处理完消息之后\l 
+    就调用collect_ready\l
+  }}"]
+
+  collect_ready -> {
+    handle_raft_ready_append;
+    on_role_change;
+  }
+  handle_raft_ready_append -> {
+    RawNode_has_ready; 
+    RawNode_ready;
+    handle_raft_committed_entries;
+    handle_raft_ready;
+    ApplyTask_Snapshot;
+    ctx_apply_router_schedule_task;
+    ready_messages;
+    send;
+    apply_reads;
+  }
+  send -> send_raft_message;
+  send_raft_message -> {
+    prepare_raft_message;
+    get_peer_from_cache;
+    set_to_peer;
+    trans_send_msg;
+  }
+  trans_send_msg[style_func;label="{{
+    trans_send_msg|
+    调用grpc发送msg
+  }}"]
+  trans_send_msg -> ServerTransport_send;
+  ServerTransport_send -> {
+    raft_client_send;
+  }
+
+  RawNode_ready -> {
+    ready_committed_entries;
+    ready_messages;
+  }
+  ready_messages -> send;
+  ready_committed_entries -> Apply;
+  handle_raft_committed_entries ->{
+    ctx_apply_router_schedule_task;
+    Apply;
+  }
+  Apply -> ctx_apply_router_schedule_task;
+
+  handle_raft_ready_append -> res;
+  res -> ctx_ready_res;
+
+  ctx_apply_router_schedule_task -> handle_tasks[style_edge_data];
+
+  handle_tasks -> {
+    handle_apply;
+    append_proposal;
+    _handle_raft_committed_entries;
+  }
+  _handle_raft_committed_entries -> {
+    handle_raft_entry_normal;
+    handle_raft_entry_conf_change;
+  }
+
+  handle_raft_entry_normal -> {
+    should_write_to_engine;
+    process_raft_cmd;
+    set_applied_index;
+  }
+  process_raft_cmd -> {
+    should_sync_log;
+    pre_apply;
+    apply_raft_cmd;
+    find_pending;
+    on_apply_cmd;
+  }
+  apply_raft_cmd -> {
+    set_save_point;
+    exec_raft_cmd;
+  }
+
+  exec_raft_cmd -> {
+    has_admin_request;
+    exec_admin_cmd;
+    exec_write_cmd;
+  }
+
+  exec_write_cmd -> {
+    ctx_kv_wb_mut;
+    handle_put;
+    handle_delete;
+    handle_delete_range;
+    handle_ingest_sst;
+  }
+  handle_put -> {
+    wb_put_cf;
+    wb_put;
+  }
+  wb_put -> RocksWriteBatch;
+}

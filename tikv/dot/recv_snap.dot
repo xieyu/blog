@@ -1,0 +1,80 @@
+#include "styles.h"
+digraph recv_snap {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  recv_snap -> {
+    stream_next_await_transpose;
+    RecvSnapContext_new;
+    stream_next_await;
+    Context_file_write_all;
+    Context_finsih;
+    Context_file_write_all[style_func;label="{{
+      4. Context_file_write_all|
+      GenericSnapshot_write_all\l
+      将数据写入\l
+      磁盘文件\l
+    }}"]
+  }
+  stream_next_await_transpose[style_func;label="{{
+    1. stream.next()\l
+    .await.transpose()?|
+    读取第一包中的\l
+    元信息\l
+  }}"]
+  RecvSnapContext_new[style_func;label="{{
+    2. RecvSnapContext::new|
+    key: SnapKey,\l|
+    file: Option\<Box\<dyn GenericSnapshot\>\>,\l|
+    raft_msg: RaftMessage,\l|
+    _with_io_type: WithIOType,\l|
+    使用header中的元信息\l
+    创建RecvSnapContext\l
+  }}"]
+  stream_next_await[style_func;label="{{
+    3.stream.next().await|
+    读取snap数据
+  }}"]
+  RecvSnapContext_new -> {
+    Context_finsih
+  }[style_edge_data];
+
+  RecvSnapContext_new -> {
+    SnapManager_get_snapshot_for_receiving;
+  }
+  SnapManager_get_snapshot_for_receiving[style_func;label="{{
+    SnapManager\l
+    get_snapshot_for_receiving\l
+  }}"]
+  SnapManager_get_snapshot_for_receiving -> Context_file_write_all[style_edge_data];
+
+  subgraph cluster_Loop {
+    graph[label="Loop";fontsize=20;style="rounded,dashed";color="slategrey"]
+    stream_next_await -> Context_file_write_all[style_edge_data];
+  }
+
+  stream_next_await_transpose -> RecvSnapContext_new[style_edge_data];
+  Context_finsih -> {
+     RaftStoreRouter_send_raft_msg;
+  };
+  Context_finsih[style_func;label="{{
+    5.RecvSnapContext.finish|
+    向raft store router\l
+    发送raftMessage
+  }}"]
+  RaftStoreRouter_send_raft_msg[style_func;label="{{
+    6.RaftStoreRouter\l
+    send_raft_msg
+    将RaftMessage转发\l
+    给对应的PeerFsm\l
+  }}"]
+  KvService_snapshot -> scheduler -> recv_snap[style_edge_data];
+  KvService_snapshot[style_func;label="{{
+    KvService\l
+    snapshot\l|
+    GRPC snapshot接口\l
+    发送recv task到\l
+    snap-handler worker\l
+  }}"]
+}

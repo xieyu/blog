@@ -1,0 +1,50 @@
+#include "styles.h"
+digraph collect_ready {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Raft {
+    graph[label="raft-rs";fontsize=20;style="rounded,dashed";color="slategrey"]
+    propose_conf_change;
+    ready;
+  }
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    propose;
+    handle_raft_ready_append -> {
+      handle_raft_committed_entries;
+      ready;
+    }
+    ready -> handle_raft_committed_entries[style_edge_data];
+    handle_raft_committed_entries -> {
+      schedule_task_ApplyTask;
+    }
+    schedule_task_ApplyTask[style_func;label="{{
+      让ApplyFsm处理comitted\l 
+      log entries\l|
+      ctx.apply_router\l
+      .schedule_task(self.region_id,\l
+      ApplyTask::aply(apply))\l
+    }}"]
+      
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_msgs;
+    handle_msgs -> propose -> propose_conf_change[style_edge_data]
+    collect_ready -> {
+      handle_raft_ready_append;
+    }
+      
+  }
+  subgraph cluster_RaftPoller {
+    graph[label="RaftPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_normal -> {
+      handle_msgs;
+      collect_ready;
+    }
+  }
+  
+}

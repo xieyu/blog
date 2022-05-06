@@ -1,0 +1,130 @@
+#include "styles.h"
+digraph update_raft_apply_state {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ApplyFsm_handle_apply -> {
+     Apply_entries_last;
+     ApplyFsmDelegate_apply_state_set_commit_index;
+     ApplyFsmDelegate_apply_state_set_commit_term;
+     ApplyFsmDelegate_handle_raft_committed_entries;
+  }
+
+  Apply_entries_last -> {
+     ApplyFsmDelegate_apply_state_set_commit_index;
+     ApplyFsmDelegate_apply_state_set_commit_term;
+  }[style_edge_data];
+
+  ApplyFsmDelegate_handle_raft_committed_entries -> {
+    ApplyContext_finish_for;
+    ApplyFsmDelegate_handle_raft_entry_normal;
+  }
+  ApplyContext_finish_for -> {
+     ApplyFsmDelegate_write_apply_state;
+     ApplyRes;
+  }
+  ApplyFsmDelegate_handle_raft_entry_normal -> ApplyFsmDelegate_apply_state_set_applied_index;
+
+  {
+     ApplyFsmDelegate_apply_state_set_commit_index;
+     ApplyFsmDelegate_apply_state_set_commit_term;
+     ApplyFsmDelegate_apply_state_set_applied_index;
+     rank=same;
+  } -> RaftApplyState[style_edge_data];
+  RaftApplyState[style_var;label="{{
+    RaftApplyState|
+    pub applied_index: u64,\l|
+    pub commit_index: u64,\l|
+    pub commit_term: u64,\l|
+    pub truncated_state: RaftTruncatedState,\l
+  }}"]
+
+  ApplyFsm_handle_apply[style_func;label="{{
+    ApplyFsm\lhandle_apply\l|
+    处理RaftPoller发过来\l
+    Apply Task\l
+  }}"]
+
+  Apply -> ApplyFsm_handle_apply[style_edge_data];
+  Apply[style_blue1;label="{{
+    Apply|
+    pub peer_id: u64,\l|
+    pub region_id: u64,\l|
+    pub term: u64,\l|
+    <entries> pub entries: Vec\<Entry\>,\l|
+    pub cbs: Vec\<Proposal\<S\>\>,\l|
+    entries_mem_size: i64,\l|
+    entries_count: i64,\l
+  }}"]
+  Apply_entries_last[style_func;label="{{
+  使用Apply::entries.last\l
+  更新commit_index\l
+  和commit_term\l
+  }}"]
+  Apply:engines -> {
+    Apply_entries_last;
+  }[style_edge_data];
+
+  ApplyFsmDelegate_apply_state_set_commit_index[style_func;label="{{
+    ApplyFsmDelegate\l
+    apply_state\l
+    set_commit_index\l|
+    使用last entry的commit index\l
+    更新apply state的commit index\l
+  }}"]
+
+  ApplyFsmDelegate_apply_state_set_commit_term[style_func;label="{{
+    ApplyFsmDelegate\l
+    apply_state\l
+    set_commit_term\l|
+    使用last entry的commit term\l
+    更新apply state的commit_term\l
+  }}"]
+  ApplyFsmDelegate_handle_raft_committed_entries[style_func;label="{{
+    ApplyFsmDelegate\l
+    handle_raft_committed_entries\l|
+    遍历Apply中的entries\l
+    处理每个log entry\l
+  }}"]
+
+  ApplyFsmDelegate_handle_raft_entry_normal[style_func;label="{{
+    ApplyFsmDelegate\l
+    handle_raft_entry_normal\l|
+    处理normal的raft log\l
+    调用apply_raft_cmd\l
+    将log entry对应的cmd 写入kv_wb\l|
+    更新apply_state的applied index\l
+  }}"]
+  ApplyFsmDelegate_apply_state_set_applied_index[style_func;label="{{
+    ApplyFsmDelegate\l
+    apply_state\l
+    set_applied_index\l|
+    更新applied index\l
+  }}"]
+
+  ApplyContext_finish_for[style_func;label="{{
+    ApplyContext\l
+    finish_for\l|
+    将delete的apply_state写入kv_wb\l
+  }}"]
+
+  RaftApplyState -> ApplyFsmDelegate_write_apply_state;
+  ApplyFsmDelegate_write_apply_state[style_func;label="{{
+    ApplyFsmDelegate\l
+    write_apply_state\l
+    将apply_state写入kv_wb\l|
+    在最后会一起写入kv engine\l
+  }}"]
+  ApplyRes[style_blue1;label="{{
+    ApplyRes|
+    pub region_id: u64,\l|
+    pub apply_state: RaftApplyState,\l|
+    pub applied_index_term: u64,\l|
+    pub exec_res: VecDeque\<ExecResult\<S\>\>,\l|
+    pub metrics: ApplyMetrics,\l
+  }}"]
+
+  RaftApplyState -> ApplyRes[style_edge_data];
+
+}

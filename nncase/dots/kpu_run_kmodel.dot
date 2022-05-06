@@ -1,0 +1,142 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  kpu_run_kmodel -> {
+    nncase_run_kmodel;
+    KL_K210_CONV;
+    KL_FULLY_CONNECTED;
+    IRQN_AI_INTERRUPT;
+    plic_irq_register;
+    plic_set_priority;
+  }
+  plic_irq_register -> ai_step[style_edge_data];
+
+  KL_K210_CONV -> {
+    kpu_kmodel_input_with_padding;
+    ai_step_no_isr;
+    kpu_input_dma;
+  }
+
+  KL_FULLY_CONNECTED -> {
+    kpu_kmodel_input_float;
+    ai_step_not_isr;
+  }
+  kpu_kmodel_input_float -> {
+    memcpy;
+  }
+  kpu_kmodel_input_with_padding -> {
+    kpu_upload_core;
+  }
+
+  kpu_upload_core -> {
+    UPLOAD_BEGIN;
+    UPLOAD_END;
+    AI_IO_BASE_ADDR;
+  }
+
+  ai_step -> {
+    kpu_conv;
+    kpu_kmodel_add;
+    kpu_quantize;
+    kpu_kmodel_fully_connected;
+    kpu_upload;
+    kpu_kmodel_done;
+    ai_step;
+  }
+
+  kpu_conv -> {
+    sysctl_dam_select;
+    dmac_set_irq;
+    SYSCTL_DAM_SELECT_AI_RX_REQ;
+    dmac_set_single_mode;
+    kpu_send_layer;
+  }
+  kpu_send_layer -> {
+    kpu__layer_argument_fifo;
+  }
+  dmac_set_irq -> {
+    ai_step;
+    kpu_kmodel_done;
+  }
+  kpu_kmodel_done -> {
+    kpu_model_context_t__done_callback;
+  }
+  kpu_run_kmodel -> kpu_model_context_t__done_callback;
+  ai_step_not_isr -> ai_step;
+  IRQN_AI_INTERRUPT -> ai_step;
+
+  kpu_input_dma -> {
+    dmac_set_irq;
+    dmac_set_single_mode;
+  }
+  kpu_input_dma -> ai_step;
+
+  ai_step_not_isr -> {
+    sysctl_disable_irq;
+    sysctl_enable_irq;
+  }
+
+  kpu_run_kmodel[style_func;label="{{
+    kpu_run_kmodel\l
+    设置IRQN_AI_INTERRUPT\l
+    中断的handler为\l
+    ai_step\l|
+    设置kpu的一些参数\l
+  }}"]
+  ai_step_no_isr[style_func;label="{{
+    ai_step_no_isr\l
+    在执行ai_step期间\l
+    关闭中断\l
+  }}"]
+  IRQN_AI_INTERRUPT[style_func;label="{{
+    IRQN_AI_INTERRUPT\l
+    25\l|
+    AI accelerator interrupt \l|
+    这个中断应该是kpu触发的\l
+  }}"]
+  kpu_conv[style_func;label="{{
+    kpu_conv\l|
+    这个貌似是在kpu上\l
+    执行计算的\l
+  }}"]
+  KL_K210_CONV[style_func;label="{{
+    KL_K210_CONV\l
+    第一层header类型为\l
+    KL_K210_CONV\l
+    卷积层\l
+  }}"]
+  KL_FULLY_CONNECTED[style_func;label="{{
+    KL_FULLY_CONNECTED\l
+    第一层header 类型为\l
+    KL_FULLY_CONNECTED\l
+    全连接层\l
+  }}"]
+  kpu_input_dma[style_func;label="{{
+    kpu_input_dma\l|
+    通过dma方式输入数据\l
+    中断callback为\l
+    ai_step\l
+  }}"]
+  kpu_upload_core[style_func;label="{{
+    kpu_upload_core\l
+    将数据从src搬到dest\l
+    dest base 地址为\l
+    AI_IO_BASE_ADDR\l
+    + kpu_addr * 64\l
+  }}"]
+
+  ai_step[style_green1;label="{{
+    ai_step\l|
+    根据layer_header type\l
+    一层层的执行layer\l
+  }}"]
+  AI_IO_BASE_ADDR[style_func;label="{{
+    AI_IO_BASE_ADDR\l
+    基地址为0x40600000U\l|
+    AI_IO_SIZE为2M\l
+  }}"]
+}

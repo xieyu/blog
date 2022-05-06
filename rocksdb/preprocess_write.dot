@@ -1,0 +1,82 @@
+digraph preprocess {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  PreprocessWrite -> {
+    SwitchWAL;
+    WaitForPendingWrites;
+    HandleWriteBufferFull;
+    TrimMemtableHistory;
+    ScheduleFlushes;
+    log_sync_cv__Wait;
+  }
+
+  SwitchWAL[shape="record";
+    label="{{
+      SwitchWAL|
+      更换WAL??\l
+      那个地方体现了更换？\l
+    }}";
+  ];
+
+  SwitchWAL -> {
+    alive_log_files_;
+    FindMinLogContainingOutstandingPrep;
+    allow_2pc;
+    SelectColumnFamiliesForAtomicFlush;
+    MaybeFlushStatsCF;
+    SwitchMemtable;
+    FlushRequested;
+    GenerateFlushRequest;
+    SchedulePendingFlush;
+    MaybeScheduleFlushOrCompaction;
+  }[color="#b83b5e"]
+
+  alive_log_files_[shape="record";
+    label="{{
+      alive_log_files_|
+        std::deque\<LogFileNumberSize\> alive_log_files_;
+    }}";
+  ];
+  WaitForPendingWrites -> {
+    WaitForMemTableWriters;
+    switch_cv__wait;
+  }
+  //switch_cv信号量
+  WriteImpl -> UnorderedWriteMemtable -> {
+    switch_cv__notify_all;
+  }
+  subgraph cluster_switch_cv {
+    graph[label="switch_cv";fontsize=20;];
+    switch_cv__notify_all -> switch_cv__wait;
+  }
+
+  WaitForMemTableWriters ->  {
+    AwaitState
+  }
+
+  HandleWriteBufferFull -> {
+    SelectColumnFamiliesForAtomicFlush;
+    GetColumnFamilySet;
+    MaybeFlushStatsCF;
+    EnterUnbatched;
+    SwitchMemtable;
+    UnrefAndTryDelete;
+    AssignAtomicFlushSeq;
+    FlushRequested;
+    GenerateFlushRequest;
+    SchedulePendingFlush;
+    MaybeScheduleFlushOrCompaction;
+  }[color="#17b978"];
+
+
+  TrimMemtableHistory -> {
+    trim_history_scheduler_;
+    TakeNextColumnFamily;
+    ApproximateMemoryUsage;
+    InstallSuperVersion;
+    UnrefAndTryDelete;
+  }[color="#17b978"];
+
+}

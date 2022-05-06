@@ -1,0 +1,69 @@
+#include "styles.h"
+digraph leader_info {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  handle_detect[style_func;label="{{
+    handle_detect|
+    如果leaer_client为none\l
+    先刷新leader info\l
+  }}"]
+  refresh_leader_info[style_func;label="{{
+    refresh_leader_info|
+    1.去pdclient获取LEADER_KEY\l 
+    所在region的leader storeId\l
+    2.解析storeId对应的 addr\l
+  }}"]
+  pd_client_get_region_info[style_func;label="{{
+    2. pd_client::get_region_info|
+    去PD获取LEADER_KEY\l 
+    所在的region信息\l
+  }}"]
+  LEADER_KEY[style_func;label="{{
+    1. LEADER_KEY|
+    为空串b\"\"\l
+    第一个region就是leader region\l
+  }}"]
+  leader_get_store_id[style_func;label="{{
+    3.leader.get_store_id|
+    获取leader的store_id
+  }}"]
+  resolve_store_address[style_func;label="{{
+    4.resolve_store_address|
+    解析出leader store address\l
+  }}"]
+  update_leader_info[style_func;label="{{
+    update_leader_info|
+    更新leader信息
+  }}"]
+  get_leader_info -> update_leader_info[style_edge_data];
+  reconnect_leader[style_func;label="{{
+    reconnect_leader|
+    创建leader的detect接口的\l
+    grpc stream\l
+  }}"]
+  update_leader_info-> reconnect_leader[style_edge_data];
+
+  handle_detect -> {
+     refresh_leader_info;
+     reconnect_leader;
+  }
+  refresh_leader_info -> {
+     get_leader_info;
+     update_leader_info;
+     reset;
+  }
+
+  get_leader_info ->  {
+     pd_client_get_region_info;
+     LEADER_KEY;
+     leader_get_store_id;
+     resolve_store_address;
+  }
+  resolve_store_address -> {
+     wait_op_;
+     resolver_resolve;
+  }
+  
+}

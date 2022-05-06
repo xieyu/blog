@@ -1,0 +1,57 @@
+#include "styles.h"
+digraph tally_votes {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ProgressTracker__tally_votes;
+  ProgressTracker__tally_votes -> {
+    ProgressTracker__vote_result;
+    ProgressTracker__votes;
+  }
+  ProgressTracker__vote_result -> {
+    JointConfig__vote_result;
+  }
+  JointConfig__vote_result -> {
+    MajorityConfig__vote_result;
+  }
+  MajorityConfig__vote_result -> ProgressTracker__votes;
+  ProgressTracker__votes[style_var;label="{{
+    ProgressTracker__votes|
+    votes: HashMap\<u64, bool\>,\l
+  }}"]
+
+  ProgressTracker__record_vote[style_func;label="{{
+    ProgressTracker__record_vote|
+    记录vote id的投票结果\l
+  }}"]
+
+  ProgressTracker__record_vote -> ProgressTracker__votes;
+  RaftCore__poll -> ProgressTracker__record_vote;
+  RaftCore__poll -> RaftCore__campain;
+  RaftCore__poll -> ProgressTracker__tally_votes;
+  RaftCore__step_candidate -> RaftCore__poll;
+  RaftCore__step_candidate[style_func;label="{{
+    RaftCore__step_candidate|
+    处理其他peer发来的\l
+    MsgRequestPreVoteResponse\l
+    MsgRequestVoteResponse\l
+  }}"]
+  RaftCore__hup -> RaftCore__campain;
+  RaftCore__step_follower -> RaftCore__hup;
+  RaftCore__step -> RaftCore__hup;
+
+  RaftCore__step -> {
+      RaftCore__step_candidate;
+      RaftCore__step_follower;
+  }
+
+  RaftCore__campain -> RaftCore__poll;
+  RaftCore__campain[style_func;label="{{
+    RaftCore__campain|
+    开始election\l
+    给自己投上一票\l
+  }}"]
+
+}

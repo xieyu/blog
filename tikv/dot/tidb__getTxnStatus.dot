@@ -1,0 +1,122 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  LockResolver__getTxnStatusFromLock -> TxnStatus -> TxnStatus__ttl[style_edge_data];
+  //TxnStatus__ttl -> {
+  //  LockResolver__resolveLock;
+  //  LockResolver__resolveLockAsync;
+  //  LockResolver__resolvePessimisticLock;
+  //}[style_edge_data];
+
+
+  LockResolver__getTxnStatusFromLock -> {
+    LockResolver__getTxnStatus;
+    //KvStore__GetOracle__UntilExpired;
+  }
+
+  //LockResolver__getTxnStatus -> {
+  //   CheckTxnStatusRequest;
+  //   KvStore__GetRegionCache__LocateKey;
+  //   KvStore__SendReq;
+  //   LockResolver__saveResolved;
+  //   LockResolver__getResolved;
+  //   TxnStatus;
+  //}
+  //CheckTxnStatusRequest -> KvStore__GetRegionCache__LocateKey -> KvStore__SendReq -> TxnStatus[style_edge_data];
+  TxnStatus -> LockResolver__saveResolved[style_edge_data];
+  LockResolver__getTxnStatus -> {
+    LockResolver__getResolved;
+    LockResolver__getResolved;
+    TxnStatus;
+  }
+
+
+  LockResolver__saveResolved -> {
+    //LockResolver__mu__recentResolved;
+    LockResolver__mu__resolved;
+  }
+  LockResolver__getResolved -> {
+    LockResolver__mu__resolved;
+  }
+  TxnStatus -> {
+    Action;
+    LockInfo;
+  }
+
+  LockResolver__getTxnStatusFromLock[style_func;label="{{
+   LockResolver\l
+   getTxnStatusFromLock\l|
+   根据lock获取txn 状态\l
+  }}"]
+
+  LockResolver__getTxnStatus[style_blue1;label="{{
+    LockResolver\l
+    getTxnStatus\l|
+    发送CheckTxnStatus请求到\l
+    lock.primary key所在的\l
+    region TiKV 服务\l
+    获取txn状态\l
+  }}"]
+
+/*
+  LockResolver__resolveLockAsync[style_green1;label="{{
+    LockResolver\l
+    resolveLockAsync\l|
+    resolve async \l
+    commit的lock\l
+  }}"]
+  LockResolver__resolvePessimisticLock[style_green1;label="{{
+     LockResolver\l
+     resolvePessimisticLock\l|
+     resolve悲观事务Lock\l
+  }}"]
+
+  LockResolver__resolveLock[style_green1;label="{{
+    LockResolver\l
+      resolveLock\l
+  }}"]
+  */
+
+  LockResolver__mu__resolved[style_blue1;label="{{
+    LockResolver\l
+    mu.resolved\l
+    map[uint64]TxnStatus\l|
+    记录已经resolved\l
+    的txn\l
+  }}"]
+  LockResolver__getResolved[style_func;label="{{
+    LockResolver\l
+    getResolved\l|
+    向TiKV发起请求之前\l
+    先看是否已经resolve了\l
+  }}"]
+
+  LockResolver__saveResolved[style_func;label="{{
+    LockResolver\l
+    saveResolved\l|
+    保存已经resolved的txn\l
+  }}"]
+  Action[style_func;label="{{
+    Action\l|
+    TikV在执行CheckTxnStatus\l
+    时所执行的action\l
+  }}"]
+
+
+  TxnStatus__ttl[style_func;label="{{
+    TxnStatus::ttl\l|
+    事务ttl为0\l
+    txn过期了\l
+    可以清理掉\l
+  }}"]
+  TxnStatus[style_green1;label="{{
+  TxnStatus|
+	ttl         uint64\l|
+	commitTS    uint64\l|
+	action      kvrpcpb.Action\l|
+	primaryLock *kvrpcpb.LockInfo\l
+  }}"]
+}

@@ -1,0 +1,73 @@
+#include "styles.h"
+digraph process_read {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_Cursor {
+    graph[label="Cursor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    seek_to_first;
+  }
+  subgraph cluster_WriteRef {
+    graph[label="WriteRef";fontsize=20;style="rounded,dashed";color="slategrey"]
+    parse;
+      
+  }
+  subgraph cluster_MvccReader {
+    graph[label="MvccReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    seek_ts[style_func;label="{{
+      seek_ts|
+      return the first committed key\l
+      for which `start_ts` equals to `ts`\l
+    }}"]
+    seek_ts -> {
+      seek_to_first;
+      parse;
+    }
+    load_lock -> {
+      create_lock_cursor;
+      lock_cursor_get;
+      snapshot_get_cf_CF_LOCK
+      Lock_parse;
+    }
+    scan_values_in_default[style_func;label="{{
+      scan_values_in_default|
+      从CF_DEFAULT中读取key的value\l
+    }}"]
+
+    scan_values_in_default -> {
+      create_data_cursor;
+    }
+    seek_write -> {
+      create_write_cursor;
+      write_cursor_near_seek;
+    }
+
+    scan_locks -> {
+      create_lock_cursor;
+      lock_cursor_seek;
+      Lock_parse
+      lock_cursor_next;
+    }
+  }
+  cmd_process_read -> {
+    MvccByStartTs_process_read;
+    ResolveLockReadPhase_process_read;
+    MvccByKey_process_read;
+  }
+  MvccByStartTs_process_read -> {
+    find_mvcc_infos_by_key
+    seek_ts
+  }
+  find_mvcc_infos_by_key -> {
+    seek_write;
+    scan_values_in_default;
+    load_lock
+  }
+  MvccByKey_process_read -> {
+    find_mvcc_infos_by_key;
+  }
+  ResolveLockReadPhase_process_read -> {
+    scan_locks;
+  }
+}

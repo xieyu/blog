@@ -1,0 +1,44 @@
+#include "styles.h"
+digraph process_write2 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Commit__process_write[style_func;label="{{
+    Commit\l
+    process_write\l|
+    处理TiDB commit请求\l
+  }}"]
+
+  commit[style_func;label="{{
+    commit\l|
+    提交单个key
+  }}"]
+  Commit__process_write -> {
+     ReleasedLocks__new;
+     Commit__keys;
+     commit;
+     ReleasedLocks__wakeup;
+  }
+  Commit__keys -> commit;
+  Commit__keys[style_var;label="{{
+    Commit::keys|
+    遍历keys\l
+    对于每个key\l
+    调用commit\l
+  }}"]
+  ReleasedLocks__new -> ReleasedLocks;
+  ReleasedLocks -> ReleasedLocks__wakeup[style_edge_data];
+  ReleasedLocks__wakeup[style_blue1;label="{{
+    ReleasedLocks::wakeup|
+    唤醒等待的事务\l
+  }}"]
+  ReleasedLock[style_func;label="{{
+    ReleasedLock\l|
+    pub hash: u64,\l|
+    pub pessimistic: bool,\l
+  }}"]
+
+  commit ->ReleasedLock -> ReleasedLocks__push[style_edge_data]
+  ReleasedLocks__push -> ReleasedLocks[style_edge_data]
+}

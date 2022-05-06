@@ -1,0 +1,77 @@
+#include "styles.h"
+digraph create_system {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  tx[style_var;label="{{
+    tx|
+    channel发送数据端
+  }}"]
+  rx[style_var;label="{{
+    rx|
+    channel接收数据端
+  }}"]
+  channel_unbounded[style_func;label="{{
+    channel::unbounded|
+    创建一个没限制的channel\l
+  }}"]
+  Router[style_struct;label="{{
+    Router|
+    <normals> normals: Arc\<Mutex\<HashMap\<u64, BasicMailbox\<N\>\>\>\>,\l|
+    caches: Cell\<LruCache\<u64, BasicMailbox\<N\>\>\>,\l|
+    <control_box> pub(super) control_box: BasicMailbox\<C\>,\l|
+    <normal_scheduler> pub(crate) normal_scheduler: Ns,\l|
+    <control_scheduler> control_scheduler: Cs,\l|
+    shutdown: Arc\<AtomicBool\>,\l
+  }}"]
+  BatchSystem[style_struct;label="{{
+    BatchSystem|
+    ...|
+    <router> router: BatchRouter\<N, C\>\l|
+    <reciver> receiver: channel::Receiver\l 
+    \<FsmTypes\<N, C\>\>,\l|
+    ..
+  }}"]
+  sender[style_var;label="{{
+    sender|
+    sender: mpsc::LooseBoundedSender\l 
+    \<C::Message\>
+  }}"]
+  controller[style_var;label="{{
+    Controller|
+    Fsm
+  }}"]
+  {
+    sender;
+    controller;
+  }-> create_system[style_edge_data];
+  {
+    sender;
+    controller; 
+   } -> BasicMailbox_new[style_edge_data];
+   BasicMailbox_new -> control_box;
+   control_box[style_func;label="{{
+     control_box|
+     可以使用sender向\l 
+     controller发消息\l
+   }}"]
+
+  create_system -> {
+    BasicMailbox_new;
+    channel_unbounded;
+  }
+  channel_unbounded -> {
+    tx;
+    rx;
+  }
+  tx -> {
+    NormalScheduler;
+    ControlScheduler;
+  }
+  control_box -> Router:control_box;
+  NormalScheduler -> Router:normal_scheduler;
+  ControlScheduler -> Router:control_scheduler;
+  BatchSystem:router -> Router;
+  rx -> BatchSystem:reciver;
+}

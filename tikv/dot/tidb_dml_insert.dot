@@ -1,0 +1,66 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  InsertExec__exec -> {
+    InsertValues__addRecord;
+    InsertValues__addRecordWithAutoIDHint;
+    InsertExec__batchUpdateDupRows;
+  }
+
+  InsertValues__addRecord -> InsertValues__addRecordWithAutoIDHint;
+  InsertValues__addRecordWithAutoIDHint -> {
+    Table__AddRecord;
+  }
+  InsertExec__batchUpdateDupRows -> InsertExec__updateDupRow;
+  InsertExec__updateDupRow -> InsertExec__doDupRowUpdate;
+  InsertExec__doDupRowUpdate -> {
+    write__updateRecord;
+  }
+
+  UpdateExec__exec -> write__updateRecord;
+
+  write__updateRecord -> {
+    Table__UpdateRecord;
+  }
+  DeleteExec__Next -> {
+    DeleteExec__deleteMultiTablesByChunk;
+    DeleteExec__deleteSingleTableByChunk;
+  }
+  DeleteExec__deleteSingleTableByChunk -> {
+    DeleteExec__deleteOneRow;
+  }
+
+  DeleteExec__deleteMultiTablesByChunk -> {
+    DeleteExec__removeRowsInTblRowMap;
+  }
+
+  DeleteExec__deleteOneRow -> {
+    DeleteExec__removeRow;
+  }
+
+  DeleteExec__removeRowsInTblRowMap -> {
+    DeleteExec__removeRow;
+  }
+
+  DeleteExec__removeRow -> {
+    Table__RemoveRecord;
+  }
+
+  {
+    rank=same;
+    Table__UpdateRecord;
+    Table__AddRecord;
+    Table__RemoveRecord;
+  }
+
+  {
+    rank=same;
+    UpdateExec__exec;
+    InsertExec__exec;
+    DeleteExec__Next;
+  }
+}

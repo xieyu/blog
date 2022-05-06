@@ -1,0 +1,72 @@
+#include "styles.h"
+digraph catchup_logs {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate__on_catch_up_logs_for_merge;
+  PeerFsmDelegate__on_catch_up_logs_for_merge[style_func;label="{{
+    PeerFsmDelegate\l
+    on_catch_up_logs_for_merge\l|
+    处理target region\l
+    发来的CatchUpLogs\l
+  }}"]
+
+  PeerFsmDelegate__on_catch_up_logs_for_merge -> {
+    Peer__pending_merge_state;
+    ApplyRouter__schedule_task__ApplyTask__LogsUpToData;
+    Peer__maybe_append_merge_entries;
+    Peer__catch_up_logs;
+  }
+  Peer__catch_up_logs[style_blue1;label="{{
+    Peer\l
+    catch_up_logs\l|
+    pub target_region_id: u64,\l|
+    pub merge: CommitMergeRequest,\l|
+    pub logs_up_to_date: Arc\<AtomicU64\>,\l
+  }}"]
+  Peer__maybe_append_merge_entries[style_func;label="{{
+    Peer\l
+    maybe_append_merge_entries\l|
+    Directly append thes logs \l
+    to raft log and then commit\l
+    them\l
+  }}"]
+  Peer__maybe_append_merge_entries -> {
+    RaftLog__maybe_append;
+  }
+
+  ApplyRouter__schedule_task__ApplyTask__LogsUpToData -> ApplyFsm__logs_up_to_date_for_merge[style_edge_data];
+  ApplyFsm__logs_up_to_date_for_merge -> {
+    ApplyFsm__destroy;
+    CatchUpLogs__logs_up_to_date__store;
+    ApplyRouter__target_region_id__force_send__Msg__Noop;
+  }
+  CatchUpLogs__logs_up_to_date__store[style_var;label="{{
+    CatchUpLogs\l
+    logs_up_to_date\l
+    store\l|
+    存上自己的region_id\l
+  }}"]
+  Peer__pending_merge_state -> MergeState;
+
+  PeerFsmDelegate__on_ready_prepare_merge -> {
+    Peer__pending_merge_state;
+    ApplyRouter__schedule_task__ApplyTask__LogsUpToData;
+  }
+  CatchUpLogs[style_func;label="{{
+    CatchUpLogs|
+    pub target_region_id: u64,\l|
+    pub merge: CommitMergeRequest,\l|
+    pub logs_up_to_date: Arc\<AtomicU64\>,\l
+  }}"]
+  CatchUpLogs -> CommitMergeRequest;
+  CommitMergeRequest[style_func;label="{{
+    CommitMergeRequest|
+    source: Region\l|
+    commit: u64\l
+    entries\l
+  }}"]
+}
+

@@ -1,0 +1,84 @@
+#include "styles.h"
+digraph raft_storage {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RawNode_tick[style_func;label="{{
+    RawNode_tick|
+    Tick advance the internal logical\l
+    clock by a single tick\l
+  }}"]
+  RaftCore_tick[style_func;label="{{
+    RaftCore_tick|
+    如果是leader就调用
+    tick_heartbeat\l|
+    如果是Follower,PreCandidate,\l
+    Candidate,就调用\l
+    tick_election\l
+  }}"]
+  RaftCore_tick_election[style_func;label="{{
+    RaftCore_tick_election|
+    Follower, PreCandidate\l
+    Candidate 角色\l|
+    Run by follwers and cndidates\l
+    after self.election_timeout\l
+  }}"]
+  RawNode_propose[style_func;label="{{
+    RawNode_propose|
+    应用propose data to the raft log\l
+  }}"]
+  RawNode_step[style_func;label="{{
+    RawNode_step|
+    处理其他peer发来的消息\l
+  }}"]
+
+  RawNode_step -> RaftCore_step;
+
+  RawNode_tick -> RaftCore_tick;
+  RaftCore_tick -> {
+    RaftCore_tick_election;
+    RaftCore_tick_heartbeat;
+  }
+  RaftCore_tick_heartbeat[style_func;label="{{
+    RaftCore_tick_heartbeat|
+    State::Role leader\l
+    发送heartbeat\l
+    给follower和candidate\l
+  }}"]
+  RaftCore_tick_election -> RaftCore_step;
+  RaftCore_tick_heartbeat -> RaftCore_step;
+  RaftCore_step[style_blue1;label="{{
+    RaftCore_step|
+    Steps the raft along\l
+    via a message\l
+  }}"]
+  RawNode_propose_conf_change[style_func;label="{{
+    RawNode_propose_conf_change|
+    conf change\l
+    创建MessagePropose\l
+    log entry类型为\l
+    EntryConfChange\l
+    EntryConfChangeV2\l
+  }}"]
+
+  RawNode_propose -> RaftCore_step;
+  RawNode_propose_conf_change -> RaftCore_step;
+
+  RawNode_read_index[style_func;label="{{
+    RawNode_read_index|
+    request a read state\l
+    The read state will be set in ready\l
+    MessageType::MsgReadIndex\l
+  }}"]
+  RawNode_read_index -> RaftCore_step;
+
+  {
+    rank=same;
+    RawNode_tick;
+    RawNode_propose;
+    RawNode_step;
+  }
+
+}

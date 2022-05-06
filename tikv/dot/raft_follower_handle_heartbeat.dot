@@ -1,0 +1,89 @@
+#include "styles.h"
+digraph handle_heartbeat{
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftCore__step[style_func;label="{{
+    RaftCore__step|
+    如果收到了term比自己高的msg\l
+    就成为它的follower\l
+  }}"]
+
+  RaftCore__step -> {
+    RaftCore__step_candidate;
+    RaftCore__step_follower;
+    RaftCore__become_follower;
+  }
+
+  RaftCore__step_candidate -> {
+     RaftCore__handle_heartbeat;
+     RaftCore__become_follower;
+  }
+
+  RaftCore__step_follower -> {
+    RaftCore__handle_heartbeat;
+    RaftCore__election_elapsed;
+  }
+
+  RaftCore__election_elapsed[style_var;label="{{
+    RaftCore__election_elapsed|
+    将election_elapse重置为0\l
+  }}"]
+
+  RaftCore__handle_heartbeat -> {
+    RaftLog__commit_to;
+    RaftCore__send_request_snapshot;
+    RaftCore__pending_request_snapshot;
+    RaftCore__send;
+  }
+  RaftCore__send[style_func;label="{{
+    RaftCore__send|
+    发送MsgHeartbeatResponse\l
+    context = m.take_context\l
+    commit = self.raft_log.committed\l
+  }}"]
+
+  RaftCore__become_follower[style_func;label="{{
+    RaftCore__become_follower|
+    leader_id = m.from\l
+    self.term = m.term\l
+    重置自己的vote信息\l
+  }}"]
+  RaftCore__reset[style_func;label="{{
+    RaftCore__reset|
+    self.vote = INVALID_ID\l
+  }}"]
+  RaftCore__become_follower -> {
+     RaftCore__reset;
+  }
+  RaftCore__reset -> {
+     RaftCore__election_elapsed;
+     RaftCore__hearbeat_elapsed;
+     RaftCore__reset_randomized_election_timeout;
+  }
+  RaftCore__reset_randomized_election_timeout[style_func;label="{{
+    RaftCore__reset_randomized_election_timeout|
+    randomized_election_timeout为\l
+    min_election_timeout 和\l
+    max_election_timeout\l
+    之间的随机值\l
+  }}"]
+
+  RaftLog__commit_to -> RaftLog__comitted;
+  RaftLog__comitted[style_var;label="{{
+    RaftLog__comitted|
+    设置comitted index\l
+  }}"]
+
+  RaftCore__send_request_snapshot[style_func;label="{{
+    RaftCore__send_request_snapshot|
+    发送MsgAppendResponse 消息\l
+    m.reject = true\l
+    m.reject_hint = self.raft_log.last_index\l
+    m.reuest_snapshot = self.pending_request_snapshot\l
+  }}"]
+
+  RawNode__request_snapshot -> RaftCore__pending_request_snapshot;
+}

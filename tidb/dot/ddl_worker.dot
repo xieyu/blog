@@ -1,0 +1,236 @@
+digraph ddl_worker {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  start -> {
+    handleDDLJobQueue;
+    chooseLeaseTime;
+  }
+  handleDDLJobQueue[
+    shape="record";
+    label="{{
+      handleDDLJobQueue|
+      处理JobQueue中的DDLjob
+    }}";
+  ];
+
+  handleDDLJobQueue -> {
+    runDDLJob;
+    RunInNewTxn;
+    finishDDLJob;
+    OnJobRunBefore;
+    waitSchemaSynced;
+    updateDDLJob;
+    writeBinlog;
+    waitDependencyJobFinished;
+    waitSchemaChanged;
+    OnJobUpdated;
+    asyncNotify;
+  }
+  finishDDLJob[
+    shape="record";
+    label="{{
+      finishDDLJob|
+      deletes the finished DDL job\l
+      in the ddl queue and puts it\l
+      to history queue\l
+    }}";
+  ];
+  finishDDLJob -> {
+    AddHistoryDDLJob;
+    DeQueueDDLJob;
+    deleteRange;
+    finishRecoverTable;
+  }
+  deleteRange -> {
+    addDelRangeJob;
+  }
+
+
+  runDDLJob[
+    shape="record";
+    label="{{
+      runDDLJob|
+      根据job type执行相应的 action\l
+    }}";
+  ];
+
+  runDDLJob -> {
+    onCreateSchema;
+    onCreateTable;
+    onCreateIndex;
+    onDropTableOrView;
+    onDropIndex;
+  }[color="#3f72af"]
+
+  onCreateSchema -> {
+    CreateDatabase;
+    updateSchemaVersion;
+    FinishDBJob;
+  }[color="#17b978"];
+
+  subgraph cluster_TxStructure {
+    graph[label="TxStructure";fontsize=20;];
+    HSet;
+    HDel;
+    Set;
+  }
+  subgraph cluster_Meta {
+    graph[label="Meta";fontsize=20;];
+    AddHistoryDDLJob;
+    DeQueueDDLJob;
+    GenSchemaVersion;
+    SetSchemaDiff -> {
+      Set;
+      schemaDiffKey;
+    };
+
+    CreateDatabase -> {
+      dbKey;
+      checkDBNotExists;
+      HSet;
+    }
+
+    CreateTableOrView -> {
+      dbKey;
+      tableKey;
+      HSet;
+    }
+    DropTableOrView -> {
+      HDel;
+      tableKey;
+      dbKey;
+    }
+    UpdateTable -> {
+      tableKey;
+      dbKey;
+      HSet;
+    };
+  }
+
+  FinishDBJob -> {
+    job_state;
+    job_SchemaState;
+    BinlogInfo_AddTableInfo;
+  }
+  FinishTableJob -> {
+    job_state;
+    job_SchemaState;
+    BinlogInfo_AddTableInfo;
+  }
+
+  onCreateIndex -> {
+    updateVersionAndTableInfoWithCheck;
+    runReorgJob;
+    FinishTableJob;
+    updateHiddenColumns;
+    FindIndexByName;
+    buildIndexInfo;
+    getReorgInfo;
+  }[color="#3fc1c9"];
+
+  onCreateTable -> {
+    createTableOrViewWithCheck;
+    FinishTableJob;
+    updateSchemaVersion;
+    checkTableNotExists;
+    asyncNotifyEvent;
+  }[color="#f08a5d"]
+
+  createTableOrViewWithCheck -> {
+    CreateTableOrView;
+    checkTableInfoValid;
+  }
+
+  onDropTableOrView -> {
+    updateVersionAndTableInfo;
+    DropTableOrView;
+    DropSequence;
+    FinishTableJob;
+    checkTableExistAndCancelNonExistJob;
+  }[color="#b83b5e"];
+
+  onDropIndex -> {
+    checkDropIndex;
+    adjustColumnInfoInDropColumn;
+    updateVersionAndTableInfo;
+    updateHiddenColumns;
+    dropIndexColumnFlag;
+    updateVersionAndTableInfoWithCheck;
+    FinishTableJob;
+  }
+  updateVersionAndTableInfoWithCheck -> updateVersionAndTableInfo;
+  updateVersionAndTableInfo -> {
+    UpdateTable;
+  }
+  updateHiddenColumns -> {
+    TableInfo;
+  }
+
+  updateSchemaVersion -> {
+    GenSchemaVersion;
+    SetSchemaDiff;
+  }
+
+  indexInfo[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      indexInfo
+    }}";
+  ];
+  TableInfo[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      TableInfo|
+	      ID      int64 \l|
+	      Name    CIStr \l|
+	      Charset string\l|
+	      Collate string\l|
+	      Columns     []*ColumnInfo\l|
+	      Indices     []*IndexInfo\l|
+	      Constraints []*ConstraintInfo\l
+    }}";
+  ];
+  reorgInfo[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      reorgInfo|
+        *model.Job\l|
+        StartHandle kv.Handle\l|
+	      EndHandle kv.Handle\l|
+	      d         *ddlCtx\l|
+	      first     bool\l|
+	      PhysicalTableID int64\l|
+	      elements        []*meta.Element\l|
+	      currElement     *meta.Element\l
+    }}";
+  ];
+  SchemaDiff[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      type SchemaDiff struct|
+	        Version  int64      \l|
+	        Type     ActionType \l|
+	        SchemaID int64      \l|
+	        TableID  int64      \l|
+          OldTableID int64 \l|
+          OldSchemaID int64 \l|
+          AffectedOpts []*AffectedOption \l
+    }}";
+  ];
+
+  buildIndexInfo -> indexInfo -> TableInfo[style=dashed];
+  TableInfo -> updateVersionAndTableInfo[style=dashed];
+  getReorgInfo -> reorgInfo -> runReorgJob[style=dashed];
+
+  updateSchemaVersion -> SchemaDiff -> SetSchemaDiff;
+}

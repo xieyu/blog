@@ -1,0 +1,114 @@
+#include "styles.h"
+digraph prepare_bootstrap_cluster {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  prepare_bootstrap_cluster -> {
+     write_initial_apply_state;
+     write_initial_raft_state;
+     engines_sync_kv;
+     engines_raft_comsume;
+  }
+  write_initial_raft_state -> {
+    RaftLocalState;
+    raft_wb;
+    put_raft_state_region_id;
+  }
+  write_initial_apply_state -> {
+    RaftApplyState;
+    kv_wb;
+    apply_state_key_region_id;
+    put_msg_cf;
+  }
+  RaftLocalState -> raft_wb[style_edge_data];
+  put_raft_state_region_id -> raft_state_key_region_id -> raft_wb[style_edge_data];
+  RaftApplyState  -> kv_wb[style_edge_data];
+  put_msg_cf -> apply_state_key_region_id  -> kv_wb[style_edge_data];
+  put_msg_cf[style_func;label="{{
+    put_msg_cf\l|
+    CF_RAFT\l
+  }}"]
+  kv_wb -> engines_sync_kv[style_edge_data];
+  raft_wb -> engines_raft_comsume[style_edge_data];
+
+  RaftApplyState[style_blue1;label="{{
+    RaftApplyState|
+    pub applied_index: u64,\l|
+    pub commit_index: u64,\l|
+    pub commit_term: u64,\l|
+    pub truncated_state: RaftTruncatedState\l
+  }}"]
+  RaftApplyState -> RaftTruncatedState;
+  RaftTruncatedState[style_func;label="{{
+    RaftTruncatedState|
+    <index> uint64 index = 1;\l|
+    <term> uint64 term = 2;\l
+  }}"]
+  RaftTruncatedState:index -> RAFT_INIT_LOG_INDEX;
+  RaftTruncatedState:term -> RAFT_INIT_LOG_TERM;
+  RAFT_INIT_LOG_INDEX[style_func;label="{{
+    RAFT_INIT_LOG_INDEX|
+    5\l
+  }}"]
+  RAFT_INIT_LOG_TERM[style_func;label="{{
+    RAFT_INIT_LOG_TERM|
+    5\l
+  }}"]
+
+  RaftLocalState[style_blue1;label="{{
+    RaftLocalState|
+    eraftpb.HardState hard_state = 1;|
+    uint64 last_index = 2;\l
+  }}"]
+  RaftLocalState -> HardState;
+  HardState[style_func;label="{{
+    HardState|
+    <term> uint64 term = 1;\l|
+    uint64 vote = 2;\l|
+    <commit> uint64 commit = 3;\l
+  }}"]
+  HardState:term -> RAFT_INIT_LOG_TERM;
+  HardState:commit -> RAFT_INIT_LOG_INDEX;
+
+  apply_state_key_region_id[style_func;label="{{
+    apply_state_key(region_id)\l|
+    REGION_RAFT_PREFIX_KEY: 0x01x02\l|
+    region_id\l|
+    APPLY_STATE_SUFFIX: 0x03\l
+  }}"]
+  raft_state_key_region_id[style_func;label="{{
+    raft_state_key(region_id)|
+    REGION_RAFT_PREFIX_KEY: 0x010x02\l|
+    region_id\l|
+    RAFT_STATE_SUFFIX: 0x02\l
+  }}"]
+
+  engines_sync_kv[style_func;label="{{
+    engines.sync_kv|
+    写入kv engine\l
+  }}"]
+  engines_raft_comsume[style_func;label="{{
+    engines.raft.comsume|
+      写入raft engine\l
+  }}"]
+  kv_wb[style_func;label="{{
+    kv_wb|
+    先数据写入kv\l
+    write batch\l
+  }}"]
+  raft_wb[style_func;label="{{
+    raft_wb|
+    将数据写入raft_wb\l
+  }}"]
+
+  write_initial_raft_state[style_func;label="{{
+    write_initial_raft_state|
+    写入初始的raft_state\l
+  }}"]
+  write_initial_apply_state[style_func;label="{{
+    write_initial_apply_state|
+      写入初始的apply_state\l
+  }}"]
+
+}

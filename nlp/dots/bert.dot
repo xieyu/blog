@@ -1,0 +1,145 @@
+#include "styles.h"
+digraph bert {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+  label=<<B>bert</B>>
+
+  modeling_bert -> {
+    BERT_PRETRAINED_MODEL_ARCHIVE_LIST;
+    BertForMaskedLM;
+    BertForMultipleChoice;
+    BertForNextSentencePrediction;
+    BertForPreTraining;
+    BertForQuestionAnswering;
+    BertForSequenceClassification;
+    BertForTokenClassification;
+    BertLayer;
+    BertLMHeadModel;
+    BertModel;
+    BertPreTrainedModel;
+    load_tf_weights_in_bert;
+  }
+
+  PreTrainedModel[style_func;label="{{
+    PreTrainedModel\l|
+    所有models的基类\l|
+    config\l
+    name_or_path\l
+  }}"];
+
+  PreTrainedModel -> {
+    BertPreTrainedModel;
+  }[color=red];
+
+  {
+    nn_Module;
+    ModuleUtilsMixin;
+    GenerationMixin;
+    PushToHubMixin;
+  } -> PreTrainedModel;
+  PreTrainedModel -> PretrainedConfig;
+
+  PreTrainedModel -> {
+    PreTrainedModel__from_pretrained;
+    PreTrainedModel__save_pretrained;
+  }
+
+  PreTrainedModel__from_pretrained[style_func;label="{{
+    PreTrainedModel\l
+    from_pretrained\l|
+    加载与训练好的模型\l
+  }}"];
+  PreTrainedModel__save_pretrained[style_func;label="{{
+    PreTrainedModel\l
+    save_pretrained\l|
+    Save a model and it's configuration\l
+    file to a directory\l
+    so that it can be re-loaded\l
+  }}"];
+
+  PreTrainedModel__from_pretrained -> {
+    pretrained_model_name_or_path;
+    PreTrainedModel__load_state_dict_into_model_low_mem;
+    PreTrainedModel___load_state_dict_into_model;
+    PreTrainedModel__load_tf_weights;
+    load_flax_checkpoint_in_pytorch_model;
+    load_tf2_checkpoint_in_pytorch_model;
+    model__tie_weights;
+    model__eval;
+  }
+
+  model_tie_weights[style_func;label="{{
+    model_tie_weights\l|
+    make sure token embedding\l
+    weights are still tied if\l
+    needed\l
+  }}"];
+  model__eval[style_func;label="{{
+    model__eval\l|
+    set model in evaluation model\l
+    to deactivate DropOut modules\l
+    by default\l
+  }}"];
+
+  PreTrainedModel__load_state_dict_into_model_low_mem[style_func;label="{{
+    PretrainedModel\l
+    load_state_dict_into_model_low_mem\l|
+    This is an experimental function\l
+    that loads the model using 1.x\l
+    model size CPU memory\l
+  }}"];
+  resolved_archive_file[style_func;label="{{
+    resolved_archive_file\l|
+    解析后的model文件\l
+  }}"];
+  resolved_archive_file -> torch__load[style_edge_data];
+  PreTrainedModel__load_state_dict_into_model_low_mem ->  {
+    find_submodule_and_param_name;
+    torch__load;
+  }
+  torch__load[style_func;label="{{
+    torch__load\l|
+    加载模型\l
+  }}"];
+  cached_path -> resolved_archive_file[style_edge_data];
+
+  PreTrainedModel___load_state_dict_into_model -> {
+    module__load_from_state_dict;
+  }
+
+  pretrained_model_name_or_path -> {
+    os_path_is_dir;
+    os_path_is_file;
+    WEIGHTS_NAME;
+    CONFIG_NAME;
+  }
+  WEIGHTS_NAME[style_func;label="{{
+    WEIGHTS_NAME\l|
+    pytorch_model.bin\l
+  }}"];
+  CONFIG_NAME[style_func;label="{{
+    CONFIG_NAME\l|
+    config.json
+  }}"];
+  PreTrainedModel__from_pretrained -> {
+    cached_path;
+  }
+  cached_path[style_func;label="{{
+    cached_path\l|
+    从url中下载模型\l
+    将模型保存在目录\l
+  }}"];
+  cached_path -> LocalPath;
+  LocalPath[style_func;label="{{
+    LocalPath\l|
+    返回last version of \l
+    file cached on disk\l
+  }}"];
+  cached_path -> {
+    get_from_cache;
+  }
+
+}

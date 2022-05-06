@@ -1,0 +1,80 @@
+#include "styles.h"
+digraph scheduler {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  scheduler -> {
+    push_component_create;
+    push_component_update;
+    push_component_destroy;
+    push_component_render;
+    start;
+  }
+
+  Scheduler[style_func;label="{{
+    Scheduler\l|
+    <main> main: Vec\<Box\<dyn Runnable\>\>,\l|
+    <destroy> destroy: Vec\<Box\<dyn Runnable\>\>,\l|
+    <create> create: Vec\<Box\<dyn Runnable\>\>,\l|
+    <update> update: Vec\<Box\<dyn Runnable\>\>,\l|
+    <render_first> render_first: VecDeque\<Box\<dyn Runnable\>\>,\l|
+    <render> render: RenderScheduler,\l|
+    <rendered_first> rendered_first: Vec\<Box\<dyn Runnable\>\>,\l|
+    <rendered> rendered: RenderedScheduler,\l
+  }}"];
+  Scheduler -> RenderedScheduler;
+
+  RenderedScheduler[style_func;label="{{
+    RenderedScheduler\l|
+    tasks: HashMap\<usize, Box\<dyn Runnable\>\>,\l|
+    stack: Vec\<usize\>,\l
+  }}"];
+
+  start -> {
+    fill_queue;
+    Runnable__run;
+  }
+
+  fill_queue[style_func;label="{{
+    fill_queue\l|
+    根据执行优先级\l
+    将task放入队列中\l|
+    按照下面顺序来干\l
+    destroy,create,render_first\l
+    ,update,main,rendered\l
+  }}"];
+
+  push_component_create -> {
+    Scheduler:create;
+    Scheduler:render_first;
+  }
+  push_component_update -> Scheduler:update;
+  push_component_destroy -> Scheduler:destroy;
+
+  {
+    Scheduler:destroy 
+    Scheduler:create;
+    Scheduler:render_first;
+    Scheduler:update;
+    Scheduler:main;
+    Scheduler:rendered
+  } -> fill_queue;
+
+  push -> {
+    Scheduler:main;
+    start;
+  }
+
+  start[style_func;label="{{
+    start\l|
+    Execute any pending\l
+    Runnables\l
+  }}"];
+
+
+  fill_queue -> {
+  }
+}

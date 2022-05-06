@@ -1,0 +1,107 @@
+#include "styles.h"
+digraph next_batch {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  next_batch -> {
+    BatchExecutor_next_batch;
+    handle_src_result;
+  }
+  handle_src_result[style_func;label="{{
+    handle_src_result|
+    遍历conditions,调用\l 
+    每个conditions.eval\l
+  }}"]
+  update_logical_rows_by_vector_value -> {
+    logical_rows_retain;
+  }
+  logical_rows_retain[style_func;label="{{
+    logical_rows.retain|
+    只保留condition计算为true的rows
+  }}"]
+  eval -> {
+    update_logical_rows_by_scalar_value;
+    update_logical_rows_by_vector_value
+  } -> BatchExecuteResult2[style_edge_data];
+  BatchExecuteResult[style_var;label="{{
+    BatchExecuteResult|
+    Src BatchExecutor执行结果\l
+  }}"]
+
+  BatchExecuteResult2[style_var;label="{{
+    BatchExecuteResult|
+    Selection之后的结果
+  }}"]
+  handle_src_result -> {
+    eval;
+    update_logical_rows_by_scalar_value;
+    update_logical_rows_by_vector_value;
+    match_template_evaluable;
+  }
+  update_logical_rows_by_scalar_value[style_func;label="{{
+    update_logical_rows_by_scalar_value|
+    如果eval result为false\l
+    清空result\l
+  }}"]
+  BatchExecutor_next_batch -> BatchExecuteResult -> handle_src_result[style_edge_data];
+
+  subgraph cluster_RpnExpressionNode {
+    graph[label="RpnExpressionNode";fontsize=20;style="rounded,dashed";color="slategrey"]
+        Constant;
+        FnCall;
+        ColumnRef;
+        Constant -> stack_push_const;
+        ColumnRef -> stack_push_column_ref;
+        FnCall -> stack_slice;
+        FnCall -> stack_push_fn;
+        stack_push_const[style_func;label="{{
+          stack_push|
+          push一个RpnStackNode::Scalar\l 
+          到Stack上\l
+        }}"]
+        stack_push_column_ref[style_func;label="{{
+          stack_push|
+          push一个RpnStackNode::Vector\l
+          RpnStackNodeVectorValue::Ref\l
+          到stack上
+        }}"]
+        stack_slice[style_func;label="{{
+          stack_slice|
+          取stack上最后的n个value\l
+          作为args\l
+        }}"]
+        stack_push_fn[style_func;label="{{
+          stack_push|
+          将函数执行结果push\l 
+          到stack上\l
+        }}"]
+        {stack_push_column_ref;stack_push_const;stack_push_fn;stack_slice} -> stack;
+        stack[style_func;label="{{
+          stack|
+          Vector\<RpnStackNode\>
+        }}"]
+
+  }
+      
+
+  subgraph cluster_RpnExpression {
+    graph[label="RpnExpression";fontsize=20;style="rounded,dashed";color="slategrey"]
+    eval[style_func;label="{{
+      eval|
+      执行RpnExpression\l
+      获取执行结果\l
+    }}"]
+
+     eval -> {
+        ensure_columns_decoded;
+        eval_decoded;
+     }
+     eval_decoded -> {
+        Constant;
+        FnCall;
+        ColumnRef;
+     }
+  }
+}

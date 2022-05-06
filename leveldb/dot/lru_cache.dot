@@ -1,0 +1,57 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  LRUCache -> {
+    Mutext;
+    LRUHandle;
+    HandleTable;
+    GUARDED_BY;
+  }
+
+  HandleTable -> LRUHandle;
+  HandleTable:list -> LRUHandle__list;
+  LRUHandle__list:k -> LRUHandle;
+
+
+  LRUCache__Insert -> {
+    LRU_Append;
+    FinishErase;
+  }
+
+  LRUHandle__list[style_func;label="{{
+    LRUHandle List\l|
+    0\l|
+    1\l|
+    2\l|
+    ...\l|
+    <k> k\l|
+    ...\l
+  }}"]
+
+  LRUHandle[style_func;label="{{
+    LRUHandle\l|
+    void* value;\l|
+    void (*deleter)(const Slice&, void* value);\l|
+    LRUHandle* next_hash;\l|
+    LRUHandle* next;\l|
+    LRUHandle* prev;\l|
+    size_t charge;\l|
+    size_t key_length;\l|
+    bool in_cache;\l|
+    uint32_t refs;\l|
+    uint32_t hash;\l|
+    char key_data[1];\l
+  }}"]
+
+  HandleTable[style_func;label="{{
+    HandleTable\l|
+    uint32_t length_;\l|
+    uint32_t elems_;\l|
+    <list> LRUHandle** list_;\l
+  }}"]
+
+}

@@ -1,0 +1,155 @@
+digraph check_key_conflict {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_MemTable {
+    graph[label="MemTable";fontsize=20;];
+    GetEarliestSequenceNumber ->  earliest_seqno_
+    earliest_seqno_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        earliest_seqno_|
+          std::atomic\<SequenceNumber\>\l earliest_seqno_;
+      }}";
+    ];
+    MemTable_Get;
+  } // end of MemTable
+
+  tracked_keys_ -> CheckKeyForConflicts[style=dashed];
+  subgraph cluster_TransactionBaseImpl {
+    graph[label=" TransactionBaseImpl";fontsize=20;];
+    tracked_keys_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        tracked_keys_|
+          TransactionKeyMap tracked_keys_;\l
+      }}";
+    ];
+    tracked_keys_ -> TransactionKeyMap -> TransactionKeyMapInfo;
+    TransactionKeyMap[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        TransactionKeyMap|
+          using TransactionKeyMap =\l
+          std::unordered_map\<uint32_t,\l
+          std::unordered_map\<std::string\l, TransactionKeyMapInfo\>\>\l;
+      }}";
+    ];
+    TransactionKeyMapInfo[
+      shape="record";
+      label="{{
+        TransactionKeyMapInfo|
+          <seq> SequenceNumber seq;\l|
+          uint32_t num_writes;\l|
+          uint32_t num_reads;\l|
+          bool exclusive;\l
+      }}";
+    ];
+  } // end of  TransactionBaseImpl
+  subgraph cluster_Version {
+    graph[label="Version";fontsize=20;];
+    LastSequence;
+    Version_Get[
+      shape="record"
+      label="{{
+        Version_Get|
+        从当前version中查找key\l
+      }}"
+    ];
+  }
+  subgraph cluster_MemList {
+    graph[label="MemList";fontsize=20;];
+    MemTableList_Get;
+    MemTableList_GetFromHistory;
+  }
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    GetAndRefSuperVersion;
+    GetEarliestMemTableSequenceNumber;
+    ReturnAndCleanupSuperVersion;
+    SuperVersion[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        SuperVersion|
+          ColumnFamilyData* cfd;\l|
+          MemTable* mem;\l|
+          MemTableListVersion* imm;\l|
+          Version* current;\l|
+          MutableCFOptions mutable_cf_options;\l|
+          uint64_t version_number;\l|
+          WriteStallCondition write_stall_condition;\l|
+          InstrumentedMutex* db_mutex;\l
+      }}";
+    ];
+    GetAndRefSuperVersion -> SuperVersion;
+    GetEarliestMemTableSequenceNumber -> GetEarliestSequenceNumber;
+
+    GetLatestSequenceForKey[
+      shape="record"
+      label="{{
+        GetLatestSequenceForKey|
+        获取key的最新seq\l
+        分别从mem, imm, 和\l 
+        current levelfiles中查找\l
+      }}"
+    ];
+    GetLatestSequenceForKey -> {
+      LastSequence;
+      LookupKey;
+      MemTable_Get;
+      MemTableList_GetFromHistory
+      MemTableList_Get;
+      Version_Get;
+      GetEarliestSequenceNumber;
+    }
+    LookupKey[
+      shape="record"
+      label="{{
+        LookupKey|
+        将key转换为查找key
+      }}"
+    ];
+    LastSequence -> LookupKey[style=dashed];
+    LookupKey -> {
+      MemTable_Get;
+      MemTableList_GetFromHistory
+      MemTableList_Get;
+      Version_Get;
+    }[style=dashed];
+
+  }
+  subgraph cluster_TransactionUtil {
+    graph[label="TransactionUtil";fontsize=20;];
+    CheckKeyForConflicts -> {
+      GetAndRefSuperVersion;
+      GetEarliestMemTableSequenceNumber;
+      CheckKey;
+      ReturnAndCleanupSuperVersion;
+    };
+    TransactionKeyMapInfo:seq -> CheckKey[style=dashed];
+
+    CheckKey[
+      shape="record"
+      label="{{
+        CheckKey|
+        查询该key在db中的最新seq\l
+        如果key存在，比较seq\l
+        TODO：具体逻辑还没理清
+      }}"
+    ];
+    CheckKey -> {
+      GetLatestSequenceForKey;
+    }
+    SuperVersion ->CheckKey[style=dashed];
+  }
+}

@@ -1,0 +1,171 @@
+digraph kafkaServer {
+  node[shape=box];
+  newrank=true;
+  rankdir=TD;
+  subgraph cluster_channel {
+    graph[label="channel";fontsize=20;];
+    channel_write;
+  }
+
+  subgraph cluster_FileRecords {
+    graph[label="FileRecords";fontsize=20;];
+    FileRecords_append[label="append"];
+    FileRecords_slice[label="slice"];
+    FileRecords_append -> MemoryRecords_writeFullyTo -> channel_write;
+  }
+
+  subgraph cluster_TimeIndex {
+    graph[label="TimeIndex";fontsize=20;];
+    timeIndex_maybeAppend[label="maybeAppend"];
+    timeIndex_maybeAppend -> mmap;
+  }
+  subgraph cluster_OffsetIndex {
+    graph[label="OffsetIndex";fontsize=20;];
+    offsetIndex_append[label="Append"];
+    offsetIndex_append -> mmap;
+  }
+  subgraph cluster_Segment {
+    graph[label="LogSegment";fontsize=20;];
+    segment_append[shape="record";
+      label="{{
+        append
+      }}";
+    ];
+    segment_append -> {
+      FileRecords_append;
+      timeIndex_maybeAppend;
+      offsetIndex_append;
+    }
+    segment_read[label="read"];
+    segment_read -> {
+      FileRecords_slice;
+      translateOffset;
+    }
+  }
+
+  subgraph cluster_log {
+    graph[label="log";fontsize=20;];
+    appendAsLeader -> append -> segment_append; 
+    localLog_read[label="read"];
+    localLog_read -> segment_read;
+  }
+
+  subgraph cluster_logManager {
+    graph[label="logManager";fontsize=20;];
+    logCreationOrDeletionLock[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="logCreationOrDeletionLock"
+    ];
+    getOrCreateLog[shape="record";
+      label="{
+        getOrCreateLog|
+          创建存储该partition\l 
+          log segment的文件夹\l
+      }";
+    ];
+
+    getOrCreateLog -> {
+      logCreationOrDeletionLock;
+      preferredLogDirs;
+      logDirs;
+    };
+    finishedInitializingLog;
+  }
+
+  subgraph cluster_Partition {
+    graph[label="Partition";fontsize=20;];
+    appendRecordsToLeader -> appendAsLeader;
+    partition_readRecords[label="readRecords"];
+    partition_readRecords -> {
+      localLog_read;
+      localLogWithEpochOrException;
+    }
+    fetchOffsetSnapshot -> localLogWithEpochOrException -> getLocalLog -> checkCurrentLeaderEpoch;
+    getLocalLog -> log;
+    log[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{
+        log|
+        日志对象在parition加入\l 
+        allpartions的时候创建
+      }";
+    ];
+    //创建日志
+    createLogIfNotExists -> {
+      createLog;
+      log;
+    };
+    createLog -> {
+      getOrCreateLog;
+      finishedInitializingLog;
+    }
+  }
+
+  subgraph cluster_ReplicaManager {
+    graph[label="ReplicaManager";fontsize=20;];
+    appendToLocalLog[shape="record";
+      label="{
+        appendToLocalLog|
+          将日志写入该\l 
+          parition的leader中\l
+      }";
+    ];
+    fetchMessages -> readFromLog -> readFromLocalLog -> read -> partition_readRecords;
+    appendRecords -> appendToLocalLog -> {
+      appendRecordsToLeader;
+      getPartitionOrException;
+    };
+    read -> {
+      getPartitionOrException;
+      findPreferredReadReplica;
+      fetchOffsetSnapshot;
+    }
+    findPreferredReadReplica -> {
+      getPartitionOrException;
+      getPartitionReplicaEndpoints;
+      remoteReplicas;
+    };
+    getPartitionOrException[shape="record";
+      label="{
+        getPartitionOrException|
+          从allPartions中找到\l 
+          对应的partion对象\l
+      }";
+    ];
+    getPartitionOrException -> getPartitionOrError -> getPartition->allPartitions;
+    allPartitions[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{
+        allPartitions|
+          replicaManager本地缓存的所有parition集合\l 
+          由KafkaController来同步\l
+      }";
+    ];
+  }
+
+  subgraph cluster_KafkaApi {
+    graph[label="KafkaApi: kafkaServer对外接口";fontsize=20;];
+    handle[shape="record";
+      label="{
+        handle|
+          KafkaServer api处理入口\l
+      }";
+    ];
+    handle -> {
+      handleProduceRequest;
+      handleFetchRequest;
+    }
+
+    handleFetchRequest -> {
+      fetchMessages;
+    }
+    handleProduceRequest -> {
+      appendRecords;
+    }
+  }
+
+}

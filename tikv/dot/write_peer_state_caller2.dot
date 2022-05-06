@@ -1,0 +1,83 @@
+#include "styles.h"
+digraph write_peer_state_caller2 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  PeerStorage_apply_snapshot[style_func;label="{{
+    PeerStorage\l
+    apply_snapshot\l|
+    1.将destroy_regions的\l
+    PeerState设置为Tombstone\l|
+    2.将region设置为Applying状态\l|
+  }}"]
+  PeerStorage_handle_raft_ready[style_func;label="{{
+    PeerStorage\l
+    handle_raft_ready\l|
+    Save memory states to disk\l
+  }}"]
+  PeerFsmDelegate_collect_ready[style_func;label="{{
+    PeerFsmDelegate\l
+    collect_ready\l|
+  }}"]
+
+  PeerFsmDelegate_collect_ready ->Peer_handle_raft_ready_append;
+
+  Peer_handle_raft_ready_append -> {
+     PeerStorage_handle_raft_ready;
+     raft_group_ready;
+  }
+  Peer_handle_raft_ready_append[style_func;label="{{
+    Peer\l
+    handle_raft_ready_append\l|
+    1.调用raft_group.ready\l|
+    2.从store_meta中获取要destory的region\l|
+    region_id -\> wait_destroy_regions_map(\l
+    source_region_id -\> is_ready)\l
+  }}"]
+
+  PeerStorage_handle_raft_ready -> PeerStorage_apply_snapshot -> write_peer_state;
+
+  subgraph cluster_ApplyFsmDelegate {
+    graph[label="ApplyFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    apply_raft_cmd -> {
+      exec_raft_cmd;
+      update_region;
+    }
+    exec_raft_cmd -> update_region[style_edge_data];
+
+    update_region[style_blue1;label="{{
+    根据exec_raft_cmd执行结果\l
+    更新self.region\l
+    }}"]
+    write_peer_state[style_func;label="{{
+      write_peer_state|
+      将RegionLocalState写入\l
+      kv write batch\l
+      在后面的会一起flush到\l
+      底层的rocksdb\l
+    }}"]
+    exec_raft_cmd -> {
+       exec_admin_cmd;
+    }
+    exec_admin_cmd -> {
+      exec_change_peer_v2;
+      exec_split;
+      exec_change_peer;
+      exec_prepare_merge;
+      exec_rollback_merge;
+    }
+    exec_split -> exec_batch_split;
+
+  }
+
+  {
+      exec_change_peer_v2;
+      exec_batch_split;
+      exec_change_peer;
+      exec_prepare_merge;
+      exec_rollback_merge;
+  } -> write_peer_state;
+
+
+}

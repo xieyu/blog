@@ -1,0 +1,106 @@
+#include "styles.h"
+digraph handle_vote {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RaftCore__step[style_func;label="{{
+    RaftCore__step|
+    如果收到msg term比self.term大的MsgVote,\l
+    就成为follower\l
+    become_follower(m.term, INVALID_ID)\l
+    leader_id设置为INVALID_ID\l
+  }}"]
+
+  RaftCore__step -> {
+    m_term_lt_self_term;
+    RaftCore__vote;
+    RaftCore__leader_id;
+    RaftCore__priority;
+    RaftLog__is_up_to_date;
+    RaftCore__maybe_comit_by_vote;
+    RaftCore__become_follower;
+  }
+  RaftCore__become_follower -> {
+    RaftCore__reset;
+  }
+  m_term_lt_self_term[style_func;label="{{
+   PreVote Msg的term 比自己小\l|
+   发送MsgRequestPreVoteResponse\l
+   reject 掉并附上自己的term\l
+   reject :true\l|
+   term: self.term\l
+  }}"]
+  RaftLog__is_up_to_date -> {
+    RaftLog__last_term;
+    Raftlog__last_index;
+  }
+  RaftCore__maybe_comit_by_vote[style_func;label="{{
+    RaftCore__maybe_comit_by_vote|
+    利用vote msg中的\l
+    commit term\l
+    和commit index\l
+    尝试更新自己的commit index\l
+  }}"]
+  RaftCore__maybe_comit_by_vote -> {
+    RaftLog__maybe_commit;
+    RaftCore__become_follower;
+  }
+  RaftLog__maybe_commit -> {
+    RaftLog__commit_to;
+  }
+  RaftCore__priority[style_var;label="{{
+    RaftCore__priority|
+    如果candidate的log和自己的一样新\l
+    就考虑priority 优先级\l
+    如果candidate优先级低于自己\l
+    就reject\l
+  }}"]
+
+  {
+    RaftCore__priority;
+    RaftLog__is_up_to_date;
+    RaftCore__vote;
+    RaftCore__leader_id
+  } -> can_vote;
+  can_vote[style_struct;label="{{
+    can_vote|
+    判断是否可以给\l
+    candidate投票\l
+  }}"]
+  RaftLog__last_term[style_var;label="{{
+    RaftLog__last_term
+  }}"]
+  Raftlog__last_index[style_var;label="{{
+    Raftlog__last_index
+  }}"]
+  RaftCore__vote[style_var;label="{{
+    RaftCore__vote|
+    记录给谁投了选票\l
+    是hard state\l
+    在发voteresp消息前\l
+    会现将它持久化保存起来\l|
+    对于MsgRequestVote\l
+    self.election_elapsed = 0\l
+    self.vote = m.from;\l
+  }}"]
+
+  RaftCore__leader_id[style_var;label="{{
+    RaftCore__leader_id\l|
+    如果节点知道当前term的leader\l
+    及时它没投过票,也不会grant node\l
+    给MsgVote\l
+  }}"]
+
+  RaftCore__reset -> {
+    RaftCore__leader_id;
+    RaftCore__vote;
+  }
+
+  RaftCore__become_pre_candidate -> RaftCore__leader_id;
+  RaftCore__become_candidate -> {
+     RaftCore__reset;
+     RaftCore__vote;
+  }
+  RaftCore__become_leader -> RaftCore__reset;
+}

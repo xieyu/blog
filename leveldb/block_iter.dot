@@ -1,0 +1,168 @@
+digraph block_iter {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  Record[
+    shape="record";
+    label="{{
+      Record|
+      shared_bytes: varint32\l|
+      unshared_bytes: varint32\l|
+      value_length: varint32\l|
+      key_delta\l|
+      <value> value\l
+    }}";
+  ];
+  data_[
+    shape="record";
+    label="{{
+      Block底层data数据|
+      Record0\l|
+      Record1\l|
+      Record2\l|
+      <RecordK>RecordK\l|
+      <RecordK1>RecordK+1\l|
+      ...\l|
+      RecordN\l|
+      Restart0\l|
+      Restart1\l|
+      Restart2\l|
+      ...\l|
+      <Restart_i> Restart_i\l|
+      RestartM\l|
+      num_restarts\l
+    }}";
+  ];
+  restart_index_ -> data_:Restart_i;
+  data_:Restart_i -> data_:RecordK -> Record[color="#d63447";style=dashed]
+  DecodeEntry -> Record;
+  NextEntryOffset -> data_:RecordK1;
+  GetRestartPoint -> data_:Restart_i;
+
+  Seek[
+    shape="record";
+    label="{{
+      Seek|
+      二分查找\l
+    }}";
+  ];
+  current_[
+    fillcolor="#95e1d3";
+    style=filled;
+    shape="record";
+    label="{{
+      current_|
+      当前Entry的在\l 
+      data_中的offset\l
+    }}";
+  ];
+  NextEntryOffset[
+    shape="record";
+    label="{{
+      NextEntryOffset|
+      下一个Entry在data_中的偏移\l
+      当前value的结尾\l|
+      (value_.data() + value_.size()) - data_;
+    }}";
+  ];
+  ParseNextKey[
+    shape="record";
+    label="{{
+      ParseNextKey|
+      1.将current_设置为下一个entry的偏移\l
+      2.解析出以current_为开头的reocrd\l
+      3.设置key_和value_\l
+      4.如果有必要移动restart_index_\l
+    }}";
+  ];
+  Seek[
+    shape="record";
+    label="{{
+      Seek|
+      1.在restart_points中二分查找,找到对应block\l
+      2.然后在block中线性查找\l
+    }}";
+  ];
+  GetRestartPoint[
+    shape="record";
+    label="{{
+      GetRestartPoint_i|
+      获取restartPoint 第i个中值\l
+    }}";
+  ];
+  SeekToRestartPoint[
+    shape="record";
+    label="{{
+      SeekToRestartPoint|
+      1.清理key_.clear(),因为restartPointl的key是没有shared部分的\l
+      2.设置restart_index_\l
+      3.设置value_指针指向当前record开头,且len为0\l
+      这样调用ParseNextKey时候current_\l 
+      指向的就是当前record开头了\l
+    }}";
+  ];
+  DecodeEntry[
+    shape="record";
+    label="{{
+      DecodeEntry|
+      从二进制数据\l 
+      中解析出Record\l
+    }}";
+  ];
+  value_0[
+    shape="record";
+    label="{{
+      value_0|
+      Slice value_指向record开头 且len为0|
+      uint32_t offset = GetRestartPoint(index);\l
+      value_ = Slice(data_ + offset, 0);\l
+    }}";
+  ];
+  Next -> {
+    ParseNextKey;
+  }
+  ParseNextKey -> {
+    NextEntryOffset;
+    current_;
+    DecodeEntry;
+    GetRestartPoint;
+    data_;
+    key_;
+    value_;
+    restart_index_;
+  }[color="#be79df"];
+  Seek -> {
+    GetRestartPoint;
+    DecodeEntry;
+    SeekToRestartPoint;
+    ParseNextKey;
+    Compare;
+    data_;
+    num_restarts_;
+  }[color="#f8615a"]
+  value_[
+    shape="record";
+    label="{{
+      value_|
+      从record中解析出value_\l
+      这时候value_才指向真正的值\l
+    }}";
+  ];
+
+  SeekToRestartPoint -> {
+    key_;
+    value_0;
+    restart_index_;
+    GetRestartPoint;
+  }[color="#98d6ea"]
+
+  //dep
+  {
+    edge[style=dashed;color=gray];
+    value_ -> NextEntryOffset;
+    key_ -> Compare;
+    NextEntryOffset -> current_;
+    Record:value -> value_;
+    value_0 -> {NextEntryOffset;current_}
+  }
+}

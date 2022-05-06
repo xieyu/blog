@@ -1,0 +1,14 @@
+digraph analyzeIndexIncremental {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  analyzeIndexIncremental -> {
+    buildStats;
+    MergeHistograms;
+    MergeCMSketch4IncrementalAnalyze;
+  }
+  buildStats -> {
+    buildStatsFromResult;
+  }
+}

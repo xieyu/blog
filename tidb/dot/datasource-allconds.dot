@@ -1,0 +1,83 @@
+digraph allconds {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_DataSource {
+    graph[label="DataSource";fontsize=20;style="rounded,dashed";color="slategrey"]
+    partitionNames;
+    allconds;
+  }
+
+  subgraph cluster_TableInfo {
+    graph[label="TableInfo";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Partition[
+      shape="record";
+      label="{{
+        Partition * PartitionInfo|
+	        Type    PartitionType\l|
+	        Expr    string\l|
+	        Columns []CIStr\l
+      }}"];
+  }
+
+  allconds -> {
+    pruneHashPartition;
+    DetachCondAndBuildRangeForPartition;
+  }
+  PartitionInfo -> {
+    generateHashPartitionExpr;
+  }
+  findUsedPartitions -> {
+    generateHashPartitionExpr;
+    ExtractColumns;
+  }
+
+
+  partitionNames -> {
+    pruneHashPartition;
+    findUsedPartitions;
+  }
+
+  prune -> {
+    processHashPartition;
+    processRangePartition;
+  }
+  processHashPartition -> {
+    pruneHashPartition;
+  }
+  pruneHashPartition -> {
+    findUsedPartitions;
+  }
+  findUsedPartitions -> {
+    DetachCondAndBuildRangeForPartition;
+  }
+
+  edge[style=dashed;color=darkblue]
+  generateHashPartitionExpr -> ExtractColumns;
+/*
+  DetachCondAndBuildRangeForPartition -> {
+    detachCondAndBuildRangeForCols;
+  }
+  detachCondAndBuildRangeForCols -> {
+    detachDNFCondAndBuildRangeForIndex;
+    detachCNFCondAndBuildRangeForIndex;
+  }
+
+  detachCNFCondAndBuildRangeForIndex -> {
+    buildCNFIndexRange;
+    extractIndexPointRangesForCNF;
+    detachColumnCNFConditions;
+  }
+  detachDNFCondAndBuildRangeForIndex -> {
+    detachCNFCondAndBuildRangeForIndex;
+  }
+
+  buildCNFIndexRange -> {
+    points2Ranges;
+    appendPoints2Ranges;
+    UnionRanges;
+  }
+  */
+}

@@ -1,0 +1,138 @@
+digraph sql_distsql_coptask {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  SQL[label="SQL语句"];
+  copTask1[
+    shape="record";
+    label="{{
+      coptask|
+      region RegionVerID\l|
+      ranges *copRanges \l
+    }}";
+  ];
+
+  copTask2[
+    shape="record";
+    label="{{
+      coptask|
+      region RegionVerID\l|
+      ranges *copRanges \l
+    }}";
+  ];
+
+  copTaskN[
+    shape="record";
+    label="{{
+      coptask|
+      region RegionVerID\l|
+      ranges *copRanges \l
+    }}";
+  ];
+  RegionRequestSender[label="RegionRequestSender \l向tikv发送grpc请求\l处理错误，重试等\l"];
+
+  SQL -> Datasource;
+  Datasource[
+    shape="record";
+    label="{{
+      Datasource|
+      sql语句中的Datasource部分\l
+      最终会成为TableReader\l 
+      或者TableIndexReader\l
+    }}";
+  ];
+  distSQL1[
+    shape="record";
+    label="{{
+      distSQL1|
+      对上层提供了简单的Select方法\l
+      把下层的copprocessor\l 
+      请求封装起来\l
+    }}";
+  ];
+
+  Datasource -> TableReaderExecutor1;
+  Datasource -> TableIndexReaderExecutor2;
+  Datasource -> TableReaderExecutorN;
+  TableReaderExecutor1 -> distSQL1[label="kv.Request: KeyRanges"];
+  TableReaderExecutor1 -> DAGRequest[label="ToPB"];
+
+  distSQL1 -> CopClient;
+  CopClient[
+    shape="record";
+    label="{{
+      CopClient|
+      将kvRequest请求中的KeyRanges转为为\l
+      region然后构造copprocessor task\l
+      由copWorker并发的执行这些task\l
+    }}";
+  ];
+  CopClient -> copTask1[label="Region1"];
+  CopClient -> copTask2[label="Region2"];
+  CopClient -> copTaskN[label="RegionN..."];
+  {
+    copTask1;
+    copTask2;
+    copTaskN;
+  } -> taskCh; 
+  taskCh[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      taskCh|
+      copTask Channel\l
+    }}";
+  ];
+  taskCh -> copIteratorWork[label="execute by"];
+  copIteratorWork -> RegionRequestSender;
+  copIteratorWork[
+    shape="record";
+    label="{{
+      copIteratorWork|
+      并发执行coprocessortask\l
+      并将结果放到respCh\l
+      由iterator的Next方法来取\l|
+      copIteratorWork 可以多个gorutoine\l
+      并发执行\l
+    }}";
+  ];
+  copIteratorWork -> respCh;
+  respCh[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      respCh|
+      cannel\l|
+      由worker向channel中存放数据\l
+      迭代器Next方法从channel中取数据\l
+    }}";
+  ];
+  CopClient -> RegionCache -> PdClient -> PdServer;
+  PdClient[
+    shape="record";
+    label="{{
+      PdClient|
+      获取keyRange所在的regions\l
+      以及tikv addr\l
+    }}";
+  ];
+  RegionRequestSender -> TiKVServer;
+  TiKVServer[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+      TiKVServer
+    }}";
+  ];
+  PdServer[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+      PdServer
+    }}";
+  ];
+}

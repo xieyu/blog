@@ -1,0 +1,64 @@
+digraph park {
+  node[shape=box;];
+  rankdir=TD;
+  newrank=true;
+
+  subgraph cluster_executor {
+    graph[label="executor";fontsize=20;style=rounded]
+    ParkThread
+    subgraph cluster_std_sync {
+      graph[label="std_sync";fontsize=10;]
+      Mutex;
+      Condvar;
+      
+    }
+    ParkThread -> Mutex;
+    ParkThread -> Condvar;
+  }
+
+  subgraph cluster_trait {
+    graph[label="trait";fontsize=20;]
+    Park [
+      shape="record";
+      label="{
+        trait Park  |
+        park \l
+        park_timeout \l
+        unpark \l
+      }";
+    ]
+  }
+
+  subgraph cluster_driver{
+    graph[label="Driver";fontsize=20;style=rounded]
+    Reactor;
+
+    subgraph cluster_mio {
+      graph[label="mio";fontsize=20;]
+      poll
+      SetReadness;
+    }
+
+    Reactor -> {poll, SetReadness};
+  }
+
+  subgraph cluster_timer {
+    graph[label="timer";fontsize=20;style=rounded]
+  }
+
+  subgraph cluster_threadpool {
+    graph[label="threadpool";fontsize=20;style=rounded]
+    DefaultPark
+
+    subgraph cluster_CrossBeam_Sync {
+      graph[label="CrossBeam Sync";fontsize=20;]
+      unparker;
+      Parker;
+    }
+
+    DefaultPark -> unparker;
+    DefaultPark -> Parker;
+  }
+
+  {DefaultPark, Reactor, ParkThread} -> Park;
+}

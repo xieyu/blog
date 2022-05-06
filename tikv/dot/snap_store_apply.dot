@@ -1,0 +1,42 @@
+#include "styles.h"
+digraph snap_store_apply {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  apply -> {
+    validate;
+    plain_file_used;
+    post_apply_plain_kvs_from_snapshot;
+    apply_plain_cf_file;
+    apply_sst_cf_file;
+    post_apply_plain_kvs_from_snapshot;
+  }
+  plain_file_used[style_func;label="{{
+    plain_file_used|
+    cf == CF_LOCK\l
+  }}"]
+
+  apply_sst_cf_file ->  post_apply_sst_from_snapshot[style_edge_data]
+  apply_plain_cf_file -> post_apply_plain_kvs_from_snapshot[style_edge_data];
+  apply_sst_cf_file -> {
+    move_files;
+    ingest_external_file_cf;
+  }
+  move_files -> ingest_opt -> ingest_external_file_cf;
+  apply_plain_cf_file -> {
+    get_decrypter_reader;
+    write_batch;
+    decode_compact_bytes;
+    write_to_db;
+  }
+  plain_file_used -> apply_plain_cf_file[style_edge_data];
+  validate ->{
+    plain_file_used;
+    reset_global_seq;
+    prepare_sst_for_ingestion;
+    check_file_size_and_checksum;
+  }
+  
+}

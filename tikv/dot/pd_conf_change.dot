@@ -1,0 +1,27 @@
+#include "styles.h"
+digraph pd_conf_change {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_pd {
+    graph[label="pd";fontsize=20;style="rounded,dashed";color="slategrey"]
+    schedule_heartbeat_receiver -> {
+      new_change_peer_request;
+      new_change_peer_v2_request;
+      send_admin_request;
+    }
+    {
+      new_change_peer_request;
+      new_change_peer_v2_request;
+    } -> send_admin_request[style_edge_data];
+    send_admin_request -> send_raft_command;
+    send_raft_command[style_func;label="{{
+      send_raft_command|
+      经过raft router将cmd\l
+      路由给PeerFsm\l
+    }}"];
+  }
+  
+}

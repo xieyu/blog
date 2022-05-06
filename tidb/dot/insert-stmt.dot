@@ -1,0 +1,93 @@
+digraph insert_stmt {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  InsertExec[
+    shape="record";
+    fillcolor="#f38181";
+    style=filled;
+    label="{{
+      InsertExec
+    }}";
+  ];
+  newBaseExecutor -> InsertExec[style=dashed];
+  build_select_plan -> newBaseExecutor[style=dashed];
+
+  InsertStmt -> PlanBuilder_Build -> buildInsert;
+  InsertPlan[
+    shape="record";
+    label="{{
+    Insert|
+    Insert Plan
+    }}";
+  ];
+  buildInsert -> {
+    TableInfo2SchemaAndNames;
+    InsertPlan;
+    GetPartitionInfo;
+    FindPartitionByName;
+    NewPartitionTableithGivenSets;
+    ResolveIndices;
+    resolveOnDuplicate;
+    buildSetValuesOfInsert[
+      shape="record";
+      label="{{
+      buildSetValuesOfInsert\l|
+		    Branch for `INSERT ... SET ...`.\l
+        将value改为AssignmentExpression\l
+      }}";
+    ];
+    buildValuesListOfInsert[
+      shape="record";
+      label="{{
+      buildValuesListOfInsert|
+		    `INSERT ... VALUES ...`.
+      }}";
+    ];
+    buildSelectPlanOfInsert[
+      shape="record";
+      label="{{
+      buildSelectPlanOfInsert|
+      `INSERT ... SELECT ...`
+      }}";
+    ];
+    InsertPlan[
+      shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        InsertPlan
+      }}";
+    ];
+    {
+      buildSelectPlanOfInsert;
+      buildValuesListOfInsert;
+      buildSetValuesOfInsert;
+    } -> InsertPlan[style=dashed];
+  }
+  subgraph cluster_InsertPlan {
+    graph[label="InsertPlan";fontsize=20;];
+    InsertPlan;
+    ResolveIndices;
+    resolveOnDuplicate;
+  }
+  InsertPlan -> executor_buildInsert;
+  executor_buildInsert[
+    shape="record";
+    label="{{
+      executor.buildInsert|
+      创建InsertExecutor
+    }}";
+  ];
+  buildSelectPlanOfInsert -> build_select_plan[style=dashed];
+  executor_buildInsert -> {
+    InsertValues;
+    initInsertColumns;
+    buildReplace;
+    updateForUpdateTSIfNeeded;
+    build_select_plan;
+    newBaseExecutor;
+    InsertExec;
+  }
+}

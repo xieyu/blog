@@ -1,0 +1,322 @@
+digraph partition_isr {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_zk {
+    graph[label="zk server";fontsize=20;];
+    zk_partitionState[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        partitionState|
+          ControllerEpoch int32\l|
+          leader int32\l|
+          leader_epoch int32\l|
+          isr []int32\l
+      }}";
+    ];
+  }
+  subgraph cluster_KafkaZkClient {
+    graph[label="KafkaZkClient";fontsize=20;];
+    updateLeaderAndIsr -> setTopicAssignmentRaw;
+    //setTopicAssignmentRaw -> retryRequestUntilConnected;
+    setTopicAssignmentRaw -> zk_partitionState;
+  };
+
+  subgraph cluster_replicaManager {
+    graph[label="replicaManager";fontsize=20;];
+    isrShrinkRate;
+    isrExpandRate;
+    recordIsrChange;
+    failedIsrUpdatesRate;
+  };
+
+  subgraph cluster_ZkPartitionStateStore {
+    graph[label="ZkPartitionStateStore";fontsize=20;];
+    stateStore_expandIsr[label="expandIsr"];
+    stateStore_shrinkIsr[label="shrinkIsr"];
+    stateStore_shrinkIsr -> {
+      updateIsr;
+      isrShrinkRate;
+    }
+    stateStore_expandIsr -> {
+      updateFetchState;
+      isrExpandRate;
+    }
+    updateIsr -> {
+      updateLeaderAndIsr;
+      recordIsrChange;
+      failedIsrUpdatesRate;
+    }
+  }
+  subgraph cluster_replica {
+    graph[label="replica";fontsize=20;];
+    Replica[shape="record";
+      label="{{
+        Replica|
+          brokerId\l|
+          topicPartition\l|
+          logEndOffsetMetadata\l|
+          lastSentHighWatermark\l
+      }}";
+    ];
+    replica_updateFetchState[shape="record";
+      label="{{
+        updateFetchState|
+          更新replica状态\l
+      }}";
+    ];
+    replica_resetLastCaughtUpTime[shape="record";
+      label="{{
+        resetLastCaughtUpTime|
+          更新replica状态\l
+      }}";
+    ];
+
+    replica_resetLastCaughtUpTime -> Replica;
+    replica_updateFetchState -> Replica;
+  }
+
+  subgraph cluster_Partition {
+    graph[label="Partition";fontsize=20;];
+    LeaderAndIsr[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        LeaderAndIsr|
+          leader: Int\l|
+          leaderEpoch: Int\l|
+          isr: List[Int]\l|
+          zkVersion: Int\l
+      }}";
+    ];
+    remoteReplicasMap[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="remoteReplicasMap"
+    ];
+    remoteReplicasMap -> Replica;
+    updateAssignmentAndIsr[shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        updateAssignmentAndIsr|
+          使用partitionState中信息\l
+          更新topic partition 分配\l 
+          以及ISR\l
+      }}";
+    ];
+    inSyncReplicaIds[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        inSyncReplicaIds|
+          处于同步的副本id\l
+      }}";
+    ];
+    assignmentState[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        assignmentState\l
+          partion assigment状态\l|
+          replicas Seq[Int]\l|
+          replicationFactor Int\l|
+          isAddingReplica bool \l
+      }}";
+    ];
+    updateAssignmentAndIsr -> {
+      assignmentState;
+      remoteReplicasMap;
+      inSyncReplicaIds;
+    }[color="red"];
+    maybeExpandIsr[shape="record";
+      fillcolor="#FFD3B6";
+      style=filled;
+      label="{{
+        maybeExpandIsr|
+        follower已经in sync了\l
+          增加ISR\l
+      }}";
+    ];
+    maybeShrinkIsr[shape="record";
+      fillcolor="#DCEDc1";
+      style=filled;
+      label="{{
+        maybeShrinkIsr|
+          从ISR中踢掉out sync的replica\l
+          该操作只会在partition的leader上做\l
+      }}";
+    ];
+    isFollowerInSync[shape="record";
+      label="{{
+        isFollowerInSync|
+          判断follower的replica是否已经sync\l
+      }}";
+    ];
+
+    maybeExpandIsr -> {
+      expandIsr;
+      isFollowerInSync;
+    };
+
+    maybeShrinkIsr -> {
+      shrinkIsr;
+      getOutOfSyncReplicas;
+    };
+    shrinkIsr -> {
+      LeaderAndIsr;
+      stateStore_shrinkIsr;
+      maybeUpdateIsrAndVersion;
+    };
+    maybeUpdateIsrAndVersion -> {
+      inSyncReplicaIds;
+    }
+    expandIsr -> {
+      LeaderAndIsr;
+      maybeUpdateIsrAndVersion;
+      stateStore_expandIsr;
+    };
+    stateStore_expandIsr -> LeaderAndIsr;
+    stateStore_shrinkIsr -> LeaderAndIsr;
+    LeaderAndIsr -> zk_partitionState[style="dashed"];
+    updateFollowerFetchState[shape="record";
+      label="{{
+        updateFollowerFetchState|
+        检查follower是否已经in-sync
+      }}";
+    ];
+
+    updateFollowerFetchState -> maybeExpandIsr;
+    getOutOfSyncReplicas -> isFollowerOutOfSync -> getReplicaOrException;
+    getOutOfSyncReplicas -> inSyncReplicaIds;
+
+    isFollowerOutOfSync[shape="record";
+      label="{{
+        isFollowerOutOfSync|
+          根据logEndoffset和maxLagMx\l
+          判断follower是否同步\l
+      }}";
+    ];
+    leaderEpochStartOffsetOpt[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        leaderEpochStartOffsetOpt|
+          记录leader的LogOffset\l
+      }}";
+    ];
+    isFollowerInSync -> leaderEpochStartOffsetOpt;
+    getReplicaOrException -> remoteReplicasMap;
+    // remoteReplicas -> remoteReplicasMap[label="keys"];
+    makeLeader -> {
+      replica_updateFetchState;
+      replica_resetLastCaughtUpTime;
+      updateAssignmentAndIsr
+      partitionState;
+      leaderEpochStartOffsetOpt;
+    };
+    makeFollower -> {
+      partitionState;
+      updateAssignmentAndIsr;
+    }
+    updateAssignmentAndIsr -> partitionState;
+    partitionState[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        partitionState|
+          LeaderAndIsrPartitionState\l|
+          TopicName string|
+          PartitionIndex int32|
+          ControllerEpoch int32|
+          Leader int32 |
+          LeaderEpoch int32|
+          Isr []int32|
+          zkVersion int32|
+          Replicas []int32|
+          AddingReplicas []int32|
+          RemovingReplicas []int32|
+          isNew bool
+      }}";
+    ];
+  }
+
+  subgraph cluster_replicaManager {
+    graph[label="replicaManager";fontsize=20;];
+    //shrinkIsr
+    startup -> scheduler_schedule;
+    replicaManager_maybeShrinkIsr[label="maybeShrinkIsr"];
+    replicaManager_maybeShrinkIsr[shape="record";
+      fillcolor="#DCEDc1";
+      style=filled;
+      label="{{
+        maybeShrinkIsr|
+          从ISR中踢掉out sync的replica\l
+      }}";
+    ];
+    scheduler_schedule[shape="record";
+      label="{{
+        scheduler.schedule|
+          后台线程\l 
+          周期性调用\l
+      }}";
+    ];
+    scheduler_schedule -> replicaManager_maybeShrinkIsr;
+    //expandIsr
+    replicaManager_updateFollowerFetchState[shape="record";
+      label="{{
+        updateFollowerFetchState|
+          如果是从follower发送过来的\l 
+          请求，就更新follower状态\l
+      }}";
+    ];
+    fetchMessages -> replicaManager_updateFollowerFetchState;
+    becomLeaderOrFollower -> {
+      makeFollowers;
+      makeLeaders;
+    }
+    addFetcherForPartitions;
+  }
+
+  replicaManager_maybeShrinkIsr -> maybeShrinkIsr;
+  replicaManager_updateFollowerFetchState -> updateFollowerFetchState;
+  makeFollowers -> {
+    makeFollower;
+    addFetcherForPartitions;
+  };
+  makeLeaders -> makeLeader;
+
+  subgraph cluster_fetchThread {
+    graph[label="ReplicaFetcher thread";fontsize=20;];
+    fetcherThread;
+    fetcherThread -> processFetchRequest[style="dashed"];
+    processFetchRequest -> fetchFromLeader;
+    fetchFromLeader[shape="record";
+      fillcolor="#FFD3B6";
+      style=filled;
+      label="{{
+        fetchFromLeader|
+          每个partition的follower broker\l 
+          有个线程负从leader 所在的broker发送\l 
+          fetchMessage请求\l
+      }}";
+    ];
+  }
+  addFetcherForPartitions ->fetcherThread;
+  addFetcherForPartitions[shape="record";
+    label="{{
+      addFetcherForPartitions|
+        follower启动和\l 
+        partition leader同步的线程\l
+    }}";
+  ];
+  fetchFromLeader -> handleFetchRequest;
+
+  subgraph cluster_KafkaApi {
+    graph[label="KafkaApi";fontsize=20;];
+    handleLeaderAndIsrRequest -> becomLeaderOrFollower;
+    handleFetchRequest -> fetchMessages;
+  }
+}

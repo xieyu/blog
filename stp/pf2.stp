@@ -1,0 +1,18 @@
+global profile, pcount
+
+probe timer.profile {
+  pcount <<< 1
+  fn = probefunc()
+  if (fn != "" ) {
+    profile[fn] <<< 1
+  }
+}
+
+probe  timer.s(2) {
+  printf("%d sameples recorded:\n", @count(pcount))
+  foreach(f in profile- limit 10) {
+    printf("%s\t%d\n", f, @count(profile[f]))
+  }
+  delete profile
+  delete pcount
+}

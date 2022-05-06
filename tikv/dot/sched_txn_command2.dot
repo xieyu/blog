@@ -1,0 +1,69 @@
+#include "styles.h"
+digraph sched_txn_command {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  macro_txn_command_future -> {
+    paired_future_callback;
+    sched_txn_command;
+    req_into;
+  }
+  req_into[style_func;label="{{
+    req::into|
+    将req转换为相应的cmd
+  }}"]
+  req_into -> sched_txn_command[style_edge_data];
+  paired_future_callback -> {
+    callback;
+    future;
+    futures_onshot_channel;
+  }
+  future[style_func;label="{{
+    future
+  }}"]
+  futures_onshot_channel[style_var;label="{{
+    futures::onshot_channel
+  }}"]
+  sched_txn_command[style_func;label="{{
+    sched_txn_command|
+    调度cmd，cmd执行完毕后\l
+    调用callback\l
+  }}"]
+  callback[style_func;label="{{
+    callback|
+    向futures::oneshot::channel\l
+    发送result\l
+    触发future\l
+  }}"]
+  sched_txn_command -> callback -> futures_onshot_channel -> future[style_edge_data];
+  macro_handle_request -> future[style_edge_data];
+  future[style_func;label="{{
+    future|
+    在handlerequest 中会poll该future\l
+  }}"]
+  macro_handle_request[style_func;label="{{
+    handle_request!|
+    处理grpc请求\l
+    async await future\l
+    然后返结果给client\l
+  }}"]
+  macro_handle_request -> {
+    future_prewrite;
+    future_acquire_pessimistic_lock;
+    future_pessimistic_rollback;
+    future_resolve_lock;
+    future_commit;
+    future_cleanup;
+    future_txn_heart_beat;
+    future_check_txn_status;
+    future_check_secondary_locks;
+    future_mvcc_get_by_key;
+    future_mvcc_get_by_start_ts;
+  } -> macro_txn_command_future;
+  macro_txn_command_future[style_func;label="{{
+    txn_command_future!
+  }}"]
+
+}

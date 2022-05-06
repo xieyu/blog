@@ -1,0 +1,125 @@
+digraph table {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_interface {
+    graph[label="interface Table";fontsize=20;style=rounded]
+      Interface_PhysicalTable;
+      Interface_PartitionedTable;
+      Interface_Table;
+    }
+
+    Interface_PhysicalTable[
+      shape="record";
+      label="{{
+        PhysicalTable|
+        <table> Table \l|
+        GetPhysicalID\l
+      }}";
+    ];
+
+    Interface_PartitionedTable[
+      shape="record";
+      label="{{
+        PartitionedTable|
+        <table> Table \l|
+        GetPartition \l|
+        GetPartitionByRow\l
+      }}";
+    ];
+
+
+    Interface_PhysicalTable:table -> Interface_Table;
+    Interface_PartitionedTable:table ->Interface_Table;
+
+    Interface_Table [
+      shape="record";
+      label="{{
+        type Table interface|
+        IterRecords \l|
+        RowWithCols \l|
+        Row \l|
+        Cols \l|
+        WritableCols\l|
+        Indices \l|
+        WritableIndices\l|
+        DeletableIndices\l|
+        RecordPrefix\l|
+        IndexPrefix\l|
+        FirstKey\l|
+        RecordKey\l|
+        AddRecord\l|
+        UpdateRecord\l|
+        RemoveRecord\l|
+        AllocHandle\l|
+        Allocator\l|
+        RebaseAutoID\l|
+        Meta\l|
+        Seek\l|
+        <type> Type\l
+      }}";
+    ];
+
+    subgraph cluster_type {
+      graph[label="type";fontsize=20;style=rounded]
+      Interface_Table:type -> {
+        NormalTable;
+        VirtualTable;
+        MemoryTable;
+      }
+    };
+
+    tableCommon -> NormalTable;
+
+    tableCommon[
+      shape="record";
+      label="{{
+        tableCommon|
+        tableID int64\l|
+        physicalTableID int64\l|
+	      Columns         []*table.Column\l|
+	      publicColumns   []*table.Column\l|
+	      writableColumns []*table.Column\l|
+	      writableIndices []table.Index\l|
+	      indices         []table.Index\l|
+	      meta            *model.TableInfo\l|
+	      alloc           autoid.Allocator\l|
+	      recordPrefix kv.Key \l|
+	      indexPrefix  kv.Key \l
+      }}";
+    ];
+
+    Table [
+      shape="record";
+      label="{{
+        Table |
+        <tableCommon> tableCommon\l
+      }}";
+    ];
+
+    partition[
+      shape="record";
+      label="{{
+        partition|
+        <tableCommon> tableCommon \l
+      }}";
+    ];
+
+    partitionedTable [
+      shape="record";
+      label="{{
+        partitionedTable |
+        <Table> Table \l|
+        partitionExpr *PartitionExpr\l|
+        <partition> partitions    map[int64]*partition\l
+      }}";
+    ]
+    partition:tableCommon -> tableCommon;
+    partitionedTable:Table -> Table;
+    partitionedTable:partition -> partition;
+
+    Table:tableCommon -> tableCommon;
+    tableCommon -> Interface_Table[label="impl"];
+    partitionedTable -> Interface_PartitionedTable[label="impl"];
+}

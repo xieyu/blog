@@ -1,0 +1,85 @@
+#include "styles.h"
+digraph connection_builder {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftClient[style_func;label="{{
+    RaftClient|
+    管理connection\l
+    发消息时，先调用send，最后flush\l|
+    pool: Arc\<Mutex\<ConnectionPool\>\>,\l|
+    cache: LruCache\<(u64, usize), CachedQueue\>,\l|
+    need_flush: Vec\<(u64, usize)\>,\l|
+    full_stores: Vec\<(u64, usize)\>,\l|
+    future_pool: Arc\<ThreadPool\<TaskCell\>\>,\l|
+    builder: ConnectionBuilder\<S, R\>,\l
+  }}"]
+  RaftClient -> {
+    ConnectionBuilder;
+  }
+
+  ConnectionBuilder[style_func;label="{{
+    ConnectionBuilder|
+    resolve store addr\l
+    用于创建connection\l
+    创建grpc channel\l|
+    env: Arc\<Environment\>,\l|
+    cfg: Arc\<Config\>,\l|
+    security_mgr: Arc\<SecurityManager\>,\l|
+    resolver: S,\l|
+    router: R,\l|
+    snap_scheduler: Scheduler\<SnapTask\>,\l
+  }}"]
+  ConnectionBuilder-> {
+    StoreAddrResolver;
+    Scheduler_SnapTask;
+  }
+
+  StoreAddrResolver[style_func;label="{{
+    StoreAddrResolver|
+    解析store_id对应的addr
+  }}"]
+
+  PdStoreAddrResolver[style_func;label="{{
+    PdStoreAddrResolver|
+    sched: Scheduler\<Task\>,\l|
+    发送请求给Pd worker\l
+    去Pd服务请求store_id\l
+    对应的store addr\l
+  }}"]
+
+  StoreAddrResolver -> PdStoreAddrResolver;
+  PdStoreAddrResolver -> {
+    resolve_Task;
+  }
+  resolve_Task[style_func;label="{{
+    resolve/Task|
+    store_id: u64,\l|
+    cb: Callback,\l
+  }}"]
+  Scheduler_SnapTask[style_func;label="{{
+    Scheduler\nSnapTask|
+    使用snap worker\l
+    发送SnapTask\l
+  }}"]
+  ConnectionBuilder -> Environment;
+
+  Environment[style_func;label="{{
+    Environment|
+    cqs: Vec\<CompletionQueue\>,\l|
+    idx: AtomicUsize,\l|
+    _handles: Vec\<JoinHandle\<()\>\>,\l
+  }}"]
+  StreamBackEnd[style_func;label="{{
+    StreamBackEnd|
+    store_id: u64,\l|
+    queue: Arc\<Queue\>,\l|
+    <builder> builder: ConnectionBuilder\<S, R\>,\l|
+    watches lifetime of a conection\l
+    and handle reconnecting\l
+  }}"]
+  StreamBackEnd:builder -> ConnectionBuilder;
+
+}

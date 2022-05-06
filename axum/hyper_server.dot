@@ -1,0 +1,8 @@
+#include "styles.h"
+digraph hyper_server {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+}

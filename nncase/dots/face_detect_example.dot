@@ -1,0 +1,36 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  main -> {
+    sysctl_pll_set_freq;
+    io_mux_init;
+    io_set_pwower;
+    plic_init;
+    kpu_load_kmodel;
+    ultra_face_init;
+    kpu_run_kmodel;
+    kpu_get_output;
+    rgb888_to_lcd;
+    lcd_draw_picture;
+    ultra_face_detect;
+  }
+  subgraph cluster_while_loop {
+    graph[label="while_loop";fontsize=20;style="rounded,dashed";color="slategrey"]
+    kpu_run_kmodel;
+    kpu_get_output;
+    rgb888_to_lcd;
+    lcd_draw_picture;
+    ultra_face_detect;
+    kpu_get_output -> {
+      boxes;
+      scores;
+    } -> ultra_face_detect[style_edge_data];
+  }
+
+  kpu_run_kmodel -> {
+    nncase_run_kmodel
+  }
+}

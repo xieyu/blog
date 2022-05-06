@@ -1,0 +1,81 @@
+#include "styles.h"
+digraph handle_vote_resp {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftCore__step_candidate -> {
+     RaftCore__poll;
+     RaftCore__campaign;
+     RaftCore__maybe_commit_by_vote;
+  }
+
+  RaftCore__poll -> {
+    ProgressTracker__record_votes;
+    ProgressTracker__tally_votes;
+    RaftCore__become_leader;
+    RaftCore__bcast_append;
+    RaftCore__become_follower;
+  }
+  ProgressTracker__record_votes -> {
+    ProgressTracker__votes;
+  }
+
+  ProgressTracker__tally_votes -> {
+     ProgressTracker__votes;
+  }
+  ProgressTracker__votes[style_var;label="{{
+    ProgressTracker__votes|
+    votes: HashMap\<u64, bool\>,\l
+  }}"]
+  ProgressTracker__tally_votes[style_func;label="{{
+    ProgressTracker__tally_votes|
+    统计选票，看自己\l
+    是否赢得了选举\l
+  }}"]
+  ProgressTracker__record_votes[style_func;label="{{
+    ProgressTracker__record_votes|
+    记录peer对自己的投票\l
+  }}"]
+  RaftCore__become_follower[style_func;label="{{
+    RaftCore__become_follower|
+    选举失败，成为follower\l
+    leaderID为INVALID_ID\l
+  }}"]
+  RaftCore__become_leader[style_func;label="{{
+    RaftCore__become_leader|
+    赢得了选举，传给leader\l
+  }}"]
+  RaftCore__campaign[style_func;label="{{
+    RaftCore__campaign|
+    赢得了Pre election\l
+    发起真正的election\l
+  }}"]
+  RaftCore__campaign -> RaftCore__become_candidate;
+  ProgressTracker__tally_votes -> {
+    RaftCore__become_candidate;
+    RaftCore__become_follower;
+    RaftCore__become_leader;
+  }[style_edge_data];
+  RaftCore__become_candidate[style_var;label="{{
+    RaftCore__become_candidate|
+    传为真正的candidate\l
+    将自己的term + 1\l
+  }}"]
+  RaftCore__bcast_append[style_func;label="{{
+    RaftCore__bcast_append|
+     成为leader之后\l
+     广播append消息\l
+  }}"]
+  RaftCore__maybe_commit_by_vote[style_func;label="{{
+    RaftCore__maybe_commit_by_vote|
+    使用vote resp中的comit info\l
+    来尝试更新自己的committed index\l
+  }}"]
+  {
+    RaftCore__become_candidate;
+    RaftCore__become_follower;
+    RaftCore__become_leader;
+  } -> RaftCore__reset;
+}

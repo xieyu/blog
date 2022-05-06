@@ -1,0 +1,295 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Agg - blog</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../theme/style3.css">
+
+
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../about.html">About</a></li><li class="chapter-item expanded affix "><li class="part-title">机器学习</li><li class="spacer"></li><li class="chapter-item expanded "><a href="../pytorch/index.html"><strong aria-hidden="true">1.</strong> PyTorch</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../pytorch/pytorch_pocket_reference.html"><strong aria-hidden="true">1.1.</strong> pytorch pocket reference 笔记</a></li><li class="chapter-item "><a href="../pytorch/mini-torch.html"><strong aria-hidden="true">1.2.</strong> mini torch</a></li></ol></li><li class="chapter-item expanded "><a href="../tengine/index.html"><strong aria-hidden="true">2.</strong> Tengine</a></li><li class="chapter-item expanded "><a href="../nlp/index.html"><strong aria-hidden="true">3.</strong> NLP</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nlp/bert.html"><strong aria-hidden="true">3.1.</strong> Bert</a></li></ol></li><li class="chapter-item expanded "><a href="../nncase/index.html"><strong aria-hidden="true">4.</strong> nncase</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nncase/compile_flow.html"><strong aria-hidden="true">4.1.</strong> comile流程</a></li><li class="chapter-item "><a href="../nncase/k210.html"><strong aria-hidden="true">4.2.</strong> k210 standalone sdk</a></li><li class="chapter-item "><a href="../nncase/face_detect_example.html"><strong aria-hidden="true">4.3.</strong> face detect example</a></li></ol></li><li class="chapter-item expanded "><a href="../ray/index.html"><strong aria-hidden="true">5.</strong> Ray</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../ray/paper.html"><strong aria-hidden="true">5.1.</strong> Ray Paper</a></li><li class="chapter-item "><a href="../ray/remote.html"><strong aria-hidden="true">5.2.</strong> Ray Remote</a></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">6.</strong> Tensorflow</div><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tensorflow/index.html"><strong aria-hidden="true">6.1.</strong> tensorflow inside</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tensorflow/executor.html"><strong aria-hidden="true">6.1.1.</strong> Executor: 执行Computation Sub Graph</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tensorflow/executor-subgraph-preprocess.html"><strong aria-hidden="true">6.1.1.1.</strong> SubGraph预处理：Node/NodeItem/TaggedNode</a></li><li class="chapter-item "><a href="../tensorflow/flow-control-op.html"><strong aria-hidden="true">6.1.1.2.</strong> Flow control op: switch/merge/enter/exit/nextIteration</a></li><li class="chapter-item "><a href="../tensorflow/executor-frame.html"><strong aria-hidden="true">6.1.1.3.</strong> Frame: ControlFlowInfo/FrameInfo/FrameState/IterationState</a></li></ol></li><li class="chapter-item "><a href="../tensorflow/direct-session.html"><strong aria-hidden="true">6.1.2.</strong> DirectSession: 单机执行computation graph</a></li><li class="chapter-item "><a href="../tensorflow/rendezvous.html"><strong aria-hidden="true">6.1.3.</strong> RendezVous：跨设备，跨主机通信</a></li><li class="chapter-item "><a href="../tensorflow/device.html"><strong aria-hidden="true">6.1.4.</strong> Device：计算单元抽象(CPU/GPU)</a></li></ol></li><li class="chapter-item "><a href="../tensorflow/optimize.html"><strong aria-hidden="true">6.2.</strong> tensorflow模型对接工程优化</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tensorflow/export-keras-model-as-tf-frozen-graph.html"><strong aria-hidden="true">6.2.1.</strong> 将keras模型导出为tf frozen graph</a></li><li class="chapter-item "><a href="../tensorflow/replace-placeholder-with-iterator.html"><strong aria-hidden="true">6.2.2.</strong> 使用dataset iterator 优化keras model预测的吞吐量</a></li><li class="chapter-item "><a href="../tensorflow/stat-cpu-gpu-load.html"><strong aria-hidden="true">6.2.3.</strong> 统计cpu/gpu 负载率脚本</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../pthread/index.html"><strong aria-hidden="true">7.</strong> pthread</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../pthread/pthread-primer.html"><strong aria-hidden="true">7.1.</strong> Pthread Primer笔记</a></li><li class="chapter-item "><a href="../pthread/glibc-pthread-implement-thread-life-cycle.html"><strong aria-hidden="true">7.2.</strong> Pthread线程生命周期</a></li><li class="chapter-item "><a href="../pthread/glibc-pthread-implement-sync.html"><strong aria-hidden="true">7.3.</strong> Pthread线程同步</a></li></ol></li><li class="chapter-item expanded "><li class="part-title">Rust</li><li class="spacer"></li><li class="chapter-item expanded "><a href="../yew/index.html"><strong aria-hidden="true">8.</strong> Yew</a></li><li class="chapter-item expanded "><a href="../axum/index.html"><strong aria-hidden="true">9.</strong> Axum</a></li><li class="chapter-item expanded "><a href="../axum/hyper.html"><strong aria-hidden="true">10.</strong> Hyper</a></li><li class="chapter-item expanded "><a href="../tokio/index.html"><strong aria-hidden="true">11.</strong> tokio</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tokio/executor.html"><strong aria-hidden="true">11.1.</strong> Executor</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tokio/park.html"><strong aria-hidden="true">11.1.1.</strong> Park</a></li><li class="chapter-item "><a href="../tokio/thread-pool.html"><strong aria-hidden="true">11.1.2.</strong> thread pool</a></li></ol></li><li class="chapter-item "><a href="../tokio/driver.html"><strong aria-hidden="true">11.2.</strong> driver</a></li><li class="chapter-item "><a href="../tokio/io.html"><strong aria-hidden="true">11.3.</strong> io</a></li><li class="chapter-item "><a href="../tokio/codec.html"><strong aria-hidden="true">11.4.</strong> codec</a></li><li class="chapter-item "><a href="../tokio/channel.html"><strong aria-hidden="true">11.5.</strong> channel</a></li><li class="chapter-item "><a href="../tokio/waker.html"><strong aria-hidden="true">11.6.</strong> waker</a></li></ol></li><li class="chapter-item expanded "><a href="../crossbeam/index.html"><strong aria-hidden="true">12.</strong> crossbeam</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../crossbeam/skiplist.html"><strong aria-hidden="true">12.1.</strong> SkipList(draft)</a></li></ol></li><li class="chapter-item expanded "><a href="../rust/index.html"><strong aria-hidden="true">13.</strong> draft Rust</a></li><li class="chapter-item expanded affix "><li class="part-title">GO</li><li class="spacer"></li><li class="chapter-item expanded "><a href="../golang/index.html"><strong aria-hidden="true">14.</strong> Go</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../golang/pgm.html"><strong aria-hidden="true">14.1.</strong> Runtime PGM调度模型</a></li><li class="chapter-item "><a href="../golang/goroutine-stack.html"><strong aria-hidden="true">14.2.</strong> Goroutine Stack</a></li><li class="chapter-item "><a href="../golang/memory.html"><strong aria-hidden="true">14.3.</strong> Memory分配</a></li><li class="chapter-item "><a href="../golang/GC.html"><strong aria-hidden="true">14.4.</strong> GC</a></li><li class="chapter-item "><a href="../golang/context.html"><strong aria-hidden="true">14.5.</strong> Context</a></li><li class="chapter-item "><a href="../golang/defer-panic-recover.html"><strong aria-hidden="true">14.6.</strong> defer-panic-recover</a></li></ol></li><li class="chapter-item expanded "><li class="part-title">数据库</li><li class="spacer"></li><li class="chapter-item expanded "><a href="../leveldb/index.html"><strong aria-hidden="true">15.</strong> LevelDB</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../leveldb/draft.html"><strong aria-hidden="true">15.1.</strong> draft</a></li><li class="chapter-item "><a href="../leveldb/code-struct.html"><strong aria-hidden="true">15.2.</strong> 代码模块间关系</a></li><li class="chapter-item "><a href="../leveldb/write.html"><strong aria-hidden="true">15.3.</strong> Write 流程</a></li><li class="chapter-item "><a href="../leveldb/read.html"><strong aria-hidden="true">15.4.</strong> Read 流程</a></li><li class="chapter-item "><a href="../leveldb/table-format.html"><strong aria-hidden="true">15.5.</strong> SSTable 文件格式和读写</a></li><li class="chapter-item "><a href="../leveldb/versionset.html"><strong aria-hidden="true">15.6.</strong> versionset和Manifest</a></li><li class="chapter-item "><a href="../leveldb/table-compact.html"><strong aria-hidden="true">15.7.</strong> Do Compact</a></li><li class="chapter-item "><a href="../leveldb/iterator.html"><strong aria-hidden="true">15.8.</strong> Iterator迭代器</a></li><li class="chapter-item "><a href="../leveldb/bloom-filter.html"><strong aria-hidden="true">15.9.</strong> Bloom filter</a></li></ol></li><li class="chapter-item expanded "><a href="../rocksdb/index.html"><strong aria-hidden="true">16.</strong> RocksDB</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../rocksdb/draft.html"><strong aria-hidden="true">16.1.</strong> draft</a></li><li class="chapter-item "><a href="../rocksdb/column-family.html"><strong aria-hidden="true">16.2.</strong> 主要struct引用关系</a></li><li class="chapter-item "><a href="../rocksdb/wal.html"><strong aria-hidden="true">16.3.</strong> Write Ahead Log</a></li><li class="chapter-item "><a href="../rocksdb/write.html"><strong aria-hidden="true">16.4.</strong> write 并发控制</a></li><li class="chapter-item "><a href="../rocksdb/flush-and-compact.html"><strong aria-hidden="true">16.5.</strong> 后台flush和compact线程</a></li><li class="chapter-item "><a href="../rocksdb/leveled-compaction-picker.html"><strong aria-hidden="true">16.6.</strong> Leveled Compaction Picker</a></li><li class="chapter-item "><a href="../rocksdb/read.html"><strong aria-hidden="true">16.7.</strong> read 流程</a></li><li class="chapter-item "><a href="../rocksdb/blob.html"><strong aria-hidden="true">16.8.</strong> Blob</a></li><li class="chapter-item "><a href="../rocksdb/transaction.html"><strong aria-hidden="true">16.9.</strong> 事务</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../rocksdb/optimistic-transaction.html"><strong aria-hidden="true">16.9.1.</strong> Optimistic Transaction</a></li><li class="chapter-item "><a href="../rocksdb/transaction-lock-mgr.html"><strong aria-hidden="true">16.9.2.</strong> Transaction lock mgr</a></li><li class="chapter-item "><a href="../rocksdb/two-phase-commit.html"><strong aria-hidden="true">16.9.3.</strong> two phase commit</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../clickhouse/index.html"><strong aria-hidden="true">17.</strong> ClickHouse(daft)</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../clickhouse/server-main.html"><strong aria-hidden="true">17.1.</strong> Server main</a></li><li class="chapter-item "><a href="../clickhouse/block.html"><strong aria-hidden="true">17.2.</strong> block</a></li><li class="chapter-item "><a href="../clickhouse/blockio.html"><strong aria-hidden="true">17.3.</strong> blockio</a></li><li class="chapter-item "><a href="../clickhouse/storage.html"><strong aria-hidden="true">17.4.</strong> Storage</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../clickhouse/merge-tree-data.html"><strong aria-hidden="true">17.4.1.</strong> MergeTreeData</a></li><li class="chapter-item "><a href="../clickhouse/storage-merge-tree.html"><strong aria-hidden="true">17.4.2.</strong> StorageMergeTree</a></li></ol></li></ol></li><li class="chapter-item expanded "><li class="part-title">PingCAP</li><li class="spacer"></li><li class="chapter-item expanded "><a href="../tidb/index.html"><strong aria-hidden="true">18.</strong> TiDB</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/note.html"><strong aria-hidden="true">18.1.</strong> tidb学习资料整理</a></li><li class="chapter-item "><a href="../tidb/main.html"><strong aria-hidden="true">18.2.</strong> Server Main Loop</a></li><li class="chapter-item "><a href="../tidb/insert.html"><strong aria-hidden="true">18.3.</strong> Insert 语句</a></li><li class="chapter-item "><a href="../tidb/select.html"><strong aria-hidden="true">18.4.</strong> Select 语句</a></li><li class="chapter-item "><a href="../tidb/types.html"><strong aria-hidden="true">18.5.</strong> 数据类型</a></li><li class="chapter-item "><a href="../tidb/expression.html"><strong aria-hidden="true">18.6.</strong> expression</a></li><li class="chapter-item "><a href="../tidb/ddl.html"><strong aria-hidden="true">18.7.</strong> Online DDL</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/ddl-schema-in-tikv.html"><strong aria-hidden="true">18.7.1.</strong> Schema 存储</a></li><li class="chapter-item "><a href="../tidb/ddl-schema-load.html"><strong aria-hidden="true">18.7.2.</strong> Schema Cache和加载</a></li><li class="chapter-item "><a href="../tidb/ddl-schema-modification.html"><strong aria-hidden="true">18.7.3.</strong> Schema Modification</a></li><li class="chapter-item "><a href="../tidb/ddl-online-schema-change.html"><strong aria-hidden="true">18.7.4.</strong> Online Schema Change</a></li></ol></li><li class="chapter-item "><a href="../tidb/stat.html"><strong aria-hidden="true">18.8.</strong> 统计信息</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/basic-concepts.html"><strong aria-hidden="true">18.8.1.</strong> 基本概念</a></li><li class="chapter-item "><a href="../tidb/stat-tables.html"><strong aria-hidden="true">18.8.2.</strong> stats tables</a></li><li class="chapter-item "><a href="../tidb/stat-analyze.html"><strong aria-hidden="true">18.8.3.</strong> Analyze</a></li><li class="chapter-item "><a href="../tidb/stat-feedback.html"><strong aria-hidden="true">18.8.4.</strong> Query Feedback</a></li><li class="chapter-item "><a href="../tidb/use-stat.html"><strong aria-hidden="true">18.8.5.</strong> 统计信息使用场景</a></li></ol></li><li class="chapter-item "><a href="../tidb/logical-optimize.html"><strong aria-hidden="true">18.9.</strong> Logical Optimize</a></li><li class="chapter-item "><a href="../tidb/physical-optimize.html"><strong aria-hidden="true">18.10.</strong> Physical Optimize</a></li><li class="chapter-item "><a href="../tidb/datasource.html"><strong aria-hidden="true">18.11.</strong> DataSource</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/datasource-build.html"><strong aria-hidden="true">18.11.1.</strong> buildDataSource</a></li><li class="chapter-item "><a href="../tidb/range.html"><strong aria-hidden="true">18.11.2.</strong> 索引范围计算</a></li><li class="chapter-item "><a href="../tidb/tablecodec.html"><strong aria-hidden="true">18.11.3.</strong> table/index存储编码</a></li><li class="chapter-item "><a href="../tidb/datasource-paritionProcessor.html"><strong aria-hidden="true">18.11.4.</strong> paritionProcessor</a></li><li class="chapter-item "><a href="../tidb/datasource-predict-push-down.html"><strong aria-hidden="true">18.11.5.</strong> PredicatePushDown</a></li><li class="chapter-item "><a href="../tidb/datasource-physical-optimize.html"><strong aria-hidden="true">18.11.6.</strong> Physical Optimize</a></li><li class="chapter-item "><a href="../tidb/datasource-executors.html"><strong aria-hidden="true">18.11.7.</strong> Executors</a></li></ol></li><li class="chapter-item "><a href="../tidb/distsql.html"><strong aria-hidden="true">18.12.</strong> DistSQL</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/cop-region-cache.html"><strong aria-hidden="true">18.12.1.</strong> ReginCache</a></li><li class="chapter-item "><a href="../tidb/tikv-grpc-client.html"><strong aria-hidden="true">18.12.2.</strong> TiKV GRPC Client</a></li><li class="chapter-item "><a href="../tidb/cop-task.html"><strong aria-hidden="true">18.12.3.</strong> CopTask</a></li><li class="chapter-item "><a href="../tidb/cop-iterator-worker.html"><strong aria-hidden="true">18.12.4.</strong> CopIteratorWorker</a></li><li class="chapter-item "><a href="../tidb/coprocessor.html"><strong aria-hidden="true">18.12.5.</strong> Coprocessor</a></li></ol></li><li class="chapter-item "><a href="../tidb/join.html"><strong aria-hidden="true">18.13.</strong> Join</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/join-alg.html"><strong aria-hidden="true">18.13.1.</strong> Join算法</a></li><li class="chapter-item "><a href="../tidb/join-logical-optimize.html"><strong aria-hidden="true">18.13.2.</strong> Logical Optimize</a></li><li class="chapter-item "><a href="../tidb/join-physical-optimize.html"><strong aria-hidden="true">18.13.3.</strong> Physical Optimize</a></li><li class="chapter-item "><a href="../tidb/hash-join.html"><strong aria-hidden="true">18.13.4.</strong> Executor: Hash Join</a></li><li class="chapter-item "><a href="../tidb/merge-join.html"><strong aria-hidden="true">18.13.5.</strong> Executor: Merge Join</a></li><li class="chapter-item "><a href="../tidb/index-lookup-join.html"><strong aria-hidden="true">18.13.6.</strong> Executor: Index Lookup Join</a></li></ol></li><li class="chapter-item expanded "><a href="../tidb/agg.html" class="active"><strong aria-hidden="true">18.14.</strong> Agg</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tidb/agg-func.html"><strong aria-hidden="true">18.14.1.</strong> AggFunc</a></li><li class="chapter-item "><a href="../tidb/hash-agg.html"><strong aria-hidden="true">18.14.2.</strong> Executor: HashAgg</a></li><li class="chapter-item "><a href="../tidb/stream-agg.html"><strong aria-hidden="true">18.14.3.</strong> Executor: StreamAgg</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../pd/index.html"><strong aria-hidden="true">19.</strong> PD</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="../tikv/index.html"><strong aria-hidden="true">20.</strong> TiKV</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tikv/raft2.html"><strong aria-hidden="true">20.1.</strong> raft-rs</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tikv/raft_rawnode.html"><strong aria-hidden="true">20.1.1.</strong> RawNode</a></li><li class="chapter-item "><a href="../tikv/raft_storage.html"><strong aria-hidden="true">20.1.2.</strong> Storage</a></li><li class="chapter-item "><a href="../tikv/progress_tracker.html"><strong aria-hidden="true">20.1.3.</strong> ProgressTracker</a></li><li class="chapter-item "><a href="../tikv/raft_hearbeat.html"><strong aria-hidden="true">20.1.4.</strong> Hearbeat</a></li><li class="chapter-item "><a href="../tikv/raft_election.html"><strong aria-hidden="true">20.1.5.</strong> Election</a></li><li class="chapter-item "><a href="../tikv/raft_log_entry.html"><strong aria-hidden="true">20.1.6.</strong> LogEntry</a></li><li class="chapter-item "><a href="../tikv/raft_snapshot.html"><strong aria-hidden="true">20.1.7.</strong> Snapshot</a></li><li class="chapter-item "><a href="../tikv/raft_conf_change.html"><strong aria-hidden="true">20.1.8.</strong> ConfChange</a></li><li class="chapter-item "><a href="../tikv/raft_read_index.html"><strong aria-hidden="true">20.1.9.</strong> ReadIndex</a></li></ol></li><li class="chapter-item "><a href="../tikv/raft-kv.html"><strong aria-hidden="true">20.2.</strong> RaftKV</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tikv/batch-system2.html"><strong aria-hidden="true">20.2.1.</strong> BatchSystem</a></li><li class="chapter-item "><a href="../tikv/raft_message.html"><strong aria-hidden="true">20.2.2.</strong> RaftMessage</a></li><li class="chapter-item "><a href="../tikv/raft_client.html"><strong aria-hidden="true">20.2.3.</strong> Raft Client</a></li><li class="chapter-item "><a href="../tikv/region2.html"><strong aria-hidden="true">20.2.4.</strong> Region</a></li><li class="chapter-item "><a href="../tikv/peer_storage2.html"><strong aria-hidden="true">20.2.5.</strong> PeerStorage</a></li><li class="chapter-item "><a href="../tikv/thread_local_engine.html"><strong aria-hidden="true">20.2.6.</strong> Thread Local Engine</a></li><li class="chapter-item "><a href="../tikv/leader_lease.html"><strong aria-hidden="true">20.2.7.</strong> Leader Lease</a></li><li class="chapter-item "><a href="../tikv/read_index.html"><strong aria-hidden="true">20.2.8.</strong> Read Index</a></li><li class="chapter-item "><a href="../tikv/async_snapshot2.html"><strong aria-hidden="true">20.2.9.</strong> Async Snapshot</a></li><li class="chapter-item "><a href="../tikv/async_write2.html"><strong aria-hidden="true">20.2.10.</strong> Async Write</a></li><li class="chapter-item "><a href="../tikv/region_epoch.html"><strong aria-hidden="true">20.2.11.</strong> Region Epoch</a></li><li class="chapter-item "><a href="../tikv/conf_change2.html"><strong aria-hidden="true">20.2.12.</strong> Conf Change</a></li><li class="chapter-item "><a href="../tikv/split_region2.html"><strong aria-hidden="true">20.2.13.</strong> Split Region</a></li><li class="chapter-item "><a href="../tikv/merge_region2.html"><strong aria-hidden="true">20.2.14.</strong> Merge Region</a></li></ol></li><li class="chapter-item "><a href="../tikv/storage2.html"><strong aria-hidden="true">20.3.</strong> Storage</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tikv/percolator.html"><strong aria-hidden="true">20.3.1.</strong> Percolator</a></li><li class="chapter-item "><a href="../tikv/percolator_in_tikv.html"><strong aria-hidden="true">20.3.2.</strong> Percolator In TiKV</a></li><li class="chapter-item "><a href="../tikv/tikv_2pc.html"><strong aria-hidden="true">20.3.3.</strong> 2PC</a></li><li class="chapter-item "><a href="../tikv/async_commit.html"><strong aria-hidden="true">20.3.4.</strong> AsyncCommit</a></li><li class="chapter-item "><a href="../tikv/tikv_1pc.html"><strong aria-hidden="true">20.3.5.</strong> OnePC</a></li><li class="chapter-item "><a href="../tikv/pessimistic_lock.html"><strong aria-hidden="true">20.3.6.</strong> 悲观事务</a></li><li class="chapter-item "><a href="../tikv/txn_recovery.html"><strong aria-hidden="true">20.3.7.</strong> Resolve Lock</a></li><li class="chapter-item "><a href="../tikv/scheduler2.html"><strong aria-hidden="true">20.3.8.</strong> Scheduler</a></li><li class="chapter-item "><a href="../tikv/wait_lock.html"><strong aria-hidden="true">20.3.9.</strong> Wait Lock</a></li><li class="chapter-item "><a href="../tikv/dead_lock.html"><strong aria-hidden="true">20.3.10.</strong> 死锁检测</a></li><li class="chapter-item "><a href="../tikv/group_commit.html"><strong aria-hidden="true">20.3.11.</strong> TiDB分组提交</a></li><li class="chapter-item "><a href="../tikv/storage_scanner.html"><strong aria-hidden="true">20.3.12.</strong> Scanner</a></li></ol></li><li class="chapter-item "><a href="../tikv/coprocessor.html"><strong aria-hidden="true">20.4.</strong> Coprocessor</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tikv/rpn_expression.html"><strong aria-hidden="true">20.4.1.</strong> RpnExpression</a></li><li class="chapter-item "><a href="../tikv/aggr_function.html"><strong aria-hidden="true">20.4.2.</strong> AggrFunction</a></li><li class="chapter-item "><a href="../tikv/batch_executor.html"><strong aria-hidden="true">20.4.3.</strong> BatchExecutor</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../tikv/ranges_scanner.html"><strong aria-hidden="true">20.4.3.1.</strong> RangesScanner</a></li><li class="chapter-item "><a href="../tikv/scan_executor.html"><strong aria-hidden="true">20.4.3.2.</strong> ScanExecutor</a></li><li class="chapter-item "><a href="../tikv/batch_executor_selection.html"><strong aria-hidden="true">20.4.3.3.</strong> Selection</a></li><li class="chapter-item "><a href="../tikv/batch_executor_agg.html"><strong aria-hidden="true">20.4.3.4.</strong> AggExecutor</a></li></ol></li></ol></li><li class="chapter-item "><a href="../tikv/performance.html"><strong aria-hidden="true">20.5.</strong> Performance(draft)</a></li><li class="chapter-item "><a href="../tikv/yatp.html"><strong aria-hidden="true">20.6.</strong> yatp</a></li></ol></li><li class="chapter-item expanded "><a href="../bevy/index.html"><strong aria-hidden="true">21.</strong> Bevy</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../bevy/first-impression-draft.html"><strong aria-hidden="true">21.1.</strong> bevy draft</a></li></ol></li><li class="chapter-item expanded "><a href="../blender/index.html"><strong aria-hidden="true">22.</strong> Blender</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../blender/manual-notes.html"><strong aria-hidden="true">22.1.</strong> blender manual notes</a></li></ol></li><li class="chapter-item expanded "><div><strong aria-hidden="true">23.</strong> Trash</div><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../python/index.html"><strong aria-hidden="true">23.1.</strong> python</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../python/records/records.html"><strong aria-hidden="true">23.1.1.</strong> records</a></li></ol></li><li class="chapter-item "><a href="../react/index.html"><strong aria-hidden="true">23.2.</strong> react</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../react/from-jsx-to-dom.html"><strong aria-hidden="true">23.2.1.</strong> 从jsx到html dom的流程分析</a></li></ol></li><li class="chapter-item "><a href="../godot/index.html"><strong aria-hidden="true">23.3.</strong> Godot</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../godot/learning-note.html"><strong aria-hidden="true">23.3.1.</strong> godot 学习笔记</a></li><li class="chapter-item "><a href="../godot/gdquest.html"><strong aria-hidden="true">23.3.2.</strong> gdquest tutorial</a></li></ol></li><li class="chapter-item "><a href="../kafka/index.html"><strong aria-hidden="true">23.4.</strong> Kafka</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../kafka/client-producer.html"><strong aria-hidden="true">23.4.1.</strong> client: producer</a></li><li class="chapter-item "><a href="../kafka/group-coordinator.html"><strong aria-hidden="true">23.4.2.</strong> group coordinator</a></li><li class="chapter-item "><a href="../kafka/kafka-produce-fetch.html"><strong aria-hidden="true">23.4.3.</strong> produce and fetch</a></li><li class="chapter-item "><a href="../kafka/log.html"><strong aria-hidden="true">23.4.4.</strong> log</a></li><li class="chapter-item "><a href="../kafka/partition.html"><strong aria-hidden="true">23.4.5.</strong> Partition</a></li><li class="chapter-item "><a href="../kafka/controller-main.html"><strong aria-hidden="true">23.4.6.</strong> Controller</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../kafka/controller-channel-manager.html"><strong aria-hidden="true">23.4.6.1.</strong> 通信管理 channelManager</a></li><li class="chapter-item "><a href="../kafka/controller-elect.html"><strong aria-hidden="true">23.4.6.2.</strong> 选举</a></li><li class="chapter-item "><a href="../kafka/controller-zk.html"><strong aria-hidden="true">23.4.6.3.</strong> zk监听处理</a></li></ol></li><li class="chapter-item "><a href="../kafka/replica-assignment.html"><strong aria-hidden="true">23.4.7.</strong> 副本迁移</a></li><li class="chapter-item "><a href="../kafka/paritition-replica-statemachine.html"><strong aria-hidden="true">23.4.8.</strong> Partition/Replica状态机</a></li><li class="chapter-item "><a href="../kafka/txn_coordinator.html"><strong aria-hidden="true">23.4.9.</strong> 事务</a></li><li class="chapter-item "><a href="../kafka/stream.html"><strong aria-hidden="true">23.4.10.</strong> Stream</a></li></ol></li><li class="chapter-item "><a href="../java/index.html"><strong aria-hidden="true">23.5.</strong> hotspot</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../java/hotspot-debug-under-osx.html"><strong aria-hidden="true">23.5.1.</strong> osx下编译调试hotspot</a></li><li class="chapter-item "><a href="../java/hotspot-thread-created-when-init.html"><strong aria-hidden="true">23.5.2.</strong> jvm的初始化时创建的线程</a></li><li class="chapter-item "><a href="../java/hotspot-class-file-load-and-run.html"><strong aria-hidden="true">23.5.3.</strong> class文件的加载和执行</a></li></ol></li><li class="chapter-item "><a href="../papers/index.html"><strong aria-hidden="true">23.6.</strong> Paper notes</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../papers/raft.html"><strong aria-hidden="true">23.6.1.</strong> raft paper</a></li><li class="chapter-item "><a href="../papers/gfs.html"><strong aria-hidden="true">23.6.2.</strong> draft: gfs</a></li><li class="chapter-item "><a href="../papers/bw-tree.html"><strong aria-hidden="true">23.6.3.</strong> draft: Bw-tree(draft)</a></li></ol></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">blog</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <!-- Page table of contents -->
+                    <div class="sidetoc"><nav class="pagetoc"></nav></div>
+                    <main>
+                        <h1 id="agg"><a class="header" href="#agg">Agg</a></h1>
+<!-- toc -->
+<h2 id="logicalaggregation"><a class="header" href="#logicalaggregation">LogicalAggregation</a></h2>
+<pre><code class="language-go">type LogicalAggregation struct {
+	logicalSchemaProducer
+
+	AggFuncs     []*aggregation.AggFuncDesc
+	GroupByItems []expression.Expression
+
+	// aggHints stores aggregation hint information.
+	aggHints aggHintInfo
+
+	possibleProperties [][]*expression.Column
+	inputCount         float64 // inputCount is the input count of this plan.
+
+	// noCopPushDown indicates if planner must not push this agg down to coprocessor.
+	// It is true when the agg is in the outer child tree of apply.
+	noCopPushDown bool
+}
+
+type aggHintInfo struct {
+	preferAggType  uint
+	preferAggToCop bool
+}
+</code></pre>
+<h2 id="aggregationpushdownsolver"><a class="header" href="#aggregationpushdownsolver">aggregationPushDownSolver</a></h2>
+<h2 id="findbesttask"><a class="header" href="#findbesttask">findBestTask</a></h2>
+<p><img src="./dot/agg_exhaustPhysicalPlans.svg" alt="" /></p>
+<h3 id="tasktype"><a class="header" href="#tasktype">TaskType</a></h3>
+<pre><code class="language-go">	// CopSingleReadTaskType stands for the a TableScan or IndexScan tasks
+	// executed in the coprocessor layer.
+	CopSingleReadTaskType
+
+	// CopDoubleReadTaskType stands for the a IndexLookup tasks executed in the
+	// coprocessor layer.
+	CopDoubleReadTaskType
+
+	// CopTiFlashLocalReadTaskType stands for flash coprocessor that read data locally,
+	// and only a part of the data is read in one cop task, if the current task type is
+	// CopTiFlashLocalReadTaskType, all its children prop's task type is CopTiFlashLocalReadTaskType
+	CopTiFlashLocalReadTaskType
+
+	// CopTiFlashGlobalReadTaskType stands for flash coprocessor that read data globally
+	// and all the data of given table will be read in one cop task, if the current task
+	// type is CopTiFlashGlobalReadTaskType, all its children prop's task type is
+	// CopTiFlashGlobalReadTaskType
+	CopTiFlashGlobalReadTaskType
+
+	// MppTaskType stands for task that would run on Mpp nodes, currently meaning the tiflash node.
+	MppTaskType
+</code></pre>
+<h3 id="newpartialaggregate"><a class="header" href="#newpartialaggregate">newPartialAggregate</a></h3>
+<p><img src="./dot/newPartialAggregate.svg" alt="" /></p>
+<h4 id="checkaggpushflash"><a class="header" href="#checkaggpushflash">CheckAggPushFlash</a></h4>
+<pre><code class="language-go">func CheckAggPushFlash(aggFunc *AggFuncDesc) bool {
+	switch aggFunc.Name {
+	case ast.AggFuncSum, ast.AggFuncCount, ast.AggFuncMin, ast.AggFuncMax, ast.AggFuncAvg, ast.AggFuncFirstRow, ast.AggFuncApproxCountDistinct:
+		return true
+	}
+	return false
+}
+</code></pre>
+<h4 id="expr_pushdown_blacklist"><a class="header" href="#expr_pushdown_blacklist">expr_pushdown_blacklist</a></h4>
+<p>该blacklist 存在mysql.expr_pushdown_blacklist表中</p>
+<pre><code class="language-go">func LoadExprPushdownBlacklist(ctx sessionctx.Context) (err error) {
+	sql := &quot;select HIGH_PRIORITY name, store_type from mysql.expr_pushdown_blacklist&quot;
+	rows, _, err := ctx.(sqlexec.RestrictedSQLExecutor).ExecRestrictedSQL(sql)
+  }
+</code></pre>
+<h4 id="对distinct特殊处理"><a class="header" href="#对distinct特殊处理">对Distinct特殊处理</a></h4>
+<pre><code class="language-go">		if aggFunc.HasDistinct {
+			/*
+				eg: SELECT COUNT(DISTINCT a), SUM(b) FROM t GROUP BY c
+
+				change from
+					[root] group by: c, funcs:count(distinct a), funcs:sum(b)
+				to
+					[root] group by: c, funcs:count(distinct a), funcs:sum(b)
+						[cop]: group by: c, a
+			*/
+</code></pre>
+<h4 id="对first-row-function-特殊处理"><a class="header" href="#对first-row-function-特殊处理">对first row function 特殊处理</a></h4>
+<pre><code class="language-go">					if !partialIsCop {
+						// if partial is a cop task, firstrow function is redundant since group by items are outputted
+						// by group by schema, and final functions use group by schema as their arguments.
+						// if partial agg is not cop, we must append firstrow function &amp; schema, to output the group by
+						// items.
+						// maybe we can unify them sometime.
+</code></pre>
+<h2 id="topb"><a class="header" href="#topb">ToPB</a></h2>
+<p><img src="./dot/agg_to_pb.svg" alt="" /></p>
+
+                        <div id="giscus-container"></div>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../tidb/index-lookup-join.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../tidb/agg-func.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../tidb/index-lookup-join.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../tidb/agg-func.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+        <script type="text/javascript" charset="utf-8">
+        var pagePath = "tidb/agg.md"
+        </script>
+
+
+        <!-- Custom JS scripts -->
+        <script type="text/javascript" src="../assets/custom.js"></script>
+        <script type="text/javascript" src="../assets/bigPicture.js"></script>
+
+
+    </body>
+</html>

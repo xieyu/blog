@@ -1,0 +1,89 @@
+#include "styles.h"
+digraph doActionOnMutations {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  doActionOnMutations-> {
+    checkOnePCFallBack;
+    groupMutations;
+    doActionOnGroupMutations;
+  }
+  groupMutations[style_blue1;label="{{
+    groupMutations|
+     groupMutations groups \l
+     mutations by region, \l
+     then checks for any large\l
+     groups and in that case\l
+     pre-splits the region.\l
+  }}"]
+  doActionOnGroupMutations[style_green1;label="{{
+    doActionOnGroupMutations|
+    split groups into batches\l
+    one group per region\l
+    many baches per group\l
+  }}"]
+
+  doActionOnGroupMutations -> {
+    checkOnePCFallBack;
+    doActionOnBatches;
+    batchBuilder_setPrimary;
+  }
+  batchBuilder_setPrimary[style_func;label="{{
+    batchBuilder_setPrimary|
+    if the batches include the primay key\l
+    put it to the first\l
+  }}"]
+
+  doActionOnBatches[style_func;label="{{
+    doActionOnBatches|
+    does action to baches in parallel\l
+  }}"]
+
+  doActionOnBatches -> {
+   newBatchExecutor;
+   batchExecutor_process;
+   noNeedFork;
+   handleSingleBatch;
+  }
+  handleSingleBatch[style_func;label="{{
+    handleSingleBatch|
+    如果batch大小为1\l
+    或者是commit的retry\l
+    同步执行\l
+  }}"]
+
+  batchExecutor_process -> {
+    startWorker;
+  }
+  startWorker -> twoPhaseCommitAction_handleSingleBatch;
+  twoPhaseCommitAction_handleSingleBatch[style_func;label="{{
+    twoPhaseCommitAction|
+    handleSingleBatch\l
+  }}"]
+  actionPrewrite_handleSingleBatch[style_func;label="{{
+    actionPrewrite|
+    handleSingleBatch\l
+  }}"]
+
+  subgraph cluster_batchExecutor {
+    graph[label="batchExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    newBatchExecutor;
+    batchExecutor_process
+    startWorker;
+    batchExecutor_process[style_func;label="{{
+      batchExecutor|
+      process\l
+    }}"]
+  }
+
+  twoPhaseCommitAction_handleSingleBatch -> {
+    actionPrewrite_handleSingleBatch;
+    actionCommit_handleSingleBatch;
+  }
+  actionCommit_handleSingleBatch[style_func;label="{{
+    actionCommit|handleSingleBatch\l
+  }}"]
+  
+}

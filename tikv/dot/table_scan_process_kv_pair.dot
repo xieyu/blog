@@ -1,0 +1,110 @@
+#include "styles.h"
+digraph process_kv_pair {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  
+  process_kv_pair -> {
+    process_v1;
+    process_v2;
+    decode_int_handle;
+    not_handle_indices_is_empty;
+    not_primay_column_ids_is_empty;
+    decode_common_handle;
+    column_id_index_get_primary_id;
+    split_datum;
+    check_record_key;
+  }[color=red]
+
+  key -> {
+     decode_int_handle;
+     decode_common_handle;
+     process_kv_pair;
+  }[style_edge_data];
+
+  subgraph cluster_value_is_emty {
+    graph[label="value_is_emty";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+     not_handle_indices_is_empty -> decode_int_handle[style_edge_data];
+     decode_int_handle -> for_each_handle_index_mut_decoded_push_int;
+     not_primay_column_ids_is_empty;
+     not_primay_column_ids_is_empty ->{
+       decode_common_handle;
+       column_id_index_get_primary_id;
+       split_datum;
+       mut_raw_push;
+     }[style_edge_data];
+     decode_common_handle -> split_datum -> mut_raw_push;
+     check_record_key;
+  }
+  key[style_var;label="{{
+    key 编码如下\l|
+    {table_prefix|table_id|sep|raw_key}|
+    {t|123|_r|raw_key}
+  }}"]
+  value[style_var;label="{{
+    value|
+  }}"]
+  not_primay_column_ids_is_empty[style_func;label="{{
+    !primay_column_ids.is_empty()\l|
+    primary_column_ids 非空\l
+  }}"]
+  not_handle_indices_is_empty[style_func;label="{{
+    !handle_indices.is_empty()\l|
+    handle_indices非空\l
+  }}"]
+  for_each_handle_index_mut_decoded_push_int[style_func;label="{{
+  对于handle_indices每个handle_index\l
+  columns[*handle_index].mut_decode()\l
+  .push_int(Some(handle))\l
+  }}"]
+  decode_int_handle -> check_record_key;
+  decode_int_handle[style_func;label="{{
+    decode_int_handle|
+    key = &key[PREFIX_LEN..]\l
+    key.read_i64()\l|
+    略过PREFIX，decode出key的i64值\l
+  }}"]
+  decode_common_handle[style_func;label="{{
+    decode_common_handle|
+    key = &key[PREFIX_LEN..]\l
+    Ok(key)\l
+  }}"]
+  columns[style_var;label="{{
+    columns|
+    最后输出结果\l
+    &mut LazyBatchColumnVec\l
+  }}"]
+  column_id_index_get_primary_id[style_func;label="{{
+    column_id_index.get(primary_id)\l|
+    column_id_index: HashMap\<i64, usize\>,\l
+    获取ouput position in the\l 
+    schema giving the column id\l|
+    获取primay_id 在输出中的位置\l
+  }}"]
+  for_each_handle_index_mut_decoded_push_int -> columns;
+  mut_raw_push -> columns;
+  mut_raw_push[style_func;label="{{
+    columns[index].mut_raw().push(datum)\l|
+    将数据push到输出位置\l 
+    index column上\l
+  }}"]
+  column_id_index_get_primary_id -> mut_raw_push;
+  split_datum[style_func;label="{{
+    split_datum|
+    Spit byte array into two part:\l
+    first one is a whole datum's encoded data\l
+    second part is remaining data\l|
+    根据buf[0]的flag判断其长度\l|
+    handle = remain
+  }}"]
+
+  {rank=same; column_id_index_get_primary_id;split_datum}
+
+
+  value -> {
+    process_v1;
+    process_v2;
+  }
+}

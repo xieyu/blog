@@ -1,0 +1,91 @@
+digraph db_put_overview {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  WAL[
+    shape="record";
+    label="{{
+      Write AHead log|
+      写入内存之前\l 
+      先append到日志中\l
+      由于采用了顺序写\l 
+      速度很快\l
+    }}";
+  ];
+  MemTable[
+    shape="record";
+    label="{{
+      MemTable|
+      将KV插入到Memtable中\l
+      Memtable为SkipList\l
+      若Memtable大小超过了限制\l
+      就新建一个memtable\l 
+      并将之前的memtable\l
+      转换为Immtable\l
+    }}";
+  ];
+  Level0SSTable[
+    shape="record";
+    label="{{
+      Level0SSTable|
+      第0层的sstable文件之间\l 
+      key range有重叠部分\l
+    }}";
+  ];
+  Level1SSTable[
+    shape="record";
+    label="{{
+      Level1SSTable|
+      第1层sstable 文件\l
+      由后台线程compact而来\l
+      文件之间的key range无重叠部分\l
+    }}";
+  ];
+  LevelNSSTable[
+    shape="record";
+    label="{{
+      LevelNSSTable|
+      ...
+    }}";
+  ];
+  KV[
+    shape="record";
+    label="{{
+      KV|
+      key,value batch\l
+    }}";
+  ];
+  KeyValue[
+    shape="record";
+    label="{{
+      插入skiplist的buf编码|
+      keySize: varint32\l| 
+      <KeyBytes> keyBytes\l|
+      valueSize: varint32\l|
+      value bytes\l
+    }}";
+  ];
+  KeyBytes[
+    shape="record";
+    label="{{
+      KeyBytes|
+      key_data|
+      <sequence> sequence_number|
+        type\l|
+    }}";
+  ];
+  VersionSet[
+    shape="record";
+    label="{{
+      VersionSet|
+      获取当前sequnce_number\l
+      并更新sequnce_number += kv_count\l
+    }}";
+  ];
+  VersionSet -> KeyBytes:sequence[style=dashed];
+  KeyValue:KeyBytes -> KeyBytes;
+  ImmTable -> KeyValue;
+  KV -> MemTable -> ImmTable -> SSTableFile  -> Level0SSTable -> Level1SSTable -> LevelNSSTable;
+  KV -> WAL;
+  KV -> VersionSet;
+}

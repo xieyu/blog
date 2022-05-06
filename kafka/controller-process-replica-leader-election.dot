@@ -1,0 +1,28 @@
+digraph replicaLeaderElection {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ControllerContext {
+    graph[label="ControllerContext";fontsize=20;style=rounded];
+    allPartitions;
+    partitionReplicaAssignment;
+    partitionLeadershipInfo;
+  };
+  subgraph cluster_PartitionStateMachine {
+    graph[label="PartitionStateMachine";fontsize=20;style=rounded];
+    pm_OnlinePartition;
+  };
+
+  processReplicaLeaderElection -> {
+    allPartitions;
+    isTopicQueuedUpForDeletion;
+    partitionReplicaAssignment;
+    partitionLeadershipInfo;
+    onReplicaElection;
+  }
+
+  onReplicaElection -> {
+    pm_OnlinePartition;
+  }
+}

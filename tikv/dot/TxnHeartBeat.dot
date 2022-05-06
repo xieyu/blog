@@ -1,0 +1,28 @@
+#include "styles.h"
+digraph TxnHeartBeat {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_MvccTxn {
+    graph[label="MvccTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    MvccTxn_new;
+    put_lock;
+  }
+  subgraph cluster_MvccReader {
+    graph[label="MvccReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    load_lock;
+    put_lock;
+  }
+
+  subgraph cluster_TxnHeartBeat {
+    graph[label="TxnHeartBeat";fontsize=20;style="rounded,dashed";color="slategrey"]
+    process_write -> {
+      MvccTxn_new;
+      load_lock;
+      put_lock;
+    }
+  }
+  
+}

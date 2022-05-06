@@ -1,0 +1,54 @@
+#include "styles.h"
+digraph raft_log_entries {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Unstable__entries;
+  Unstable__entries[style_blue1;label="{{
+    Unstable__entries|
+    All entries that have \l
+    not yet been write to storage\l
+  }}"]
+
+
+  Unstable__truncate_and_append -> Unstable__entries;
+  RaftLog__append -> Unstable__truncate_and_append;
+  RaftLog__maybe_append -> {
+    RaftLog__append;
+  }
+  RaftCore__handle_append_entries -> RaftLog__maybe_append;
+  RaftCore__step_follower -> RaftCore__handle_append_entries;
+  RaftCore__step_candidate -> RaftCore__handle_append_entries;
+
+  RaftCore__step_leader -> RaftCore__append_entry;
+  RaftCore__append_entry -> RaftLog__append;
+  RaftCore__step -> {
+    RaftCore__step_candidate;
+    RaftCore__step_leader;
+    RaftCore__step_follower;
+  }
+  RaftCore__handle_append_entries[style_func;label="{{
+    RaftCore__handle_append_entries|
+    处理leader发来的MsgAppend\l
+    会比较log entry的term和index\l
+    如果和自己的不match就会reject\l
+    让leader重新发送\l
+  }}"]
+  RaftLog__maybe_append[style_func;label="{{
+    RaftLog__maybe_append|
+    会检查log entry的term和index\l
+    是否match\l
+  }}"]
+
+  RaftCore__step_leader[style_func;label="{{
+    RaftCore__step_leader|
+    处理RawNode的propose 调用\l
+    处理MsgPropose类型的log entry\l
+    直接append到leader自己\l
+    的log entry上\l|
+    并向所有的peers发送\l
+    MsgAppend消息\l
+  }}"]
+}

@@ -1,0 +1,108 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  kpu_task_t -> {
+    kpu_task_init;
+    kpu_run;
+    kpu_get_output_buf;
+    kpu_release_output_buf;
+  }
+
+  kpu_task_t -> {
+    kpu_layer_argument_t;
+    plic_irq_callback_t;
+  }
+
+  kpu_run -> {
+    plic_irq_enable;
+    plic_set_priority;
+    plic_irq_register;
+    kpu_run_dma_input;
+    IRQN_AI_INTERRUPT;
+  }
+  plic_irq_register -> {
+    current_coreid；
+    plic_instanc__core_id__irq__callback
+    plic_instanc__core_id__irq__ctx;
+  }
+  plic_instanc__core_id__irq__callback -> kpu_continue[style_edge_data];
+
+  kpu_continue -> kpu__layer_argument_fifo;
+  kpu_run_dma_input -> {
+    dmac_set_irq;
+    dmac_set_single_mode;
+  }
+  kpu_run_dma_input -> kpu_run_dma_input_done_push_layers[style_edge_data];
+  dmac_set_irq -> kpu_run_dma_input_done_push_layers[style_edge_data];
+
+  kpu_run_dma_input_done_push_layers -> {
+    kpu_run_dma_output;
+    kpu_continue;
+  }
+  kpu_run_dma_output -> {
+    dmac_set_irq;
+    dmac_set_single_mode;
+  }
+
+  kpu_run_dma_output -> kpu_run_all_done[style_edge_data];
+  kpu_run_all_done -> task__cb;
+  kpu_run -> task__cb;
+  task__cb -> plic_irq_callback_t[style_edge_data];
+
+  dmac_set_irq -> {
+    dmac_enable_channel_interrupt;
+    plic_set_priority;
+    plic_irq_enable;
+    plic_irq_register;
+  }
+  plic_irq_register -> plic_instance;
+  plic_instance[style_var;label="{{
+    plic_instance\l
+    静态全局变量\l|
+    plic_instance[PLIC_NUM_CORES][IRQN_MAX];\l
+  }}"]
+  plic_instance -> task__cb[style_edge_data];
+  handle_irq_m_ext -> plic_instance;
+  handle_irq -> irq_table ->  IRQ_M_EXT -> handle_irq_m_ext;
+
+  lib__bsp__crt_S -> handle_irq;
+
+
+  handle_irq[style_func;label="{{
+    handle_irq\l
+    处理中断\l
+  }}"]
+  task__cb[style_green1;label="{{
+    task__cb\l|
+    在kpu_run时候设置\l
+    task的cb\l
+    执行结束后\l
+    调用该cb\l
+  }}"]
+
+  plic_irq_register[style_func;label="{{
+    plic_irq_register\l|
+    注册中断回调函数\l
+  }}"]
+
+  plic_irq_callback_t[style_func;label="{{
+    plic_irq_callback_t\l
+    typedef int(*plic_irq_callback_t)(void *ctx)\l
+  }}"]
+
+  kpu_run[style_blue1;label="{{
+    kpu_run\l|
+    Kpu run for ai\l|
+    dmac_channel_number_t dma_ch\l|
+    const void * src\l|
+    const void * dest\l|
+    plic_irq_callback_t callbac\l
+  }}"]
+
+
+
+}

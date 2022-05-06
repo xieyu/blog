@@ -1,0 +1,196 @@
+#include "styles.h"
+digraph raftlog {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  {
+    rank=same;
+    RaftPoller_handle_normals;
+    end;
+  }
+  subgraph cluster_PollContext {
+    graph[label="PollContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PollContext[style_struct;label="{{
+      PollContext|
+      pub kv_wb: EK::WriteBatch,\l|
+      <raft_wb> pub raft_wb: ER::LogBatch,\l|
+      <engines> pub engines: Engines\<EK, ER\>,\l|
+      ...
+    }}"]
+    PollContext:engines -> Engines;
+    subgraph cluster_Engines {
+      graph[label="Engines";fontsize=20;style="rounded,dashed";color="slategrey"]
+      Engines[style_struct;label="{{
+        Engines|
+          <kv> pub kv: K,\l|
+          <raft> pub raft: R,\l
+      }}"]
+      Engines:raft -> poll_ctx_engines_raft_consume_and_shrink;
+      Engines:kv -> poll_ctx_engines_kv_write_batch_with_cap;
+      poll_ctx_engines_raft_consume_and_shrink[style_func;label="{{
+        consume_and_shrink
+      }}"]
+      poll_ctx_engines_kv_write_batch_with_cap[style_func;label="{{
+        write_batch_with_cap
+      }}"]
+    }
+
+    PollContext -> RocksWriteBatch;
+    PollContext:kv_wb -> poll_ctx_kv_wb_write_opts;
+    poll_ctx_kv_wb_write_opts[style_func;label="{{
+      kv_wb.write_opts
+    }}"]
+    ready_ctx_raft_wb_mut_append[style_func;label="{{
+     raft_wb_mut.append|
+       append(region_id, entries)?;
+    }}"]
+    ready_ctx_raft_wb_mut_cut_logs[style_func;label="{{
+      raft_wb_mut.cut_logs|
+      cut_logs(region_id,\l 
+        last_index +1,\l 
+        prev_last_index)\l|
+      Delete any previously appended\l
+      log entries which never committed\l|
+      删除可能存在的脏日志?\l
+    }}"]
+    PollContext:raft_wb-> poll_ctx_engines_raft_consume_and_shrink;
+    {
+      ready_ctx_raft_wb_mut_append;
+      ready_ctx_raft_wb_mut_cut_logs;
+    } -> PollContext:raft_wb[style_edge_data];
+  }
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Peer_handle_raft_ready_append;
+    Peer_handle_raft_ready_append[style_func;label="{{
+      handle_raft_ready_append
+    }}"]
+    
+  }
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PeerStorage_append[style_func;label="{{
+      append|
+      self.append(&mut ctx,\l 
+      ready.take_entries(),\l
+      ready_ctx)?;\l
+    }}"]
+    PeerStorage_handle_raft_ready[style_func;label="{{
+      handle_raft_ready|
+      Save memory states to disk\l
+      将数据写入到writeBatch\l
+    }}"]
+    PeerStorage_handle_raft_ready -> {
+      PeerStorage_append;
+    }
+  }
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PeerFsmDelegate_handle_msgs[style_func;label="{{
+      handle_msgs
+    }}"]
+    PeerFsmDelegate_collect_ready[style_func;label="{{
+      collect_ready
+    }}"]
+    PeerFsmDelegate_post_raft_ready_append[style_func;label="{{
+      raft_ready_append;
+    }}"]
+    //register_raft_gc_log_tick;
+    //register_split_region_check_tick;
+  }
+  subgraph cluster_RaftPoller {
+    graph[label="RaftPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RaftPoller;
+    RaftPoller_handle_normals[style_func;label="{{
+      handle_normals
+    }}"]
+    RaftPoller_handle_raft_ready[style_func;label="{{
+      handle_raft_ready|
+      将poll_ctx中的\l 
+      kv_wb, raft_wb\l 
+      写入rocksdb中\l
+    }}"]
+
+    RaftPoller_handle_normals;
+    RaftPoller_handle_raft_ready;
+    poll -> {
+      begin;
+      RaftPoller_handle_normals;
+      end;
+      handle_control;
+    }
+    end -> {
+      RaftPoller_handle_raft_ready;
+    }
+  }
+
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PeerStorage_post_ready[style_func;label="{{
+      post_ready|
+      写入rocksdb后\l 
+      更改内存状态
+    }}"]
+    PeerStorage_post_ready -> {
+      raft_state;
+      apply_state;
+      last_term
+      schedule_applying_snapshot;
+    }
+    schedule_applying_snapshot[style_func;label="{{
+      schedule_applying_snapshot|
+      每次都要发送apply\l 
+      snapshot task 吗 ?\l
+    }}"]
+
+    PeerStorage_append;
+  }
+  PeerStorage_append -> {
+    //cache_append;
+    ready_ctx_raft_wb_mut_append;
+    ready_ctx_raft_wb_mut_cut_logs;
+    //invoke_ctx_set_last_index;
+  };
+
+
+  RaftPoller[style_struct;label="{{
+    RaftPoller|
+    tag: String,\l|
+    store_msg_buf: Vec\<StoreMsg\<EK\>\>,\l|
+    peer_msg_buf: Vec\<PeerMsg\<EK\>\>,\l|
+    previous_metrics: RaftMetrics,\l|
+    timer: TiInstant,\l|
+    <poll_ctx> poll_ctx: PollContext\<EK, ER, T\>,\l|
+    messages_per_tick: usize,\l|
+    cfg_tracker: Tracker\<Config\>,\l
+  }}"]
+  RaftPoller -> PollContext;
+
+  RaftPoller_handle_normals -> {
+    PeerFsmDelegate_handle_msgs;
+    PeerFsmDelegate_collect_ready;
+  }
+  RaftPoller_handle_raft_ready -> {
+    poll_ctx_engines_raft_consume_and_shrink;
+    poll_ctx_kv_wb_write_opts;
+    poll_ctx_engines_kv_write_batch_with_cap;
+    PeerFsmDelegate_post_raft_ready_append;
+  }
+  ready_res_push -> PeerFsmDelegate_post_raft_ready_append;
+  PeerFsmDelegate_post_raft_ready_append -> {
+    PeerStorage_post_ready;
+  }
+
+  PeerFsmDelegate_collect_ready -> {
+    Peer_handle_raft_ready_append;
+    //register_raft_gc_log_tick;
+    //register_split_region_check_tick;
+    ready_res_push;
+  }
+  Peer_handle_raft_ready_append -> {
+    PeerStorage_handle_raft_ready;
+  }
+
+  //poll_ctx -> HandleRaftReadyContext -> PeerStorage_append;
+}

@@ -1,0 +1,94 @@
+#include "styles.h"
+digraph peer_read_index_struct {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Peer[style_func;label="{{
+    Peer|
+    leader_lease: Lease,\l|
+    pending_reads: \l
+    ReadIndexQueue\<EK::Snapshot\>,\l
+  }}"]
+
+  Peer -> {
+    ReadIndexQueue;
+  }
+  ReadIndexQueue[style_func;label="{{
+    ReadIndexQueue|
+    reads: VecDeque\<ReadIndexRequest\<S\>\>,\l|
+    ready_cnt: usize,\l|
+    handled_cnt: usize,\l|
+    // map[uuid] -\> offset in `reads`.\l
+    contexts: HashMap\<Uuid, usize\>,\l|
+    retry_countdown: usize,\l
+  }}"]
+
+  ReadIndexQueue -> {
+    ReadIndexRequest;
+  }
+  ReadIndexRequest[style_func;label="{{
+    ReadIndexRequest|
+    pub id: Uuid,\l|
+    pub cmds: MustConsumeVec\l
+    \<(RaftCmdRequest, Callback\<S\>, Option\<u64\>)\>,\l|
+    pub renew_lease_time: Timespec,\l|
+    pub read_index: Option\<u64\>,\l|
+    pub addition_request: \l
+    Option\<Box\<raft_cmdpb::ReadIndexRequest\>\>,\l|
+    pub locked: Option\<Box\<LockInfo\>\>,\l|
+    in_contexts: bool,\l
+  }}"]
+
+  ReadIndexRequest -> {
+    MustConsumeVec;
+    RaftCmdRequest;
+    Callback;
+    LockInfo;
+    Timespec;
+    Uuid;
+  }
+  Uuid[style_var;label="{{
+    Uuid|
+    传给raft group的\l
+    uuid,作为read index\l
+    请求标识
+  }}"]
+  MustConsumeVec[style_func;label="{{
+    MustConsumeVec|
+    在drop时如果!is_empty\l
+    会safe_panic\l
+    resource leak detected\l
+  }}"]
+
+  LockInfo[style_func;label="{{
+    LockInfo|
+    bytes primary_lock = 1;\l|
+    uint64 lock_version = 2;\l|
+    bytes key = 3;\l|
+    uint64 lock_ttl = 4;\l|
+    uint64 txn_size = 5;\l|
+    Op lock_type = 6;\l|
+    uint64 lock_for_update_ts = 7;\l|
+    bool use_async_commit = 8;\l|
+    uint64 min_commit_ts = 9;\l|
+    repeated bytes secondaries = 10;\l
+  }}"]
+  Callback[style_func;label="{{
+    Callback|
+    None,\l|
+    Read(ReadCallback\<S\>),\l
+    Write \l
+  }}"]
+
+  Callback -> ReadCallback;
+  ReadIndexQueue -> {
+    contexts;
+  }
+  contexts[style_func;label="{{
+    contexts|
+    HashMap\<Uuid, usize\>\l|
+    记录在uuid在队列中的位置
+  }}"]
+  contexts -> ReadIndexRequest[style_edge_data];
+}

@@ -1,0 +1,90 @@
+#include "styles.h"
+digraph ApplyDelegate__exec_commit_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ApplyDelegate__exec_commit_merge[style_func;label="{{
+    ApplyDelegate\l
+    exec_commit_merge\l|
+    发送CatchUpLogs给Source region\l
+  }}"]
+
+  ApplyDelegate__exec_commit_merge -> {
+    SignificantMsg__CatchUpLogs;
+    ApplyContext__notifier__PeerMsg__SignificantMsg;
+    ApplyResult__WaitMergeSource;
+    AdminRequest__get_commit_merge;
+  }
+
+  ApplyDelegate__wait_merge_state ->  ApplyDelegate__ready_source_region_id[style_edge_data];
+  ApplyDelegate__wait_merge_state[style_var;label="{{
+    ApplyDelegate\l
+    wait_merge_state\l|
+    logs_up_to_date: Arc\<AtomicU64\>,\l
+  }}"]
+
+  SignificantMsg__CatchUpLogs -> ApplyContext__notifier__PeerMsg__SignificantMsg;
+  ApplyResult__WaitMergeSource[style_func;label="{{
+    ApplyResult\l
+    WaitMergeSource\l|
+    Arc\<AtomicU64\>\l
+  }}"]
+  ApplyResult__WaitMergeSource -> ApplyDelegate__wait_merge_state[style_edge_data];
+  ApplyDelegate__wait_merge_state -> logs_up_to_date;
+  ApplyResult__WaitMergeSource -> logs_up_to_date;
+  logs_up_to_date[style_var;label="{{
+    logs_up_to_date|
+    Arc::new(AtomicU64::new(0))\l
+    用于source regoin\l
+    和target region\l
+    同步状态\l
+  }}"]
+
+  SignificantMsg__CatchUpLogs[style_func;label="{{
+    SignificantMsg\l
+    CatchUpLogs\l|
+    pub target_region_id: u64,\l|
+    pub merge: CommitMergeRequest,\l|
+    pub logs_up_to_date: Arc\<AtomicU64\>,\l
+  }}"]
+
+  AdminRequest__get_commit_merge -> SignificantMsg__CatchUpLogs;
+  ApplyDelegate__handle_raft_committed_entries -> {
+    ApplyResult__WaitMergeSource;
+    ApplyDelegate__wait_merge_state;
+  }
+  ApplyDelegate__handle_raft_committed_entries[style_func;label="{{
+    ApplyDelegate\l
+    handle_raft_committed_entries\l|
+    处理comitted log entries\l
+  }}"]
+  ApplyDelegate__handle_raft_committed_entries -> {
+    ApplyDelegate__exec_commit_merge;
+    ApplyDelegate__yield_state;
+  }
+  ApplyContext__notifier__PeerMsg__SignificantMsg[style_blue1;label="{{
+    ApplyContext\l
+    notifier\l
+    PeerMsg\l
+    SignificantMsg\l|
+    CatchUpLogs\l
+  }}"]
+  AdminRequest__get_commit_merge[style_func;label="{{
+    AdminRequest\l
+    get_commit_merge\l
+  }}"]
+  ApplyDelegate__ready_source_region_id[style_func;label="{{
+    ApplyDelegate\l
+    ready_source_region_id\l
+  }}"]
+  ApplyDelegate__yield_state[style_var;label="{{
+    ApplyDelegate\l
+    yield_state\l
+    pending_entries,\l|
+    将本次CommitMergeEntry\l
+    放入yield state等待下次再\l
+    执行\l
+  }}"]
+
+}

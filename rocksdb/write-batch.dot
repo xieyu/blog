@@ -1,0 +1,247 @@
+digraph write_batch {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_WriteBatch {
+    graph[label="WriteBatch";fontsize=20;style=rounded];
+    
+    WriteBatchBase -> {
+      WriteBatch;
+      WriteBatchWithIndex;
+    }
+
+    WriteBatch[
+      shape="record";
+      label="{{
+        WriteBatch|
+          <SavePoints> std::unique_ptr\<SavePoints\> save_points_;|
+          <SavePoint> SavePoint wal_term_point_;\l|
+          mutable std::atomic\<uint32_t\> content_flags_;\l|
+          size_t max_bytes_;\l|
+          bool is_latest_persistent_state_ = false;\l|
+          <rep> std::string rep_; \l|
+          const size_t timestamp_size_;\l
+      }}";
+    ];
+    WriteBatch -> ReadableWriteBatch;
+    WriteBatch:rep -> WriteBatch_Rep;
+    WriteBatch:SavePoint -> SavePoint;
+    WriteBatch:SavePoints -> SavePoints;
+
+    WriteBatch_Rep[
+      shape="record";
+      style="filled";
+      fillcolor="#95e1d3";
+      label="{{
+        WriteBatch::Rep|
+        <sequnce> sequence: fixed64\l|
+        <count> count: fixed32\l|
+        <record> data: record[count]\l
+      }}";
+    ];
+
+    WriteBatch_Rep:record -> record;
+
+    record[
+      shape="record";
+      style="filled";
+      fillcolor="#95e1d3";
+      label="{{
+        record|
+        kTypeValue varstring varstring\l|
+        kTypeDeletion varstring\l|
+        kTypeSingleDeletion varstring\l|
+        kTypeRangeDeletion varstring varstring\l|
+        kTypeMerge varstring varstring\l|
+        kTypeColumnFamilyValue varint32 varstring varstring\l|
+        kTypeColumnFamilyDeletion varint32 varstring\l|
+        kTypeColumnFamilySingleDeletion varint32 varstring\l|
+        kTypeColumnFamilyRangeDeletion varint32 varstring varstring\l|
+        kTypeColumnFamilyMerge varint32 varstring varstring\l|
+        kTypeBeginPrepareXID varstring\l|
+        kTypeEndPrepareXID\l|
+        kTypeCommitXID varstring\l|
+        kTypeRollbackXID varstring\l|
+        kTypeBeginPersistedPrepareXID varstring\l|
+        kTypeBeginUnprepareXID varstring\l|
+        kTypeNoop\l
+      }}";
+    ];
+    varstring[
+      shape="record";
+      label="{{
+        varstring|
+        len: varint32\l|
+        data: uint8[len]\l
+      }}";
+    ];
+    record -> varstring;
+    SavePoints[
+      shape="record";
+      label="{{
+        SavePoints|
+          <SavePoint> std::stack\<SavePoint, autovector\<SavePoint\>\> stack;
+      }}";
+    ];
+    SavePoints:SavePoint -> SavePoint;
+    SavePoint[
+      shape="record";
+      label="{{
+        size_t size;\l|
+        int count;\l|
+        uint32_t content_flags\l
+      }}";
+    ];
+
+    //WriteBatchWithIndex
+    WriteBatchWithIndex[
+      shape="record";
+      label="{{
+        WriteBatchWithIndex|
+          <Rep> std::unique_ptr\<Rep\> rep;\l
+      }}";
+    ];
+    WriteBatchWithIndex:Rep -> WriteBatchWithIndex_Rep;
+    WriteBatchWithIndex_Rep[
+      shape="record";
+      label="{{
+        WriteBatchWithIndex::Rep|
+          <ReadableWriteBatch> ReadableWriteBatch write_batch;\l|
+          WriteBatchEntryComparator comparator;\l|
+          Arena arena;\l|
+          WriteBatchEntrySkipList skip_list;\l|
+          bool overwrite_key;\l|
+          size_t last_entry_offset;\l|
+          size_t last_sub_batch_offset;\l|
+          size_t sub_batch_cnt;\l
+      }}";
+    ];
+    WriteBatchWithIndex_Rep -> ReadableWriteBatch;
+  };
+  WriteBatch_Rep -> ReadRecordFromWriteBatch[style=dashed;color=gray];
+
+
+
+  WriteBatch_Rep -> Contents[style=dashed;color=gray];
+  subgraph cluster_WriteBatchInternal {
+    graph[label="WriteBatchInternal";fontsize=20;style=rounded];
+    WriteBatch_Put[
+      fillcolor="#f38181";
+      style=filled;
+      shape="record";
+      label="{{
+        WriteBatch::Put|
+        将key/value写入\l 
+        batch的rep_内存中\l
+      }}";
+    ];
+    WriteBatchInternal[
+      shape="record";
+      label="{{
+        WriteBatchInternal|
+        WriteBatchInternal提供了\l 
+        一些static member函数\l
+        Put/Delete/Merge等\l
+        用来修改WriteBatch\l
+      }}";
+    ];
+    Put[
+      shape="record";
+      label="{{
+        Put|
+          Put(WriteBatch* b, uint32_t column_family_id,\l
+              const Slice& key, const Slice& value) \l|
+        将key,value 插入rep的record中,并修改count\l
+      }}";
+    ];
+    Contents[
+      shape="record";
+      label="{{
+        Contents|
+        获取writeBatch中内容
+      }}";
+    ];
+    InsertInto[
+      fillcolor="#f38181";
+      style=filled;
+      shape="record";
+      label="{{
+        InsertInto|
+        将key/value插入\l 
+        MemTable中\l
+      }}";
+    ];
+    Iterate[
+      shape="record";
+      label="{{
+        Iterate|
+        迭代遍历每一个record\l
+        插入memtable中\l
+        MemTable由WriteBatch_handler抽象\l
+        由MemTableInsertor实现\l
+      }}";
+    ];
+    WriteBatchInternal -> WriteBatch;
+    SetCount -> WriteBatch_Rep:count;
+    SetSequence -> WriteBatch_Rep:sequnce;
+    Put -> {
+      SetCount;
+      WriteBatch_Rep:record;
+    }
+    InsertInto -> {
+      SetSequence;
+      Iterate;
+      MaybeAdvanceSeq;
+    }[color="#364f6b"];
+    Iterate -> {
+      ReadRecordFromWriteBatch;
+    }[color="#f08a5d"];
+  };
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;style=rounded];
+    DBImpl_Write[
+      shape="record";
+      label="{{
+        DBImpl::Write
+      }}";
+    ];
+    DBImpl_WriteImpl[
+      shape="record";
+      label="{{
+        DBImpl::WriteImpl|
+        Write的具体实现
+      }}";
+    ];
+    WriteToWAL[
+      fillcolor="#f38181";
+      style=filled;
+      shape="record";
+      label="{{
+        WriteToWAL|
+        将WriteBatch的rep_\l
+        内容写入WAL日志\l
+      }}";
+    ];
+    DBImpl_Write -> DBImpl_WriteImpl -> {
+      InsertInto;
+      WriteToWAL;
+    }
+    WriteToWAL -> {
+      Contents;
+    }[color="#3ec1d3"];
+  };
+  subgraph cluster_DB {
+    graph[label="DB";fontsize=20;style=rounded];
+    DB_Write -> DBImpl_Write[label=virtual];
+    DB_Put -> WriteBatch_Put -> Put;
+    DB_Put -> DB_Write;
+  };
+
+  {
+    edge[style=dashed;color=gray];
+
+  }
+  {rank=same;DB_Put;WriteBatchBase}
+  {rank=same;Iterate;WriteBatch_Rep;}
+}

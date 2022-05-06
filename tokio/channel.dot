@@ -1,0 +1,150 @@
+digraph channel {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  Tx [shape="record";
+    label="{{
+      Tx\<T, S: Semaphore\> |
+        <chan> inner: Arc\<Chan\<T, S\>\>\l|
+        <p> permit: S::Permit\l
+    }}";
+  ];
+  Tx:chan -> Chan [label="Arc"];
+  Tx:p -> Permit;
+
+  Rx[shape="record";
+    label="{{
+      Rx\<T, S: Semaphore\>|
+        <chan> inner: Arc\<Chan\<T, S\>\>
+    }}";
+  ];
+  Rx:chan -> Chan[label="Arc"];
+
+  Chan[shape="record";
+    label="{{
+      Chan\<T,S\> |
+        <tx> tx: list::Tx\<T\>\l|
+        <s> semaphore: S\l|
+        <w> rx_waker: AtomicWaker\l|
+        tx_count: AtomicUsize\l|
+        <rx_fields> rx_fields: CausalCell\<RxFields\<T\>\>\l
+    }}";
+  ];
+  Chan:tx -> ListTx;
+  Chan:rx_fields -> RxFields;
+  Chan:w -> AtomicWaker;
+  Chan:s -> Semaphore[label="Trait"];
+
+  ListTx[shape="record";
+    label="{{
+      list::Tx|
+        <block> block_tail: AtomicPtr\<Block\<T\>\>\l|
+        tail_position: AtomicUsize\l
+    }}";
+  ];
+  ListTx:block -> Block;
+
+  Block[shape="record";
+    label="{{
+      Block\<T\>|
+        start_index: usize\l|
+        next: AtomicPtr\<Block\<T\>\>\l|
+        ready_slots: AtomicUsize\l|
+        observed_tail_position: CausalCell\<usize\>\l|
+        <values> values: Values\<T\>\l
+    }}";
+  ];
+  Block:values -> Values;
+
+  Values[shape="record";
+    label="{{
+      Values|
+        <0>0: CausalCell\<MaybeUninit\<T\>\>\l|
+        <1>1: BLOCK_CAP\l
+    }}";
+  ];
+
+  RxFields[shape="record";
+    label="{{
+      RxFields\<T\>|
+        <rx> list: list::Rx\<T\>\l|
+        rx_closed: bool\l
+    }}";
+  ];
+  RxFields:rx -> ListRx;
+
+  ListRx[shape="record";
+    label="{{
+      list::Rx|
+        <b1> head: NonNull\<Block\<T\>\>\l|
+        index: usize\l|
+        <b2> free_head: NonNull\<Block\<T\>\>\l
+    }}";
+  ];
+
+  Semaphore [shape="record";
+    label="{{
+      Semaphore |
+        fn new_permit\l|
+        fn drop_permit\l|
+            fn is_idle\l|
+            fn add_permit\l|
+            fn poll_acquire\l|
+            fn try_acquire\l|
+            fn forget\l|
+            fn close\l
+    }}";
+  ];
+  Permit [shape="record";
+    label="{{
+      Permit |
+        <w> waiter: Option\<Arc\<WaiterNode\> \l|
+        state: PermitState\l
+    }}";
+  ];
+  Permit:w -> WaiterNode;
+
+  WaiterNode [shape="record";
+    label="{{
+      WaiterNode |
+        state: AtomicUsize\l|
+        <waker> waker: AtomicWaker\l|
+        nex: AtomicPtr\<WaiterNode\>\l
+    }}";
+  ];
+  WaiterNode:waker -> AtomicWaker;
+
+  AtomicWaker [shape="record";
+    label="{{
+      AtomicWaker |
+        state: AtomicUsize\l|
+        <w> waker: CausalCell\<Option\<Waker\>\>\l
+    }}";
+  ];
+  StdWaker[label="std::task::waker"];
+
+  struct_Semaphore [shape="record";
+    label="{{
+      struct Semaphore |
+        stat: AtomicUsize\l|
+        <w1> head: CausalCell\<NonNull\<WaiterNode\>\>\l|
+        rx_lock: AtomicUsize\l|
+        <w1> stub: Box\<WaiterNode\>\l
+    }}";
+  ];
+  {struct_Semaphore:w1, struct_Semaphore:w2} -> WaiterNode;
+
+  Mutex[shape="record";
+    label="{{
+      Mutex|
+        c: UnsafeCell\<T\>\l|
+        <s> s: semaphore::Semaphore\l
+    }}";
+  ];
+
+  Mutex:s -> struct_Semaphore;
+
+  AtomicWaker -> StdWaker;
+  {ListRx:b1, ListRx:b2} -> Block;
+}

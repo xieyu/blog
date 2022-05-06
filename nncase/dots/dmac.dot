@@ -1,0 +1,145 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  dmac[style_func;label="{{
+    dmac\l|
+    uint64_t id;\l|
+    uint64_t compver;\l|
+    uint64_t cfg;\l|
+    uint64_t chen;\l|
+    uint64_t intstatus;\l|
+    uint64_t com_intclear;\l|
+    uint64_t com_intstatus_en;\l|
+    uint64_t com_intsignal_en;\l|
+    uint64_t com_intstatus;\l|
+    uint64_t reset;\l|
+    uint64_t reserved2[20];\l|
+    dmac_channel_t channel[DMAC_CHANNEL_COUNT];\l
+  }}"]
+
+  dmac_context[style_green1;label="{{
+    dmac_context\l|
+    dmac_channel_number_t dmac_channel;\l|
+    plic_irq_callback_t callback;\l|
+    void *ctx;\l
+  }}"]
+
+  dmac_channel[style_green1;label="{{
+    dmac_channel\l|
+    uint64_t sar;\l|
+    uint64_t sar;\l|
+    uint64_t dar;\l|
+    uint64_t block_ts;\l|
+    uint64_t ctl;\l|
+    uint64_t cfg;\l|
+    uint64_t llp;\l|
+    uint64_t status;\l|
+    uint64_t swhssrc;\l|
+    uint64_t swhsdst;\l|
+    uint64_t blk_tfr;\l|
+    uint64_t axi_id;\l|
+    uint64_t axi_qos;\l|
+    uint64_t reserved1[4];\l|
+    uint64_t intstatus_en;\l|
+    uint64_t intstatus;\l|
+    uint64_t intsignal_en;\l|
+    uint64_t intclear;\l
+  }}"]
+
+  DMAC_BASE_ADDR[style_func;label="{{
+    DMAC_BASE_ADDR\l|
+      0x50000000U\l
+  }}"]
+
+  dmac_set_single_mode -> {
+    dmac_channel_interrupt_clear;
+    dmac_channel_disable;
+    dmac_wait_idle;
+    dmac_set_channel_param;
+    dmac_enable;
+    dmac_channel_enable;
+  }
+
+  dmac_set_irq -> dmac_irq_register;
+  dmac_irq_register -> {
+    dmac_enable_channel_interrupt;
+    plic_set_priority;
+    plic_irq_register;
+    plic_irq_enable;
+    IRQN_DMA0_INTERRUPT__channel_num;
+    dmac_context__channel_num;
+    dmac_irq_callback;
+  }
+  dmac_enable_channel_interrupt -> {
+    writeeq__dmac__channel__channel_num__intclear;
+    writeeq__dmac__channel__channel_num__intstatus_en;
+  }
+
+  {
+    writeeq__dmac__channel__channel_num__intclear;
+    writeeq__dmac__channel__channel_num__intstatus_en;
+  } -> dmac_channel;
+  dmac_context -> dmac_channel;
+
+  dmac_context__channel_num -> dmac_context;
+  plic_irq_register -> dmac_irq_callback[style_edge_data];
+
+  dmac_irq_callback -> {
+    dmac_context_t__callback;
+  }
+  dmac_context_t__callback -> dmac_context;
+
+  dmac_enable -> {
+    readq__dmac__cfg;
+    writeq__dmac__cfg;
+  }
+  dmac_disable -> {
+    readq__dmac__cfg;
+    writeq__dmac__cfg;
+  }
+
+  dmac_channel_enable -> {
+    readq__dmac__chen;
+    writeq__dmac__chen;
+  }
+  dmac_channel_disable -> {
+    readq__dmac__chen;
+    writeq__dmac__chen;
+  }
+
+  dmac_wait_idle -> {
+    dmac_is_idle;
+    dmac_channel_interrupt_clear;
+  }
+
+  dmac_set_channel_param -> {
+     is_memory_cache;
+     memcpy;
+     iomem_malloc;
+     is_memory;
+     dmac_context__channel_num__dest_malloc;
+     dmac_context__channel_num__dest_buffer;
+     writeq__dmac__channel__channel_num__cfg;
+  }
+  iomem_malloc -> dmac_context__channel_num__dest_malloc[style_edge_data];
+
+  dmac_channel_interrupt_clear -> {
+    writeq;
+    dmac__channel__channel_num__intclear;
+  }
+  dmac_is_idle -> {
+    readq__dmac__chen;
+  }
+
+  plic_irq_register -> {
+    plic_instance__core_id__irq;
+  }
+
+  dmac -> {
+    DMAC_BASE_ADDR;
+    dmac_channel;
+  }
+}

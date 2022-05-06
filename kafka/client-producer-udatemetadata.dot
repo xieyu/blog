@@ -1,0 +1,226 @@
+digraph producer_update_metadata {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Cluster {
+    graph[label="Cluster";fontsize=20;style=rounded];
+    Cluster_bootstrap;
+  };
+  subgraph cluster_MetaDataCache {
+    graph[label="MetaDataCache";fontsize=20;style=rounded];
+    MetadataCache[
+      shape="record";
+    label="{{
+      MetadataCache|
+        String clusterId\l|
+        List\<Node\> nodes\l|
+        Set\<String\> unauthorizedTopics\l|
+        Set\<String\> invalidTopics;\l|
+        Set\<String\> internalTopics;\l
+    }}";
+    ];
+    cache_cluster -> clusterInstance;
+    computeClusterView -> clusterInstance;
+    cache_bootstrap -> Cluster_bootstrap;
+  };
+
+  subgraph cluster_NetworkClient{
+    graph[label="NetworkClient";fontsize=20;style=rounded];
+    subgraph cluster_DefaultMetaDatUpdater {
+      graph[label="DefaultMetaDatUpdater";fontsize=20;style=rounded];
+      leastLoadedNode[
+        shape="record";
+        label="{{
+          leastLoadedNode|
+          找到可以连接的node\l
+        }}";
+      ];
+      maybeUpdate2[
+        shape="record";
+        label="{{
+          maybeUpdate|
+          构建reuest并
+          向该node发送请求
+        }}";
+      ];
+      canSendRequest[
+        shape="record";
+        label="{{
+          canSendRequest|
+          检查node是否\l 
+          可以发送请求\l
+        }}";
+      ];
+      maybeUpdate -> {
+        leastLoadedNode;
+        maybeUpdate2;
+      }
+      maybeUpdate2 -> {
+        canSendRequest;
+        sendInternalMetadataRequest;
+      }
+      handleSuccessfulResponse[
+        shape="record";
+        label="{{
+          handleSuccessfulResponse|
+          收到服务端响应\l
+          采用异步方式来处理\l
+        }}";
+      ];
+    };
+    doSend[
+      shape="record";
+      label="{{
+        doSend|
+        发送请求\l
+      }}";
+    ];
+    sendInternalMetadataRequest -> doSend 
+    doSend -> handleSuccessfulResponse[style=dashed];
+    sendInternalMetadataRequest[
+      shape="record";
+      label="{{
+        sendInternalMetadataRequest|
+        发送获取metadata请求\l
+      }}";
+    ];
+    poll -> maybeUpdate;
+  };
+  handleSuccessfulResponse -> metadata_update;
+
+  Cluster_bootstrap -> clusterInstance;
+  subgraph cluster_ProducerMetadata {
+    graph[label="ProducerMetadata";fontsize=20;style=rounded];
+    subgraph cluster_MetaData {
+      graph[label="MetaData";fontsize=20;style=rounded];
+      Metadata[
+        fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        Metadata|
+          log\l|
+          refreshBackoffMs\l|
+          metadataExpireMs\l|
+          lastSuccessfulRefreshMs\l|
+          requestVersion\l|
+          updateVersion\l|
+          clusterResourceListeners\l|
+          <cache> MetadataCache\l|
+      }}";
+      ];
+      metadata_fetch[
+        shape="record";
+        label="{{
+          fetch|
+          获取cluster
+        }}";
+      ];
+      metadata_fetch -> cache_cluster;
+      metadata_update[
+        shape="record";
+        label="{{
+          update|
+          更新metadata数据
+        }}";
+      ];
+      needUpdate[
+        fillcolor="#95e1d3";
+        style=filled;
+        shape="box3d";
+        label="needUpdate"
+      ];
+      requestUpdate[
+        shape="record";
+        label="{{
+          requestUpdate|
+          将needUpdate标记为true
+        }}";
+      ];
+      maybeUpdate2 -> newMetadataRequestAndVersion;
+      requestUpdateForNewTopics -> requestUpdate;
+      requestUpdate -> needUpdate;
+      metadata_update -> {
+        handleMetadataResponse;
+        maybeSetMetadataError;
+        lastSeenLeaderEpochs;
+        clusterResourceListeners;
+      };
+      maybeSetMetadataError -> {
+        clearRecoverableErrors;
+        checkInvalidTopics;
+        checkUnauthorizedTopics;
+      };
+      Metadata:cache -> MetadataCache;
+      metadata_bootstrap -> cache_bootstrap;
+      handleMetadataResponse -> {
+        updatePartitionInfo;
+        internalTopics;
+        MetadataCache;
+      }
+      handleMetadataResponse[
+        shape="record";
+        label="{{
+          handleMetadataResponse|
+          使用服务器数据\l 
+          更新元数据\l
+          更新parition信息\l 
+          新创建一个MetadataCache\l
+        }}";
+      ];
+    };
+
+    topics[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="topics"
+    ];
+    metadata_awaitUpdate[
+      shape="record";
+      label="{{
+        awaitUpdate|
+        等待metadata更新，直到\l 
+        当前版本高于之前的版本\l
+      }}";
+    ];
+    metadata_add[
+      shape="record";
+      label="{{
+        add|
+        将topic加入topics中\l
+        后面buildRequest\l 
+        时候会用到\l
+      }}";
+    ];
+    metadata_add -> {
+      topics;
+      requestUpdateForNewTopics;
+    }
+    newMetadataRequestAndVersion -> newMetadataRequestBuilder -> topics;
+  };
+
+  subgraph cluster_KafkaProducer {
+    graph[label="KafkaProducer";fontsize=20;style=rounded];
+    sender_waitup[
+      shape="record";
+      label="{{
+        sender_waitup|
+        唤醒sender线程\l 
+        准备发送updateMeta请求\l
+      }}";
+    ];
+
+    new_Producer -> metadata_bootstrap;
+    send -> waitOnMetadata -> {
+      metadata_fetch;
+      metadata_add;
+      metadata_awaitUpdate;
+      sender_waitup;
+      partitionCountForTopic;
+    }
+    sender_waitup -> poll[style="dashed"];
+    metadata_awaitUpdate ->  updateVersion;
+  };
+}

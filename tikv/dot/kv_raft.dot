@@ -1,0 +1,59 @@
+#include "styles.h"
+digraph kv_raft {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  kv_Service_batch_raft[style_func;label="{{
+    GRPC 接口\l|
+    kv/Service\l
+    batch_raft
+  }}"]
+  kv_Service_raft[style_func;label="{{
+    GRPC 接口\l|
+    kv/Service\l
+    raft
+  }}"]
+  kv_Service_snapshot[style_func;label="{{
+    GRPC接口\l|
+    kv/Service\l
+    snapshot
+  }}"]
+  kv_Service_snapshot -> snap_scheduler -> snap_handler -> RaftStoreRouter_send_raft_msg;
+  snap_scheduler[style_func;label="{{
+    snap_scheduler|
+    接收snap数据，保存到对应文件中
+  }}"]
+  RaftStoreRouter_send_raft_msg[style_func;label="{{
+    RaftStoreRouter\n
+    send_raft_msg\n
+  }}"]
+  ServerRaftStoreRouter_send_raft_msg[style_func;label="{{
+    ServerRaftStoreRouter\n
+    send_raft_msg\l
+  }}"]
+  RaftRouter_send_raft_msg[style_func;label="{{
+    RaftRouter\n
+    send_raft_msg\n
+  }}"]
+  RaftRouter_try_send[style_func;label="{{
+    RaftRouter\n
+    try_send\n|
+    根据normals中的map\l
+    找到region_id对应的PeerFsm的\l
+    Mailbox, 使用它发送消息\l
+  }}"]
+  snap_handler[style_func;label="{{
+    snap_handler|
+    snap handler线程接受完数据后\l
+    send_raft_msg\l
+  }}"]
+
+  {
+    kv_Service_batch_raft;
+    kv_Service_raft;
+  } -> RaftStoreRouter_send_raft_msg;
+  RaftStoreRouter_send_raft_msg -> ServerRaftStoreRouter_send_raft_msg;
+  ServerRaftStoreRouter_send_raft_msg -> RaftRouter_send_raft_msg;
+  RaftRouter_send_raft_msg -> RaftRouter_try_send;
+}

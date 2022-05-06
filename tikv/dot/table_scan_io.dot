@@ -1,0 +1,74 @@
+#include "styles.h"
+digraph table_scan_io{
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  columns[style_func;label="{{
+    columns: LazyBatchColumnVec|
+    0 non-pk|
+    1 non-pk|
+    2 non-pk|
+    <3>3 pk Int|
+    <4> 4 non-pk|
+    5 non-pk|
+    <6>6 pk Int|
+    <7>7 pk Int|
+    8 no-pk|
+    ...
+  }}"]
+
+  key[style_var;label="{{
+    key 编码如下\l|
+    table_prefix\l|
+    table_id\l|
+    sep\l|
+    <IntHandle> [IntHandle]\l|
+    <CommonHandle> [CommonHandle]\l|
+  }}"]
+
+  handle_indices[style_func;label="{{
+    handle_indices|
+    <3>3|<6>6|<7>7|..
+  }}"]
+  key:IntHandle -> {handle_indices}
+  handle_indices:3 -> columns:3;
+  handle_indices:6 -> columns:6;
+  handle_indices:7 -> columns:7;
+
+  value[style_var;label="{{
+    value|
+    CODEC_VERSION: u8=128\l|
+    FLAGS: value 大小端？\l|
+    non_null_cnt: read_u16_le\l|
+    null_cnt: read_u16_le\l|
+    <non_null_ids> non_null_ids: read_le_bytes\l|
+    <null_ids> null_ids: read_le_bytes\l|
+    offsets: read_le_bytes\l|
+    <value> values: LEBytes::new(data)\l
+  }}"]
+  
+
+  value_v1[style_var;label="{{
+    value_v1|
+    数据layout如下:\l|
+    {<col_id_1> col_id_1|value1|col_id_2|value2|...}|
+    每个element是datum encoded\l|
+    columnId是var i64 datum\l
+  }}"]
+  column_id_index[style_func;label="{{
+    column_id_index|
+    column_id -\> index|
+    {<col_id_1> col_id_1| <4> 4} 
+  }}"]
+  column_id_index:4 -> columns:4;
+  value_v1:col_id_1 -> column_id_index:col_id_1;
+  value -> column_id_index:col_id_1;
+  key:CommonHandle -> primary_column_ids -> column_id_index -> columns;
+  subgraph cluster_Key {
+    graph[label="Key";fontsize=20;style="rounded,dashed";color="slategrey"]
+    key;
+    primary_column_ids;
+    handle_indices;
+  }
+}

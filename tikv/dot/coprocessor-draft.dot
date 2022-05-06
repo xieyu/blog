@@ -1,0 +1,380 @@
+#include "styles.h"
+digraph Coprocessor {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  DagHandlerBuilder_new -> DagHandlerBuilder[style_edge_data];
+
+  DagHandlerBuilder -> {
+    DagRequest;
+    KeyRange;
+    Store;
+    Deadline;
+    BatchDAGHandler;
+  };
+  BatchDAGHandler -> BatchExecutorsRunner;
+  BatchExecutorsRunner -> {
+    Deadline;
+    StorageStats;
+    EvalConfig;
+    ExecuteStats;
+    BatchExecutor;
+  }
+
+  EvalContext -> {
+    EvalConfig;
+    EvalWarnings;
+  }
+
+
+  subgraph cluster_ScanExecutor {
+    graph[label="ScanExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ScanExecutor -> {
+      RangesScanner;
+    };
+  }
+
+  subgraph cluster_AggregationExecutor {
+    graph[label="AggregationExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    AggregationExecutor -> {
+      AggregationExecutorImpl;
+    }
+  }
+
+  subgraph cluster_BatchFastHashAggregationExecutor  {
+    graph[label="BatchFastHashAggregationExecutor ";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BatchFastHashAggregationExecutor_new -> BatchFastHashAggregationExecutor;
+    BatchFastHashAggregationExecutor -> {
+      AggregationExecutor;
+      FastHashAggregationImpl;
+    }
+  }
+
+  subgraph cluster_BatchSlowHashAggregationExecutor {
+    graph[label="BatchSlowHashAggregationExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BatchSlowHashAggregationExecutor_new;
+    BatchSlowHashAggregationExecutor -> {
+      AggregationExecutor;
+      SlowHashAggregationImpl;
+    }
+  }
+
+  subgraph cluster_BatchStreamAggregationExecutor {
+    graph[label="BatchStreamAggregationExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BatchStreamAggregationExecutor_new;
+    BatchStreamAggregationExecutor -> {
+      AggregationExecutor;
+      BatchStreamAggregationImpl;
+    }
+  }
+  subgraph cluster_BatchTopNExecutor {
+    graph[label="BatchTopNExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+      BatchTopNExecutor_new;
+      BatchTopNExecutor -> {
+        RpnExpression;
+        RpnStackNode;
+        EvalContext;
+      }
+  }
+
+
+  subgraph cluster_BatchSimpleAggreationExecutor {
+    graph[label="BatchSimpleAggreationExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BatchSimpleAggregationExecutor_new -> BatchSimpleAggreationExecutor;
+    BatchSimpleAggreationExecutor -> {
+      AggregationExecutor;
+      SimpleAggregationImpl;
+    }
+      
+  }
+
+  subgraph cluster_BatchSelectionExecutor {
+    graph[label="BatchSelectionExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BatchSelectionExecutor_new -> BatchSelectionExecutor;
+    BatchSelectionExecutor -> {
+      EvalContext;
+      RpnExpression;
+    };
+  }
+
+  subgraph cluster_BatchIndexScanExecutor {
+    graph[label="BatchIndexScanExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BatchIndexScanExecutor_new -> BatchIndexScanExecutor ;
+    BatchIndexScanExecutor -> {
+      ScanExecutor;
+      IndexScanExecutorImpl;
+    }
+  }
+
+  subgraph cluster_BatchTableScanExecutor {
+    graph[label="BatchTableScanExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BatchTableScanExecutor_new -> BatchTableScanExecutor;
+    BatchTableScanExecutor -> {
+      ScanExecutor;
+      TableScanExecutorImpl;
+    }
+  }
+  
+  subgraph cluster_BatchExecutor {
+    graph[label="BatchExecutor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BatchExecutor[style_func;label="{{
+      trait BatchExecutor|
+      fn schema(&self) -\> &[FieldType];\l|
+      <next_batch> fn next_batch(&mut self, scan_rows: usize) -\> BatchExecuteResult;\l|
+      fn collect_exec_stats(&mut self, dest: &mut ExecuteStats);\l|
+      fn collect_storage_stats(&mut self, dest: &mut Self::StorageStats);\l|
+      fn take_scanned_range(&mut self) -\> IntervalRange;\l|
+      fn collect_summary(\l
+    }}"]
+
+    BatchTableScanExecutor_new;
+    BatchIndexScanExecutor_new;
+    BatchSelectionExecutor_new;
+    BatchSimpleAggregationExecutor_new;
+    BatchFastHashAggregationExecutor_new;
+    BatchSlowHashAggregationExecutor_new;
+    BatchStreamAggregationExecutor_new;
+    BatchLimitExecutor_new;
+    BatchTopNExecutor_new;
+    
+    BatchExecutor -> {
+      BatchExecutor_trait_impl;
+      FieldType;
+      BatchExecuteResult;
+      IntervalRange;
+      ExecSummaryCollectorEnabled;
+      WithSummaryCollector;
+    }
+    BatchExecutor_trait_impl -> {
+      BatchTopNExecutor;
+      ScanExecutor;
+      AggregationExecutorImpl;
+      BatchTableScanExecutor;
+    }
+  }
+
+  Deadline -> Instant;
+
+
+  BatchExecuteResult[style_func;label="{{
+    BatchExecuteResult|
+    pub physical_columns: LazyBatchColumnVec,\l|
+    pub logical_rows: Vec\<usize\>,\l|
+    pub warnings: EvalWarnings,\l|
+    pub is_drained: Result\<bool\>,\l
+  }}"]
+  BatchExecuteResult -> {
+    LazyBatchColumnVec;
+    EvalWarnings;
+  }
+
+  LazyBatchColumnVec -> {
+    LazyBatchColumn;
+  }
+  LazyBatchColumn -> {
+    BufferVec;
+    VectorValue;
+  }
+  BufferVec[style_func;label="{{
+    BufferVec|
+    data: Vec\<u8\>,\l|
+    offsets: Vec\<usize\>,\l
+  }}"]
+  VectorValue[style_func;label="{{
+    VectorValue|
+    Int(ChunkedVecSized\<Int\>),\l|
+    Real(ChunkedVecSized\<Real\>),\l|
+    Decimal(ChunkedVecSized\<Decimal\>),\l|
+    Bytes(ChunkedVecBytes),\l|
+    DateTime(ChunkedVecSized\<DateTime\>),\l|
+    Duration(ChunkedVecSized\<Duration\>),\l|
+    Json(ChunkedVecJson),\l|
+    Enum(ChunkedVecEnum),\l|
+    Set(ChunkedVecSet),\l
+  }}"]
+
+
+  subgraph cluster_BatchExecutorsRunner {
+    graph[label="BatchExecutorsRunner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BatchExecutorsRunner[style_func;label="{{
+      BatchExecutorsRunner|\l
+    deadline: Deadline,\l|
+    <out_most_executor> out_most_executor: Box\<dyn BatchExecutor\l 
+    \<StorageStats = SS\>\>,\l|
+    output_offsets: Vec\<u32\>,\l|
+    config: Arc\<EvalConfig\>,\l|
+    collect_exec_summary: bool,\l|
+    exec_stats: ExecuteStats,\l|
+    stream_row_limit: usize,\l|
+    encode_type: EncodeType,\l
+    }}"]
+    BatchExecutorsRunner_from_request[style_func;label="{{
+      from_request
+    }}"]
+    runner_handle_request[style_func;label="{{
+      handle_request
+    }}"]
+    runner_handle_streaming_request[style_func;label="{{
+      handle_streaming_request
+    }}"]
+    runner_handle_streaming_request;
+    runner_handle_streaming_request -> {
+       internal_handle_request;
+       take_scanned_range;
+       make_stream_response;
+    }
+    runner_handle_request -> internal_handle_request;
+
+    internal_handle_request[style_func;label="{{
+      internal_handle_request|
+      从执行out_most_executor 的next_batch\l
+      驱动executor的执行\l
+    }}"]
+    internal_handle_request -> {
+       BatchExecutor:next_batch;
+       BatchExecutorsRunner:out_most_executor;
+    }
+
+    BatchExecutorsRunner_from_request -> {
+      BatchExecutorsRunner;
+      build_executors;
+      ExecuteStats_new;
+    }
+    build_executors -> {
+      BatchTableScanExecutor_new;
+      BatchIndexScanExecutor_new;
+      BatchSelectionExecutor_new;
+      BatchSimpleAggregationExecutor_new;
+      BatchFastHashAggregationExecutor_new;
+      BatchSlowHashAggregationExecutor_new;
+      BatchStreamAggregationExecutor_new;
+      BatchLimitExecutor_new;
+      BatchTopNExecutor_new;
+    }
+  }
+
+  subgraph cluster_BatchDAGHandler {
+    graph[label="BatchDAGHandler";fontsize=20;style="rounded,dashed";color="slategrey"]
+    BatchDAGHandler[style_func;label="{{
+      BatchDAGHandler|
+        runner: tidb_query_executors::runner\l 
+        ::BatchExecutorsRunner\<Statistics\>,\l|
+        data_version: Option\<u64\>,\l
+    }}"]
+    handler_handle_request[style_func;label="{{
+      handle_request
+    }}"]
+    handler_handle_stream_request[style_func;label="{{
+      handle_stream_request
+    }}"]
+    BatchDAGHandler_new[style_func;label="{{
+      new
+    }}"]
+
+    handler_handle_stream_request -> {
+      handle_qe_stream_response;
+      runner_handle_streaming_request;
+    }
+    handler_handle_request -> {
+      handle_qe_response;
+      runner_handle_request;
+    };
+    BatchDAGHandler_new -> {
+      BatchExecutorsRunner_from_request;
+    }
+  }
+  handler_builder -> DagHandlerBuilder[style_edge_data]
+
+  subgraph cluster_DagHandlerBuilder {
+    graph[label="DagHandlerBuilder";fontsize=20;style="rounded,dashed";color="slategrey"]
+    DagHandlerBuilder[style_func;label="{{
+      DagHandlerBuilder|
+    req: DagRequest,\l|
+    ranges: Vec\<KeyRange\>,\l|
+    store: S,\l|
+    data_version: Option\<u64\>,\l|
+    deadline: Deadline,\l|
+    batch_row_limit: usize,\l|
+    is_streaming: bool,\l|
+    is_cache_enabled: bool,\l
+    }}"]
+    DagHandlerBuilder_new[style_func;label="{{
+      new
+    }}"]
+    DagHandlerBuilder_build[style_func;label="{{build}}"]
+    DagHandlerBuilder_build -> {
+      BatchDAGHandler_new;
+    }
+  }
+
+  subgraph cluster_coprocessor_endpoint {
+    graph[label="coprocessor/Endpoint";fontsize=20;style="rounded,dashed";color="slategrey"]
+    parse_and_handle_stream_request -> parse_request_and_check_memory_locks;
+    parse_and_handle_unary_request -> parse_request_and_check_memory_locks;
+
+    parse_and_handle_stream_request -> {
+      parse_request_and_check_memory_locks;
+      handle_stream_request;
+    }
+    parse_request_and_check_memory_locks[style_func;label="{{
+      parse_request_and_check_memory_locks|
+      Parse the raw Request to \l
+      creaet RequestHandlerBuilder\l
+      and ReqContext\l
+    }}"]
+    parse_request_and_check_memory_locks -> {
+      RequestHandlerBuilder;
+      ReqContext;
+      DagHandlerBuilder_new;
+      DagHandlerBuilder_build;
+    }
+    RequestHandlerBuilder -> handler_builder[style_edge_data];
+
+
+    handle_stream_request -> {
+      read_pool_spawn;
+      handle_stream_request_impl;
+    }
+    read_pool_spawn -> {
+      handle_stream_request_impl;
+      handle_unary_request_impl;
+    }[style_edge_data];
+
+    handle_stream_request_impl -> {
+      Semaphore;
+      macro_try_stream;
+      async_snapshot;
+      on_snapshot_finished;
+      handler_builder;
+      on_begin_item;
+      handler_handle_stream_request;
+    }
+
+    parse_and_handle_unary_request -> {
+      handle_unary_request;
+    }
+    handle_unary_request -> {
+      read_pool_spawn;
+      handle_unary_request_impl;
+    }
+
+    handle_unary_request_impl -> {
+      async_snapshot;
+      handler_builder;
+      handler_handle_request;
+    }
+  }
+
+  subgraph cluster_KV {
+    graph[label="service/kv.rs";fontsize=20;style="rounded,dashed";color="slategrey"]
+    coprocessor_stream -> parse_and_handle_stream_request;
+    coprocessor -> future_cop
+    coprocessor_v2 -> future_coprv2 -> coprv2_handle_request;
+    future_cop -> parse_and_handle_unary_request;
+  }
+
+
+}

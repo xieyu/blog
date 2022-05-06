@@ -1,0 +1,325 @@
+digraph merge_data_tree_loadDataParts {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  subgraph cluster_MergeTreePartInfo {
+    graph[label="MergeTreePartInfo";fontsize=20;];
+    tryParsePartName;
+  }
+
+  subgraph cluster_StorageInMemoryMetadataPtr{
+    graph[label="StorageInMemoryMetadataPtr";fontsize=20;];
+    getPrimaryKey[
+      shape="record";
+      label="{{
+        getPrimaryKey|
+        返回primary_key\l
+      }}";
+    ];
+    getPrimaryKey -> KeyDescription;
+    getPartitionKey[
+      shape="record";
+      label="{{
+        getPartitionKey|
+        返回partition_key\l
+      }}";
+    ];
+    getPartitionKey -> KeyDescription;
+    KeyDescription[
+      shape="record";
+      label="{{
+        KeyDescription|
+        Block sample_block\l|
+        ...\l
+      }}";
+    ];
+    metadata_snapshot_getColumns[
+      shape="record";
+      label="{{
+        getColumns|
+        获取columns，\l 
+        用于后面写入磁盘\l
+      }}";
+    ];
+    metadata_snapshot_getColumns -> ColumnsDescription;
+    ColumnsDescription[
+      shape="record";
+      label="{{
+        ColumnsDescription|
+        multi_index_container\l|
+        columns;\l|
+      }}";
+    ];
+    ColumnsDescription -> ColumnDescription;
+    ColumnDescription[
+      shape="record";
+      label="{{
+        ColumnDescription|
+        String name\l|
+        DataTypes type\l|
+        ColumnDefault default_desc;\l|
+        ...
+      }}";
+    ];
+  }
+
+  subgraph cluster_MergeTreePartition {
+    graph[label="MergeTreePartition";fontsize=20;];
+    partition_load[
+      shape="record";
+      label="{{
+        MergeTreePartition::load|
+        加载partition.dat文件\l
+        写入到metadata的partition_key\l 
+        的sample_block中\l
+      }}";
+    ];
+    partition_load -> getPartitionKey;
+    MergeTreePartition[
+      shape="record";
+      label="{{
+        MergeTreePartition|
+          This class represents \l 
+          a partition value of a\l 
+          single part and encapsulates\l 
+          its loading/storing logic.\l|
+          Row value;
+      }}";
+    ];
+  }
+
+  subgraph cluster_IMergeTreeDataPart {
+    graph[label="IMergeTreeDataPart";fontsize=20;];
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    columns[
+      shape="record";
+      label="{{
+        columns|
+          NamesAndTypesList columns;
+      }}";
+    ];
+    index[
+      shape="record";
+      label="{{
+      index|
+      Colums
+      }}";
+    ];
+    ttl_infos[
+      shape="record";
+      label="{{
+        ttl_infos|
+        TTLInfos\l|
+        MergeTreeDataPartTTLInfo\l
+      }}";
+    ];
+    rows_count;
+    node[shape=box;style=stroke;];
+
+    loadColumnsChecksumsIndexes -> {
+      assertOnDisk;
+      getCurrentMemoryTrackerActionLock;
+      loadColumns;
+      loadChecksums;
+      loadIndexGranularity;
+      calculateTotalSizeOnDisk;
+      loadIndex;
+      loadRowsCount;
+      loadPartitionAndMinMaxIndex;
+      loadTTLInfos;
+    }
+    loadRowsCount[
+      shape="record";
+      label="{{
+        loadRowsCount|
+        从count.text中读取
+      }}";
+    ];
+    loadRowsCount -> {
+      rows_count;
+    }
+    assertOnDisk[
+      shape="record";
+      label="{{
+        assertOnDisk|
+        如果不是在disk上\l 
+        则抛异常\l
+      }}";
+    ];
+    assertOnDisk -> isStoredOnDisk;
+    loadColumns[
+      shape="record";
+      label="{{
+        loadColumns|
+        如果path不存在，则从metadata中\l
+        获取columns，并写入磁盘\l|
+        否则从磁盘中加载columns\l
+      }}";
+    ];
+
+    loadColumns -> {
+      readText;
+      columns;
+      readFile;
+      metadata_snapshot_getColumns;
+      writeText;
+      moveFile;
+      writeFile;
+    }[color="#3f72af"]
+
+    writeText[
+      shape="record";
+      label="{{
+      writeText|
+      NamesAndTypesList::writeText\l|
+      写入buffer中
+      }}";
+    ];
+    writeFile[
+      shape="record";
+      label="{{
+      writeFile\l|
+      写入临时文件中
+      }}";
+    ];
+    moveFile[
+      shape="record";
+      label="{{
+      moveFile\l|
+      移动到path
+      }}";
+    ];
+
+    readFile[
+      shape="record";
+      label="{{
+      readFile|
+      DiskPtr::readFile
+      }}";
+    ];
+    readText[
+      shape="record";
+      label="{{
+      readText|
+      NamesAndTypesList::readText
+      }}";
+    ];
+
+    loadChecksums -> {
+      checksums_read;
+    }
+    checksums_read[
+      shape="record";
+      label="{{
+        checksums.read|
+        MergeTreeDataPartChecksums::read
+      }}";
+    ];
+
+    loadIndexGranularity[
+      shape="record";
+      label="{{
+        loadIndexGranularity|
+        private virtual 函数\l
+        由各个子类实现\l
+      }}";
+    ];
+    loadIndex[
+      shape="record";
+      label="{{
+        loadIndex|
+        从文件primary.idx中\l
+        加载主键到metadata的\l 
+        primary_key中\l
+      }}";
+    ];
+    loadIndex -> {
+      deserializeBinary;
+      index;
+      getPrimaryKey;
+    }[color="#e84545"]
+
+    deserializeBinary[
+      shape="record";
+      label="{{
+        deserializeBinary|
+          遍历执行primary_key的反序列化\l|
+          primary_key.data_types[i]-\>deserializeBinary\l
+      }}";
+    ];
+    loadTTLInfos[
+      shape="record";
+      label="{{
+        loadTTLInfos|
+        加载ttl.txt文件\l
+      }}";
+    ];
+    loadTTLInfos -> {
+      openForReading;
+      ttl_infos;
+    }
+
+    loadPartitionAndMinMaxIndex -> {
+      parseMinMaxDatesFromPartName
+      MergeTreePartition;
+      MinMaxIndex;
+      partition_load;
+    }[color="#17b978"];
+
+    edge[style=dashed]
+    readFile ->  readText;
+    writeText -> writeFile -> moveFile;
+    metadata_snapshot_getColumns -> {
+      writeText;
+      columns;
+    }[color="#f08a5d"];
+  }
+
+  subgraph cluster_MergeTreeData {
+    graph[label="MergeTreeData";fontsize=20;];
+    node[shape="record"; fillcolor="#95e1d3" style=filled;];
+    disks;
+    part_names_with_disks;
+    broken_parts_to_detach;
+    node[shape=box;style=stroke;];
+
+    loadDataParts -> {
+      getInMemoryMetadataPtr;
+      getSettings;
+      getStoragePolicy;
+      iterateDirectory;
+      scheduleOrThrowOnError;
+    }[color="#b83b5e"]
+
+    scheduleOrThrowOnError[
+      shape="record";
+      label="{{
+        scheduleOrThrowOnError|
+        在线程池中调度
+      }}";
+    ];
+
+    scheduleOrThrowOnError -> {
+      tryParsePartName;
+      createPart;
+      broken_parts_to_detach;
+      loadColumnsChecksumsIndexes;
+    }
+
+    edge[style=dashed];
+    getStoragePolicy -> disks -> iterateDirectory -> part_names_with_disks;
+    part_names_with_disks -> scheduleOrThrowOnError;
+  }
+  subgraph cluster_StorageMergeTree {
+    graph[label="StorageMergeTree";fontsize=20;];
+    StorageMergeTree -> loadDataParts;
+  }
+
+  subgraph cluster_StorageReplicatedMergeTree {
+    graph[label="StorageReplicatedMergeTree";fontsize=20;];
+    StorageReplicatedMergeTree -> loadDataParts;
+  }
+}

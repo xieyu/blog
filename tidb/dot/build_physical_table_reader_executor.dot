@@ -1,0 +1,24 @@
+digraph build_physical_table_reader_executor {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  PhysicalTableReader -> buildTableReader;
+  buildTableReader -> {
+    buildNoRangeTableReader;
+    partitionPruning;
+    nextPartitionForReader;
+    UnionScanExec;
+  }
+  buildNoRangeTableReader -> constructDAGReq;
+  buildNoRangeTableReader -> TableReaderExecutor;
+  TableReaderExecutor[
+    shape="record";
+    fillcolor="#95e1d3"
+    style=filled;
+    label="{{
+      TableReaderExecutor
+    }}";
+  ];
+  constructDAGReq -> TableReaderExecutor[style=dashed];
+}

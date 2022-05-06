@@ -1,0 +1,97 @@
+#include "styles.h"
+digraph on_ready_change_peer {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Raft {
+    graph[label="Raft";fontsize=20;style="rounded,dashed";color="slategrey"]
+    assign_commit_groups;
+    raft_ping;
+    apply_conf_change;
+  }
+
+  subgraph cluster_StoreGroup {
+    graph[label="StoreGroup";fontsize=20;style="rounded,dashed";color="slategrey"]
+    group_id;
+  }
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    peer_heartbeats;
+    peers_start_pending_time;
+    check_peers -> peer_heartbeats;
+    collect_down_peers -> peer_heartbeats;
+    heartbeat_pd[style_func;label="{{
+      heartbeat_pd|
+      如果是leader\l 
+      向pd上报Region信息\l
+    }}"]
+    heartbeat_pd  -> {
+     peer_heartbeats;
+      collect_down_peers;
+    }
+    peers_start_pending_time[style_var;label="{{
+      peers_start_pending_time|
+      Vec\<(u64, Instant)\>\l|
+    Record the instants of peers \l 
+    being added into the configuration.\l
+    Remove them after they are not pending any more.\l
+    }}"]
+
+    peer_heartbeats[style_func;label="{{
+      peer_heartbeats|
+      HashMap\<u64, Instant\>\l|
+      Record the last instant of\l 
+      each peer's heartbeat response.\l
+    }}"]
+    ping[style_func;label="{{
+      ping|
+      Pings if followers are\l 
+      still connected\l
+    }}"]
+    ping -> {
+       is_leader;
+       raft_ping;
+    }
+    is_leader -> raft_ping[style_edge_data];
+    has_ready;
+    insert_peer_cache -> peer_cache;
+    remove_peer_from_cache -> peer_cache;
+    subgraph cluster_peer_heartbeats {
+      graph[label="peer_heartbeats";fontsize=20;style="rounded,dashed";color="slategrey"]
+        peer_heartbeats_insert -> peer_heartbeats;
+        peer_heartbeats_remove -> peer_heartbeats;
+    }
+  }
+
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_ready_change_peer -> {
+      apply_conf_change;
+      update_region;
+      group_id;
+      peer_heartbeats;
+      assign_commit_groups;
+      heartbeat_pd;
+      become_follower;
+      register_raft_base_tick;
+      peers_start_pending_time;
+      is_leader;
+      ping;
+      has_ready;
+      remove_peer_from_cache;
+    }
+
+    update_region[style_func;label="{{
+      update_region|
+      更新store_meta的region信息\l
+    }}"]
+    on_raft_gc_log_tick -> peer_heartbeats;
+    on_pd_heartbeat_tick -> check_peers;
+    group_id -> assign_commit_groups;
+    is_leader -> heartbeat_pd;
+    update_region -> insert_peer_cache;
+  }
+  
+}

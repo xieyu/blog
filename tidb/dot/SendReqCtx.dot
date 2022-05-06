@@ -1,0 +1,93 @@
+#include "styles.h"
+digraph SendReqCtx {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RpcContext[style_struct;label="{{
+    RpcContext|
+	  Region     RegionVerID\l|
+	  Meta       *metapb.Region\l|
+	  Peer       *metapb.Peer\l|
+	  AccessIdx  AccessIndex\l|
+	  Store      *Store\l|
+	  Addr       string\l|
+	  AccessMode AccessMode\l
+  }}"]
+
+  SendReqCtx -> {
+    getRPCContext;
+    sendReqToRegion;
+    onRegionError;
+    GetRegionError;
+  }[color="#b83b5e"];
+
+  getRPCContext -> {
+    GetTiKVRPCContext;
+    GetTiFlashRPCContext;
+  }
+  GetTiKVRPCContext -> {
+    getCachedRegionWithRLock;
+    checkRegionCacheTTL;
+    getStore;
+    FollowerStorePeer;
+    AnyStorePeer;
+    WorkStorePeer;
+    getStoreAddr;
+    RpcContext;
+  }[color="#3f72af"];
+
+  {
+    AnyStorePeer;
+    FollowerStorePeer;
+    WorkStorePeer;
+  } -> getKvStorePeer;
+
+  Region[style_struct;label="{{
+    Region|
+    <meta> meta *metapb.Region\l|
+    <store> store      unsafe.Pointer\l|
+    <syncFlag> syncFlag   int32\l|
+    <lastAccess> lastAccess int64\l
+  }}"]
+
+  getCachedRegionWithRLock [style_func;label="{{
+    getCachedRegionWithRLock |
+    从cache中获取region
+  }}"]
+  {getCachedRegionWithRLock;checkRegionCacheTTL} -> Region[style_edge_data];
+
+  getStore -> Region:store;
+  getStore[style_func;label="{{
+    getStore|
+    atomic load store指针
+  }}"]
+
+  GetTiFlashRPCContext -> {
+    getCachedRegionWithRLock;
+    checkRegionCacheTTL;
+    getStore;
+    RpcContext;
+    workTiFlashIdx;
+  }
+  getStoreAddr[style_func;label="{{
+    getStoreAddr|
+    获取store状态，\l
+    如果store被删掉了，change到activeStore\l
+    如果store没解析调用initResolve\l
+  }}"]
+  getStoreAddr -> {
+    initResolve;
+    changeToActiveStore;
+    getResolveState;
+  }
+
+  RpcContext -> sendReqToRegion[style_edge_data]
+  sendReqToRegion -> GetRegionError -> onRegionError[style_edge_data];
+  sendReqToRegion -> SendRequest;
+  SendRequest[style_func;label="{{
+    SendRequst|
+    向RpcContext.Addr地址\l 
+    发送GRPC请求\l
+  }}"]
+}

@@ -1,0 +1,168 @@
+digraph replica_sync {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_BlockingSend {
+    graph[label="BlockingSend";fontsize=20;];
+    leaderEndpoint_sendRequest[label="sendRequest"];
+    leaderEndpoint_sendRequest[shape="record";
+      label="{{
+        sendRequest|
+        向partionLeader \l 
+        发送fetchMessage请求
+      }}";
+    ];
+  }
+  subgraph cluster_FetchSessionHandler {
+    graph[label="FetchSessionHandler";fontsize=20;];
+    FetchSessionHandler;
+  }
+
+
+  subgraph cluster_fetcherThread {
+    graph[label="ReplicaFetcherThread";fontsize=20;];
+    addPartitions;
+    ReplicaFetcherThread
+    fetcherThread_start[label="start"];
+    fetcherThread_start -> doWork;
+    fetchFromLeader[shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        fetchFromLeader|
+          向partionLeader发送\l 
+          fetchMessage请求\l
+      }}";
+    ];
+    doWork -> {
+      maybeTruncate;
+      maybeFetch;
+    };
+    maybeFetch -> {
+      buildFetch;
+      processFetchRequest;
+    };
+    processPartitionData[shape="record";
+      label="{{
+        processPartitionData|
+        存储取到的partion leader msg
+      }}";
+    ];
+    buildFetch[shape="record";
+      label="{{
+        buildFetch|
+          构造fetch请求\l
+      }}";
+    ];
+    processFetchRequest -> {
+      fetchFromLeader;
+      processPartitionData;
+      handlePartitionsWithErrors;
+    };
+    fetchFromLeader -> {
+      leaderEndpoint_sendRequest;
+    };
+    buildFetch -> FetchSessionHandler;
+
+    maybeTruncate -> {
+      fetchTruncatingPartitions;
+      truncateToEpochEndOffsets;
+      truncateToHighWatermark;
+    };
+    truncateToEpochEndOffsets -> {
+      fetchEpochEndOffsets;
+      maybeTruncateToEpochEndOffsets;
+      updateFetchOffsetAndMaybeMarkTruncationComplete;
+    }
+  };
+  processPartitionData -> appendRecordsToFollowerOrFutureReplica;
+
+  subgraph cluster_replicaFetcherManager {
+    graph[label="replicaFetcherManager";fontsize=20;];
+    addFetcherForPartitions -> {
+      addAndStartFetcherThread;
+      addPartitions;
+    };
+
+    addAndStartFetcherThread -> {
+      createFetcherThread;
+      fetcherThreadMap;
+      fetcherThread_start;
+    };
+    createFetcherThread -> ReplicaFetcherThread;
+    fetcherThreadMap[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="fetcherThreadMap"
+    ];
+  }
+  subgraph cluster_ZkServer {
+    graph[label="ZkServer";fontsize=20;];
+    partitionState[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        partitionState|
+          ControllerEpoch int32\l|
+          leader int32\l|
+          leader_epoch int32\l|
+          isr []int32\l
+      }}";
+    ];
+  }
+  subgraph cluster_log {
+    graph[label="log";fontsize=20;];
+    appendAsFollower -> append;
+  }
+  subgraph cluster_PartionLeaderBroker {
+    graph[label="Broker: PartitionLeader ";fontsize=20;];
+    subgraph cluster_Partition {
+      graph[label="Partition";fontsize=20;];
+      updateFetchState;
+      maybeExpandIsr;
+    }
+    subgraph cluster_ReplicaManager {
+      graph[label="ReplicaManager";fontsize=20;];
+      fetchMessages;
+    }
+  }
+
+  subgraph cluster_Partition {
+    graph[label="Partition";fontsize=20;];
+    updateFetchState -> maybeExpandIsr;
+    maybeExpandIsr -> partitionState[style=dashed];
+    appendRecordsToFollowerOrFutureReplica[shape="record";
+      label="{{
+        appendRecordsToFollowerOrFutureReplica|
+          将records保存起来\l
+      }}";
+    ];
+    appendRecordsToFollowerOrFutureReplica -> doAppendRecordsToFollowerOrFutureReplica;
+    doAppendRecordsToFollowerOrFutureReplica -> appendAsFollower;
+  }
+
+  subgraph cluster_replicaManager {
+    graph[label="replicaManager";fontsize=20;];
+    makeFollowers -> addFetcherForPartitions;
+    fetchMessages[shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        fetchMessages|
+          在partionLeader的broker中\l 
+          处理follower的fetch请求\l
+      }}";
+    ];
+    fetchMessages;
+    fetchMessages -> updateFetchState;
+  }
+
+
+  subgraph cluster_KafkaApi {
+    graph[label="KafkaApi";fontsize=20;];
+    handleFetchRequest;
+    handleFetchRequest -> fetchMessages;
+  }
+  leaderEndpoint_sendRequest -> handleFetchRequest[style=dashed];
+}

@@ -1,0 +1,232 @@
+#include "styles.h"
+digraph raft_client {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  //>raft_client.rs:754 pub struct RaftClient<S, R> {#F/opt/github/tikv/src/server/raft_client.rs#L754
+  RaftClient[style_func;label="{{
+    RaftClient|
+    管理connection\l
+    发消息时，先调用send，最后flush\l|
+    pool: Arc\<Mutex\<ConnectionPool\>\>,\l|
+    cache: LruCache\<(u64, usize), CachedQueue\>,\l|
+    need_flush: Vec\<(u64, usize)\>,\l|
+    full_stores: Vec\<(u64, usize)\>,\l|
+    future_pool: Arc\<ThreadPool\<TaskCell\>\>,\l|
+    builder: ConnectionBuilder\<S, R\>,\l
+  }}"]
+
+  ConnectionPool[style_blue1;label="{{
+    ConnectionPool|
+    管理连接池\l
+    key为store_id, conn_id\l|
+    connections: HashMap\<(u64, usize), Arc\<Queue\>\>,\l|
+    tombstone_stores: HashSet\<u64\>,\l
+  }}"]
+
+  CachedQueue[style_blue1;label="{{
+    CachedQueue|
+    如果dirty/full会\l
+    调用queue的notify\l|
+    queue: Arc\<Queue\>,\l|
+    dirty: bool,\l|
+    full: bool,\l
+  }}"]
+
+  Queue[style_blue1;label="{{
+    Queue|
+    store_id, conn_id的\l
+    消息发送队列\l|
+    消息先放入buf\l
+    等队列满或者flush时\l
+    notify waker pop处理消息\l|
+    buf: ArrayQueue\<RaftMessage\>,\l|
+    connected: AtomicBool,\l|
+    waker: Mutex\<Option\<Waker\>\>,\l
+  }}"]
+  ConnectionBuilder[style_func;label="{{
+    ConnectionBuilder|
+    resolve store addr\l
+    用于创建connection\l
+    创建grpc channel\l|
+    env: Arc\<Environment\>,\l|
+    cfg: Arc\<Config\>,\l|
+    security_mgr: Arc\<SecurityManager\>,\l|
+    resolver: S,\l|
+    router: R,\l|
+    snap_scheduler: Scheduler\<SnapTask\>,\l
+  }}"]
+
+  TaskExtras[style_func;label="{{
+    TaskExtras|
+    extras: Extras,\l|
+    remote: Option\<WeakRemote\<TaskCell\>\>,\l
+  }}"]
+
+  Task[style_func;label="{{
+    Task|
+    status: AtomicU8,\l|
+    extras: UnsafeCell\<TaskExtras\>,\l|
+    future: UnsafeCell\<Pin\l
+    \<Box\<dyn Future\<Output = ()\>\l
+    + Send + 'static\>\>\>,\l
+  }}"]
+  TaskCell[style_func;label="{{
+    TaskCell|
+      pub struct TaskCell(Arc\<Task\>);\l
+  }}"]
+  LruCache[style_blue1;label="{{
+    LruCache|
+    key为store_id, conn_id\l
+    value为cached queue\l|
+    在发消息时先从cache中获取\l
+    store_id, conn_id对应的queue\l
+    成功话，就把消息push到queue中\l|
+    map: HashMap\<K, ValueEntry\<K, V\>\>,\l|
+    trace: Trace\<K\>,\l|
+    capacity: usize,\l
+  }}"]
+
+  StreamBackEnd[style_func;label="{{
+    StreamBackEnd|
+    watches lifetime of a connection\l
+    and handles reconnecting\l|
+    store_id: u64,\l|
+    queue: Arc\<Queue\>,\l|
+    builder: ConnectionBuilder\<S, R\>,\l
+  }}"]
+
+  StoreAddrResolver[style_func;label="{{
+    StoreAddrResolver|
+    解析store_id对应的addr
+  }}"]
+  PdStoreAddrResolver[style_func;label="{{
+    PdStoreAddrResolver|
+    去Pd服务请求store_id对应的addr\l
+    sched: Scheduler\<Task\>,\l
+  }}"]
+
+  //>resolve.rs:35 pub struct Task {#F/opt/github/tikv/src/server/resolve.rs#L35
+  resolve_Task[style_func;label="{{
+    resolve.rs/Task|
+    store_id: u64,
+    cb: Callback,
+  }}"]
+  Scheduler[style_func;label="{{
+    Scheduler|
+    使用sender向worker线程发送task\l
+    counter: Arc\<AtomicUsize\>,\l|
+    sender: UnboundedSender\<Msg\<T\>\>,\l|
+    pending_capacity: usize,\l|
+    metrics_pending_task_count: IntGauge,\l
+  }}"]
+
+  //>raft_client.rs:338 struct RaftCall<R, M, B> {#F/opt/github/tikv/src/server/raft_client.rs#L338
+  RaftCall[style_func;label="{{
+    RaftCall|
+    struct tracks the lifetime of\l
+    a raft or batch_raft rpc
+    sender/receiver 为\l
+    grpc stream的输入输出\l|
+    被poll时不断的Queue中pop消息\l
+    发到sender, 然后poll receiver\l
+    router用来broadcast store unreachable\l|
+    sender: ClientCStreamSender\<M\>,\l|
+    receiver: ClientCStreamReceiver\<Done\>,\l|
+    queue: Arc\<Queue\>,\l|
+    buffer: B,\l|
+    router: R,\l|
+    snap_scheduler: Scheduler\<SnapTask\>,\l|
+    lifetime: Option\<oneshot::Sender\<()\>\>,\l|
+    store_id: u64,\l|
+    addr: String,\l
+  }}"]
+
+  SecurityManager[style_func;label="{{
+    SecurityManager|
+    管理ssl证书
+  }}"]
+
+  SecurityConfig[style_func;label="{{
+    SecurityConfig|
+    pub ca_path: String,\l|
+    pub cert_path: String,\l|
+    pub key_path: String,\l
+  }}"];
+
+  ChannelBuilder[style_func;label="{{
+    grpcio/ChannelBuilder|
+    创建grpc channel 会引用env\l|
+    env: Arc\<Environment\>,\l|
+    options: HashMap\<Cow\<'static, [u8]\>, Options\>,\l
+  }}"]
+
+  Environment[style_func;label="{{
+    Environment|
+    cqs: Vec\<CompletionQueue\>,\l|
+    idx: AtomicUsize,\l|
+    _handles: Vec\<JoinHandle\<()\>\>,\l
+  }}"]
+  ThreadPool[style_func;label="{{
+    ThreadPool|
+    驱动RaftCall的poll\l
+    从queue中取raft msg\l
+    然后使用grpc channel发送\l
+  }}"]
+
+
+  ConnectionBuilder -> {
+   RaftStoreRouter;
+   StoreAddrResolver;
+   SecurityManager;
+   ChannelBuilder;
+   Environment;
+  }
+
+  RaftClient -> {
+    LruCache;
+    ConnectionPool;
+    TaskCell;
+    ConnectionBuilder;
+    CachedQueue;
+  }
+  CachedQueue -> Queue;
+  TaskCell -> Task;
+  Task -> {
+    TaskExtras;
+  }
+
+  LruCache -> {
+    CachedQueue;
+  }
+  Queue -> RaftMessage;
+  StreamBackEnd -> {
+    Queue;
+    ConnectionBuilder;
+    ChannelBuilder;
+  }
+  StoreAddrResolver -> PdStoreAddrResolver;
+  PdStoreAddrResolver -> {
+    resolve_Task;
+    Scheduler;
+  }
+
+  ConnectionPool -> {
+   Queue;
+  }
+  RaftCall -> {
+    Queue;
+    RaftStoreRouter;
+  }
+  RaftClient -> StreamBackEnd[style_edge_data]
+  RaftClient -> ThreadPool;
+  StreamBackEnd -> RaftCall[style_edge_data]
+
+  SecurityManager -> SecurityConfig;
+  ChannelBuilder -> Environment;
+
+  ThreadPool -> RaftCall[style_edge_data];
+  ThreadPool -> TaskCell;
+}

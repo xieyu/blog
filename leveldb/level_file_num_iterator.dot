@@ -1,0 +1,97 @@
+digraph LevelFileNumIterator {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  Seek -> {
+    FindFile;
+    index_;
+    flist_;
+  }
+  FileNumberAndSize[
+    fillcolor="#95e1d3";
+    style=filled;
+    shape="record";
+    label="{{
+      FileNumberAndSize|
+      文件号: Fixed64 number\l|
+      文件大小：Fixed64 fileSize\l
+    }}";
+  ];
+  flist_[
+    fillcolor="#95e1d3";
+    style=filled;
+    shape="record";
+    label="{{
+      flist_|
+      数组中的FileMetaData\l 
+      的keyRange不overlap\l|
+        const std::vector\<FileMetaData*\>*\l const flist_;
+    }}";
+  ];
+  FindFile[
+    shape="record";
+    label="{{
+      FindFile|
+      根据largest来二分查找\l
+      找到key target在数组中的index\l
+    }}";
+  ];
+  FileMetaData[
+    fillcolor="#95e1d3";
+    style=filled;
+    shape="record";
+    label="{{
+      FileMetaData|
+      int refs;\l|
+      int allowed_seeks;\l|
+      uint64_t number;\l|
+      uint64_t file_size;\l|
+      InternalKey smallest;\l|
+      InternalKey largest;\l
+    }}";
+  ];
+  index_[shape=egg; fillcolor="#95e1d3"; style=filled;];
+  Next[
+    shape="record";
+    label="{{
+      Next|
+      index_++
+    }}";
+  ];
+  Seek[
+    shape="record";
+    label="{{
+      Seek|
+      找到target在flist\l 
+      中所在的index\l
+    }}";
+  ];
+
+  flist_ -> FileMetaData;
+  Next -> index_;
+  key[
+    shape="record";
+    label="{{
+      key|
+        (*flist_)[index_]-\>largest.Encode();
+    }}";
+  ];
+  value -> FileNumberAndSize;
+  GetFileIterator[
+    shape="record";
+    label="{{
+      GetFileIterator|
+      根据文件号创建\l 
+      相应的TableIterator\l
+      由TwolevelIterator调用\l
+    }}";
+  ];
+  {
+    edge[style=dashed;color=gray];
+    flist_ -> FindFile;
+    FindFile -> index_;
+    {flist_;index_} -> {key;value}
+    FileNumberAndSize -> GetFileIterator;
+  }
+  {rank=same;Seek;Next;}
+}

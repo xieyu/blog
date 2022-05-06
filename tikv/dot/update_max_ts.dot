@@ -1,0 +1,60 @@
+#include "styles.h"
+digraph update_max_ts {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ConcurrencyManager {
+    graph[label="ConcurrencyManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    update_max_ts;
+  }
+  subgraph cluster_coprocessor {
+    graph[label="coprocessor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    check_memory_locks -> update_max_ts;
+    {parse_and_handle_stream_request; parse_and_handle_unary_request} -> parse_request_and_check_memory_locks -> check_memory_locks;
+  }
+
+  ReplicaReadLockChecker_on_step -> update_max_ts;
+  subgraph cluster_Storage {
+    graph[label="Storage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Storage_scan;
+    Storage_scan_lock;
+    prepare_snap_ctx -> update_max_ts;
+    batch_get -> prepare_snap_ctx;
+    batch_get_command -> prepare_snap_ctx;
+    get -> prepare_snap_ctx;
+  }
+  subgraph cluster_service_kv {
+    graph[label="service/kv.rs";fontsize=20;style="rounded,dashed";color="slategrey"]
+    coprocessor -> future_cop -> parse_and_handle_unary_request;
+    coprocessor_stream -> parse_and_handle_stream_request;
+      
+  }
+
+  Storage_scan -> update_max_ts;
+  Storage_scan_lock -> update_max_ts;
+
+  AppliedLockCollector_start_collecting -> update_max_ts;
+  cdc_endpoint_Endpoint_get_current_resolved_ts -> update_max_ts;
+  cdc_endpoint_Endpoint_register_min_ts_event -> update_max_ts;
+  AdvanceTsWorker_register_advance_event -> update_max_ts;
+  BackupRange_backup -> update_max_ts;
+
+  subgraph cluster_Command {
+    graph[label="txn/command";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Cleanup_process_write -> update_max_ts;
+    actions_prewrite_prewrite -> update_max_ts;
+    CheckSecondaryLocks_process_write -> update_max_ts;
+    AcquirePessimisticLock_process_write -> update_max_ts;
+  }
+  actions_prewrite_prewrite[style_func;label="{{
+    actions_prewrite_prewrite|
+    should_not_write也被认为是一种read\l
+    也会更新max_ts\l
+  }}"]
+
+  store_worker_pd_Runner_handle_update_max_timestamp -> update_max_ts;
+
+  
+}

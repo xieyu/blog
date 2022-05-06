@@ -1,0 +1,81 @@
+#include "styles.h"
+digraph StoreHeartbeat {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  StoreHeartbeatRequest[style_struct;label="{{
+    StoreHeartbeatRequest|
+      Header *RequestHeader\l|
+      Stats *StoreStats\l
+  }}"]
+
+  StoreHeartbeat -> {
+    checkStore;
+    HandleStoreHeartbeat;
+  }
+
+  HandleStoreHeartbeat -> {
+    GetStoreId;
+    GetStore;
+    SetLastHeartbeatTS;
+    SaveStore;
+    PutStore;
+  }
+
+  SaveStore[style_func;label="{{
+    SaveStore|
+    save on store to storage
+  }}"]
+  SaveStore -> saveProto;
+  saveProto -> Save;
+  Save -> {
+    etcdKVBase_Save;
+    LeveldbKV_Save;
+    memoryKV_Save;
+  }
+  PutStore -> SetStore -> StoresInfo;
+  StoresInfo[style_struct;label="{{
+    StoresInfo|
+	  stores map[uint64]*StoreInfo
+  }}"]
+  StoresInfo -> StoreInfo;
+
+  StoreInfo[style_struct;label="{{
+    StoreInfo|
+	    meta *metapb.Store\l|
+	    *storeStats\l|
+	    pauseLeaderTransfer bool\l|
+	    leaderCount         int\l|
+	    regionCount         int\l|
+	    leaderSize          int64\l|
+	    regionSize          int64\l|
+	    pendingPeerCount    int\l|
+	    lastPersistTime     time.Time\l|
+	    leaderWeight        float64\l|
+	    regionWeight        float64\l|
+	    available           map[storelimit.Type]func() bool\l
+  }}"]
+  StoreInfo -> StoreStats;
+  StoreStats[style_struct;label="{{
+    StoreStats|
+	    StoreId uint64 \l|
+	    Capacity uint64 \l|
+	    Available uint64 \l|
+	    RegionCount uint32 \l|
+	    SendingSnapCount uint32 \l|
+	    ReceivingSnapCount uint32 \l|
+	    StartTime uint32 \l|
+	    ApplyingSnapCount uint32 \l|
+	    IsBusy bool \l|
+	    UsedSize uint64 \l|
+	    BytesWritten uint64 \l|
+	    KeysWritten uint64 \l|
+	    BytesRead uint64 \l|
+	    KeysRead uint64 \l|
+	    Interval *TimeInterval \l|
+	    CpuUsages []*RecordPair \l|
+	    ReadIoRates []*RecordPair \l|
+	    WriteIoRates []*RecordPair \l
+  }}"]
+}

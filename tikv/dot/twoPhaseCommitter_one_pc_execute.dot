@@ -1,0 +1,60 @@
+#include "styles.h"
+digraph one_pc_commit_execute {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_twoPhaseCommitter {
+    graph[label="twoPhaseCommitter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    execute -> {
+      checkOnePC;
+      setOnePC;
+      hasTriedOnePC;
+      GetTimestamp;
+      prewriteMutations;
+      onePCCommitTS;
+    }
+    GetTimestamp[style_func;label="{{
+      GetTimestamp|
+      为了保证linearizability\l提交前\l
+      先从time stamp oracle服务\l 
+      获取一个时间戳\l
+      c.minCommitTS = latestTS + 1\l
+    }}"]
+
+    GetTimestamp -> prewriteMutations[style_edge_data];
+
+    prewriteMutations -> onePCCommitTS[style_edge_data];
+    onePCCommitTS[style_var;label="{{
+      onePCCommitTS|
+    }}"]
+    commitTs[style_var;label="{{
+      commitTs|
+    }}"];
+    checkOnePCFallBack[style_func;label="{{
+      checkOnePCFallBack|
+      对于batchCount > 1的\l
+      不使用OnePC\l
+    }}"]
+    prewriteMutations -> doActionOnMuations -> {
+      groupMutations;
+      checkOnePCFallBack;
+      doActionOnGroupMutations;
+    }
+    doActionOnGroupMutations -> actionPrewrite_handleSingleBatch[style_edge_data];
+    doActionOnGroupMutations -> checkOnePCFallBack;
+    prewriteMutations -> actionPrewrite_handleSingleBatch[style_edge_data];
+    actionPrewrite_handleSingleBatch-> onePCCommitTS;
+    actionPrewrite_handleSingleBatch[style_func;label="{{
+      actionPrewrite\l| 
+      handleSingleBatch|
+      使用prewriteResp的OnePcCommitTs\l
+      设置c.onePcCommitTs\l
+    }}"]
+
+    onePCCommitTS -> commitTs;
+
+  }
+  
+}

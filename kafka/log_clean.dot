@@ -1,0 +1,116 @@
+digraph logClean{
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_segment {
+    graph[label="segment";fontsize=20;];
+    segment_deleteIfExists[shape="record";
+      label="{{
+        deleteIfExists|
+        删除log，offsetIndex,\l 
+        timeIndex, txnIndex文件
+      }}";
+    ];
+    
+  }
+
+  subgraph cluster_log {
+    graph[label="log";fontsize=20;];
+    log_delete[shape="record";
+      label="{{
+        delete|
+          完全删除该log目录\l
+          删除文件时候，采用同步方法
+      }}";
+    ];
+    removeAndDeleteSegments[shape="record";
+      label="{{
+        removeAndDeleteSegments|
+          从segments列表中删除这些segment\l
+          并删除这些segment对应的文件和index
+      }}";
+    ];
+    deleteSegmentFiles[shape="record";
+      label="{{
+        deleteSegmentFiles|
+          删除文件可以同步\l 
+          或者异步的删除\l
+      }}";
+    ];
+    deleteSegments[shape="record";
+      label="{{
+        deleteSegments|
+          删除segmentsfile时候\l 
+          采用后台线程异步删除\l
+      }}";
+    ];
+    log_delete -> {
+      checkIfMemoryMappedBufferClosed;
+      removeLogMetrics;
+      removeAndDeleteSegments;
+    };
+    deleteOldSegments -> {
+      deleteRetentionMsBreachedSegments;
+      deleteRetentionSizeBreachedSegments;
+      deleteLogStartOffsetBreachedSegments;
+    } -> deleteSegments -> {
+      checkIfMemoryMappedBufferClosed;
+      maybeIncrementLogStartOffset;
+      removeAndDeleteSegments;
+    }
+    removeAndDeleteSegments -> { deleteSegmentFiles;}
+    removeAndDeleteSegments -> segments[color="red"];
+    segments[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="segments"
+    ];
+    deleteSegmentFiles -> segment_deleteIfExists;
+    {rank=same;deleteOldSegments;log_delete};
+  }
+
+  subgraph cluster_logManager {
+    graph[label="logManager";fontsize=20;];
+    logManager_startup[label="startup"];
+    scheduler_schedule[shape="record";
+      label="{{
+        scheduler.schedule|
+          后台启动定时任务\l
+      }}";
+    ];
+    cleanupLogs[shape="record";
+      label="{{
+        cleanupLogs|
+          清理过期日志\l
+      }}";
+    ];
+    deleteLogs[shape="record";
+      label="{{
+        deleteLogs|
+          定时删除标记为删除的日志\l
+      }}";
+    ];
+
+    logManager_startup -> scheduler_schedule;
+    scheduler_schedule -> {
+      cleanupLogs;
+      deleteLogs;
+    };
+
+    cleanupLogs -> {
+      pauseCleaningForNonCompactedPartitions;
+      deleteOldSegments;
+    };
+
+    deleteLogs -> {
+      log_delete;
+    }
+  }
+
+  subgraph cluster_KafkaServer {
+    graph[label="KafkaServer";fontsize=20;];
+    startup -> logManager_startup;
+  }
+}

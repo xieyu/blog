@@ -1,0 +1,101 @@
+digraph electLeaderForPartitions {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_zkClient {
+    graph[label="zkClient";fontsize=20;style=rounded];
+    getTopicPartitionStatesRaw;
+  };
+  subgraph cluster_ControllerContext {
+    graph[label="ControllerContext";fontsize=20;style=rounded];
+    partitionReplicaAssignment;
+    partitionFullReplicaAssignment;
+    isReplicaOnline -> {
+      liveOrShuttingDownBrokerIds;
+      replicasOnOfflineDirs;
+      liveBrokerIds;
+    }
+    liveOrShuttingDownBrokerIds -> liveBrokerEpochs;
+    liveBrokerEpochs ->{liveBrokerEpochs, shuttingDownBrokerIds};
+  };
+
+  subgraph cluster_Election {
+    graph[label="Election";fontsize=20;style=rounded];
+    leaderForOffline -> {
+      partitionReplicaAssignment;
+      isReplicaOnline;
+    }
+    leaderForReassign -> {
+      partitionFullReplicaAssignment;
+      isReplicaOnline;
+    }
+    leaderForPreferredReplica -> {
+      partitionReplicaAssignment;
+      isReplicaOnline;
+    }
+    leaderForControlledShutdown -> {
+      partitionReplicaAssignment;
+      isReplicaOnline;
+    }
+  };
+  leaderForOffline ->  offlinePartitionLeaderElection;
+  leaderForControlledShutdown -> controlledShutdownPartitionLeaderElection;
+  leaderForReassign -> reassignPartitionLeaderElection;
+  leaderForPreferredReplica -> preferredReplicaPartitionLeaderElection;
+  subgraph cluster_PartitionStateMachine {
+    graph[label="PartitionStateMachine";fontsize=20;style=rounded];
+    subgraph cluster_leaderStrategy {
+      graph[label="leader选举策略";fontsize=20;style=rounded];
+      offlinePartitionLeaderElection[
+        shape="record";
+        label="{{
+          offlinePartitionLeaderElection|
+          首先找在isr中且在线的replica\l 
+          如果uncleanLeaderElection配置打开的话\l
+          从live的replica中选择一个
+        }}";
+      ];
+      reassignPartitionLeaderElection[
+        shape="record";
+        label="{{
+          reassignPartitionLeaderElection|
+          replica要live而且在isr列表中
+        }}";
+      ];
+      preferredReplicaPartitionLeaderElection[
+        shape="record";
+        label="{{
+          preferredReplicaPartitionLeaderElection|
+          relica要live而且要在isr列表中
+        }}";
+      ];
+      controlledShutdownPartitionLeaderElection[
+        shape="record";
+        label="{{
+          controlledShutdownPartitionLeaderElection|
+          relica要live而且要在isr列表中\l
+          而且broker没有正在shutting down\l
+        }}";
+      ];
+    };
+    doElectLeaderForPartitions[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        doElectLeaderForPartitions|
+        根据选举策略选举\l
+      }}";
+    ];
+
+    doElectLeaderForPartitions -> {
+      getTopicPartitionStatesRaw;
+      collectUncleanLeaderElectionState;
+      leaderForOffline;
+      leaderForReassign;
+      leaderForPreferredReplica;
+      leaderForControlledShutdown;
+    };
+  };
+
+}

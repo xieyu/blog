@@ -1,0 +1,91 @@
+#include "styles.h"
+digraph call_next_batch {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  BatchExecutorsRunner_internal_handle_request -> BatchExecutor_next_batch;
+  BatchExecutorsRunner_handle_request -> {
+     BatchExecutorsRunner_internal_handle_request;
+     grow_batch_size;
+     SelectResponse;
+  }
+
+  BatchExecutorsRunner_handle_streaming_request -> {
+     BatchExecutorsRunner_internal_handle_request;
+  }
+
+  BatchDAGHandler_handle_request -> BatchExecutorsRunner_handle_request;
+  BatchDAGHandler_handle_streaming_request -> BatchExecutorsRunner_handle_streaming_request;
+
+  EndPoint_handle_unary_request_impl -> {
+     BatchDAGHandler_handle_request;
+     limit_concurrency;
+  }
+  EndPoint_handle_unary_request -> { 
+     read_pool_spawn_handle;
+     EndPoint_handle_unary_request_impl;
+  }
+  read_pool_spawn_handle -> EndPoint_handle_unary_request_impl[style_edge_data];
+  read_pool_spawn_handle -> EndPoint_handle_stream_request_impl[style_edge_data];
+
+  EndPoint_handle_stream_request -> {
+    EndPoint_handle_stream_request_impl;
+    read_pool_spawn_handle;
+  }
+  EndPoint_handle_stream_request_impl -> BatchDAGHandler_handle_streaming_request;
+  /*
+  Service_copprocessor_stream -> {
+    parse_and_handle_stream_request;
+  }
+  parse_and_handle_stream_request -> EndPoint_handle_stream_request;
+  Serivce_coprocessor -> future_cop -> parse_and_handle_unary_request -> EndPoint_handle_unary_request;
+  */
+  EndPoint_handle_stream_request[style_func;label="{{
+    EndPoint\l|
+    handle_stream_request\l
+  }}"]
+  EndPoint_handle_unary_request[style_func;label="{{
+    EndPoint\l|
+    handle_unary_request\l
+  }}"]
+  EndPoint_handle_stream_request_impl[style_func;label="{{
+    EndPoint\l|handle_stream_request_impl\l
+  }}"]
+  read_pool_spawn_handle[style_var;label="{{
+    read_pool\l|spawn_handle\l|
+    thread pool to run\l 
+    coprocessor requests\l|
+    跑future task\l
+  }}"]
+  EndPoint_handle_unary_request_impl[style_func;label="{{
+    EndPoint\l|handle_unary_request_impl\l
+  }}"]
+
+
+  BatchDAGHandler_handle_request[style_func;label="{{
+    BatchDAGHandler\l|handle_request\l
+  }}"]
+  BatchDAGHandler_handle_streaming_request[style_func;label="{{
+    BatchDAGHandler\l|handle_streaming_request\l
+  }}"]
+
+  BatchExecutorsRunner_handle_streaming_request[style_func;label="{{
+    BatchExecutorsRunner\l|handle_streaming_request\l
+  }}"]
+
+  BatchExecutorsRunner_handle_request[style_func;label="{{
+    BatchExecutorsRunner\l|handle_request\l
+    loop 调用\l 
+    internal_handle_request\l
+    直到drained\l
+  }}"]
+  BatchExecutorsRunner_internal_handle_request[style_func;label="{{
+    BatchExecutorsRunner\l|internal_handle_request\l
+  }}"]
+  BatchExecutor_next_batch[style_blue1;label="{{
+    BatchExecutor\l|next_batch\l
+  }}"]
+  
+}

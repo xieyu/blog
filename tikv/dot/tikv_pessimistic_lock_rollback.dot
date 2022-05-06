@@ -1,0 +1,60 @@
+#include "styles.h"
+digraph pessimistic_lock_rollback {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  PessimisticRollback_process_write[style_func;label="{{
+    PessimisticRollback\l|
+    process_write|
+    遍历所有的keys\l
+    1.加载检查key的lock\l
+    2.删除store中key的lock\l|
+    3.最后唤醒等待keys的lock
+  }}"]
+  PessimisticRollback[style_var;label="{{
+    PessimisticRollback|
+      keys: Vec\<Key\>,\l|
+      start_ts: TimeStamp,\l|
+      for_update_ts: TimeStamp,\l
+  }}"]
+  PessimisticRollback -> PessimisticRollback_process_write;
+  MvccReader_load_lock[style_func;label="{{
+    1.MvccReader::load_lock|
+    加载key的lock\l
+    1.lock类型为pessimistic\l
+    2.检查lock.ts == self.start_ts\l
+    3.检查lock.for_update_ts \< self.for_update_ts\l
+  }}"]
+
+  MvccTxn_unlock_key[style_func;label="{{
+    2.MvccTxn::unlock_key|
+    删除key对应的lock\l
+  }}"]
+
+  PessimisticRollback_process_write -> {
+     MvccReader_load_lock;
+     MvccTxn_unlock_key;
+     ReleasedLocks_push;
+     ReleasedLocks_wakeup;
+  }
+  MvccTxn_unlock_key -> ReleasedLocks_push[style_edge_data];
+  ReleasedLocks_push -> ReleasedLocks_wakeup[style_edge_data];
+
+  subgraph cluster_for_every_key {
+    graph[label="for_every_key";fontsize=20;style="rounded,dashed";color="slategrey"]
+    MvccReader_load_lock;
+    MvccTxn_unlock_key;
+    ReleasedLocks_push;
+  }
+
+
+  ReleasedLocks_push[style_func;label="{{
+    3.ReleasedLocks::push|
+    将key加入relased lock vec中
+  }}"]
+  ReleasedLocks_wakeup[style_func;label="{{
+    4.ReleasedLocks::wakeup|
+    唤醒等待keys的lock的事务
+  }}"]
+}

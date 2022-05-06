@@ -1,0 +1,425 @@
+digraph db_put {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_SkipList {
+    graph[label="SkipList";fontsize=20;style=rounded];
+    SkipList_Insert;
+    SkipList_Insert[shape="record";
+      fillcolor="#f38181"
+      style=filled;
+      label="{{
+        Insert|
+        将记录插入到skiplist中
+      }}";
+    ];
+  };
+
+  subgraph cluster_MemTable {
+    graph[label="MemTable";fontsize=20;style=rounded];
+    MemTable_Add[
+      shape="record";
+      label="{{
+        Add
+      }}";
+    ];
+    MemTable_Add -> {
+      SkipList_Insert;
+      Arena_Allocate;
+      EncodeFixed64;
+      EncodeVarint32;
+      memcpy;
+      KeyValue;
+    }
+    KeyValue[
+      shape="record";
+      label="{{
+        插入skiplist的buf编码|
+        keySize: varint32\l| 
+        <KeyBytes> keyBytes\l|
+        valueSize: varint32\l|
+        value bytes\l
+      }}";
+    ];
+    KeyBytes[
+      shape="record";
+      label="{{
+        KeyBytes|
+        key_data|
+        <sequence> sequence_number|
+        type\l|
+      }}";
+    ];
+    KeyValue:KeyBytes -> KeyBytes;
+  };
+  subgraph cluster_VersionSet {
+    graph[label="VersionSet";fontsize=20;style=rounded];
+    PickLevelForMemTableOutput;
+    OverlapInLevel -> SomeFileOverlapsRange;
+    SomeFileOverlapsRange -> {
+      AfterFile;
+      files_;
+      BeforeFile;
+      FindFile;
+    }
+    NewFileNumber;
+  };
+  subgraph cluster_WritableFile {
+    graph[label="WritableFile";fontsize=20;];
+    WritableFile_Append[shape="record";
+      label="{{
+        Append\|
+        将record追加到文件中\l
+      }}";
+    ];
+    
+  }
+
+  subgraph cluster_LogWriter {
+    graph[label="LogWriter";fontsize=20;style=rounded];
+    AddRecord[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        AddRecord|
+        先将内容写入日志中\l
+        挂掉后，能从日志中恢复\l
+      }}";
+    ];
+    AddRecord -> WritableFile_Append;
+  };
+
+  subgraph cluster_MemTableInserter {
+    graph[label="MemTableInserter";fontsize=20;style=rounded];
+    MemTableInserter_Put[
+      shape="record";
+      label="{{
+        Put
+      }}";
+    ];
+    MemTableInserter_Delete[
+      shape="record";
+      label="{{
+        Delete
+      }}";
+    ];
+    MemTableInserter_Put -> MemTable_Add;
+    MemTableInserter_Delete -> MemTable_Add;
+  };
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;style=rounded];
+    subgraph cluster_background_work_finished {
+      graph[label="background_work_finished";fontsize=20;style=rounded];
+      background_work_finished_signal_[
+        fillcolor="#95e1d3";
+        style=filled;
+        shape="record";
+        label="{{
+          background_work_finished_signal_
+        }}";
+      ];
+      background_work_finished_signal__Wait[
+        shape="record";
+        label="{{
+          Wait|
+          等待后台线程处理完
+        }}";
+      ];
+      background_work_finished_signal__SignalAll[
+        shape="record";
+        label="{{
+          SignalAll|
+          通知已压缩处理完
+        }}";
+      ];
+      background_work_finished_signal__Wait -> background_work_finished_signal_;
+      background_work_finished_signal__SignalAll -> background_work_finished_signal_;
+    };
+    subgraph cluster_writers {
+      graph[label="writers队列";fontsize=20;style=rounded];
+      subgraph cluster_cv {
+        graph[label="ConditionVar";fontsize=20;style=rounded];
+        cv_wait[
+          shape="record";
+          label="{{
+            Wait|
+            如果自己不再writers队列\l 
+            最开头的话就等待\l
+          }}";
+        ];
+        cv_Signal[
+          shape="record";
+          label="{{
+            Signal|
+            自己写完了，\l 
+            通知writers_队列中其他\l
+            writer开始写\l
+          }}";
+        ];
+      };
+      Writer[
+        shape="record";
+        label="{{
+          Writer|
+          先创建一个Writer，\l 
+          并将自己放入队列中\l
+        }}";
+      ];
+      writers_[
+        fillcolor="#95e1d3";
+        style=filled;
+        shape="record";
+        label="{{
+          writers_|
+            writers队列\l
+            std::deque\<Writer*\> \l 
+            writers_ GUARDED_BY(mutex_);\l
+        }}";
+      ];
+      writers_push_back[
+        shape="record";
+        label="{{
+          push_back|
+          将writers放入writers_队列\l
+        }}";
+      ];
+      writers_pop_front[
+        shape="record";
+        label="{{
+          pop_front|
+          从writers队列中取出\l
+        }}";
+      ];
+      {
+        writers_push_back;
+        writers_pop_front;
+      } -> writers_;
+    };
+    subgraph cluster_MemTable {
+      graph[label="MemTable";fontsize=20;style=rounded];
+      imm_;
+      mem_;
+    };
+
+    imm_[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        imm_|
+        不可变的MemTable\l
+      }}";
+    ];
+    mem_[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        mem_|
+        当前可变的MemTable
+      }}";
+    ];
+    DBImpl_Write[
+      shape="record";
+      label="{{
+        Write|
+        1. 先将自己加入到writers队列\l
+        2. 通过MakeRoomForWrite保证mem_有足够空间写入key,value\l
+        3. 先写入WAL日志\l
+        4. 写入memTable中\l
+      }}";
+    ];
+
+    DBImpl_Put -> {
+      DBImpl_Write;
+      WriteBatch_Put;
+    }
+    DBImpl_Delete -> {
+      WriteBatch_Delete;
+      DBImpl_Write;
+    }
+    DBImpl_Write -> {
+      Writer;
+      cv_wait;
+      MakeRoomForWrite;
+      BuildBatchGroup;
+      AddRecord;
+      SetSequence;
+      Versions_LastSequence;
+      Version_SetLastSequence;
+      writers_;
+      cv_Signal
+      writers_push_back;
+      writers_pop_front;
+      WriteBatchInternal_InsertInto;
+    };
+
+    subgraph cluster_Sequnce {
+      graph[label="Sequnce";fontsize=20;style=rounded];
+      BuildBatchGroup;
+      Versions_LastSequence;
+      Version_SetLastSequence;
+      SetSequence;
+    };
+
+    WriteBatchInternal_InsertInto[
+      shape="record";
+      label="{{
+        WriteBatchInternal::InsertInto|
+        将内容插入memtable
+      }}";
+    ];
+    SleepForMicroseconds[
+      shape="record";
+      label="{{
+        SleepForMicroseconds|
+        Sleep等待后台\l 
+        线程压缩完毕\l
+      }}";
+    ];
+    shutting_down_[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        shutting_down_
+      }}";
+    ];
+
+    MakeRoomForWrite -> {
+      SleepForMicroseconds;
+      background_work_finished_signal__Wait;
+      MaybeScheduleCompaction;
+      ApproximateMemoryUsage;
+      mem_;
+      imm_;
+      has_imm_;
+    };
+    ApproximateMemoryUsage[
+      shape="record";
+      label="{{
+        ApproximateMemoryUsage|
+        评估当前mem_使用内存\l
+      }}";
+    ];
+    MakeRoomForWrite[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        MakeRoomForWrite|
+        1. 如果level0文件各处超过配置则等待后台压缩线程\l
+        2. 如果imm_不为null, 也等待后台压缩线程\l
+        3. 如果mem_内存超过阈值则新建一个mem_\l
+        4. 并将之间的imm设置为之前的mem_, \l在后面的CompatMemTable中会将它落盘\l
+        5. 触发压缩操作\l
+      }}";
+    ];
+    MaybeScheduleCompaction[
+      shape="record";
+      label="{{
+        MaybeScheduleCompaction|
+        可能触发压缩操作\l
+      }}";
+    ];
+
+    WriteBatchInternal_InsertInto -> {
+      WriteBatch_Iterate
+    }
+    WriteBatch_Iterate[
+      shape="record";
+      label="{{
+        WriteBatch_Iterate|
+        根据KeyTypeput或者delete;
+      }}";
+    ];
+    WriteBatch_Iterate -> mem_;
+    WriteBatch_Iterate -> {
+      MemTableInserter_Put
+      MemTableInserter_Delete;
+    };
+
+    MaybeScheduleCompaction -> {
+      background_compaction_scheduled_;
+      Env_Schedule;
+    }
+    subgraph cluster_BgThread {
+      graph[label="后台压缩线程";fontsize=20;style=rounded];
+      Env_Schedule -> BGWork -> BackgroundCall;
+      BackgroundCall -> {
+        shutting_down_;
+        BackgroundCompaction;
+        background_compaction_scheduled_
+        background_work_finished_signal__SignalAll;
+      }
+
+      BackgroundCompaction -> {
+        CompactMemTable;
+        CompactRange;
+        DoCompactionWork;
+        PickCompaction;
+      };
+
+      CompactMemTable[
+        shape="record";
+        label="{{
+          CompactMemTable|
+          将imm_写入level0文件\l
+          然后将imm_置为nullptr;\l
+        }}";
+      ];
+      CompactMemTable -> {
+        imm_;
+        WriteLevel0Table;
+        shutting_down_;
+      }
+      WriteLevel0Table[
+        fillcolor="#f38181"
+        style=filled;
+        shape="record";
+        label="{{
+          WriteLevel0Table|
+          将MemTable落盘\l
+        }}";
+      ];
+      BuildTable[
+        shape="record";
+        label="{{
+          BuildTable|
+          将MemTable落盘
+        }}";
+      ];
+      DoCompactionWork[
+        shape="record";
+        label="{{
+          DoCompactionWork|
+          做归并排序
+        }}";
+      ];
+      PickCompaction[
+        shape="record";
+        label="{{
+          PickCompaction|
+          选择需要compact的files
+        }}";
+      ];
+      DoCompactionWork -> {
+        CompactMemTable;
+        OpenCompactionOutputFile;
+        FinishCompactionOutputFile;
+        BlockBuilder_Add;
+      };
+
+      WriteLevel0Table -> {
+        BuildTable;
+        PickLevelForMemTableOutput;
+        AddFile;
+        NewFileNumber;
+      };
+      CompactRange -> { OverlapInLevel; }
+    };
+
+  };
+}

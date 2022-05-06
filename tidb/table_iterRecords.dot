@@ -1,0 +1,44 @@
+digraph table_iterRecord{
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_kv {
+    graph[label="kv";fontsize=20;style=rounded];
+    kv_NextUtil[label="NextUntil"];
+    txn_Iter[label="Iter"];
+    PrefixNext;
+  }
+  subgraph cluster_tablecodec {
+    graph[label="tablecodec";fontsize=20;style=rounded];
+    DecodeRow;
+    DecodeRowKey;
+  }
+
+  subgraph cluster_tableCommon {
+    graph[label="tableCommon";fontsize=20;style=rounded];
+    Table_IterRecords[label="IterRecords"];
+
+    Table_IterRecords-> {
+      txn_Iter;
+      RecordPrefix;
+      DecodeRowKey;
+      DecodeRow;
+      GetColDefaultValue;
+      kv_NextUtil;
+      PrefixNext;
+    };
+    Table_Seek[label="Seek"];
+  }
+
+  subgraph cluster_executor {
+    graph[label="executor/executor.go";fontsize=20;style=rounded]
+    subgraph cluster_TableScaneExec {
+      graph[label="TableScaneExec";fontsize=20;style=rounded];
+      Next -> nextChunk4InfoSchema -> Table_IterRecords;
+      Next -> nextHandle -> Table_Seek;
+    }
+  }
+
+  PhysicalMemTable -> Next[style=dashed;label="build executor"];
+}

@@ -1,0 +1,159 @@
+#include "styles.h"
+digraph RaftCore_msg {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Raft__send_append -> {
+    RaftCore__send_append;
+    Raft__msgs;
+  }
+
+  Raft__bcast_append[style_func;label="{{
+    Raft__bcast_append|
+    Sends RPC, with entries to\l
+    all peers that are\l
+    not up-to-date\l
+  }}"]
+  Raft__bcast_append -> {
+    RaftCore__send_append;
+    Raft__msgs;
+  }
+
+  RaftCore__hup -> {
+     RaftCore__campaign;
+  }
+
+  RaftCore__campaign -> {
+    RaftCore__poll;
+    RaftCore__send;
+  }
+  RaftCore__poll[style_func;label="{{
+    RaftCore__poll|
+    prs__tall_votes\l
+    VoteResult::Won\l
+    成为新的leader\l
+    向所有的peers\l
+    发送entries\l
+  }}"]
+
+  RaftCore__poll -> {
+    Raft__bcast_append;
+    RaftCore__campaign;
+  }
+
+  RawNode__advance -> RawNode__advance_append;
+  RawNode__advance_append -> RawNode__on_persist_ready;
+  RawNode__on_persist_ready -> RaftCore__on_persist_entries;
+  RaftCore__on_persist_entries -> Raft__bcast_append;
+
+  RaftNode__apply_conf_change -> RaftCore__apply_conf_change;
+  RaftCore__apply_conf_change -> RaftCore__post_conf_change;
+  RaftCore__restore -> RaftCore__post_conf_change;
+  Raft__new -> RaftCore__post_conf_change;
+  RaftCore__post_conf_change -> Raft__bcast_append;
+
+  RaftCore__enable_group_commit -> Raft__bcast_append;
+  RaftCore__assign_comit_groups -> Raft__bcast_append;
+
+  RawNode__ping -> Raft__ping;
+  Raft__ping -> {
+    Raft__bcast_heartbeat;
+  }
+
+  Raft__bcast_heartbeat -> {
+     Raft__bcast_heartbeat_with_ctx;
+  }
+  Raft__bcast_heartbeat_with_ctx -> RaftCore__send_heartbeat;
+  RaftCore__send_heartbeat -> RaftCore__send;
+
+  RaftCore__handle_hearbeat_response -> {
+     RaftCore__send_append;
+     RaftCore__send;
+  }
+
+  RaftCore__handle_transfer_leader -> RaftCore__send_append;
+  RaftCore__handle_append_response -> {
+     RaftCore__send_append;
+     RaftCore__maybe_commit;
+     RaftCore__should_bcast_commit;
+     Raft__bcast_append;
+     Raft__send_append;
+  }
+
+  {
+     RaftCore__maybe_commit;
+     RaftCore__should_bcast_commit;
+  } -> Raft__bcast_append;
+
+  RaftCore__step -> {
+     RaftCore__step_candidate;
+     RaftCore__step_follower;
+     RaftCore__step_leader;
+     RaftCore__hup;
+  }
+  {
+    rank=same;
+    RaftCore__step_candidate;
+    RaftCore__step_follower;
+    RaftCore__step_leader;
+  }
+
+  RaftCore__step_leader -> {
+    Raft__bcast_heartbeat;
+    RaftCore__handle_append_response;
+    RaftCore__handle_transfer_leader;
+    RaftCore__handle_hearbeat_response;
+    RaftCore__send;
+  }
+  RaftCore__step_follower -> {
+     RaftCore__handle_heartbeat;
+     RaftCore__hup;
+     RaftCore__send;
+     RaftCore__handle_append_entries;
+  }
+  RaftCore__handle_append_entries -> {
+     RaftCore__send;
+  }
+
+  RaftCore__step_candidate -> {
+     RaftCore__handle_heartbeat;
+     RaftCore__poll;
+  }
+
+  RaftCore__handle_heartbeat -> {
+    RaftCore__send;
+  }
+  {
+    rank=same;
+    RaftCore__handle_append_response;
+    RaftCore__handle_hearbeat_response;
+    RaftCore__handle_heartbeat;
+    RaftCore__handle_append_entries;
+    RaftCore__handle_transfer_leader;
+  }
+
+  RaftCore__send_append[style_func;label="{{
+    RaftCore__send_append|
+    Sends an append RPC with \l
+    new entries (if any) and the \l
+    current commit index to the given\l
+    peer.\l
+  }}"]
+  RaftCore__send_append -> RaftCore__maybe_send_append;
+
+  RaftCore__maybe_send_append[style_func;label="{{
+    RaftCore__maybe_send_append|
+    发送entries或空的message\l
+    covey updated Committed indexes\l
+    或snapshot给peer\l
+  }}"]
+  RaftCore__maybe_send_append -> RaftCore__send;
+  RaftCore__send_append -> {
+    RaftCore__send;
+  }
+
+  RaftCore__send -> {
+     Raft__msgs;
+  }
+}

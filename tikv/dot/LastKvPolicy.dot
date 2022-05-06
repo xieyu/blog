@@ -1,0 +1,102 @@
+#include "styles.h"
+digraph last_kv_policy {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Cursors {
+    graph[label="Cursors";fontsize=20;style="rounded,dashed";color="slategrey"]
+    move_write_cursor_to_next_user_key;
+    move_write_cursor_to_next_user_key[style_func;label="{{
+      move_write_cursor_to_next_user_key|
+      移动write_cursor\ 
+      直到下一个key\l
+    }}"]
+  }
+
+  subgraph cluster_LastKvPolicy {
+    graph[label="LastKvPolicy";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_lock -> {
+      scan_latest_handle_lock;
+    }
+    scan_latest_handle_lock[style_func;label="{{
+      scan_latest_handle_lock|
+      读取lock info\l
+      检查check_ts_conflict\l
+      如果有冲突则skip掉这个user key \l 
+      移动write cursor到下一个key\l
+    }}"]
+    scan_latest_handle_lock -> {
+      cfg_isolation_level;
+      check_ts_conflict;
+      cursors_lock_next;
+      move_write_cursor_to_next_user_key;
+      cursors_lock_value;
+      Lock_parse;
+    }
+    cursors_lock_next[style_func;label="{{
+      cursors.lock.next|
+      移动Lock cursor到下一个
+    }}"]
+    cursors_lock_value -> Lock_parse -> check_ts_conflict -> result_err -> move_write_cursor_to_next_user_key[style_edge_data];
+    cfg_isolation_level[style_func;label="{{
+      cfg_isolation_level|
+      只有IsolationLevel为SI\l 
+      的需要检查lock\l
+    }}"];
+    result_err[style_func;label="{{
+      result_err|
+      有lock err\l
+      移动cursor到下一个user_key\l
+    }}"]
+    handle_write[style_func;label="{{
+      handle_write|
+       解析write ref\l
+       通过loop查找到user key\l
+       最新commit ts\l
+       这块的逻辑类似于PointGetter\l
+    }}"]
+
+    handle_write -> {
+      check_gc_fence_as_latest_version;
+      WriteRef_parse;
+      write_type;
+      ensure_default_cursor;
+      near_load_data_by_write;
+      cursors_wirte_next;
+      move_write_cursor_to_next_user_key;
+    }
+
+    subgraph cluster_loop {
+      graph[label="loop";fontsize=20;style="rounded,dashed";color="slategrey"]
+      check_gc_fence_as_latest_version;
+      WriteRef_parse -> write_type;
+      WriteRef_parse;
+      write_type;
+      WriteType_PUT;
+      WriteType_Delete;
+      WriteType_Lock;
+      cursors_wirte_next;
+
+      write_type -> {
+        WriteType_PUT;
+        WriteType_Delete;
+        WriteType_Lock;
+      }
+    }
+  }
+  subgraph cluster_ForwardScanner {
+    graph[label="ForwardScanner";fontsize=20;style="rounded,dashed";color="slategrey"]
+    read_next -> {
+      handle_lock;
+      handle_write;
+      move_write_cursor_to_ts;
+    };
+    read_next[style_func;label="{{
+      read_next|
+      使用归并思路，移动\l 
+      write_cursor和lock_cursor\l
+    }}"]
+  }
+}

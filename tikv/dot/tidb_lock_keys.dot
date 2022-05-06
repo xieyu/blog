@@ -1,0 +1,47 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  {
+    SelectLockExec__Next;
+    LockKeys;
+    PointGetExecutor__lockKeyIfNeeded;
+  } -> doLockKeys;
+
+  doLockKeys -> Transaction__LockKeys;
+
+  PointGetExecutor__Next -> PointGetExecutor__getAndLock;
+  {
+    PointGetExecutor__getAndLock;
+    PointGetExecutor__Next;
+  } -> PointGetExecutor__lockKeyIfNeeded;
+
+  {
+    clientConn__prefetchPointPlanKeys;
+    BatchPointGetExec__initialize;
+  } -> LockKeys
+  BatchPointGetExec__Next -> BatchPointGetExec__initialize;
+
+  clientConn__handleQuery -> clientConn__prefetchPointPlanKeys;
+
+  {
+    clientConn__dispatch;
+    clientConn__handleRefresh;
+  } -> clientConn__handleQuery;
+  clientConn__Run -> clientConn__dispatch;
+  Server__onConn -> clientConn__Run;
+  ExecStmt__runPessimisticSelectForUpdate -> SelectLockExec__Next;
+  clientConn__handleQuery -> ExecStmt__runPessimisticSelectForUpdate [style_edge_data];
+
+  {
+    rank=same;
+    SelectLockExec__Next;
+    PointGetExecutor__Next;
+    BatchPointGetExec__Next;
+  }
+
+
+}

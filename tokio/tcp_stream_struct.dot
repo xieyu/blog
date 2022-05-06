@@ -1,0 +1,45 @@
+digraph tcp_stream_struct {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  TokioTcpStream[shape="record";
+    label="{{
+      Tokio TcpStream|
+        <io> io: PollEvented\<mio::net::TcpStream\>\l
+    }}";
+  ];
+
+  subgraph cluster_mio {
+    graph[label="mio";fontsize=20;];
+
+      Mio_TcpStream[shape="record";
+      label="{{
+        Mio_TcpStream|
+        <t> sys: sys::TcpStream\l|
+        selector_id: SelectorId\l
+      }}";
+      ];
+
+      UnixTcpStream[shape="record";
+      label="{{
+        UnixTcpStream|
+          <t> inner std::net::TcpStream\l
+      }}";
+      ]
+  };
+
+  subgraph cluster_std {
+    graph[label="std";fontsize=20;]
+    std_TcpStream[shape="record";
+      label="{{
+        TcpStream|
+          net_impl::TcpStream\l
+      }}";
+    ]
+  }
+
+Mio_TcpStream:t ->UnixTcpStream;
+UnixTcpStream:t -> std_TcpStream;
+TokioTcpStream:io -> Mio_TcpStream;
+}

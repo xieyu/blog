@@ -1,0 +1,221 @@
+digraph agg_func {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_expression {
+    graph[label="expression";fontsize=20;style="rounded,dashed";color="slategrey"]
+    EvalInt;
+  }
+
+  AggFunc[
+    shape="record";
+    label="{{
+      type AggFunc interface|
+      AllocPartialResult\l|
+      ResetPartialResult\l|
+      UpdatePartialResult\l|
+      MergePartialResult\l|
+      AppendFinalResult2Chunk\l
+    }}"];
+  AggFunc -> baseAggFunc;
+  baseAggFunc[
+    shape="record";
+    label="{{
+      baseAggFunc|
+        args []expression.Expression\l|
+        ordinal int\l|
+        frac \l
+    }}"];
+  baseAggFunc -> {
+    baseCount;
+    baseApproxCountDistinct;
+    firstRow4Int;
+    firstRow4Decimal;
+    firstRow4Float32;
+    firstRow4String;
+    firstRow4Duration;
+    firstRow4Float32;
+    firstRow4Float64;
+    firstRow4JSON;
+    firstRow4Enum;
+    firstRow4Set;
+
+    baseMaxMinAggFunc;
+    baseAvgDecimal;
+    avgOriginal4DistinctDecimal 
+    baseAvgFloat64;
+    avgOriginal4DistinctFloat64;
+    baseGroupConcat4String;
+    baseBitAggFunc;
+    jsonObjectAgg;
+    basePercentile;
+    baseSumAggFunc;
+  }
+  subgraph cluster_firstRow {
+    graph[label="firstRow";fontsize=20;style="rounded,dashed";color="slategrey"]
+    basePartialResult4FirstRow[
+      shape="record";
+      label="{{
+        basePartialResult4FirstRow|
+          isNull bool\l|
+          gotFirstRow bool\l
+      }}"];
+    basePartialResult4FirstRow -> {
+      partialResult4FirstRowInt;
+      partialResult4FirstRowFloat32;
+      partialResult4FirstRowFloat64;
+      partialResult4FirstRowJSON;
+    }
+
+    partialResult4FirstRowInt[
+      shape="record";
+      label="{{
+        partialResult4FirstRowInt|
+          basePartialResult4FirstRow\l|
+          val int64\l
+      }}"];
+
+    firstRow4Int -> {
+      partialResult4FirstRowInt;
+      EvalInt;
+    }
+    firstRow4Float32;
+    firstRow4Float64;
+    firstRow4Decimal;
+    firstRow4String;
+    firstRow4Duration;
+    firstRow4Float32;
+    firstRow4Float64;
+    firstRow4JSON;
+    firstRow4Enum;
+    firstRow4Set;
+    
+  }
+  subgraph cluster_count {
+    graph[label="count";fontsize=20;style="rounded,dashed";color="slategrey"]
+    baseCount -> {
+      countPartial;
+      countOriginal4Int;
+      countOriginal4Real;
+      countOriginal4Time;
+      countOriginal4Int;
+      countOriginal4Real;
+      countOriginal4Decimal;
+      countOriginal4Time;
+      countOriginal4Duration;
+      countOriginal4JSON;
+      countOriginal4String;
+      countOriginalWithDistinct4Int;
+      countOriginalWithDistinct4Real;
+      countOriginalWithDistinct4Decimal;
+      countOriginalWithDistinct4Duration;
+      countOriginalWithDistinct4String;
+    }
+    countOriginalWithDistinct4Int -> {
+      EvalInt;
+      partialResult4CountDistinctInt;
+    }
+    partialResult4CountDistinctInt[
+      shape="record";
+      label="{{
+        partialResult4CountDistinctInt|
+          valSet set.Int64Set\l|
+      }}"];
+    partialResult4CountDistinctInt -> Int64Set;
+    Int64Set[
+      shape="record";
+      label="{{
+        Int64Set|
+          type Int64Set map[int64]struct\{\}\l
+      }}"];
+  }
+
+  subgraph cluster_max_min {
+    graph[label="max_min";fontsize=20;style="rounded,dashed";color="slategrey"]
+    baseMaxMinAggFunc -> {
+      maxMin4Int;
+    }
+
+    baseMaxMinAggFunc[
+      shape="record";
+      label="{{
+        baseMaxMinAggFunc|
+          baseAggFunc\l|
+          isMax bool\l
+      }}"];
+  }
+  subgraph cluster_approxCount {
+    graph[label="approxCount";fontsize=20;style="rounded,dashed";color="slategrey"]
+    baseApproxCountDistinct -> {
+      approxCountDistinctOriginal;
+    }
+  }
+
+  subgraph cluster_Percentile {
+    graph[label="Percentile";fontsize=20;style="rounded,dashed";color="slategrey"]
+    basePercentile[
+      shape="record";
+      label="{{
+        basePercentile|
+	        percent int\l|
+          baseAggFunc\l
+      }}"];
+    basePercentile -> {
+      percentileOriginal4Int;
+    }
+  }
+
+  subgraph cluster_Avg {
+    graph[label="Avg";fontsize=20;style="rounded,dashed";color="slategrey"]
+    baseAvgDecimal -> {
+      avgOriginal4Decimal;
+      avgPartial4Decimal;
+    }
+    baseAvgFloat64 -> {
+      avgOriginal4Float64HighPrecision;
+    }
+    avgOriginal4Float64HighPrecision -> {
+      avgOriginal4Float64;
+    }
+  }
+
+  subgraph cluster_sum {
+    graph[label="sum";fontsize=20;style="rounded,dashed";color="slategrey"]
+    baseSumAggFunc -> {
+      sum4DistinctFloat64;
+      sum4DistinctDecimal;
+      sum4Decimal;
+      baseSum4Float64;
+    }
+    baseSum4Float64 -> {
+      sum4Float64;
+    }
+  }
+  subgraph cluster_group_concat {
+    graph[label="group_concat";fontsize=20;style="rounded,dashed";color="slategrey"]
+    baseGroupConcat4String[
+      shape="record";
+      label="{{
+        baseGroupConcat4String|
+	        baseAggFunc\l|
+	        byItems []*util.ByItems\l|
+	        sep    string\l|
+	        maxLen uint64\l|
+	        truncated *int32\l
+      }}"];
+
+    baseGroupConcat4String -> {
+      groupConcatDistinct;
+      groupConcat;
+    }
+  }
+  subgraph cluster_bit {
+    graph[label="bit";fontsize=20;style="rounded,dashed";color="slategrey"]
+    baseBitAggFunc -> {
+      bitOrUint64;
+      bitXorUint64;
+      bitAndUint64;
+    }
+  }
+}

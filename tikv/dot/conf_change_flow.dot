@@ -1,0 +1,66 @@
+#include "styles.h"
+digraph conf_change_flow {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  app_propose_conf_change -> raft_leader_append_log -> app_apply_conf_change -> enter_joint;
+  app_apply_conf_change -> app_advance -> leader_append_emty_conf_change;
+  leader_append_emty_conf_change -> app_apply_empty_conf_change -> leave_joint;
+
+  app_propose_conf_change[style_func;label="{{
+  app propose\l
+  conf change
+  }}"]
+  raft_leader_append_log[style_blue1;label="{{
+    leader节点\l
+    将conf change\l
+    日志复制到其他节点\l
+    然后commit\l|
+    这样可以保证旧配置中的\l
+    大多数节点收到并持久化了\l
+    该conf change\l
+  }}"]
+  app_apply_conf_change[style_func;label="{{
+  应用调用ready获取\l
+  committed log entry\l
+  并调用RawNode\l
+  apply_conf_change\l
+  来修改自己的ProgressTracker\l
+  }}"]
+  enter_joint[style_var;label="{{
+    enter_joint|
+    此时进入joint consensus\l
+    同时用新老配置\l
+    做决策\l
+  }}"]
+  app_advance[style_func;label="{{
+  app调用RawNode\l
+  advanc告诉raft\l
+  ready中内容已处理完毕\l
+  }}"]
+  leader_append_emty_conf_change[style_blue1;label="{{
+  leader节点\l
+  append 一个空的\l
+  confChange日志\l
+  然后复制到其他节点\l
+  达到commit状态\l|
+  这里的节点包含新\l
+  配置中的节点\l|
+   新配置和旧配置中的\l
+   大部分节点收到了该消息\l
+  }}"]
+  app_apply_empty_conf_change[style_func;label="{{
+   在空的ConfChange\l
+   达到commit状态\l|
+   app调用Rawnode\l
+   apply_conf_change\l
+   开始leave joint\l|
+  }}"]
+  leave_joint[style_var;label="{{
+    leave_joint|
+    开始使用新配置\l
+    做决策\l
+  }}"]
+}

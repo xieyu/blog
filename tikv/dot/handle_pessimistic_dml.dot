@@ -1,0 +1,141 @@
+#include "styles.h"
+digraph handle_pessimistic_dml {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ExecStmt_Exec[style_func;label="{{
+    ExecStmt\l|
+    Exec\l|
+    build an executor from a plan\l
+    if the executor doesn't return result\l
+    like insert, update statements\l
+    it executes in this function\l|
+    if Executor returns result, execution\l
+    is done after this function function\l
+    in the returned sqlexec.RecordSet.Next\l
+  }}"]
+  StmtCtx_TxnCtx_IsPessimistic[style_var;label="{{
+    StmtCtx.TxnCtx\l 
+    IsPessimistic\l
+  }}"]
+  isSelectForUpdate[style_var;label="{{
+    isSelectForUpdate
+  }}"]
+  isSelectForUpdate -> handlePessimisticSelectForUpdate[style_edge_data];
+  ExecStmt_Exec -> StmtCtx_TxnCtx_IsPessimistic;
+  ExecStmt_Exec -> {
+    handlePessimisticSelectForUpdate;
+  }
+  handlePessimisticSelectForUpdate[style_func;label="{{
+    handlePessimisticSelectForUpdate|
+    处理select for update statement\l 
+    in pessimistic transaction\l
+  }}"]
+
+  ExecStmt_handleNoDelay[style_func;label="{{
+    ExecStmt\l|
+    handleNoDelay\l
+  }}"]
+  ExecStmt_handlePessimisticDML[style_func;label="{{
+    ExecStmt\l|
+    handlePessimisticDML
+  }}"]
+  StmtCtx_TxnCtx_IsPessimistic -> ExecStmt_handlePessimisticDML[style_edge_data];
+
+  ExecStmt_Exec -> ExecStmt_handleNoDelay;
+  ExecStmt_handleNoDelay -> ExecStmt_handlePessimisticDML;
+  ExecStmt_handlePessimisticDML -> {
+    handleNoDelayExecutor;
+    handlePessimisticLockError;
+  }
+
+  subgraph cluster_ForLoop {
+    graph[label="ForLoop";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handleNoDelayExecutor;
+    handlePessimisticLockError;
+    handleNoDelayExecutor -> Executor_Next;
+    Executor_Next[style_func;label="{{
+      执行executor\l
+      调用executor::next\l
+    }}"]
+    buildExecutor -> Executor_Next[style_edge_data];
+    Executor_Next -> LockKeys[style_edge_data];
+    LockKeys[style_func;label="{{
+      LockKeys|
+      尝试获取key的lock\l
+    }}"]
+    handlePessimisticLockError[style_func;label="{{
+      handlePessimisticLockError|
+      update Ts and rebuild Executor if\l
+      the err is write conflict\l
+    }}"]
+
+    handlePessimisticLockError -> {
+       ErrDeadlock;
+       ErrWriteConflict;
+       ErrDeadlock_IsRetryable;
+       GetForUpdateTS;
+       GetGlobalConfig_PessimisticTxn_MaxRetryCount;
+       UpdateForUpdateTS;
+       buildExecutor;
+       StmtRollback;
+       StmtCtx_ResetForRetry;
+    }
+    buildExecutor[style_func;label="{{
+      buildExecutor|
+      重建Executor\l
+    }}"]
+    GetGlobalConfig_PessimisticTxn_MaxRetryCount[style_func;label="{{
+      GetGlobalConfig().\l
+      PessimisticTxn\l 
+      .MaxRetryCount\l|
+      检查是否超过了最次数\l
+    }}"]
+    ErrWriteConflict -> GetForUpdateTS[style_edge_data];
+    StmtRollback[style_func;label="{{
+      StmtRollback|
+      providdes statment level rollback\l
+    }}"]
+    UpdateForUpdateTS[style_func;label="{{
+      UpdateForUpdateTS|
+      update the ForUpdateTS\l
+      if the newForUpdateTS is 0, it obtain\l
+      a new TS from PD\l
+    }}"]
+    StmtRollback -> LazyTxn_cleanup;
+    LazyTxn_cleanup ->{
+      LazyTxn_cleanupStmtBuf;
+      LazyTxn_initStmtBuf;
+      LazyTxn_mutations;
+    }
+    LazyTxn_cleanup[style_func;label="{{
+      LazyTxn::cleanup
+    }}"]
+    LazyTxn_cleanupStmtBuf[style_func;label="{{
+      LazyTxn::cleanupStmtBuf|
+      清理掉MemBuffer\l
+    }}"]
+    LazyTxn_initStmtBuf[style_func;label="{{
+      LazyTxn::initStmtBuf|
+      准备StmtBuf\l
+    }}"]
+    LazyTxn_mutations[style_var;label="{{
+      LazyTxn::mutations|
+      清理掉已有的mutations
+    }}"]
+    StmtCtx_ResetForRetry[style_func;label="{{
+      StatementContext::ResetForRetry|
+      重置changed states during execution\l
+      比如affectedRows, updated等\l
+    }}"]
+    ErrDeadlock_IsRetryable[style_func;label="{{
+      ErrDeadlock::IsRetryable|
+      如果错误不可重试的\l
+      就返回err,退出上面的forloop\l
+    }}"]
+    ErrDeadlock -> ErrDeadlock_IsRetryable[style_edge_data];
+  }
+  
+}

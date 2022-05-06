@@ -1,0 +1,122 @@
+digraph QueryFeedback {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Feedbacks[
+    shape="record";
+    label="{{
+      QueryFeedback|
+	      PhysicalID int64\l|
+	      Hist       *Histogram\l|
+	      Tp         int\l|
+	      <Feedback> Feedback   []Feedback\l|
+	      Expected   int64\l|
+	      actual     int64\l|
+	      Valid      bool\l|
+	      desc       bool\l
+    }}"];
+  Feedbacks:Feedback -> Feedback;
+  Feedback[
+    shape="record";
+    label="{{
+      Feedback|
+	      Lower  *types.Datum\l|
+	      Upper  *types.Datum\l|
+	      Count  int64\l|
+	      Repeat int64\l
+    }}"];
+  subgraph cluster_go {
+    graph[label="start updateStatsWorker goroutine";fontsize=20;style="rounded,dashed";color="slategrey"]
+    main -> createStoreAndDomain -> BootstrapSession -> UpdateTableStatsLoop;
+    UpdateTableStatsLoop -> updateStatsWorker1[label=go];
+    updateStatsWorker1[
+      shape="record";
+      label="{{
+        updateStatsWorker
+      }}"];
+  }
+
+  updateStatsWorker -> {
+    UpdateStatsByLocalFeedback;
+  }[color="#3f72af"];
+
+UpdateStatsByLocalFeedback[
+  shape="record";
+  label="{{
+    UpdateStatsByLocalFeedback|
+    根据feedback先更新\l
+    本地的统计信息\l
+  }}"];
+  UpdateHistogram[
+    shape="record";
+    label="{{
+      UpdateHistogram|
+      updates the histograms\l 
+      according buckets\l
+    }}"];
+  UpdateStatsByLocalFeedback -> {
+    getTableByPhysicalID;
+    GetPartitionStats;
+    SplitFeedbackByQueryType;
+    UpdateCMSketch;
+    UpdateHistogram;
+    PreCalculateScalar;
+    ResetAnalyzeFlag;
+    handle_statsCache_Update;
+    statis_Table_Copy;
+  }[color="#b83b5e"];
+
+  handle_statsCache_Update[
+    shape="record";
+    label="{{
+      handle.statsCache.Update|
+      更新本地缓存中的Stats信息
+    }}"];
+  getTableByPhysicalID[
+      shape="record";
+      label="{{
+        getTableByPhysicalID|
+        根据PhysicalID获取Talbe信息\l
+      }}"];
+  GetPartitionStats[
+    shape="record";
+    label="{{
+      GetPartitionStats|
+      根据TableInfo获取Partion\l 
+      stats from cache\l
+    }}"];
+  statis_Table_Copy[
+    shape="record";
+    label="{{
+      statis.Table.Copy|
+      Table struct|
+	      HistColl\l|
+	      Version       uint64\l|
+	      Name          string\l|
+	      ExtendedStats *ExtendedStatsColl\l
+    }}"];
+  SplitFeedbackByQueryType[
+    shape="record";
+    label="{{
+      SplitFeedbackByQueryType|
+      splits the feedbacks into equality\l
+      feedbacks and range feedbacks\l|
+      equality feedbacks 传给UpdateCMSKetch\l
+      range feedbacks 传给UpdateHistogram\l
+    }}"];
+
+  edge[style=dashed;color=darkblue]
+  Feedbacks -> getTableByPhysicalID -> GetPartitionStats;
+  GetPartitionStats -> statis_Table_Copy;
+  Feedback -> SplitFeedbackByQueryType;
+  Feedback -> {
+    UpdateCMSketch;
+    UpdateHistogram;
+  }
+  SplitFeedbackByQueryType -> {
+    UpdateCMSketch;
+    UpdateHistogram;
+  } -> statis_Table_Copy -> handle_statsCache_Update;
+}

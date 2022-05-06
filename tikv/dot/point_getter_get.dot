@@ -1,0 +1,97 @@
+#include "styles.h"
+digraph PointGetterGet {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_lock {
+    graph[label="lock";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Lock[style_struct;label="{{
+      Lock|
+    pub lock_struct: LockType,\l|
+    pub primary: Vec\<u8\>,\l|
+    <ts> pub ts: TimeStamp,\l|
+    pub ttl: u64,\l|
+    pub short_value: Option\<Value\>,\l|
+    pub for_update_ts: TimeStamp,\l|
+    pub txn_size: u64,\l|
+    <min_commit_ts> pub min_commit_ts: TimeStamp,\l|
+    pub use_async_commit: bool,\l|
+    pub secondaries: Vec\<Vec\<u8\>\>,\l|
+    pub rollback_ts: Vec\<TimeStamp\>,\l
+    }}"]
+    parse -> Lock[style_edge_data];
+    parse[style_func;label="{{parse|
+      从[u8]中解析出\l 
+      lock结构体\l 
+    }}"]
+    check_ts_conflict[style_func;label="{{check_ts_conflict|
+     检查lock是否和ts冲突
+    }}"]
+  }
+
+  subgraph cluster_cursor {
+    graph[label="cursor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    near_seek;
+      
+  }
+  subgraph cluster_PointGetter {
+    graph[label="PointGetter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    get -> {
+      multi;
+      isolation_level;
+      load_and_check_lock;
+      load_data;
+    }
+    ts[style_var;label="{{
+      ts|
+      ts: TimeStamp,
+    }}"]
+    bypass_locks[style_var;label="{{
+      bypass_locks|
+      TsSet\l|
+      Empty\l|
+      Vec(Arc\<[TimeStamp]\>),\l|
+      Set(Arc\<HashSet\<TimeStamp\>\>),\l
+    }}"]
+  }
+  {bypass_locks;ts} -> check_ts_conflict[style_edge_data];
+
+  load_and_check_lock -> {
+    get_cf;
+    parse;
+    check_ts_conflict;
+  }
+  get_cf -> parse;
+  get_cf[style_func;label="{{get_cf|
+    snapshot.get_cf(CF_LOCK, user_key)\l
+  }}"]
+  Lock -> check_ts_conflict[style_edge_data];
+
+  load_and_check_lock[style_func;label="{{load_and_check_lock|
+    check for locks that singal\l 
+    concurrent writes in Si\l
+  }}"]
+
+  load_data -> {
+    seek_key_append_ts_self_ts;
+    check_gc_fence_as_latest_version;
+    load_data_from_default_cf;
+    WriteRef_parse;
+    near_seek;
+    short_value;
+  }
+  load_data_from_default_cf -> get_cf_default;
+  get_cf_default[style_func;label="{{get_cf|
+    snapshot.get_cf(CF_DEFAULT, ...)
+  }}"]
+  isolation_level[style_var;label="{{isolation_level|
+    Si级别要load_and_check_lock\l|
+    Rc级别直接load_data\l
+  }}"]
+  isolation_level -> {
+    load_and_check_lock;
+    load_data;
+  }[style_edge_data];
+  
+}

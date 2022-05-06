@@ -1,0 +1,41 @@
+#include "styles.h"
+digraph AcquirePessimisticLock {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_ConcurrencyManager {
+    graph[label="ConcurrencyManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    update_max_ts;
+  }
+  subgraph cluster_MvccReader {
+    graph[label="MvccReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    load_lock;
+    get;
+    seek_write;
+  }
+  subgraph cluster_MvccTxn {
+    graph[label="MvccTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    put_lock;
+    MvccTxn_new;
+  }
+
+  subgraph cluster_AcquirePessimisticLock {
+    graph[label="AcquirePessimisticLock";fontsize=20;style="rounded,dashed";color="slategrey"]
+    process_write -> {
+      MvccTxn_new;
+      acquire_pessimistic_lock;
+      update_max_ts;
+    }
+    acquire_pessimistic_lock -> {
+      load_lock;
+      get;
+      pessimistic_lock
+      put_lock;
+      seek_write;
+      check_data_constraint;
+      check_gc_fence_as_latest_version;
+    }
+  }
+  
+}

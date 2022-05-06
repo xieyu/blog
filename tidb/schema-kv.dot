@@ -1,0 +1,66 @@
+digraph schema_kv {
+  node[shape=box; width=0.4];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_kv {
+    graph[label="kv";fontsize=20;];
+    subgraph cluster_Mutator {
+      graph[label="Mutator";fontsize=20;];
+      Mutator_Set[label="Set"];
+      Mutator_Delete[label="Delete"];
+    }
+
+    subgraph cluster_Retriever {
+      graph[label="Retriever";fontsize=20;];
+      Retriever_Iter[label="Iter"];
+      Retriever_Get[label="Get"];
+    }
+  }
+
+  subgraph cluster_structure{
+    graph[label="structure";fontsize=20;];
+    subgraph cluster_hash {
+      graph[label="hash.go";fontsize=20;];
+      HGetAll;
+      HGet -> Retriever_Get;
+      HSet -> updateHash;
+      HDel -> Mutator_Delete;
+      HClear;
+      HInc -> updateHash;
+      HGetInt64 -> HGet;
+      HGetAll -> iterateHash;
+      iterateHash -> Retriever_Iter;
+      updateHash -> Mutator_Set;
+    }
+
+    subgraph cluster_string {
+      graph[label="string.go";fontsize=20;];
+      Inc;
+    }
+  }
+
+  subgraph cluster_meta {
+    graph[label="meta";fontsize=20;];
+    ListDatabases -> HGetAll;
+    ListTables -> HGetAll;
+    GetDatabase -> HGet;
+    GetTable -> HGet;
+    UpdateTable -> HSet;
+    DropTableOrView -> HDel;
+    CreateTableOrView -> HSet;
+    CreateTableAndSetAutoID -> HInc;
+    DropDatabase -> {
+      HClear; HDel
+    };
+    UpdateDatabase -> HSet;
+    CreateDatabase -> HSet;
+
+    GetAutoTableID -> HGetInt64;
+    GenGlobalID -> Inc;
+    GenGlobalIDs -> Inc;
+  }
+
+  
+
+}

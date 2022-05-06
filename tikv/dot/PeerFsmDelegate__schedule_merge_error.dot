@@ -1,0 +1,83 @@
+#include "styles.h"
+digraph schedule_merge_error {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  PeerFsmDelegate__on_check_merge -> {
+    PeerFsmDelegate__schedule_merge;
+  }
+
+  PeerFsmDelegate__schedule_merge -> {
+    Peer__validate_merge_peer;
+    RaftRouter__force_send__RegionNotFound;
+  }
+  {
+  Peer__validate_merge_peer
+  RaftRouter__force_send__RegionNotFound;
+  } -> schedule_return_error;
+
+  {
+    PeerFsmDelegate__on_check_merge;
+    schedule_return_error
+  } -> {
+    Peer__is_leader;
+    Peer__add_want_rollback_merge_peer;
+    ProgressTracker__has_quorum;
+    PeerFsmDelegate__rollback_merge;
+    Peer__want_rollback_merge_peers;
+    Peer__send_want_rollback_merge;
+  }[style_edge_data];
+  Peer__is_leader[style_func;label="{{
+    Peer\l
+    is_leader\l|
+    当前节点是leader\l
+  }}"]
+  Peer__is_leader -> Peer__add_want_rollback_merge_peer ->  Peer__want_rollback_merge_peers;
+  Peer__want_rollback_merge_peers[style_var;label="{{
+    Peer\l
+    want_rollback_merge_peers\l
+  }}"]
+  Peer__want_rollback_merge_peers -> ProgressTracker__has_quorum;
+
+
+  Peer__add_want_rollback_merge_peer[style_func;label="{{
+    Peer\l
+    add_want_rollback_merge_peer\l|
+    如果当前节点是leader\l
+  }}"]
+  ProgressTracker__has_quorum[style_func;label="{{
+    ProgressTracker\l
+    has_quorum\l|
+    检查是否大部分节点\l
+    想rollback \l
+  }}"]
+  ProgressTracker__has_quorum -> PeerFsmDelegate__rollback_merge[style_edge_data];
+  Peer__send_want_rollback_merge[style_func;label="{{
+    Peer\l
+    send_want_rollback_merge\l|
+    非leaner,非leader节点\l
+    向leader节点发送want rollback merge\l
+    ExtraMessageType::MsgWantRollbackMerge;\l
+  }}"]
+  Peer__send_want_rollback_merge -> Peer__add_want_rollback_merge_peer[style_edge_data];
+  PeerFsmDelegate__on_check_merge[style_func;label="{{
+    PeerFsmDelegate\l
+    on_check_merge\l
+  }}"]
+  Peer__validate_merge_peer[style_func;label="{{
+    Peer\l
+    validate_merge_peer\l
+  }}"]
+  RaftRouter__force_send__RegionNotFound[style_func;label="{{
+    RaftRouter\l
+    force_send\l
+    RegionNotFound\l
+  }}"]
+  PeerFsmDelegate__rollback_merge[style_func;label="{{
+    PeerFsmDelegate\l
+    rollback_merge\l|
+    source region 回滚merge\l
+  }}"]
+
+}

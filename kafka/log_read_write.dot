@@ -1,0 +1,174 @@
+digraph log_read_write {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_log {
+    graph[label="log";fontsize=20;];
+  }
+
+  subgraph cluster_channel {
+    graph[label="nio.files.FileChannel";fontsize=20;];
+    channel_write[label="write"];
+    channel_force[label="force"];
+  }
+  subgraph cluster_record {
+    graph[label="record";fontsize=20;];
+    batchIterator -> FileLogInputStream -> DefaultRecordBatch;
+    batchIterator -> RecordBatchIterator;
+  }
+
+  subgraph cluster_FileRecords {
+    graph[label="FileRecords";fontsize=20;];
+    FileRecords_append[label="append"];
+    FileRecords_slice[label="slice"];
+    fileRecords_flush[label="flush"];
+
+    FileRecords_append -> MemoryRecords_writeFullyTo -> channel_write;
+    FileRecords_slice -> new_FileRecords -> batchesFrom;
+    batchesFrom -> batchIterator;
+  }
+
+  subgraph cluster_TimeIndex {
+    graph[label="TimeIndex";fontsize=20;];
+    timeIndex_maybeAppend[label="maybeAppend"];
+  }
+  timeIndex_maybeAppend -> mmap;
+  offsetIndex_append -> mmap;
+  {rank=same;offsetIndex_append;timeIndex_maybeAppend};
+
+  subgraph cluster_OffsetIndex {
+    graph[label="OffsetIndex";fontsize=20;];
+    offsetIndex_append[label="Append"];
+    offsetIndex_lookup[label="lookup"];
+    offsetIndex_lookup -> {
+      largestLowerBoundSlotFor;
+      parseEntry;
+    };
+    largestLowerBoundSlotFor -> indexSlotRangeFor -> binarySearch;
+    searchForOffsetWithSize -> {
+      batchesFrom;
+      LogOffsetPosition;
+    };
+  }
+  subgraph cluster_Segment {
+    graph[label="LogSegment";fontsize=20;];
+    segment_append[shape="record";
+      label="{{
+        append
+      }}";
+    ];
+    segment_append -> {
+      FileRecords_append;
+      timeIndex_maybeAppend;
+      offsetIndex_append;
+    }
+    segment_read[label="read"];
+    segment_read -> {
+      FileRecords_slice;
+      translateOffset;
+    }
+    translateOffset -> {
+      offsetIndex_lookup;
+      searchForOffsetWithSize;
+    };
+    translateOffset[shape="record";
+      label="{{
+        translateOffset|
+          根据index文件，查找消息Ｎ\l 
+          在segment文件中的offset\l
+      }}";
+    ];
+    shouldRoll[shape="record";
+      label="{{
+        shouldRoll|
+          根据segment大小时间限制\l 
+          来判断是否要roll\l
+      }}";
+    ];
+    shouldRoll -> {
+      maxSegmentBytes;
+      timeWaitedForRoll;
+    }
+    segment_flush[label="flush"];
+    segment_flush -> {
+      offsetIndex_flush;
+      timeIndex_flush;
+      txnIndex_flush;
+    }
+
+    segment_flush -> {
+      offsetIndex_flush;
+      timeIndex_flush;
+      txnIndex_flush;
+    } -> mmap_force;
+    segment_flush -> fileRecords_flush -> channel_force
+    {rank=same;segment_read;segment_append};
+  }
+
+  subgraph cluster_log {
+    graph[label="log";fontsize=20;];
+    localLog_read[shape="record";
+      label="{{
+        read|
+          根据startOffset,从segments\l 
+          中找到segment, 从该segment\l 
+          中读取消息\l
+      }}";
+    ];
+    roll[shape="record";
+      label="{{
+        roll|
+          如果当前activeSegment达到最大限制\l 
+          新开一个segment\l
+      }}";
+    ];
+    activeSegment[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        activeSegment|
+          activeSegment为\lsegments中最后一个\l
+      }}";
+    ];
+    append[shape="record";
+      label="{{
+        append|
+          unflushedMessages超过\l 
+          了flushInterval调用flush\l
+      }}";
+    ];
+    appendAsLeader -> append; 
+    localLog_read -> {
+      segments;
+    }
+    append -> {
+      maybeRoll;
+    }
+    append -> flush;
+    maybeRoll -> {
+      activeSegment;
+      roll;
+    }
+    roll -> addSegment;
+    addSegment -> segments[color=red];
+    segments[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="segments"
+    ];
+    activeSegment -> segments;
+    {rank=same;localLog_read;appendAsLeader};
+  }
+  maybeRoll -> shouldRoll;
+  append -> segment_append;
+  localLog_read -> segment_read;
+  flush -> segment_flush;
+
+  subgraph cluster_partition {
+    graph[label="partition";fontsize=20;];
+    readRecords -> localLog_read;
+    appendRecordsToLeader -> appendAsLeader;
+    {rank=same;readRecords;appendRecordsToLeader};
+  }
+}

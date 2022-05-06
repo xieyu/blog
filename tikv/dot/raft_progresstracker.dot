@@ -1,0 +1,113 @@
+#include "styles.h"
+digraph Raft_ProgressTracker {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Raft[style_func;label="{{
+    Raft|
+    prs: ProgressTracker,\l|
+    pub msgs: Vec\<Message\>,\l|
+    pub r: RaftCore\<T\>,\l
+  }}"]
+
+  Raft -> {
+    ProgressTracker;
+    RaftCore;
+  }
+  ProgressTracker[style_func;label="{{
+    ProgressTracker|
+    progress: ProgressMap,\l|
+    conf: Configuration,\l|
+    votes: HashMap\<u64, bool\>,\l|
+    max_inflight: usize,\l|
+    group_commit: bool,\l|
+    pub(crate) logger: Logger,\l
+  }}"]
+
+  ProgressTracker -> {
+     ProgressMap;
+     Configuration;
+     votes_HashMap;
+  }
+  votes_HashMap[style_func;label="{{
+    votes\l
+    HashMap\l|
+    用来保存其他peer\l
+    对自己的投票\l
+  }}"]
+
+  ProgressMap[style_func;label="{{
+    ProgressMap|
+      HashMap\<u64, Progress\>;\l|
+      leader节点用它来跟踪\l
+      各个follower的进度\l
+  }}"]
+
+  ProgressMap -> {
+    Progress;
+  }
+  Progress[style_func;label="{{
+    Progress|
+    pub matched: u64,\l|
+    pub next_idx: u64,\l|
+    pub state: ProgressState,\l|
+    pub paused: bool,\l|
+    pub pending_snapshot: u64,\l|
+    pub pending_request_snapshot: u64,\l|
+    pub recent_active: bool,\l|
+    pub ins: Inflights,\l|
+    pub commit_group_id: u64,\l|
+    pub committed_index: u64,\l
+  }}"]
+
+  Progress -> {
+     ProgressState;
+     Inflights;
+  }
+
+  ProgressState[style_func;label="{{
+    ProgressState|
+    Probe,\l|
+    Replicate\l|
+    Snapshot,\l
+  }}"]
+
+  Inflights[style_func;label="{{
+    Inflights|
+    start: usize,\l|
+    count: usize,\l|
+    buffer: Vec\<u64\>,\l
+  }}"]
+
+  Configuration[style_func;label="{{
+    Configuration|
+    pub(crate) voters: JointConfig,\l|
+    pub(crate) learners: HashSet\<u64\>,\l|
+    pub(crate) learners_next: HashSet\<u64\>,\l|
+    pub(crate) auto_leave: bool,\l
+  }}"]
+
+
+  Configuration -> {
+     JointConfig;
+     learners_HashSet;
+     learners_next_HashSet;
+  }
+
+  JointConfig[style_func;label="{{
+    JointConfig|
+    pub(crate) incoming: MajorityConfig,\l|
+    pub(crate) outgoing: MajorityConfig,\l
+  }}"]
+
+  JointConfig -> {
+     MajorityConfig;
+  }
+  MajorityConfig[style_func;label="{{
+    MajorityConfig|
+    voters: HashSet\<u64\>,\l
+  }}"]
+
+}

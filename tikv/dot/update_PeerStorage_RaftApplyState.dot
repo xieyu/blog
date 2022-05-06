@@ -1,0 +1,126 @@
+#include "styles.h"
+digraph update_peerstorage_raftApplyState {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ApplyRes[style_blue1;label="{{
+    ApplyRes|
+    pub region_id: u64,\l|
+    <state> pub apply_state: RaftApplyState,\l|
+    <term> pub applied_index_term: u64,\l|
+    pub exec_res: VecDeque\<ExecResult\<S\>\>,\l|
+    pub metrics: ApplyMetrics,\l
+  }}"]
+  ApplyRes -> PeerFsmDelegate_on_apply_res[style_edge_data];
+  PeerFsmDelegate_on_apply_res[style_func;label="{{
+    PeerFsmDelegate\l
+    on_apply_res\l|
+    处理ApplyRes消息
+  }}"]
+  Peer_post_apply[style_func;label="{{
+    Peer\l
+    post_apply\l
+  }}"]
+  PeerStorage_set_applied_state[style_func;label="{{
+    PeerStorage\l
+    set_applied_state\l|
+    更新PeerStorage的\l
+    RaftApplyState\l
+  }}"]
+  PeerStorage_set_applied_term[style_func;label="{{
+    PeerStorage\l
+    set_applied_term\l|
+    更新PeerStorage的\l
+    applied_index_term\l
+  }}"]
+  raft_group_advance_apply_to[style_func;label="{{
+    raft_group\l
+    advance_apply_to\l|
+    更新raft的applied index\l
+  }}"]
+
+  ApplyRes:state -> PeerStorage_set_applied_state[style_edge_data];
+  ApplyRes:stte -> PeerStorage_set_applied_term[style_edge_data];
+
+  PeerFsmDelegate_collect_ready[style_func;label="{{
+    PeerFsmDelegate\l
+    collect_ready\l|
+    调用raft_group的ready函数\l
+  }}"]
+  Peer_handle_raft_append[style_func;label="{{
+    Peer\l
+    handle_raft_append\l
+  }}"]
+  PeerStorage_handle_raft_ready[style_func;label="{{
+    PeerStorage\l
+    handle_raft_ready\l|
+    1. 创建InvokeContext\l
+    将raftState和applyState放在里面\l|
+    2.它们写入write batch\l|
+    3.等write batc写入底层的kv engine后\l
+    使用InvokeContext\l
+    更新PeerStorage的\l
+    RaftState和ApplyState\l
+  }}"]
+  RaftPoller_handle_raft_ready[style_func;label="{{
+    RaftPoller\l
+    handle_raft_ready\l|
+    将write batch写入kv engine(rocksb)\l
+    和raft log engine\l|
+    写完后调用回调函数\l
+  }}"]
+  PeerFsmDelegate_post_raft_ready_append[style_func;label="{{
+    PeerFsmDelegate\l
+    post_raft_ready_append\l
+  }}"]
+  Peer_post_raft_ready_append[style_func;label="{{
+    Peer\l
+    post_raft_ready_append\l
+  }}"]
+  PeerStorage_post_ready[style_func;label="{{
+    PeerStorage\l
+    post_ready\l|
+    使用InvokeContext更新\l
+    PeerStorage的\l
+    raft_state, apply_state, last_term\l
+  }}"]
+
+  InvokeContext -> PeerStorage_post_ready[style_edge_data];
+
+  RaftPoller_handle_raft_ready -> PeerFsmDelegate_post_raft_ready_append -> Peer_post_raft_ready_append -> PeerStorage_post_ready;
+
+
+  PeerFsmDelegate_collect_ready -> {
+    Peer_handle_raft_append;
+  }
+  Peer_handle_raft_append -> {
+     PeerStorage_handle_raft_ready;
+  }
+  PeerStorage_handle_raft_ready -> {
+    InvokeContext;
+    save_apply_state_to;
+  }
+  save_apply_state_to[style_func;label="{{
+    PeerStorage\l
+    save_apply_state_to\l|
+    only when apply snapshot\l|
+    如果apply 了snapshot\l
+    更新region 在rocksdb\l
+    中的apply_state\l|
+    将apply state写入write batch\l
+  }}"]
+
+  PeerFsmDelegate_on_apply_res -> {
+    Peer_post_apply;
+  }
+
+  Peer_post_apply -> {
+     PeerStorage_set_applied_state;
+     PeerStorage_set_applied_term;
+     raft_group_advance_apply_to;
+  }
+  {rank=same;PeerFsmDelegate_collect_ready;PeerFsmDelegate_post_raft_ready_append;PeerFsmDelegate_on_apply_res};
+  {rank=same;Peer_handle_raft_append;Peer_post_raft_ready_append;Peer_post_apply};
+}

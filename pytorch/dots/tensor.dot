@@ -1,0 +1,143 @@
+#include "styles.h"
+digraph tensor {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  tensor -> {
+    attributes;
+    create_tensor_method;
+    linear_algebra_operations;
+    comparison_func;
+    reduction_operations;
+  }
+
+  attributes[style_func;label="{{
+    attributes\l|
+    tensor的关键属性\l
+  }}"];
+
+  attributes -> {
+    dtype;
+    device;
+    _shape;
+    ndim;
+    requires_grad;
+    grad;
+    grad_fn;
+    is_cuda;
+    is_spare;
+    is_quantized;
+    is_leaf;
+    is_mkldnn;
+    _layout;
+  }
+
+  _layout[style_func;label="{{
+    layout\l|
+    Strided\l
+    Sparse\l
+    SparseCsr\l
+    Mkldnn\l
+    NumOptions\l
+  }}"];
+  _layout -> {
+    is_spare;
+    is_mkldnn;
+  }
+  _shape[style_func;label="{{
+    _shape\l|
+    torch.Size([...])
+  }}"];
+
+  requires_grad -> {
+    grad;
+    grad_fn;
+  }[style_edge_data];
+  grad_fn[style_func;label="{{
+    grad_fn\l|
+    梯度函数 df/dx\l
+    比如 f= x.pow(2).sum\l
+    grad_fn为SumBackWard\l
+  }}"];
+  grad[style_func;label="{{
+    grad\l|
+    f.backward计算后\l
+    传导到x的梯度\l
+    是个tensor\l
+  }}"];
+
+  device -> {
+    is_cuda
+    is_mkldnn;
+  }[style_edge_data];
+  _shape -> ndim[style_edge_data];
+
+  dtype[style_func;label="{{
+    dtype\l|
+    tensor中元素类型\l|
+    float16; float32;float64;\l
+    uint8;int32;int16;int64;\l
+    bool;\l
+  }}"];
+
+  create_tensor_method[style_func;label="{{
+     创建tensor的方法\l
+  }}"];
+
+  create_tensor_method -> {
+    rand_method;
+    like_method;
+  }
+
+  rand_method[style_func;label="{{
+    rand_method\l|
+    随机初始化\l
+    rand;randn; randint;\l|
+    normal; randperm;\l|
+    bernoulli; multinomial;\l
+  }}"];
+  like_method[style_func;label="{{
+    like_method\l|
+    复用其他tensor\l
+    的shape,layout,\l
+    dtype,device等\l|
+    empty_like, zeros_like, ones_like\l
+    full_like,rand_like, rand_int_like\l
+  }}"];
+  device[style_func;label="{{
+    device\l|
+    cuda:0\l
+    cpu\l
+  }}"];
+
+  linear_algebra_operations[style_func;label="{{
+    linear_algebra_operations\l|
+    matmul,chain_matmul,mm,addmm, bmm,addbmm\l
+    mv,addmv,matrix_power\l
+    eig,inverse,det, logdet,\l
+    dot,addr,solve,pca_lowrank,\l
+    cholesky, cholesky_inverse, cholesky_solve\l
+  }}"];
+
+  reduction_operations[style_func;label="{{
+    reduction_operations\l|
+    argmax, argmin, dist\l
+    logsumexp, mean, median\l
+    mode, norm, prod\l
+    std, std_mean, sum, unique\l
+    unique_consecutive, var, var_mean\l
+  }}"];
+
+  comparison_func[style_func;label="{{
+    comparison_func\l|
+    eq,ge,gt,le,lt,ne\l
+    isclose, isfinite,isinf,isnan\l
+    allclose,equal\l
+    argsort,kthvalue, max\l
+    min,sort,topk\l
+  }}"];
+
+}

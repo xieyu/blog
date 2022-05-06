@@ -1,0 +1,62 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  SkipList -> {
+    Head;
+    Collector;
+    HotData;
+  }
+  Head -> Atomic__Node;
+  Atomic__Node -> skiplist_Node;
+  skiplist_Node -> Tower;
+  Tower -> Atomic__Node;
+
+  HotData[style_func;label="{{
+    HotData\l|
+    seed: AtomicUsize,\l|
+    len: AtomicUsize,\l|
+    max_height: AtomicUsize,\l
+  }}"]
+
+  Head[style_func;label="{{
+    Head\<K,V\>\l|
+    pointers: [
+      Atomic\<Node\<K, V\>\>;\l
+      MAX_HEIGHT
+    ],\l
+  }}"]
+
+  skiplist_Node[style_func;label="{{
+    Node\l|
+    value: V,\l|
+    key: K,\l|
+    refs_and_height: AtomicUsize,\l|
+    tower: Tower\<K, V\>,\l
+  }}"]
+
+  Tower[style_func;label="{{
+    Tower\<K,V\>\l|
+    pointers: [Atomic\<Node\<K, V\>\>; 0],\l
+  }}"]
+  Atomic__Node[style_func;label="{{
+    Atomic\<Node\<K,V\>\>\l
+  }}"]
+  Collector[style_func;label="{{
+    Collector\l
+    pub(crate) global: Arc\<Global\>,\l|
+    An epoch-based \l
+    garbage collector\l
+  }}"]
+
+  SkipList[style_func;label="{{
+    SkipList\l|
+    head: Head\<K, V\>,\l|
+    collector: Collector,\l|
+    hot_data: CachePadded\<HotData\>,\l
+  }}"]
+
+}

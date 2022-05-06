@@ -1,0 +1,37 @@
+#include "styles.h"
+digraph snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  Snapshot -> SnapshotMetadata;
+  SnapshotMetadata -> {
+    ConfState;
+  }
+  Snapshot[style_struct;label="{{
+    Snapshot|
+    pub data: ::std::vec::Vec\<u8\>\l|
+    pub metadata: ::protobuf::SingularPtrField\<SnapshotMetadata\>\l
+  }}"]
+  SnapshotMetadata[style_struct;label="{{
+    SnapshotMetadata|
+    pub conf_state: ::protobuf::SingularPtrField\<ConfState\>\l|
+    pub index: u64\l|
+    pub term: u64\l
+  }}"]
+  ConfState[style_struct;label="{{
+    ConfState|
+    pub voters: ::std::vec::Vec\<u64\>\l|
+    pub learners: ::std::vec::Vec\<u64\>,\l|
+    pub voters_outgoing: ::std::vec::Vec\<u64\>,\l|
+    pub learners_next: ::std::vec::Vec\<u64\>,\l|
+    pub auto_leave: bool\l
+  }}"]
+
+  MsgSnapshot[style_var;label="{{
+    MsgSnapshot|
+    type: MessageType::MsgSnapshot\l|
+    <snapshot> pub snapshot: ::protobuf::SingularPtrField\<Snapshot\>\l
+  }}"]
+  MsgSnapshot:snapshot -> Snapshot;
+}

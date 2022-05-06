@@ -1,0 +1,201 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  CheckSecondaryLocks__process_write -> {
+    SnapshotReader__load_lock;
+    SnapshotReader__get_txn_commit_record;
+    //SecondaryLockStatus__Committed;
+    SecondaryLockStatus__RolledBack;
+    SecondaryLockStatus__Locked;
+    make_rollback;
+    MvccTxn__put_write;
+    collapse_prev_rollback;
+    ReleasedLocks__push;
+    //WriteResult__set_allowed_on_disk_almost_full;
+    //ConcurrencyManager__update_max_ts;
+    ReleasedLocks__push;
+    ReleasedLocks__new;
+    ReleasedLocks__wake_up;
+  }
+
+  SnapshotReader__load_lock -> {
+    lock__exists__Pessimistic;
+    lock__exists__NOT__Pessimistic;
+  }
+  SnapshotReader__seek_write -> MvccTxn__delete_write[style_edge_data];
+
+  lock__exists__Pessimistic -> {
+    MvccTxn__unlock_key;
+    need_rollback;
+    SnapshotReader__get_txn_commit_record;
+    SecondaryLockStatus__RolledBack;
+  }
+  lock__exists__NOT__Pessimistic -> {
+    SecondaryLockStatus__Locked;
+  }
+
+
+  SnapshotReader__get_txn_commit_record -> overlapped_write -> make_rollback[style_edge_data];
+
+  //TxnCommitRecord__SingleRecord -> {
+  //  SecondaryLockStatus__Committed;
+  //  SecondaryLockStatus__RolledBack;
+  //}[style_edge_data]
+
+  //TxnCommitRecord__OverlappedRollback -> {
+  //  SecondaryLockStatus__RolledBack;
+  //}[style_edge_data]
+
+
+  need_rollback -> {
+    make_rollback;
+    collapse_prev_rollback;
+  }
+
+  //make_rollback -> {
+  // Write__set_ovelapped_rollback;
+  // Write__new_rollback;
+  //}
+  //Write__new_rollback -> {
+  // WriteType__Rollback;
+  //}
+  //Write__new_rollback -> Write[style_edge_data];
+  //WriteType__Rollback -> Write[style_edge_data];
+  //Write__set_ovelapped_rollback -> Write[style_edge_data];
+  make_rollback -> MvccTxn__put_write[style_edge_data];
+
+  collapse_prev_rollback -> {
+    MvccTxn__delete_write;
+    SnapshotReader__seek_write;
+  }
+
+  ReleasedLocks__new -> ReleasedLocks__push -> ReleasedLocks__wake_up[style_edge_data];
+  SecondaryLockStatus__RolledBack -> ReleasedLocks__wake_up[style_edge_data];
+  MvccTxn__unlock_key ->  ReleasedLocks__push[style_edge_data];
+
+  //rank
+  {
+    rank=same;
+    SecondaryLockStatus__RolledBack;
+    SecondaryLockStatus__Locked;
+  }
+  {
+    rank=same;
+    lock__exists__Pessimistic;
+    lock__exists__NOT__Pessimistic;
+  }
+  {
+    rank=same;
+    MvccTxn__delete_write;
+    MvccTxn__put_write;
+    MvccTxn__unlock_key;
+  }
+
+  CheckSecondaryLocks__process_write[style_func;label="{{
+    CheckSecondaryLocks\l
+    process_write\l|
+    Check locks of an async\l
+    commit transaction\l|
+    keys: Vec\<Key\>\l|
+    start_ts: txn_types::TimeStamp,\l|
+    遍历每个key\l
+  }}"]
+
+  SnapshotReader__load_lock[style_func;label="{{
+    SnapshotReader\l
+    load_lock\l|
+    读取key对应的lock\l
+  }}"]
+
+  lock__exists__Pessimistic[style_blue1;label="{{
+    lock__exists__Pessimistic\l|
+    1.lock存在\l
+    2.lock.ts == self.start_ts\l
+    3.lock type为Pessimistic\l
+  }}"]
+
+  lock__exists__NOT__Pessimistic[style_blue1;label="{{
+    lock__exists__NOT__Pessimistic\l
+    case2: 不是悲观lock\l
+    1.lock存在\l
+    2.lock.ts == self.start_ts\l
+    3.lock type不是悲观锁\l
+  }}"]
+
+  SecondaryLockStatus__Locked[style_green1;label="{{
+    SecondaryLockStatus\l
+    Locked(Lock)\l|
+    返回lock信息\l
+  }}"]
+  SecondaryLockStatus__RolledBack[style_green1;label="{{
+    SecondaryLockStatus\l
+    Rollbacked\l
+  }}"]
+
+  need_rollback[style_var;label="{{
+    need_rollback\l|
+    to prevent the status\l
+    to being changed\l
+    a rollback may be written\l
+    and this rollback need to\l
+    be protected\l
+  }}"]
+  make_rollback[style_func;label="{{
+  make_rollback\l|
+  创建WriteType为Rollback\l
+  类型的Write\l
+  }}"]
+  MvccTxn__put_write[style_blue1;label="{{
+    MvccTxn\l
+    put_write\l|
+    写入rollback write record\l
+    注意这个地方用的是\l
+    key, start_ts\l
+  }}"]
+
+  MvccTxn__delete_write[style_blue1;label="{{
+    MvccTxn\l
+    delete_write\l|
+    删除之前的Rollback类型\l
+    并且没被protected\l
+    的Write\l
+  }}"]
+  MvccTxn__unlock_key[style_blue1;label="{{
+    MvccTxn\l
+    unlock_key\l
+  }}"]
+  SnapshotReader__seek_write[style_func;label="{{
+    SnapshotReader\l
+    seek_write\l
+  }}"]
+  SnapshotReader__get_txn_commit_record[style_func;label="{{
+    SnapshotReader\l
+    get_txn_commit_record\l
+  }}"]
+
+  ReleasedLocks__push[style_func;label="{{
+    ReleasedLocks\l
+    push\l
+  }}"]
+  ReleasedLocks__wake_up[style_func;label="{{
+    ReleasedLocks\l
+    wake_up\l
+  }}"]
+  ReleasedLocks__new[style_func;label="{{
+    ReleasedLocks\l
+    new\l
+  }}"]
+
+  //ConcurrencyManager__update_max_ts[style_func;label="{{
+  //  ConcurrencyManager\l
+  //  update_max_ts\l|
+  //  更新max_ts\l
+  //}}"]
+
+
+}

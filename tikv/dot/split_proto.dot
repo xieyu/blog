@@ -1,0 +1,88 @@
+#include "styles.h"
+digraph split_proto {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  SplitRegion[style_func;label="{{
+    SplitRegion|
+    CheckPolicy policy = 1;\l|
+    repeated bytes keys = 2;\l
+  }}"]
+
+  SplitRegion -> {
+    CheckPolicy;
+  }
+
+  CheckPolicy[style_func;label="{{
+    CheckPolicy|
+    SCAN = 0;\l|
+    APPROXIMATE = 1;\l|
+    USEKEY = 2;\l
+  }}"]
+
+  SplitRequest[style_func;label="{{
+    SplitRequest|
+    bytes split_key = 1;\l|
+    uint64 new_region_id = 2;\l|
+    repeated uint64 new_peer_ids = 3;\l|
+    bool right_derive = 4 [deprecated=true];\l
+  }}"]
+  BatchSplitRequest[style_func;label="{{
+    BatchSplitRequest|
+    repeated SplitRequest requests = 1;\l|
+    bool right_derive = 2;\l
+  }}"]
+  BatchSplitRequest -> SplitRequest;
+  BatchSplitRequest -> right_derive;
+  SplitRequest-> right_derive;
+  right_derive[style_func;label="{{
+    right_derive|
+    If true, the last region\l
+    derive the origin region_id\l
+     other regions use new ids.\l
+  }}"]
+
+  CasualMessage -> {
+    HalfSplitRegion;
+  }
+  HalfSplitRegion -> {
+    RegionEpoch;
+    CheckPolicy;
+  }
+  /*
+  RegionEpoch[style_func;label="{{
+    RegionEpoch|
+    uint64 conf_ver = 1;\l|
+    uint64 version = 2;\l
+  }}"]
+  Region[style_func;label="{{
+    Region|
+    uint64 id = 1;\l|
+    bytes start_key = 2;\l|
+    bytes end_key = 3;\l|
+    RegionEpoch region_epoch = 4;\l|
+    repeated Peer peers = 5;\l|
+    encryptionpb.EncryptionMeta encryption_meta = 6;\l
+  }}"]
+  Region -> {
+    RegionEpoch;
+    Peer;
+  }
+  Peer[style_func;label="{{
+    Peer|
+    uint64 id = 1;\l|
+    uint64 store_id = 2;\l|
+    PeerRole role = 3;\l
+  }}"]
+  Peer -> PeerRole;
+  PeerRole[style_func;label="{{
+    PeerRole|
+    Voter = 0;\l|
+    Learner = 1;\l|
+    IncomingVoter = 2;\l|
+    DemotingVoter = 3;\l
+  }}"]
+  */
+
+}

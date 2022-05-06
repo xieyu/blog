@@ -1,0 +1,140 @@
+#include "styles.h"
+digraph raft_core_apply_conf_change {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ConfChangeV2__enter_joint[style_func;label="{{
+    ConfChangeV2__enter_joint|
+    返回是否auto leave\l|
+    将会影响 cfg.auto_leave\l|
+    如果auto_leave 为True\l
+    后面在commit_apply时\l
+    会自动append一个空的\l
+    EntryConfChangeV2消息\l
+    触发leave_joint\l
+  }}"]
+
+  RaftCore__apply_conf_change -> {
+    //ConfChangeV2__leave_joint;
+    ConfChangeV2__enter_joint;
+    //Changer__leave_joint;
+    Changer__enter_joint;
+    Changer__simple;
+    ProgressTracker__apply_conf;
+    RaftCore__post_conf_change;
+  }
+  {
+    //Changer__leave_joint;
+    Changer__enter_joint;
+    Changer__simple;
+  } -> MapChange -> ProgressTracker__apply_conf[style_edge_data];
+  MapChange[style_var;label="{{
+    MapChange|
+      Vec\<(u64, MapChangeType)\>;\l
+  }}"]
+  MapChangeType[style_func;label="{{
+    MapChangeType|
+    Add,\l|
+    Remove\l
+  }}"]
+  MapChange -> MapChangeType;
+
+  //Changer__leave_joint -> {
+  //}
+  Changer__enter_joint[style_func;label="{{
+    Changer__enter_joint|
+    将incoming复制到\l
+    outgoing\l
+  }}"]
+  Changer__check_and_copy[style_func;label="{{
+    Changer__check_and_copy|
+    将ProgressTracker\l
+    的conf clone一份\l
+  }}"]
+  Changer__apply[style_func;label="{{
+    Changer__apply|
+    将修改apply到copy的\l
+    ProgressTracker \l
+    Configuration上\l
+  }}"]
+  Changer__enter_joint -> {
+   Changer__check_and_copy;
+    Changer__apply;
+  }
+  Changer__apply -> {
+    Changer__make_voter;
+    Changer__make_learner;
+  }
+  Changer__make_voter[style_func;label="{{
+    Changer__make_voter|
+    向clone的配置的voters\l
+    插入节点id\l
+  }}"]
+  Changer__make_learner[style_func;label="{{
+    Changer__make_learner|
+    向clone的配置learners\l
+    节点中插入节点id\l
+  }}"]
+  {
+    Changer__make_voter;
+    Changer__make_learner;
+  } -> NewConfig;
+  Changer__check_and_copy -> Changer__apply[style_edge_data];
+  Changer__apply -> NewConfig -> ProgressTracker__apply_conf;
+  ProgressTracker__apply_conf[style_func;label="{{
+    ProgressTracker__apply_conf|
+    修改conf和progress
+  }}"]
+  Changer__apply -> MapChange[style_edge_data];
+  NewConfig[style_func;label="{{
+    Clone修改后的\l
+    Configuration\l
+  }}"]
+
+  ProgressTracker__apply_conf -> {
+    ProgressTracker__progress;
+    ProgressTracker__conf;
+  }
+
+  RaftCore__post_conf_change[style_func;label="{{
+    RaftCore__post_conf_change|
+    如果是voter且是leader\l
+  }}"]
+
+  RaftCore__post_conf_change -> {
+    RaftCore__maybe_commit;
+    RaftCore__bcast_append;
+    ProgressTracker__conf;
+    RaftCore__abort_leader_transfer;
+    RaftCore__handle_ready_ready_index;
+  }
+  RaftCore__maybe_commit[style_func;label="{{
+    RaftCore__maybe_commit|
+    conf change 说明有更多的\l
+    log entries are committed now\l
+    bcast/append to every in the \l
+    updated config\l
+  }}"]
+
+  RaftCore__bcast_append[style_func;label="{{
+    RaftCore__bcast_append|
+    向新配置中的所有成员\l
+    发送append消息\l
+  }}"]
+
+  RaftCore__abort_leader_transfer[style_func;label="{{
+    RaftCore__abort_leader_transfer|
+    新的配置的voters中\l
+    没有当前leader\l
+    leader 准备开始transfer\l
+    leader\l
+  }}"]
+
+  RaftCore__handle_ready_ready_index[style_func;label="{{
+    RaftCore__handle_ready_ready_index|
+    检查Prs__has_quorum\l
+    处理read index\l
+  }}"]
+
+}

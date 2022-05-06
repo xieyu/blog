@@ -1,0 +1,74 @@
+#include "styles.h"
+digraph next_batch {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  BatchExecutor[style_blue1;label="{{
+    BatchExecutor|
+    fn schema(&self) -\> &[FieldType] \l|
+    fn next_batch(&mut self, scan_rows: usize) -\> BatchExecuteResult \l|
+    ...\l
+  }}"]
+
+  BatchExecutor -> BatchExecuteResult;
+  BatchExecuteResult[style_func;label="{{
+    BatchExecuteResult|
+    pub physical_columns: LazyBatchColumnVec,\l|
+    pub logical_rows: Vec\<usize\>,\l|
+    pub warnings: EvalWarnings,\l|
+    pub is_drained: Result\<bool\>,\l
+  }}"]
+
+  BatchExecuteResult -> {
+     LazyBatchColumnVec;
+     EvalWarnings;
+  }
+  LazyBatchColumnVec[style_func;label="{{
+    LazyBatchColumnVec|
+    columns: Vec\<LazyBatchColumn\>,\l
+  }}"]
+
+  
+
+  LazyBatchColumnVec -> LazyBatchColumn;
+  LazyBatchColumn[style_func;label="{{
+    LazyBatchColumn|
+    Raw(BufferVec),\l|
+    Decoded(VectorValue),\l
+  }}"]
+
+  LazyBatchColumn -> {
+    Raw;
+    Decoded;
+  }
+  Raw[style_func;label="{{
+    Raw(BufferVec)|
+    存放原始数据(vec\<u8\>)\l
+  }}"]
+  Decoded[style_func;label="{{
+    Decoded|
+    存放解码到\l 
+    具体类型后数据\l
+  }}"]
+  EvalWarnings[style_func;label="{{
+    EvalWarnings|
+    max_warning_cnt: usize,\l|
+    pub warning_cnt: usize,\l|
+    pub warnings: Vec\<tipb::Error\>,\l
+  }}"]
+  BatchExecutor -> FieldType;
+  FieldType[style_func;label="{{
+    FieldType|
+	optional int32 tp = 1;\l|
+	optional uint32 flag = 2;\l|
+	optional int32 flen = 3;\l|
+	optional int32 decimal = 4;\l|
+	optional int32 collate = 5;\l|
+	optional string charset = 6;\l|
+	repeated string elems = 7;\l
+  }}"]
+  FieldType -> Decoded[style_edge_data];
+
+}

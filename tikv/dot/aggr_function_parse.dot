@@ -1,0 +1,129 @@
+#include "styles.h"
+digraph parse {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  AggregationExecutor_new[style_func;label="{{
+    AggregationExecutor\l|
+    new\l
+  }}"]
+
+  Entities_each_aggr_fn;
+
+  build_executors -> BatchSimpleAggregationExecutor_new -> AllAggrDefinitionParser;
+  build_executors -> BatchFastHashAggregationExecutor_new -> AllAggrDefinitionParser;
+  build_executors -> BatchSlowHashAggregationExecutor_new -> AllAggrDefinitionParser;
+  build_executors -> BatchStreamAggregationExecutor_new -> AllAggrDefinitionParser;
+  BatchSimpleAggregationExecutor_new[style_func;label="{{
+    BatchSimpleAggregationExecutor::new\l
+    1.如果group_by 为空,优先创建SimpleAggr\l
+  }}"]
+  //BatchSimpleAggregationExecutor_new_impl[style_func;label="{{
+  //  BatchSimpleAggregationExecutor\l|
+  //  new_impl\l
+  //}}"]
+
+  BatchFastHashAggregationExecutor_new[style_func;label="{{
+    BatchFastHashAggregationExecutor::new\l
+  }}"]
+  //BatchFastHashAggregationExecutor_new_impl[style_func;label="{{
+  //  BatchFastHashAggregationExecutor\l |
+  //  new_impl\l
+  //}}"]
+
+  BatchSlowHashAggregationExecutor_new[style_func;label="{{
+    BatchSlowHashAggregationExecutor\l|
+    new\l
+  }}"]
+  //BatchSlowHashAggregationExecutor_new_impl[style_func;label="{{
+  //  BatchSlowHashAggregationExecutor\l|
+  //  new_impl\l
+  //}}"]
+
+  BatchStreamAggregationExecutor_new[style_func;label="{{
+    BatchStreamAggregationExecutor\l|
+    new\l
+  }}"]
+
+  //BatchStreamAggregationExecutor_new_impl[style_func;label="{{
+  //  BatchStreamAggregationExecutor\l|
+  //  new_impl\l
+  //}}"]
+
+  {
+    BatchSimpleAggregationExecutor_new;
+    BatchFastHashAggregationExecutor_new;
+    BatchSlowHashAggregationExecutor_new;
+    BatchStreamAggregationExecutor_new;
+  }-> AggregationExecutor_new;
+  //endpoint_parse_request_and_check_memory_locks -> DagHandlerBuilder_build;
+
+  DagHandlerBuilder_build -> BatchDAGHandler_new -> BatchExecutorsRunner_from_request -> build_executors2;
+  DagRequest -> tipb_Executor -> build_executors2;
+
+  DagHandlerBuilder_build[style_func;label="{{
+    1. DagHandlerBuilder\l|
+    build\l
+  }}"]
+  BatchDAGHandler_new[style_func;label="{{
+    BatchDAGHandler\l|new\l
+  }}"]
+  BatchExecutorsRunner_from_request[style_func;label="{{
+    BatchExecutorsRunner\l|
+    from_request\l
+  }}"]
+
+  tipb_Executor[style_var;label="{{
+    Vec\<tipb::Executor\>|\l
+  }}"]
+
+  Entities_each_aggr_fn[style_var;label="{{
+    Entities::each_aggr_fn|
+    pub each_aggr_fn: Vec\<Box\<dyn AggrFunction\>\>,\l
+  }}"]
+  map_pb_sig_to_aggr_func_parser[style_struct;label="{{
+    map_pb_sig_to_aggr_func_parser|
+    将Tipb定义的ExprType映射为\l
+    相应的AggrDefinitionParser\l
+  }}"]
+
+  AllAggrDefinitionParser -> AggrDefinitionParser_parse2;
+  map_pb_sig_to_aggr_func_parser -> AggrDefinitionParser -> AggrDefinitionParser_parse2[style_edge_data];
+  AggregationExecutor_new -> { AggrDefinitionParser_parse2; }
+
+  AllAggrDefinitionParser -> map_pb_sig_to_aggr_func_parser;
+  AggrDefinitionParser_parse -> parse_rpn;
+  AggrDefinitionParser_parse -> {
+    RpnExpressionBuilder_build_from_expr_tree;
+  }
+  RpnExpressionBuilder_build_from_expr_tree -> parse_rpn -> Entities_each_aggr_fn[style_edge_data];
+  RpnExpressionBuilder_build_from_expr_tree[style_struct;label="{{
+    RpnExpressionBuilder\l|
+    build_from_expr_tree
+  }}"]
+  parse_rpn[style_func;label="{{
+    parse_rpn|
+    解析rpn\l
+    创建对应的AggrFunction\l
+    每个函数有自己对应的Parser\l
+  }}"]
+  tipb_Executor -> Entities_each_aggr_fn[style_edge_data];
+  build_executors2[style_func;label="{{
+    build_executors\l|
+    根据DagRequest中的\l 
+    tipb::Executor定义\l
+    创建对应的BatchExecutor\l
+  }}"]
+  AggrDefinitionParser_parse2[style_func;label="{{
+    AggrDefinitionParser::parse
+  }}"]
+  build_executors[style_func;label="{{
+    2.build_executors|
+    创建batch Executors\l
+  }}"]
+  AggrDefinitionParser_parse[style_func;label="{{
+    3.AggrDefinitionParser::parse|
+    解析Aggr函数
+  }}"]
+}

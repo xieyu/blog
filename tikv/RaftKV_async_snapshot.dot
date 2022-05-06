@@ -1,0 +1,55 @@
+#include "styles.h"
+digraph async_snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    propose -> {
+       read_index;
+       read_local;
+    }
+    read_index -> {
+      pending_reads;
+      Uuid_new_v4;
+      raft_group_read_index;
+    }
+    //subgraph cluster_pending_reads {
+    //  graph[label="pending_reads";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //   {
+    //   //advance_replica_reads;
+    //   //advance_leader_reads;
+    //   //clear_uncommitted_on_role_change;
+    //   pop_front;
+    //   push_front;
+    //   push_back} -> pending_reads;
+    //}
+
+    collect_ready -> handle_raft_ready_append -> apply_reads;
+    apply_reads -> {
+       //advance_replica_reads;
+       //advance_leader_reads;
+       //clear_uncommitted_on_role_change;
+       post_pending_read_index_on_replica;
+       pending_reads;
+    }
+    post_pending_read_index_on_replica -> {
+      pending_reads;
+       send_read_command;
+       set_read_index;
+       response_read;
+    }
+    response_read -> cb_invoke_read;
+    response_read ->  handle_read -> cb_invoke_read;
+    Uuid_new_v4[style_func;label="{{
+      Uuid::new_v4|
+      生成唯一的id\l
+      传递给raft\l
+    }}"]
+  }
+  {rank=same;collect_ready;propose;}
+  {rank=same;apply_reads;read_index;read_local}
+  
+}

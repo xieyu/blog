@@ -1,0 +1,157 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  NewTiKVTxn -> KVTxn;
+  KVStore__BeginWithOption -> {
+    NewTiKVTxn;
+    KVStore__getTimestampWithRetry;
+  }
+
+  KVStore__Begin -> {
+    KVStore__BeginWithOption;
+    DefaultStartTSOption;
+  }
+  KVStore__getTimestampWithRetry -> KVTxn__StartTS;
+
+  KVTxn__StartTS -> twoPhaseCommitter__startTS[style_edge_data];
+  KVTxn__StartTS -> KVTxn[style_edge_data];
+
+  tikvStore__BeginWithOption -> KVStore__BeginWithOption;
+  tikvStore__Begin -> KVStore__Begin;
+
+  Storage -> {
+    tikvStore__Begin;
+    tikvStore__BeginWithOption;
+  };
+  Transaction -> KVTxn;
+  KVStore__BeginWithOption -> {
+    KVTxn;
+    Transaction;
+  }
+  twoPhaseCommitter__startTS -> twoPhaseCommitter;
+  KVTxn:committer -> twoPhaseCommitter;
+
+  StartTSOption:StartTS -> KVTxn__StartTS[style_edge_data];
+  StartTSOption -> tikvStore__BeginWithOption[style_edge_data];
+  StartTSOption -> DefaultStartTSOption[style_edge_data];
+
+  //rank
+  {
+    rank=same;
+    tikvStore__Begin;
+    tikvStore__BeginWithOption;
+  }
+
+  {
+    rank=same;
+    KVStore__BeginWithOption;
+    KVStore__Begin;
+  }
+
+  Storage[style_green1;label="{{
+    interface Storage\l|
+      Begin() (Transaction, error)\l|
+      BeginWithOption(\loption tikv.StartTSOption)\l
+      (Transaction, error)\l|
+      ...\l|
+      GetOracle() oracle.Oracle\l|
+  }}"]
+
+  Transaction[style_green1;label="{{
+    type Transaction interface \l|
+    Commit(context.Context) error\l|
+    Rollback() error\l|
+    LockKeys(ctx context.Context,\l
+    lockCtx *LockCtx, keys ...Key) error\l|
+    ...
+  }}"]
+  KVTxn[style_blue1;label="{{
+    KVTxn\l|
+      store     kvstore \l|
+      startTS   uint64\l|
+      startTime time.Time \l|
+      commitTS  uint64\l|
+      valid bool\l|
+      vars      *tikv.Variables\l|
+      <committer> committer *twoPhaseCommitter\l|
+      ...\l
+  }}"]
+  twoPhaseCommitter[style_blue1;label="{{
+    twoPhaseCommitter\l|
+      store               kvstore\l|
+      txn                 *KVTxn\l|
+      <startTS> startTS             uint64\l|
+      mutations           *memBufferMutations\l|
+      commitTS            uint64\l|
+      ...\l
+  }}"]
+  StartTSOption[style_func;label="{{
+    StartTSOption\l|
+	TxnScope string\l|
+	<StartTS> StartTS  *uint64\l
+  }}"]
+  DefaultStartTSOption[style_func;label="{{
+    DefaultStartTSOption\l|
+    TxnScope: global\l|
+    StartTS: nil\l
+  }}"]
+
+  tikvStore__Begin[style_func;label="{{
+    tikvStore\l
+    Begin\l|
+    begin a global\l
+    transaction\l
+  }}"]
+  tikvStore__BeginWithOption[style_func;label="{{
+    tikvStore\l
+    BeginWithOption\l|
+    begins a transaction\l
+    with given options\l
+  }}"]
+
+  KVStore__Begin[style_func;label="{{
+    KVStore\l
+    Begin\l
+  }}"]
+  KVStore__BeginWithOption[style_func;label="{{
+    KVStore\l
+    BeginWithOption\l|
+    如果option中\l
+    StartTs为nil\l
+    则发请求给PD\l
+    获取一个时间戳\l
+    作为StartTS\l|
+    最后返回KVTxn\l
+    它实现了Transcation接口\l
+  }}"]
+  KVStore__getTimestampWithRetry[style_func;label="{{
+    KVStore\l
+    getTimestampWithRetry\l|
+    发请求给PD\l
+    获取时间戳\l
+  }}"]
+  KVTxn__StartTS[style_var;label="{{
+    KVTxn\l
+    startTS\l|
+    startTS先保存在\l
+    KVTxn中\l
+  }}"]
+  twoPhaseCommitter__startTS[style_var;label="{{
+    twoPhaseCommitter\l
+    startTS\l|
+    最后startTs会传给\l
+    twoPhaseCommitter\l
+    由它来向TiKV提交数据\l
+  }}"]
+  NewTiKVTxn[style_func;label="{{
+    NewTiKVTxn\l|
+    新生成一个KVTxn\l
+    它实现了\l
+    transaction接口\l
+  }}"]
+
+}

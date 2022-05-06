@@ -1,0 +1,190 @@
+#include "styles.h"
+digraph Tensor {
+  node[shape=box;style=rounded];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+  label=<<B>Tensor</B>>
+
+  Tensor ->  TensorImpl;
+  TensorImpl[style_func;label="{{
+    TensorImpl\l|
+    PyObjects\l|
+    SizesAndStrides\l|
+    TypeMeta data_type_\l|
+    device_opt\l|
+    AutogradMetaInterface autograd_meta_\l
+    NamedTensorMetaInterface named_tensor_meta_\l
+    Storage storage_;\l|
+    The low-level representation\l
+    of a tensor\l
+    contains a pointer to a storage\l
+    and metadata(size, strides)\l
+  }}"];
+  TensorImpl -> {
+    Storage;
+    TypeMeta;
+    SizesAndStrides;
+    AutogradMetaInterface;
+  }
+
+  Storage -> StorageImpl;
+  Storage[style_func;label="{{
+    Storage\l|
+      at::Device device() const\l|
+      T* data() const \l
+  }}"];
+
+  StorageImpl[style_func;label="{{
+    StorageImpl\l|
+  DataPtr data_ptr_;\l|
+  size_t size_bytes_;\l|
+  bool resizable_;\l|
+  bool received_cuda_;\l|
+  Allocator* allocator_;\l
+  }}"];
+  StorageImpl -> {
+    DataPtr;
+    Allocator;
+  };
+
+  DataPtr[style_func;label="{{
+    DataPtr\l|
+    A DataPtr is a unique pointer\l
+    to some memory\l
+    which also records\l
+    what device is for its data\l|
+    Device device_\l|
+    c10::detail::UniqueVoidPtr ptr_\l
+  }}"];
+
+  Device[style_func;label="{{
+    Device\l|
+    Represents a compute\l
+    device on which tensor\l
+    is located\l|
+    type_: CPU/CUDA GPU\l|
+    index_: device index\l
+  }}"];
+  Device -> DeviceType;
+  DeviceType[style_func;label="{{
+    DeviceType\l|
+    CPU = 0,\l|
+    CUDA = 1,\l|
+    MKLDNN = 2,\l|
+    OPENGL = 3,\l|
+    OPENCL = 4,\l|
+    IDEEP = 5,\l|
+    HIP = 6,\l|
+    FPGA = 7,\l|
+    ORT = 8, \l|
+    XLA = 9,\l|
+    Vulkan = 10,\l|
+    Metal = 11,\l|
+    XPU = 12,\l|
+    MLC = 13,\l|
+    Meta = 14, \l|
+    HPU = 15,\l|
+    VE = 16, \l|
+    Lazy = 17,\l|
+    COMPILE_TIME_MAX_DEVICE_TYPES = 18,\l
+  }}"];
+
+  Allocator[style_func;label="{{
+    Allocator\l|
+      virtual DataPtr allocate(size_t n) const = 0;\l
+      virtual DeleterFnPtr raw_deleter() const \l
+      void raw_allocate\l|
+      void raw_deallocate\l
+  }}"];
+  DataPtr -> Device;
+
+  Allocator -> {
+    DefaultCPUAllocator;
+    DefaultCUDAAllocator;
+    DefaultMobileCPUAllocator;
+    CudaCachingAllocator;
+  }
+
+  AutogradMetaInterface[style_func;label="{{
+    AutogradMetaInterface\l|
+    virtual void set_requires_grad\l|
+    virtual bool requires_grad\l
+    virtual at::Tensor& mutable_grad\l
+    virtual at::grad\l|
+    fw_grad\l|
+    set_fw_grad\l
+  }}"];
+
+  AutogradMetaInterface -> AutogradMeta;
+  AutogradMeta[style_func;label="{{
+    AutogradMeta\l|
+      std::string name_;\l|
+      Variable grad_;\l|
+      std::shared_ptr\<Node\> grad_fn_;\l|
+      std::weak_ptr\<Node\> grad_accumulator_;\l|
+      std::shared_ptr\<ForwardGrad\> fw_grad_;\l|
+    std::vector\<std::shared_ptr\<FunctionPreHook\>\> hooks_;\l|
+  }}"];
+  AutogradMeta -> {
+    _Node;
+    ForwardGrad;
+    FunctionPreHook;
+    Variable;
+  }
+
+  TensorImpl -> NamedTensorMetaInterface;
+  NamedTensorMetaInterface -> NamedTensorMeta;
+  NamedTensorMeta -> Dimname;
+
+  Variable[style_func;label="{{
+    Variable\l|
+    Each Variable has one\l
+    unique AutogradMeta\l
+    using Variable = at::Tensor\l
+  }}"];
+  ForwardGrad[style_func;label="{{
+    ForwardGrad\l|
+    std::unordered_map\<uint64_t,\l 
+    at::Tensor\> content_;\l
+    mutable std::mutex mutex_;\l
+  }}"];
+
+  NamedTensorMetaInterface[style_func;label="{{
+    NamedTensorMetaInterface\l|
+    clone()\l|
+    slow_dim()\l
+  }}"];
+  NamedTensorMeta[style_func;label="{{
+    NameTensorMeta\l|
+    std::vector\<Dimname\> names_\l
+  }}"];
+  Dimname[style_func;label="{{
+    Dimname\l|
+    Symbol name_\l|
+    NameType type_\l
+  }}"];
+  NameType[style_func;label="{{
+    NameType\l|
+    BASIC\l
+    WILDCARD\l
+  }}"];
+  Dimname -> {
+    NameType;
+    Symbol;
+  }
+
+  Symbol[style_func;label="{{
+    Symbol\l|
+    unique_t value\l|
+    using unique_t = uint32_t\l|
+    A Symbol is like an interned\l
+    string, but with a little extra\l
+    struct, it is namespaced via\l
+    SymbolNamespace and resulting\l
+    intern pointers support \l
+    namespace testing\l
+  }}"];
+
+}

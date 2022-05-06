@@ -1,0 +1,75 @@
+#include "styles.h"
+digraph raft_handle_append_response{
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftCore__handle_append_response -> {
+    Progress__update_committed;
+    Progress__maybe_decr_to;
+    RaftCore__send_append;
+    Progress__maybe_update;
+    RaftCore__maybe_commit;
+    RaftCore__should_bcast_commit;
+    RaftCore__maybe_send_append;
+    RaftCore__send_timeout_now;
+  }
+  RaftCore__maybe_commit[style_func;label="{{
+    RaftCore__maybe_commit|
+    计算可以commit的log index\l
+  }}"]
+
+  RaftCore__maybe_commit -> {
+    RaftLog__maybe_commit;
+    ProgressTracker__maximal_committed_index;
+  }
+
+  RaftCore__maybe_commit -> {
+     RaftCore__should_bcast_commit;
+     RaftCore__bcast_append;
+  }[style_edge_data];
+  RaftCore__bcast_append -> RaftCore__send_append;
+
+  RaftCore__term -> RaftLog__maybe_commit[style_edge_data];
+  RaftCore__term[style_var;label="{{
+    RaftCore__term|
+    当前leader的term任期\l
+  }}"]
+  RaftLog__maybe_commit[style_blue1;label="{{
+    RraftLog__maybe_commit|
+    只有当前leader自己term任期\l
+    内的Log entry才能安全的commit\l
+  }}"]
+  ProgressTracker__maximal_committed_index[style_func;label="{{
+    ProgressTracker__maximal_committed_index|
+    计算已经复制到大部分\l
+    peer的log entry index\l
+    会使用所有的voters的Progress::matched\l
+    来计算commit index\l
+  }}"]
+  Progress__matched[style_var;label="{{
+    Progress__matched|
+    peer已经持久化存储\l
+    的日志index\l
+  }}"]
+  Progress__matched -> ProgressTracker__maximal_committed_index[style_edge_data];
+  Progress__maybe_update[style_func;label="{{
+    Progress__maybe_update|
+    使用AppendRespMsg的index\l
+    更新Progress__matched\l
+  }}"]
+
+  Progress__maybe_update -> Progress__matched;
+  Progress__maybe_decr_to -> Progress__next_idx;
+  Progress__maybe_decr_to[style_func;label="{{
+    Progress__maybe_decr_to|
+    重新调整发送给\l
+    follower的next_idx\l
+  }}"]
+  RaftCore__maybe_send_append[style_func;label="{{
+    RaftCore__maybe_send_append|
+    发送多个inflight appendmsg给follwer\l
+  }}"]
+
+}

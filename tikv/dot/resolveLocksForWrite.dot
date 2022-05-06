@@ -1,0 +1,134 @@
+#include "styles.h"
+digraph resolveLocksForWrite_normal {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_LockResolver {
+    graph[label="LockResolver";fontsize=20;style="rounded,dashed";color="slategrey"]
+    subgraph cluster_resolve {
+      graph[label="三种resolve方式";fontsize=20;style="rounded,dashed";color="slategrey"]
+       resolveLock;
+       resolvePessimisticLock;
+       resolveLockAsync;
+    }
+    resolveLock -> LocateKey;
+    resolvePessimisticLock -> {
+      LocateKey;
+      CmdPessimisticRollback;
+    }
+    LocateKey[style_func;label="{{
+      LocateKey|
+      获取key的region
+    }}"]
+    resolveLock[style_func;label="{{
+      resolveLock|
+      不断尝试locate key所在region\l
+      向tikv发送CmdResolveLock\l
+      如果有regionErr，就重新尝试locKey\l
+      重新发送CmdResolveLock 命令\l
+    }}"]
+    resolvePessimisticLock[style_func;label="{{
+      resolvePessimisticLock|
+      和resolveLo类似，不过发送的是\l 
+      CmdPessimisticLockRollback\l
+    }}"]
+    resolveLockAsync[style_func;label="{{
+      resolveLockAsync|
+      由于AsyncCommit中lock有所有的\l
+      secondary keys 所以可一次性的\l
+      resolve lock相关key\l
+      向Tikv发送CmdResolveLock来清理lock\l
+    }}"]
+    resolveLockAsync -> CmdResolveLock[style_edge_data];
+
+    TxnStatus -> {
+       resolveLock;
+       resolvePessimisticLock;
+       resolveLockAsync;
+    }[style_edge_data];
+
+    resolve -> {
+       getTxnStatusFromLock;
+       resolveLock;
+       resolvePessimisticLock;
+       resolveLockAsync;
+    }
+    getTxnStatusFromLock[style_func;label="{{
+      getTxnStatusFromLock|
+      获取primay lock的状态\l
+    }}"]
+    resolve[style_func;label="{{
+      resolve|
+      1.获取txnStatus\l
+      2.如果status.ttl == 0 \l 
+      根据lock type调用\l
+      不同的resolveLock方法\l
+    }}"]
+    TxnStatus[style_func;label="{{
+      TxnStatus|
+	     ttl         uint64\l|
+	     commitTS    uint64\l|
+	     action      kvrpcpb.Action\l|
+	     primaryLock *kvrpcpb.LockInfo\l
+    }}"]  
+    /*
+    resolveLock[style_func;label="{{
+      resolveLock|
+      对于ttl 为0的lock\l
+      根据primary key的commit_ts\l
+      如果为0则rollback\l
+      如果commit_ts > 0则commit\l
+      这个地方的key只有一个\l
+    }}"]
+    */
+    getTxnStatusFromLock -> TxnStatus[style_edge_data];
+    getTxnStatusFromLock -> {
+      getTxnStatus;
+    }
+    getTxnStatus -> {
+      CmdCheckTxnStatus;
+    }
+    CmdCheckTxnStatus[style_func;label="{{
+      CmdCheckTxnStatus|
+      tikv: 如果primay lock expire了\l
+      则会rollback the primary lock\l
+      并返回commit Version 0\l
+      否则返回正常的commit version\l
+    }}"]
+
+    TxnStatus -> resolveLock -> CmdResolveLock[style_edge_data];
+    CmdResolveLock[style_func;label="{{
+      CmdResolveLock|
+      Tikv: 根据txn status\l
+      清理lock\l
+      commit或者cleanup\l
+    }}"]
+    LockInfo;
+  }
+  getTxnStatus[style_func;label="{{
+    getTxnStatus|
+    根据冲突key的\l 
+    primary key lock\l
+    获取txn status\l
+  }}"]
+
+  TxnStatus[style_func;label="{{
+    TxnStatus|
+	ttl         uint64\l|
+	commitTS    uint64\l|
+	action      kvrpcpb.Action\l|
+	primaryLock *kvrpcpb.LockInfo\l
+  }}"]
+
+  TxnStatus -> LockInfo;
+  LockInfo[style_func;label="{{
+    LockInfo|
+	  PrimaryLock []byte \l|
+	  LockVersion uint64 \l|
+	  Key         []byte \l|
+	  LockTtl     uint64 \l
+  }}"]
+  
+}

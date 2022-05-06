@@ -1,0 +1,61 @@
+digraph create_table {
+  node[shape=box;];
+  newrank=true;
+  rankdir=TD;
+
+/*
+  subgraph cluster_ddl_worker {
+    graph[label="ddl";fontsize=20;style=rounded]
+    ddl_start;
+    ddl_worker_start;
+    NewDDL -> ddl_start-> ddl_worker_start -> handleDDLJobQueue -> runDDLJob ;
+    onCreateView;
+    onCreateTable;
+    createTableOrViewWithCheck;
+    runDDLJob -> {onCreateView, onCreateTable};
+  }
+  */
+/*
+  subgraph cluster_domain {
+    graph[label="Domain";fontsize=20;style=rounded]
+    Domain_Init[label="Init"];
+    Domain_Init -> NewDDL;
+  }
+
+  subgraph cluster_session_tidb_go {
+    graph[label="session_tidb_go";fontsize=20;style=rounded]
+    domainMap_Get[label="domainMap.Get"];
+    CreateSession -> domainMap_Get;
+    StoreQueryFeedback -> GetDomain -> domainMap_Get -> NewDomain;
+    domainMap_Get -> Domain_Init;
+  }
+  */
+
+  CreateTableAndSetAutoID -> CreateTableOrView;
+  {onCreateTable, onCreateView} -> createTableOrViewWithCheck -> CreateTableOrView;
+  {
+    CreateTableOrView;
+    updateVersionAndTableInfoWithCheck;
+  }-> checkTableInfoValid;
+
+  CreateTable -> {
+    checkTableInfoValid;
+    handleAutoIncID;
+    buildTableInfoWithCheck;
+  } -> TableFromMeta;
+
+  ApplyDiff -> applyCreateTable -> TableFromMeta;
+
+  TableFromMeta -> {
+    initTableCommon;
+    newPartitionedTable;
+  };
+  initTableCommon -> tableCommon;
+  newPartitionedTable -> PartitionedTable;
+
+  buildTableInfoWithCheck -> buildTableInfo -> genGlobalIDs -> txn_Inc;
+  genGlobalIDs[label="genGlobalIDs\l生成唯一的tableID"];
+
+  CreateTableWithLike -> doDDLJob -> addDDLJob -> EnQueueDDLJob;
+
+}

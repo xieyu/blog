@@ -1,0 +1,139 @@
+digraph session_smt_execute {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_session {
+    graph[label="session";fontsize=20;style=rounded]
+
+    subgraph cluster_session_session {
+      graph[label="session/session.go";fontsize=18;style=rounded];
+      Execute -> execute;
+      RollbackTxn;
+      CommitTxn;
+      doCommitWithRetry
+      doCommitWithRetry -> doCommit;
+      execute -> {
+        ParseSQL;
+        executeStatement;
+        PrepareTxnCtx;
+      };
+      PrepareTxnCtx[label="PrepareTxnCtx\l start a gorotine to begin\l a transaction if needed"]
+      ParseSQL[label="ParseSQL\l yy_parser 做词法语法解析"]
+    };
+
+    executeStatement -> runStmt -> finishStmt;
+    CommitTxn -> doCommitWithRetry;
+    doCommit -> {Commit, SetOption};
+    {
+      rank=same;
+      RollbackTxn -> Rollback;
+    }
+
+    subgraph cluster_txn{
+      graph[label="session/txn.go";fontsize=20;style=rounded]
+      Commit ;
+      Rollback;
+      SetOption;
+      DelOption;
+      txn_Set[label="Set(key, value)"];
+    }
+
+    subgraph cluster_session_tidb {
+      graph[label="session/tidb.go";fontsize=18;style=rounded]
+      runStmt;
+      recordAbortTxnDuration[label="recordAbortTxnDuration:\l 记录相应metrics"];
+      finishStmt -> recordAbortTxnDuration;
+    };
+  }
+
+  execute -> Compile;
+
+  subgraph cluster_executor_adaptor {
+    graph[label="executor";fontsize=20;style=rounded]
+    Compile[label="Compile\l制定查询计划以及优化"];
+    ExecStmt_Exec[label="Exec"];
+    ExecStmt_Exec -> buildExecutor -> build;
+    subgraph cluster_builder {
+      graph[label="根据plan类型创建相应Executor";fontsize=20;style=rounded]
+        build -> {
+          buildChange;
+          buildCheckTable;
+          buildCheckIndex;
+          buildDDL;
+          buildExecute;
+          buildExplain;
+          buildInsert;
+          buildothers[label="build..."];
+        };
+    }
+    buildInsert -> InsertExec[label="new"];
+    subgraph cluster_insert {
+      graph[label="executor/insert.go";fontsize=20;style=rounded]
+        InsertExec[
+        shape="record";
+      label="{{
+        InsertExec|
+          <exec> exec\l|
+          <Next> Next\l
+      }}";];
+      InsertExec:Next -> InsertExec:exec;
+      InsertExec:exec -> {
+           batchUpdateDupRows;
+           BatchCheckAndInsert;
+           addRecord;
+         };
+         addRecord -> {SetOption; DelOption}
+    }
+  }
+
+  subgraph cluster_kv_kv {
+    graph[label="kv/kv.go";fontsize=20;style=rounded]
+      Transaction[
+      shape="record";
+    label="{{
+interface: Transaction|
+             <Commit> Commit\l|
+             <Rollback> Rollback\l|
+             <SetOption> SetOption\l
+    }}";
+      ]
+  }
+
+  runStmt -> Exec -> ExecStmt_Exec;
+  finishStmt -> {RollbackTxn, CommitTxn}
+  Commit -> Transaction:Commit;
+  Rollback -> Transaction:Rollback;
+  SetOption -> Transaction:SetOption;
+
+  subgraph cluster_sql_exec {
+    graph[label="sql_exec";fontsize=20;style=rounded]
+      subgraph cluster_interface {
+        graph[label="sqlexec/restricted_sql_executor.go";fontsize=20;style=rounded]
+          Exec;
+      }
+  }
+
+  addRecord -> Table_AddRecord;
+  subgraph cluster_Table {
+    graph[label="table/tables/tables.go";fontsize=20;style=rounded]
+      Table_AddRecord[label="AddRecord"];
+    Table_AddRecord -> {
+      addIndices;
+      EncodeRow;
+      txn_Set;
+    }
+  }
+
+  buildExecutor -> RecordSet:executor[label="设置executor"];
+  RecordSet [
+    shape="record";
+  label="{{
+    RecordSet |
+      <executor> executor \l|
+      <Next> Next \l|
+  }}";
+  ];
+RecordSet:executor -> InsertExec[style=dashed];
+RecordSet:Next -> InsertExec:Next;
+}

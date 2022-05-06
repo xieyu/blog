@@ -1,0 +1,164 @@
+#include "styles.h"
+digraph readers {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Progress[style_func;label="{{
+    Progress|
+    Region(metapb::Region),\l|
+    Term(u64),\l|
+    AppliedIndexTerm(u64),\l|
+    LeaderLease(RemoteLease),\l
+  }}"]
+
+  Peer__set_region -> {
+     Peer__maybe_update_read_progress;
+     ReadProgress;
+  }
+
+  Peer__maybe_update_read_progress -> ReaderDelegate__update;
+  ReaderDelegate__update -> {
+    ReaderDelegate__fresh_valid_ts;
+    TrackVer__inc;
+  }
+  Peer__maybe_renew_leader_lease -> Peer__maybe_update_read_progress;
+
+  Peer__maybe_renew_leader_lease -> Lease__renew;
+  Peer__apply_reads -> Peer__maybe_renew_leader_lease;
+  Peer__handle_raft_comitted_entries -> Peer__maybe_renew_leader_lease;
+  Peer__on_role_changed -> Peer__maybe_renew_leader_lease;
+  Peer__handle_raft_ready_append -> {
+    Peer__on_role_changed;
+    Peer__handle_raft_comitted_entries;
+    Peer__apply_reads;
+  }
+  PeerFsmDelegate__collect_ready -> Peer__handle_raft_ready_append;
+  Progress -> ReaderDelegate__update[style_edge_data];
+  Peer__handle_raft_comitted_entries[style_func;label="{{
+    Peer\l
+    handle_raft_comitted_entries\l|
+    跟据write propose时间\l
+    更新leader lease\l
+  }}"]
+
+  PeerFsmDelegate__collect_ready[style_func;label="{{
+    PeerFsmDelegate\l
+    collect_ready\l|
+    调用raftgroup.ready\l
+    然后处理 它返回的ready\l
+  }}"]
+  Peer__handle_raft_ready_append[style_func;label="{{
+    Peer\l
+    handle_raft_ready_append\l|
+    1.调用raft_group.ready()\l
+  }}"]
+  Peer__handle_raft_ready_append -> {
+    RawNode__ready;
+  }
+  RawNode__ready[style_blue1;label="{{
+    RawNode\l
+    ready\l
+  }}"]
+  Peer__apply_reads[style_func;label="{{
+    Peer\l
+    apply_reads\l|
+    1.处理ready中的read_states\l
+    2.如果是leader\l
+    使用pending_reads中的last_ready\l
+    的renew_lease_time 更新leader_lease\l
+  }}"]
+  Peer__apply_reads -> {
+    Peer__pending_reads;
+    Lease__inspect;
+  }
+  Lease__inspect[style_func;label="{{
+    Lease__inspect|
+    检查ts和自己的bound\l
+    如果是Suspect phase\l
+    就不更新leader lease\l
+  }}"]
+  Peer__pending_reads[style_var;label="{{
+    Peer\l
+    pending_reads\l
+  }}"]
+  Peer__maybe_renew_leader_lease[style_blue1;label="{{
+    Peer\l
+    maybe_renew_leader_lease\l|
+    try to renew leader lease\l|
+    1.如果正在spliting/merging则不会更新\l
+    2.如果自己是leader且\l
+    read_progress不为None\l
+    则尝试更新read_progress\l
+  }}"]
+  Lease__renew -> RemoteLease__renew;
+  RemoteLease__renew[style_func;label="{{
+    RemoteLease\l
+    renew\l|
+    使用ts刷新leader lease\l
+  }}"]
+  Peer__maybe_renew_leader_lease -> {
+    LeaderLease__maybe_new_remote_lease;
+  }
+  LeaderLease__maybe_new_remote_lease[style_func;label="{{
+    LeaderLease\l
+    maybe_new_remote_lease\l|
+    Return a new `RemoteLease`\l
+    if there is none\l
+  }}"]
+  LeaderLease__maybe_new_remote_lease -> RemoteLease;
+  RemoteLease[style_func;label="{{
+    RemoteLease|
+    新建一个RemoteLease\l
+    然后返回它的clone\l
+    在后面ReaderDelegate\l
+    update时会使用它\l
+  }}"]
+  RemoteLease -> Progress[style_edge_data];
+  Peer__maybe_update_read_progress[style_func;label="{{
+    Peer\l
+    maybe_update_read_progress\l|
+    如果在pending_remove阶段\l
+    就不用更新ReadDelegate了\l
+  }}"]
+  Lease__renew[style_func;label="{{
+    Lease\l
+    renew\l|
+    使用ts更新lease\l
+  }}"]
+  ReaderDelegate__update[style_blue1;label="{{
+    ReaderDelegate\l
+    update\l|
+    1.更新自己的track ver\l
+    2.根据Progress更新自己\l
+    的成员变量\l
+  }}"]
+  Peer__set_region[style_func;label="{{
+    Peer\l
+    set_region\l|
+    更新ReadDelegate\l
+    的region\l
+  }}"]
+  Peer__handle_raft_comitted_entries -> {
+    ProposalQueue__find_propose_time;
+  }
+  ProposalQueue__find_propose_time[style_func;label="{{
+    ProposalQueue\l
+    find_propose_time\l|
+    找到log entry的proposal time\l
+    根据他来更新刷新\l
+    自己的leader lease\
+  }}"]
+  Peer__on_role_changed[style_func;label="{{
+    Peer\l
+    on_role_changed\l|
+    如果自己刚成为leader也\l
+    刷新leader lease\l
+  }}"]
+  Lease__inspect[style_func;label="{{
+    Lease\l
+    inspect\l
+  }}"]
+
+}

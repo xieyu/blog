@@ -1,0 +1,60 @@
+#include "styles.h"
+digraph build_executors {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  //{parse_and_handle_stream_request;parse_and_handle_unary_request} -> 
+  //parse_request_and_check_memory_locks -> 
+  DagHandlerBuilder_new -> BatchDAGHandler_new -> BatchExecutorsRunner_from_request;
+  DagHandlerBuilder_new[style_func;label="{{
+    DagHandlerBuilder\l|new\l
+  }}"]
+  BatchDAGHandler_new[style_func;label="{{
+    BatchDAGHandler\l|new\l
+  }}"]
+  BatchExecutorsRunner_from_request[style_func;label="{{
+    BatchExecutorsRunner\l|from_request\l
+  }}"]
+
+  build_executors[style_func;label="{{
+    build_executors|
+    根据tipb::Executo定义\l
+    创建对应的executor\l
+  }}"]
+  DAGRequest -> build_executors;
+
+  build_executors -> {
+     BatchTableScanExecutor；
+     BatchIndexScanExecutor;
+     BatchSimpleAggregationExecutor;
+     BatchFastHashAggregationExecutor;
+     BatchSlowHashAggregationExecutor;
+     BatchStreamAggregationExecutor;
+     BatchLimitExecutor;
+     BatchTopNExecutor;
+  }
+  BatchExecutorsRunner_from_request -> build_executors;
+  //future_cop -> parse_and_handle_unary_request;
+  
+  DAGRequest[style_blue1;label="{{
+    DAGRequest|
+	optional uint64 start_ts_fallback = 1;\l|
+	repeated Executor executors = 2;\l|
+	optional int64 time_zone_offset = 3;\l|
+	optional uint64 flags = 4;\l|
+	repeated uint32 output_offsets = 5;\l|
+	optional bool collect_range_counts = 6;\l|
+	optional uint64 max_warning_count = 7;\l|
+	optional EncodeType encode_type = 8;\l|
+	optional uint64 sql_mode = 9;\l|
+	optional string time_zone_name = 11;\l|
+	optional bool collect_execution_summaries = 12;\l|
+	optional uint64 max_allowed_packet = 13;\l|
+	optional ChunkMemoryLayout chunk_memory_layout = 14;\l|
+	optional bool is_rpn_expr = 15;\l|
+	optional UserIdentity user = 16;\l|
+	optional Executor root_executor = 17;\l
+  }}"]
+}

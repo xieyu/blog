@@ -1,0 +1,131 @@
+#include "styles.h"
+digraph raft_read_index {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RawNode__read_index[style_func;label="{{
+    RawNode__read_index|
+    调用时候需要传入\l
+    一个ctx 类型为vec\<u8\>\l
+  }}"]
+
+  RawNode__read_index -> {
+    MsgReadIndex;
+    RaftCore__step;
+  }
+  RaftCore__step -> {
+    RaftCore__step_leader;
+    RaftCore__step_follower;
+    RaftCore__bcast_heartbeat;
+  }
+  RaftCore__bcast_heartbeat -> RaftCore__bcast_heartbeat_with_ctx;
+  RaftCore__bcast_heartbeat[style_func;label="{{
+    RaftCore__bcast_heartbeat|
+    leader发送心跳时\l
+    也会带上last_pending_request_ctx\l
+    为ctx发给各个follower\l
+  }}"]
+
+  RaftCore__step_follower;
+  RaftCore__step_follower[style_func;label="{{
+    RaftCore__step_follower|
+    将MsgReadIndex\l
+    转发给leader\l
+  }}"]
+
+  RaftCore__step_leader -> {
+    Progress__is_singoleton;
+    RaftCore__handle_ready_read_index;
+    ReadOnlyOption__Safe;
+    ReadOnlyOption__LeaseBased;
+    RaftLog__committed;
+    ReadOnly__add_request;
+    RaftCore__bcast_heartbeat_with_ctx;
+  }
+
+  ReadOnlyOption__Safe -> {
+    ReadOnly__add_request;
+    RaftCore__bcast_heartbeat_with_ctx
+  }[style_edge_data];
+
+  ReadOnlyOption__LeaseBased -> {
+    RaftCore__handle_ready_read_index;
+  }[style_edge_data];
+
+  ReadOnly__add_request -> {
+     ReadOnly__pending_read_index;
+     ReadOnly__read_index_queue;
+  }
+
+  ReadOnly__pending_read_index[style_var;label="{{
+    ReadOnly__pending_read_index|
+      HashMap\<Vec\<u8\>, ReadIndexStatus\>,\l
+  }}"]
+  ReadOnly__read_index_queue[style_var;label="{{
+    ReadOnly__read_index_queue|
+    pub read_index_queue: VecDeque\<Vec\<u8\>\>,\l
+    队列中的内容为app传过来的ctx\l
+  }}"]
+
+  ReadIndexStatus[style_func;label="{{
+    ReadIndexStatus|
+    pub req: Message,\l|
+    <index> pub index: u64,\l|
+    pub acks: HashSet\<u64\>,\l
+  }}"]
+  RaftLog__committed -> ReadIndexStatus:index;
+  ReadOnly__pending_read_index -> ReadIndexStatus;
+
+  RaftCore__bcast_heartbeat_with_ctx[style_func;label="{{
+    RaftCore__bcast_heartbeat_with_ctx|
+    向集群中其他成员广播\l
+    发送心跳信息(会附带上ctx)\l
+    确认自己为leader\l|
+    follower的heatbeat resp\l
+    中会回传ctx\l
+  }}"]
+  ReadOnlyOption__Safe[style_func;label="{{
+    ReadOnlyOption__Safe|
+    Safe guarantees the linearizability\l
+    of the read only request by\l
+    communicating with the quorum.\l
+    It is the default and suggested option.\l
+  }}"]
+  ReadOnlyOption__LeaseBased[style_func;label="{{
+    ReadOnlyOption__LeaseBased|
+    realying on leader lease\l
+    can be affected by clock draft\l
+  }}"]
+  Progress__is_singoleton -> RaftCore__handle_ready_read_index;
+  RaftCore__handle_ready_read_index -> {
+     RaftCore__read_states;
+     RaftCore__send;
+  }
+  RaftCore__read_states[style_var;label="{{
+    RaftCore__read_states|
+    pub read_states: Vec\<ReadState\>,\l
+    App调用ready时，会返回该字段\l
+  }}"]
+  RaftCore__read_states -> ReadState;
+  ReadState[style_func;label="{{
+    ReadState|
+    pub index: u64,\l|
+    pub request_ctx: Vec\<u8\>,\l
+  }}"]
+
+  RaftCore__handle_ready_read_index[style_func;label="{{
+    RaftCore__handle_ready_read_index|
+    1.如果是自己发起的则放入read_states\l
+    2.否则就向req.from发送MsgReadIndexResp\l
+  }}"]
+
+  RaftCore__step[style_func;label="{{
+    RaftCore__step|
+    leader节点直接处理该消息\l|
+    follower节点将MsgReadIndex\l
+    转发给leader\l
+    然后等leader发送MsgReadIndexResp\l
+  }}"]
+
+}

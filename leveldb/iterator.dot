@@ -1,0 +1,163 @@
+digraph iterator {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  Iterator[
+    shape="record";
+    label="{{
+      Iterator|
+      迭代器接口\l|
+      virtual bool Valid() const =0;\l|
+      virtual void SeekToFirst() = 0;\l|
+      virtual void SeekToLast() = 0;\l|
+      virtual void Seek(const Slice& target) = 0;\l|
+      virtual void Next() = 0;\l|
+      virtual void Prev() = 0;\l|
+      virtual Slice key() const = 0;\l|
+      virtual Slice value() const = 0;\l|
+      virtual Status status() const = 0;\l
+    }}";
+  ];
+  MergingIterator[
+    shape="record";
+    label="{{
+      MergingIterator|
+      const Comparator* comparator_\l|
+      <IteratorWrapper1> IteratorWrapper* children_\l|
+      int n_;\l|
+      <IteratorWrapper2> IteratorWrapper* current_\l|
+      Direction direction__\l
+    }}";
+  ];
+  DBIter[
+    shape="record";
+    label="{{
+      DBIter|
+      DBImpl* db_;\l|
+      const Comparator* const user_comparator_;\l|
+      Iterator* const iter_;\l|
+      SequenceNumber const sequence_;\l|
+      Status status_;\l|
+      std::string saved_key_; \l|
+      std::string saved_value_;\l|
+      Direction direction_;\l|
+      bool valid_;\l|
+      Random rnd_;\l|
+      size_t bytes_until_read_sampling_;\l
+    }}";
+  ];
+
+  Direction[
+    shape="record";
+    label="{{
+      enum Direction|
+      KForward\l|
+      KReverse\l
+    }}";
+  ];
+
+  IteratorWrapper[
+    shape="record";
+    label="{{
+      IteratorWrapper|
+      caches the valid and key \l 
+      results for an underlying iterator\l
+      this can help avoid virtual \l 
+      funtion calls also get better \l
+      cache locality\l|
+      Iterator* iter_;\l|
+      bool valid_;\l|
+      Slice key_;\l
+    }}";
+  ];
+  Block_Iter[
+    shape="record";
+    label="{{
+      Block::Iter|
+        const Comparator* const comparator_;\l|
+        const char* const data_;\l|
+        uint32_t const restarts_; \l|
+        uint32_t const num_restarts_;\l|
+        uint32_t current_;\l|
+        uint32_t restart_index_;\l|
+        std::string key_;\l|
+        Slice value_;\l
+    }}";
+  ];
+
+  MemTableIterator[
+    shape="record";
+    label="{{
+      MemTableIterator|
+        MemTable::Table::Iterator iter_;\l|
+        std::string tmp_; \l // For passing to EncodeKey\l
+    }}";
+  ];
+  TwoLevelIterator[
+    shape="record";
+    label="{{
+      TwoLevelIterator|
+        BlockFunction block_function_;\l|
+        void* arg_;\l|
+        const ReadOptions options_;\l|
+        Status status_;\l|
+        IteratorWrapper index_iter_;\l|
+        IteratorWrapper data_iter_;\l|
+        std::string data_block_handle_;\l
+    }}";
+  ];
+  LevelFileNumIterator[
+    shape="record";
+    label="{{
+      Version::LevelFileNumIterator|
+        const InternalKeyComparator icmp_;\l|
+        const std::vector<FileMetaData*>* const flist_;\l|
+        uint32_t index_;\l|
+        mutable char value_buf_[16];\l
+    }}";
+  ];
+  SkipList_Iterator[
+    shape="record";
+    label="{{
+      SkipList_Iterator|
+        const SkipList* list_;\l|
+        Node* node_;\l
+    }}";
+  ];
+  Comparator[
+    shape="record";
+    label="{{
+      Comparator|
+        virtual int Compare(const Slice& a, const Slice& b) const = 0;\l|
+      virtual const char* Name() const = 0;\l|
+      virtual void FindShortestSeparator(std::string* start,\l
+                                     const Slice& limit) const = 0;\l|
+      virtual void FindShortSuccessor(std::string* key) const = 0;\l
+    }}";
+  ];
+  Iterator -> {
+    DBIter;
+    Block_Iter;
+    MergingIterator;
+    MemTableIterator;
+    TwoLevelIterator;
+    LevelFileNumIterator;
+  }
+  MemTableIterator -> SkipList_Iterator;
+  MergingIterator -> {
+    IteratorWrapper;
+    Direction;
+    Comparator;
+  }
+  DBIter -> {
+    Direction;
+    Comparator;
+  }
+  Block_Iter -> {
+    Comparator;
+  }
+
+  TwoLevelIterator -> {
+    IteratorWrapper;
+  }
+}

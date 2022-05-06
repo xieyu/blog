@@ -1,0 +1,159 @@
+#include "styles.h"
+digraph send_raft_message {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  //subgraph cluster_RaftClient {
+   // graph[label="RaftClient";fontsize=20;style="rounded,dashed";color="slategrey"]
+    send;
+    flush;
+    need_flush;
+    send[style_func;label="{{
+      RaftClient\n|
+      send
+    }}"]
+    need_flush[style_func;label="{{
+      RaftClient|
+      need_flush
+    }}"]
+    flush[style_func;label="{{
+      RaftClient|
+      flush
+    }}"]
+
+    ServerTransport_send -> send;
+    ServerTransport_send[style_func;label="{{
+      ServerTransport|
+      send
+    }}"]
+    //>transport.rs:56 fn flush(&mut self) {#F/opt/github/tikv/src/server/transport.rs#L56
+    ServerTransport_flush -> flush;
+    ServerTransport_flush[style_func;label="{{
+      ServerTransport|
+      flush
+    }}"]
+    //>transport.rs:52 fn need_flush(&self) -> bool {#F/opt/github/tikv/src/server/transport.rs#L52
+    ServerTransport_need_flush -> need_flush;
+    ServerTransport_need_flush[style_func;label="{{
+      ServerTransport|
+      need_flush
+    }}"]
+    {rank=same;ServerTransport_need_flush;ServerTransport_send;ServerTransport_flush}
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    subgraph cluster_raft {
+      graph[label="raft";fontsize=20;style="rounded,dashed";color="slategrey"]
+      ready;
+      //>raw_node.rs:614 pub fn advance_append(&mut self, rd: Ready) -> LightReady {#F/Users/yu.xie/.cargo/git/checkouts/raft-rs-42b8049ef2e3af07/91a60ce/src/raw_node.rs#L614
+      advance_append[style_func;label="{{
+        advance_append|
+        raft_group.advance_append()\l
+        获取light ready\l
+      }}"]
+    //>raw_node.rs:418 pub fn ready(&mut self) -> Ready {#F/Users/yu.xie/.cargo/git/checkouts/raft-rs-42b8049ef2e3af07/91a60ce/src/raw_node.rs#L418
+      ready[style_func;label="{{
+        ready|
+        raft_group.ready()\l
+        获取raft要发送的messages\l
+      }}"]
+    }
+    {advance_append;ready} -> Peer_send[style_edge_data];
+
+    //>peer.rs:1037 fn send<T, I>(&mut self, trans: &mut T, msgs: I, metrics: &mut RaftSendMessageMetrics)#F/opt/github/tikv/components/raftstore/src/store/peer.rs#L1037
+    Peer_send -> send_raft_message;
+
+    //>peer.rs:1893 pub fn handle_raft_ready_advance<T: Transport>(#F/opt/github/tikv/components/raftstore/src/store/peer.rs#L1893
+    handle_raft_ready_advance -> {
+      Peer_send;
+      advance_append;
+    }
+
+    //>peer.rs:1585 pub fn handle_raft_ready_append<T: Transport>(#F/opt/github/tikv/components/raftstore/src/store/peer.rs#L1585
+    handle_raft_ready_append -> {
+      //>peer.rs:1728 self.send(&mut ctx.trans, vec_msg, &mut ctx.raft_metrics.send_message);#F/opt/github/tikv/components/raftstore/src/store/peer.rs#L1728
+      Peer_send;
+      ready;
+    }
+    Peer_send[style_func;label="{{
+      send|
+        遍历messages\l 
+        发送每一条消息\l
+    }}"]
+    send_raft_message[style_blue1;label="{{
+      send_raft_message|
+      给messag加上自己的\l 
+      region_id, epoch\l
+      设置peer等\l
+    }}"]
+    send_raft_message;
+  }
+    send_raft_message -> ServerTransport_send;
+
+  //subgraph cluster_PeerFsmDelegate {
+   // graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    //>peer.rs:926 pub fn post_raft_ready_append(&mut self, ready: CollectedReady) {#F/opt/github/tikv/components/raftstore/src/store/fsm/peer.rs#L926
+    post_raft_ready_append -> handle_raft_ready_advance;
+    collect_ready -> handle_raft_ready_append;
+  //}
+  post_raft_ready_append[style_func;label="{{
+    PeerFsmDelegate|
+    post_raft_ready_append
+  }}"]
+  collect_ready[style_func;label="{{
+    PeerFsmDelegate|
+    collect_ready
+  }}"]
+  {rank=same;post_raft_ready_append;collect_ready}
+
+    handle_raft_ready[style_func;label="{{
+      RaftPoller|
+      handle_raft_ready
+    }}"]
+    end -> handle_raft_ready -> {
+       ServerTransport_need_flush;
+       ServerTransport_flush;
+       //>store.rs:674 .post_raft_ready_append(ready);#F/opt/github/tikv/components/raftstore/src/store/fsm/store.rs#L674
+       post_raft_ready_append;
+    }
+    pause -> {
+       ServerTransport_need_flush;
+       ServerTransport_flush;
+    }
+    handle_normal -> {
+      collect_ready;
+    }
+    handle_normal[style_func;label="{{
+      RaftPoller|
+      handle_normal
+    }}"]
+    pause[style_func;label="{{
+      RaftPoller|
+      pause
+    }}"]
+    end[style_func;label="{{
+      RaftPoller|
+      end
+    }}"]
+    {rank=same;pause;end}
+  //}
+
+  //subgraph cluster_Poller {
+  //  graph[label="Poller";fontsize=20;style="rounded,dashed";color="slategrey"]
+  //  //>batch.rs:270 fn poll(&mut self) {#F/opt/github/tikv/components/batch-system/src/batch.rs#L270
+
+    poller_poll[style_func;label="{{
+      poll|
+      BatchSystem Poller主循环fetch fsm\l|
+      然后在调用RaftPoller\l
+      处理有消息的的fsm\l
+    }}"]
+    poller_poll -> {
+      handle_normal;
+      end;
+      pause;
+    }
+  //}
+}

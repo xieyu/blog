@@ -1,0 +1,47 @@
+//
+// worker-sleep.dot
+//
+// Created on 28-09-2019 by xieyu
+//
+digraph workersleep {
+  rankdir=LR;
+  node[shape=box];
+
+  subgraph cluster_worker{
+    graph[label="worker";fontsize=20;style=rounded]
+
+    worker_run[label="run"]
+    worker_run -> sleep -> sleep_light -> steal_batch;
+  }
+
+  subgraph cluster_pool{
+    graph[label="pool";fontsize=20;style=rounded;]
+
+    sleep_stack[style=filled];
+
+    submit -> signal_work;
+    signal_work -> sleep_stack[label="pop";color=red;];
+    push_sleeper -> sleep_stack[label="push";color=blue;];
+    pool_queue[label="queue";style="filled"];
+  }
+
+  subgraph cluster_entry {
+    graph[label="entry";fontsize=20;style=rounded]
+
+    park_timeout;
+    park;
+    notify -> unpark;
+  }
+
+  subgraph cluster_thread{
+    graph[label="thread";fontsize=20;style=rounded]
+
+    yield_now;
+  }
+
+  worker_run -> yield_now;
+  pool_queue -> steal_batch[label="steal from queue";style=dashed;color=red]
+  sleep_light -> park_timeout;
+  sleep -> {park, push_sleeper};
+  signal_work -> notify;
+}

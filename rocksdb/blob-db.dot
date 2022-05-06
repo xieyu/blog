@@ -1,0 +1,120 @@
+digraph blobdb {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_DeleteScheduler {
+    graph[label="DeleteScheduler";fontsize=20;];
+    CleanupDirectory;
+  }
+
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    DBImpl_Open
+    DBImpl_GetImpl;
+  }
+  subgraph cluster_BlobIndex {
+    graph[label="BlobIndex";fontsize=20;];
+    BlobIndex_DecodeFrom;
+    BlobIndex_HasTTL;
+    BlobIndex_expiration;
+  }
+
+  subgraph cluster_BlobFile {
+    graph[label="BlobFile";fontsize=20;];
+    ReadMetadata -> {
+      GetFileSize;
+      NewRandomAccessFile;
+      use_direct_io;
+      BlobLogHeader;
+      BlobLogFooter;
+    };
+
+    MarkImmutable;
+    HasTTL;
+    GetFileSize;
+    GetReader -> {
+      GetCurrentTime;
+      last_access_;
+      lockbfile_r;
+      lockbfile_w;
+      NewRandomAccessFile;
+    };
+  }
+
+  subgraph cluster_BlobDBImpl {
+    graph[label="BlobDBImpl";fontsize=20;];
+    Open -> {
+      CreateLoggerFromOptions;
+      CreateDirIfMissing;
+      blob_dir_;
+      NewDirectory;
+      OpenAllBlobFiles;
+      DBImpl_Open;
+      GetLiveFilesMetaData;
+      InitializeBlobFileToSstMapping;
+      MarkUnreferencedBlobFilesObsoleteDuringOpen;
+      EnableAutoCompaction;
+      CleanupDirectory;
+      StartBackgroundTasks;
+    }
+
+    OpenAllBlobFiles -> {
+      GetAllBlobFiles;
+      MarkImmutable;
+      ReadMetadata;
+      ObsoleteBlobFile;
+      HasTTL;
+      GetFileSize;
+    }
+
+    Get -> GetImpl;
+    GetImpl -> {
+      SetSnapshotIfNeeded;
+      DBImpl_GetImpl;
+      GetBlobValue;
+    }
+    GetBlobValue -> {
+      BlobIndex_DecodeFrom;
+      BlobIndex_expiration;
+      BlobIndex_HasTTL;
+      GetRawBlobFromFile;
+      UncompressBlockContentsForCompressionType;
+      PinSelf;
+    }
+
+    GetRawBlobFromFile -> {
+      blob_files_;
+      GetCompressionType;
+      GetBlobFileReader;
+      use_direct_io;
+      Read;
+      PinSelf;
+    }
+    GetBlobFileReader -> GetReader;
+    blob_files_[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        blob_files_|
+          std::map\<uint64_t, std::shared_ptr\<BlobFile\>\> blob_files_;
+      }}"
+    ];
+    blob_files_ -> BlobFile;
+    BlobFile[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        BlobFile|
+          std::string path_to_dir_;\l|
+          uint64_t file_number_\{0\};\l|
+          std::unordered_set\<uint64_t\> linked_sst_files_;\l|
+          ...
+          std::shared_ptr<Writer> log_writer_;\l|
+      }}"
+    ];
+  }
+}

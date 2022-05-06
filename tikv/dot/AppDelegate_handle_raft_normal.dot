@@ -1,0 +1,145 @@
+#include "styles.h"
+digraph handle_raft_entry_normal {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RaftApplyState {
+    graph[label="RaftApplyState";fontsize=20;style="rounded,dashed";color="slategrey"]
+    set_applied_state;
+    set_applied_index;
+  }
+
+  subgraph cluster_coprocssor {
+    graph[label="coprocssor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    pre_apply;
+    on_apply_cmd;
+    on_flush_apply;
+    prepare_for_apply;
+  }
+  subgraph cluster_ApplyContext {
+    graph[label="ApplyCon";fontsize=20;style="rounded,dashed";color="slategrey"]
+    prepare_for -> {
+      prepare_for_apply;
+    }
+    commit -> {
+      commit_opt;
+    }
+    finish_for -> {
+      commit_opt;
+      write_apply_state;
+      apply_res_push;
+    }
+    commit_opt -> {
+      write_to_db;
+      prepare_for;
+    }
+    write_to_db[style_func;label="{{
+      write_to_db|
+      将kv_wb 写入rocksdb
+    }}"]
+    write_to_db -> {
+      on_flush_apply;
+    }
+    apply_res_push -> apply_res;
+    apply_res[style_var;label="{{
+      apply_res|
+      保存了applyResult\l
+      将在flush中发通知\l 
+      给raft 线程\l
+    }}"]
+    subgraph cluster_ctx_wb {
+      graph[label="ApplyContext::kv_wb";fontsize=20;style="rounded,dashed";color="slategrey"]
+      ctx_kv_wb_mut_set_save_point;
+      ctx_kv_wb_mut_pop_save_point;
+      ctx_kv_wb_mut_rollback_to_save_point;
+      ctx_kv_wb_put_cf;
+      ctx_kv_wb_put;
+      ctx_kv_wb_delete_cf;
+      ctx_kv_wb_delete;
+    }
+  }
+  subgraph cluster_RocksEngine {
+    graph[label="RocksEngine";fontsize=20;style="rounded,dashed";color="slategrey"]
+    delete_ranges_cf;
+  }
+  subgraph cluster_SSTImporter {
+    graph[label="SSTImporter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ingest
+  }
+  handle_raft_committed_entries -> {
+    prepare_for;
+    handle_raft_entry_normal;
+    handle_raft_entry_conf_change;
+    finish_for;
+  }
+  handle_raft_entry_conf_change -> {
+    parse_data_at;
+    process_raft_cmd;
+  }
+
+
+  handle_raft_entry_normal -> {
+    parse_data_at;
+    should_write_to_engine;
+    commit;
+    ApplyResult_Yield;
+    process_raft_cmd;
+    set_applied_state;
+    pending_cmds;
+  }
+  process_raft_cmd -> {
+    pre_apply;
+    find_pending;
+    is_conf_change;
+    apply_raft_cmd;
+    on_apply_cmd;
+    apply_ctx_cbs_last_mut_push;
+  }
+
+  apply_raft_cmd -> {
+    ctx_kv_wb_mut_set_save_point;
+    exec_raft_cmd;
+    ctx_kv_wb_mut_pop_save_point;
+    ctx_kv_wb_mut_rollback_to_save_point;
+    set_applied_index;
+  }
+
+  exec_raft_cmd -> {
+    exec_admin_cmd;
+    exec_write_cmd;
+  }
+  exec_admin_cmd -> {
+    exec_change_peer;
+    exec_change_peer_v2;
+    exec_batch_split;
+    exec_compact_log;
+    exec_compute_hash;
+    exec_verify_hash;
+    exec_prepare_merge;
+    exec_commit_merge;
+    exec_rollback_merge;
+  }
+
+  exec_write_cmd -> {
+    handle_put;
+    handle_delete;
+    handle_delete_range;
+    handle_ingest_sst;
+  }
+
+  handle_put -> {
+    ctx_kv_wb_put_cf;
+    ctx_kv_wb_put;
+  }
+  handle_delete -> {
+    ctx_kv_wb_delete_cf;
+    ctx_kv_wb_delete;
+  }
+  handle_delete_range -> {
+    delete_ranges_cf;
+  }
+  handle_ingest_sst -> {
+    ingest;
+  }
+}

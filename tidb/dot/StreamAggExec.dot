@@ -1,0 +1,17 @@
+digraph StreamAgg {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  StreamAggExec -> {
+    vecGroupChecker;
+    AggFunc;
+    PartialResul;
+  }
+  vecGroupChecker[
+    shape="record";
+    label="{{
+      vecGroupChecker|
+    }}"];
+}

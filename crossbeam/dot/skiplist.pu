@@ -1,0 +1,6 @@
+@startuml
+
+' Generated diagram will be in black/grey/white.
+skinparam monochrome true
+
+@enduml

@@ -1,0 +1,128 @@
+#include "styles.h"
+digraph on_ready_split_region {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_RaftRouter {
+    graph[label="RaftRouter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    router_register;
+    router_register[style_func;label="{{
+      router_register|
+      注册到router中|
+      插入到normals
+    }}"]
+    router_force_send_PeerMsg_Start
+  }
+  subgraph cluster_StoreMeta {
+    graph[label="StoreMeta";fontsize=20;style="rounded,dashed";color="slategrey"]
+  }
+
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    post_split;
+    is_leader;
+      
+  }
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_msgs -> on_apply_res-> on_ready_result -> on_ready_split_region;
+    on_apply_res[style_func;label="{{
+      on_apply_res|
+      处理PeerMsg::ApplyRes消息\l
+    }}"]
+
+    on_ready_split_region -> {
+      post_split;
+      is_leader;
+      register_split_region_check_tick;
+      set_region;
+      heartbeat_pd;
+      PdTask_ReportBatchSplit
+      PeerFsm_create;
+      insert_peer_cache;
+      maybe_campaign;
+      new_peer_heartbeat_pd;
+      BasicMailbox_new;
+      store_meta_lock;
+      router_register;
+      router_force_send_PeerMsg_Start;
+      SplitCheckTask_GetRegionApproximateSizeAndKeys;
+      init_replication_mode;
+      meta_regions_insert;
+    }
+    store_meta -> meta_regions_insert;
+
+    subgraph cluster_is_leader {
+      graph[label="is_leader";fontsize=20;style="rounded,dashed";color="slategrey"]
+      heartbeat_pd[style_func;label="{{
+        heartbeat_pd|
+        上报PD自己以及新\l 
+        Region的meta 信息
+      }}"]
+      PdTask_ReportBatchSplit;
+      SplitCheckTask_GetRegionApproximateSizeAndKeys;
+      PdTask_ReportBatchSplit -> pd_scheduler_schedule[style_edge_data];
+      SplitCheckTask_GetRegionApproximateSizeAndKeys -> split_check_scheduler[style_edge_data];
+    }
+    subgraph cluster_RaftRs {
+      graph[label="RaftRs";fontsize=20;style="rounded,dashed";color="slategrey"]
+      campaign;
+        
+    }
+    subgraph cluster_StoreMeta {
+      graph[label="StoreMeta";fontsize=20;style="rounded,dashed";color="slategrey"]
+        
+    }
+
+
+    subgraph cluster_new_peer {
+      graph[label="new_peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+      PeerFsm_create[style_func;label="{{
+        PeerFsm::create|
+          创建新的PeerFsm\l
+      }}"]
+      PeerFsm_create -> new_peer;
+      insert_peer_cache[style_func;label="{{
+        insert_peer_cache|
+        将region的peer 插入到PeerFsm中\l
+      }}"]
+      new_peer_heartbeat_pd[style_func;label="{{
+        new_peer_heartbeat_pd|
+        The new peer is likely to\l
+        become leaer\l
+        send a heartbeat immediately\l
+      }}"]
+      BasicMailbox_new[style_func;label="{{
+        BasicMailbox::new|
+        给新的PeerFsm创建Mailbox\l
+      }}"]
+      insert_peer_cache;
+      maybe_campaign;
+      new_peer_heartbeat_pd;
+      BasicMailbox_new;
+      router_register;
+      router_force_send_PeerMsg_Start;
+      init_replication_mode;
+    }
+    router_force_send_PeerMsg_Start[style_func;label="{{
+      router::force_send(\l 
+      new_region_id,\l 
+      PeerMsg::Start)|
+      向新的region_id\l 
+      发送PeerMsg Start消息\l
+    }}"]
+    maybe_campaign[style_func;label="{{
+      maybe_campaign|
+      如果parent_is_leader\l
+      就调用raft_group的campaign\l
+      开始选举\l
+    }}"]
+    maybe_campaign -> campaign;
+    BasicMailbox_new -> router_register;
+
+    PdTask_ReportBatchSplit -> pd_scheduler_schedule[style_edge_data];
+  }
+  
+}

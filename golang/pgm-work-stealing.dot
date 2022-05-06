@@ -1,0 +1,86 @@
+digraph pgm_work_stealing {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  sched_runq[
+    fillcolor="#95e1d3"
+    style=filled;
+    shape=box3d;
+    label="sched.runq 全局队列"
+  ];
+  runqget[shape="record";
+    label="{{
+      runqget|
+        先从本地队列中取G\l
+    }}";
+  ];
+  globalrunqget[shape="record";
+    label="{{
+      globalrunqget|
+        从全局队列中找\l
+    }}";
+  ];
+  netpollready[shape="record";
+    label="{{
+      netpollready|
+        将poll ready的\l放入全局队列\l
+    }}";
+  ];
+  runqsteal[shape="record";
+    label="{{
+      runqsteal|
+        从其他p的q\l中偷取一批\l
+    }}";
+  ];
+
+  go[
+  fillcolor="#f38181";
+  style=filled;
+  label="go func(){..}()\l新生成的go routine\l放到p的局部队列中"
+  ];
+  go -> newproc -> runqput -> runq;
+
+  m[
+  fillcolor="#f38181";
+  style=filled;
+  shape=doublecircle;
+  label="m"
+  ];
+  m -> schedule -> {
+    globalrunqget;
+    runqget;
+    findrunnable;
+  }
+  runqget -> runq;
+  globalrunqget -> sched_runq;
+  findrunnable -> netpollready -> globalrunqput -> sched_runq;
+  findrunnable -> runqsteal -> runq2;
+
+  subgraph cluster_p1 {
+    graph[label="p";fontsize=20;];
+    runq[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="runq"
+    ];
+    m;
+    runqget;
+    schedule;
+    schedule -> execute;
+    execute -> go[label="go函数中新起goroutine"];
+    newproc;
+    runqput;
+  }
+
+  subgraph cluster_p2 {
+    graph[label="p";fontsize=20;];
+    runq2[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="runq"
+    ];
+  }
+}

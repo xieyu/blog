@@ -1,0 +1,52 @@
+#include "styles.h"
+digraph maximal_committed_index {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ProgressTracker__maximal_committed_index -> {
+    JointConfig__comitted_index;
+  };
+  JointConfig__comitted_index -> MajorityConfig__committed_index;
+
+  MajorityConfig__committed_index -> {
+    ProgressMap__acked_index;
+  }
+  MajorityConfig__committed_index[style_func;label="{{
+    MajorityConfig__committed_index|
+    取votes 最小的matched\l
+    为committed index\l
+  }}"]
+
+  ProgressMap__acked_index[style_func;label="{{
+    ProgressMap__acked_index|
+    返回Progress__matched\l
+    Progress__commit_group_id\l
+  }}"]
+  ProgressMap__acked_index -> {
+    Progress__matched;
+    Progress__commit_group_id;
+  }
+
+  RaftCore__on_persist_entries -> {
+    Progress__maybe_update;
+    RaftCore__maybe_commit;
+  }
+  RaftCore__maybe_commit -> {
+     ProgressTracker__maximal_committed_index;
+  }
+  Progress__maybe_update -> {
+    Progress__matched;
+  }
+  RaftCore__step_leader -> RaftCore__handle_append_response;
+  RaftCore__handle_append_response -> {
+    Progress__maybe_update;
+    RaftCore__maybe_commit;
+    Progress__update_committed;
+  }
+  RaftCore__restore -> Progress__maybe_update;
+
+  RaftCore__post_conf_change -> RaftCore__maybe_commit;
+
+}

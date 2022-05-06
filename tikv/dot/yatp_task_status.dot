@@ -1,0 +1,69 @@
+#include "styles.h"
+digraph yatp_task_status {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  NOTIFIED -> POLLING -> COMPLETED;
+  POLLING -> IDLE;
+  NOTIFIED[style_var;label="{{
+    NOTIFIED|
+    When a future task is created\l 
+    or waken up by a waker,\l 
+    it is marked as NOTIFIED\l
+  }}"]
+
+  POLLING[style_var;label="{{
+    POLLING|
+      NOTIFIED tasks are ready\l
+      to be polled. When the runner\l
+      begins to poll the future,\l
+      it is marked as POLLING.\l
+  }}"]
+
+  COMPLETED[style_var;label="{{
+    COMPLETED|
+    if the future is ready\l
+    it is marked as COMPLETED\l
+  }}"]
+  check_NOTIFIED[style_func;label="{{
+    Check NOTIFIED|
+    if not ready\l
+    it checks whether it has\l 
+    becomes NOTIFIED. If it is\l
+     NOTIFIED, it should be polled\l 
+     again immediately.\l 
+  }}"]
+
+  IDLE[style_var;label="{{
+    IDLE
+  }}"]
+  POLLING ->check_NOTIFIED;
+  
+  //wake_impl -> {POLLING; check_NOTIFIED}
+  wake_impl_case2[style_func;label="{{
+    wake_impl|
+    如果task状态为POLLING\l
+    将状态改为NOTIFIED\l
+  }}"]
+  wake_impl_case1[style_func;label="{{
+    wake_impl|
+    如果task状态为IDEL\l
+    则将状态改为NOTIFIED\l
+  }}"]
+  IDLE -> wake_impl_case1 -> NOTIFIED;
+  POLLING -> wake_impl_case2 -> check_NOTIFIED;
+
+  check_NOTIFIED -> wake_task1;
+  wake_impl_case1 -> wake_task2;
+  wake_impl_case2 -> wake_task2;
+  wake_task1[style_func;label="{{
+    wake_task|
+    wake_task(Cow::Owned(task), need_reschedule);
+  }}"]
+  wake_task2[style_func;label="{{
+    wake_task2|
+    wake_task(task, false);
+  }}"]
+}

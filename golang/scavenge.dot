@@ -1,0 +1,62 @@
+digraph scavenge {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  scavengeLocked[
+    shape="record";
+    label="{{
+      scavengeLocked|
+      遍历heap free page \l
+      释放部分空闲pages\l
+    }}";
+  ];
+  bgscavenge[
+    fillcolor="#f38181";
+    style=filled;
+    shape="doublecircle";
+    label="bgscavenge"
+  ];
+  scavengeAll[
+    shape="record";
+    label="{{
+      scavengeAll|
+      清理掉heap中\l 
+      所有空闲内存\l
+    }}";
+  ];
+  subgraph cluster_mspan {
+    graph[label="mspan";fontsize=20;style=rounded];
+    scavenge;
+  };
+
+  subgraph cluster_linux {
+    graph[label="linux";fontsize=20;style=rounded];
+    subgraph cluster_syscall {
+      graph[label="syscall";fontsize=20;style=rounded];
+      madvise;
+    };
+    sysUnused -> madvise;
+  };
+  subgraph cluster_mheap {
+    graph[label="mheap";fontsize=20;style=rounded];
+    scavengeAll -> scavengeLocked;
+    allocSpanLocked -> scavengeIfNeededLocked;
+    scavengeIfNeededLocked -> scavengeLocked;
+    scavengeLocked -> scavengeSplit;
+    scavengeLocked -> scavenge;
+    scavengeSplit -> mutat;
+  };
+  proc_main -> gcenable;
+  gcenable -> bgscavenge[label="go"];
+  bgscavenge -> {
+    scavengeLocked;
+  }
+
+  subgraph cluster_debug {
+    graph[label="debug";fontsize=20;style=rounded];
+    freeOSMemory;
+  };
+
+  freeOSMemory -> scavengeAll;
+  scavenge -> sysUnused;
+}

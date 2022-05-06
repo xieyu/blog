@@ -1,0 +1,58 @@
+#include "styles.h"
+digraph deadlock_service_change_role {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_RoleChangeNotifier {
+    graph[label="RoleChangeNotifier";fontsize=20;style="rounded,dashed";color="slategrey"]
+    on_region_changed[style_func;label="{{
+      on_region_changed|
+      如果是leader region\l 
+      发生了改变\l
+    }}"]
+    on_role_changed;
+    on_role_changed[style_func;label="{{
+      on_role_changed|
+      如果leader region的role\l
+      发生了改变\l
+    }}"]
+  }
+  subgraph cluster_RaftStore {
+    graph[label="RaftStore";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PeerFsmDelegate_destroy_peer -> on_region_changed;
+    RaftPollerBuilder_init -> on_region_changed;
+    Peer_set_region -> on_region_changed;
+    Peer_activate -> on_region_changed;
+    Peer_on_role_changed -> on_role_changed;
+  }
+
+  on_region_changed -> {
+     deadlock_Scheduler_change_role;
+  }
+  on_role_changed -> {
+     deadlock_Scheduler_change_role;
+  }
+  deadlock_Scheduler_change_role[style_func;label="{{
+    deadlock_Scheduler\l |
+    change_role\l|
+    向channel中放入change_role\l
+    task\l
+  }}"]
+  Detector_run[style_func;label="{{
+    Detector::run
+  }}"]
+  handle_change_role[style_func;label="{{
+    handle_change_role|
+    处理change_role task\l
+  }}"]
+
+  deadlock_Scheduler_change_role -> handle_change_role[style_edge_data];
+  Detector_run -> handle_change_role -> change_role -> reset;
+  reset[style_func;label="{{
+    reset|
+    1.清空detect_table\l
+    2.清除leader_client和leader_info\l
+  }}"]
+}

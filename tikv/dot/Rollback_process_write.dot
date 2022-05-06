@@ -1,0 +1,144 @@
+#include "styles.h"
+digraph Rollback_process_write {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_LockManager {
+    graph[label="LockManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    LockManager_wake_up[style_func;label="{{
+      wake_up|
+      The locks with lock_ts and hashes\l
+      are released tries to wake up transactions\l
+    }}"]
+  }
+  subgraph cluster_ReleaseLocks {
+    graph[label="ReleaseLocks";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ReleasedLocks_new
+    wake_up -> LockManager_wake_up;
+    push -> hashes -> wake_up[style_edge_data];
+    hashes[style_var;label="{{
+      hashes
+    }}"]
+  }
+  subgraph cluster_MvccReader {
+    graph[label="MvccReader";fontsize=20;style="rounded,dashed";color="slategrey"]
+    load_lock[style_func;label="{{
+      load_lock|
+      读取key对应的lock
+    }}"]
+    get_txn_commit_record
+      
+  }
+  subgraph cluster_MvccTxn {
+    graph[label="MvccTxn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    MvccTxn_new;
+    into_modifies
+    check_write_and_rollback_lock[style_func;label="{{
+      check_write_and_rollback_lock|
+      Check whether there's an\l 
+      overlapped write record\l
+      and perform rollback\l
+    }}"]
+    check_write_and_rollback_lock -> {
+      get_txn_commit_record;
+      rollback_lock;
+      unlock_key;
+    }
+    rollback_lock -> {
+      delete_value
+      put_write
+      collapse_prev_rollback
+      unlock_key
+      make_rollback
+    }
+    Write[style_struct;label="{{
+      Write|
+        pub write_type: WriteType,\l|
+        pub start_ts: TimeStamp,\l|
+        pub short_value: Option\<Value\>,\l|
+        pub has_overlapped_rollback: bool,\l|
+        pub gc_fence: Option\<TimeStamp\>,\l
+    }}"]
+    make_rollback -> Write -> put_write[style_edge_data];
+
+    delete_value[style_func;label="{{
+      delete_value|
+      Modify::Delete(CF_DEFAULT,\l 
+      key.append_ts(ts));\l
+      从default中删除值
+    }}"]
+    put_write[style_func;label="{{
+      put_write|
+      let write = Modify::Put(CF_WRITE,\l 
+      key.append_ts(ts), value);\l
+    }}"]
+    unlock_key[style_func;label="{{
+      unlock_key|
+      删除key对应的lock返回release key\l|
+      let released = ReleasedLock::new(&key, pessimistic);\l
+      Modify::Delete(CF_LOCK, key)\l
+    }}"]
+    collapse_prev_rollback -> {
+      delete_write;
+    }
+    delete_write[style_func;label="{{
+      delete_write|
+      let write = Modify::Delete(CF_WRITE,\l 
+      key.append_ts(ts));\l
+    }}"]
+    delete_write -> modifies;
+    put_write -> modifies;
+    unlock_key -> modifies;
+    delete_value -> modifies
+    modifies[style_var;label="{{
+      modifies|
+      Vec\<Modify\>|
+    enum Modify|
+    Delete(CfName, Key),\l|
+    DeleteRange(CfName, Key, Key, bool),\l|
+    Put(CfName, Key, Value),\l
+    }}"]
+    modifies -> into_modifies;
+  }
+  unlock_key -> released_lock[style_edge_data];
+  subgraph cluster_Rollback {
+    graph[label="Command::Rollback";fontsize=20;style="rounded,dashed";color="slategrey"]
+    process_write-> {
+      MvccTxn_new
+      ReleasedLocks_new
+      wake_up;
+      push
+      into_modifies
+      write_data_from_modifiers
+      WriteResult
+      cleanup
+    }
+    process_write[style_func;label="{{
+      process_write|
+      遍历所有的keys\l 
+      释放key上的lock\l
+    }}"]
+    released_lock[style_var;label="{{
+      released_lock|
+      ReleasedLock|
+      pub hash: u64,\l|
+      pub pessimistic: bool,\l
+    }}"]
+    write_data_from_modifiers[style_func;label="{{
+      WriteData::from_modifies\l
+    }}"]
+    into_modifies -> write_data_from_modifiers -> WriteResult[style_edge_data];
+    cleanup[style_func;label="{{
+      cleanup|
+      检查lock的TTL\l
+      返回ReleasedLock
+    }}"]
+    cleanup -> {
+      load_lock
+      check_write_and_rollback_lock;
+      rollback_protect;
+    }
+    cleanup -> released_lock -> push[style_edge_data];
+  }
+}

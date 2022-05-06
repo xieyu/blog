@@ -1,0 +1,140 @@
+#include "styles.h"
+digraph handle_raft_ready {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  HandleRaftReadyContext -> PollContext;
+
+
+  subgraph cluster_Ready {
+    graph[label="raft/Ready";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Ready[style_struct;label="{{
+      Ready|
+        ss: Option\<SoftState\>,\l|
+        hs: Option\<HardState\>,\l|
+        snapshot: Snapshot,\l|
+        <entries> entries: Vec\<Entry\>,\l
+    }}"]
+  }
+
+
+  subgraph cluster_PollContext {
+    graph[label="PollContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PollContext[style_func;label="{{
+      PollContext|
+      pub kv_wb: EK::WriteBatch\l|
+      <raft_wb> pub raft_wb: ER::LogBatch\l|
+      ...
+    }}"]
+      
+  }
+
+  subgraph cluster_PeerStorage {
+    graph[label="PeerStorage";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_raft_ready -> {
+      InvokeContext
+      append;
+      apply_snapshot;
+      save_raft_state_to;
+      save_snapshot_raft_state_to;
+      save_apply_state_to;
+    }
+    save_raft_state_to -> PollContext:raft_wb;
+    save_snapshot_raft_state_to -> PollContext:kv_wb;
+    Ready:snapshot -> apply_snapshot;
+    {
+      Ready:entries
+    } -> append;
+    append -> {
+       cache_append;
+       set_last_index;
+       get_index;
+       get_term;
+       cut_logs;
+       PollContext:raft_wb;
+    }
+    subgraph cluster_last_entry {
+      graph[label="last_entry";fontsize=20;style="rounded,dashed";color="slategrey"]
+      get_index[style_func;label="{{
+        last_index|
+        获取最后一个\l
+        log entry的index\l
+      }}"]
+      get_term[style_func;label="{{
+        get_term|
+        获取最后一个\l
+        log entry的term\l
+      }}"]
+    }
+    set_last_index -> InvokeContext;
+    InvokeContext_new -> InvokeContext;
+    get_term -> InvokeContext:last_term;
+    get_index -> last_index;
+    {prev_last_index;last_index} -> RaftLogBatch_cut_logs;
+
+    Ready:hs -> RaftLocalState;
+    InvokeContext -> RaftLocalState;
+    RaftLocalState[style_func;label="{{
+      RaftLocalState|
+      HardState\l|
+      last_index\l
+    }}"]
+    RaftLocalState -> save_raft_state_to;
+    save_raft_state_to[style_func;label="{{
+      save_raft_state_to|
+      向raft_wb中写入RaftLocalState\l
+    }}"]
+    save_snapshot_raft_state_to[style_func;label="{{
+      save_snapshot_raft_state_to|
+      向kv_wb中写入snapshot raft state\l
+      包含了RaftLocalState\l 
+      和snap shot index\l
+    }}"]
+    RaftLocalState  -> save_snapshot_raft_state_to;
+    Ready:Snapshot -> save_snapshot_raft_state_to;
+    append[style_func;label="{{
+      append|
+      将Ready中的entries\l
+      写入raft_wb中\l
+    }}"]
+
+
+    InvokeContext[style_var;label="{{
+      InvokeContext|
+      pub region_id: u64,\l|
+      pub raft_state: RaftLocalState,\l|
+      pub apply_state: RaftApplyState,\l|
+      <last_term> last_term: u64,\l|
+      pub has_new_entries: bool,\l|
+      <snap_region> pub snap_region: Option\<Region\>,\l|
+      pub destroyed_regions: Vec\<metapb::Region\>,\l
+    }}"]
+
+    apply_snapshot[style_func;label="{{
+      apply_snapshot|
+      如果ready的snapshot不为空\l
+      apply the peer with given snapshot\l
+    }}"]
+    apply_snapshot -> {
+      InvokeContext:snap_region;
+      clear_meta;
+      is_initialized;
+      write_peer_state;
+    }
+    clear_meta[style_func;label="{{
+      clear_meta|
+      清理old data\l
+    }}"]
+    is_initialized -> clear_meta[style_edge_data];
+    write_peer_state[style_func;label="{{
+      write_peer_state|
+      向kv_wb写入PeerState\l
+    }}"]
+    write_peer_state -> PollContext:kv_wb;
+    save_apply_state_to -> PollContext:kv_wb;
+
+  }
+  
+}

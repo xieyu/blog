@@ -1,0 +1,185 @@
+digraph replica_leader_election {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_KafkaBroker {
+    graph[label="KafkaBroker";fontsize=20;];
+    subgraph cluster_KafkaApi {
+      graph[label="KafkaApi";fontsize=20;];
+      handleLeaderAndIsrRequest;
+      handleElectReplicaLeader;
+    }
+
+    subgraph cluster_partition {
+      graph[label="partition";fontsize=20;];
+      {makeLeader; makeFollower;} -> createLogIfNotExists;
+    }
+    subgraph cluster_ReplicaFetchThread {
+      graph[label="ReplicaFetchThread";fontsize=20;];
+      ReplicaFetcherThread[shape="record";
+        label="{{
+          ReplicaFetcherThread|
+            follower启动fetch线程，\l 
+            同步和partion leader的消息\l
+        }}";
+      ];
+    }
+    subgraph cluster_ReplicaManager {
+      graph[label="ReplicaManager";fontsize=20;];
+      becomeLeaderOrFollower[shape="record";
+        label="{{
+          becomeLeaderOrFollower|
+            根据收到的LeaderAndIsrRequest\l
+            以及自己的brokerID\l 
+            来判断自己是成为leader还是follower\l
+        }}";
+      ];
+      becomeLeaderOrFollower;
+      becomeLeaderOrFollower -> {
+        makeLeaders;
+        makeFollowers;
+        allPartitions;
+      };
+      allPartitions[
+        fillcolor="#95e1d3"
+        style=filled;
+        shape=box3d;
+        label="allPartitions"
+      ];
+      replica_electLeaders[label="electLeaders"];
+      makeFollowers -> ReplicaFetcherThread;
+    };
+
+    LeaderAndIsrRequest[shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        LeaderAndIsrRequest|
+          field \l
+      }}";
+    ];
+    handleLeaderAndIsrRequest -> LeaderAndIsrRequest;
+    LeaderAndIsrRequest -> becomeLeaderOrFollower;
+    handleElectReplicaLeader -> replica_electLeaders;
+    makeLeaders -> makeLeader;
+    makeFollowers -> makeFollower;
+    {rank=same;handleElectReplicaLeader;handleLeaderAndIsrRequest};
+  }
+  replica_electLeaders -> controller_electLeaders;
+
+
+  subgraph cluster_KafkaController {
+    graph[label="KafkaController";fontsize=20;];
+    subgraph cluster_PartionStateMachine {
+      graph[label="PartionStateMachine";fontsize=20;];
+      handleStateChange[shape="record";
+        label="{{
+          handleStateChange|
+          将partion状态改变转换为\l 
+          LeaderAndIsrReuest\l
+          群发给所有的broker\l
+        }}";
+      ];
+      handleStateChange -> {
+        electLeaderForPartitions;
+      }
+      electLeaderForPartitions -> doElectLeaderForPartitions;
+      doElectLeaderForPartitions[
+        fillcolor="#f38181"
+        style=filled;
+        shape="record";
+        label="{{
+          doElectLeaderForPartitions|
+          根据选举策略做选举\l
+        }}";
+      ];
+    }
+    subgraph cluster_ControllerChannelManager {
+      graph[label="ControllerChannelManager";fontsize=20;];
+      sendRequest[shape="record";
+        label="{{
+          sendRequest|
+            Controller和每个broker之间\l 
+            都有个发送请求的线程\l
+            线程由ControllerChannelManager管理
+        }}";
+      ];
+    }
+    controller_electLeaders[label="electLeaders"];
+    controller_electLeaders -> processReplicaLeaderElection;
+    onReplicaElection -> handleStateChange -> sendRequest;
+    onBrokerFailure -> onReplicaBecomeOffline -> handleStateChange;
+
+    sendRequest -> {
+      handleLeaderAndIsrRequest;
+      handleElectReplicaLeader;
+    };
+    onBrokerStartup -> maybeResumeReassignments -> onPartitionReassignment -> removePartitionFromReassigningPartitions -> processReplicaLeaderElection;
+    {
+      onControllerFailover
+      processReplicaLeaderElection;
+      checkAndTriggerAutoLeaderRebalance;
+    }-> onReplicaElection;
+
+    onBrokerStartup[shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        onBrokerStartup|
+        新启动一个broker可能触发\l 
+        partition leader rebalance;
+      }}";
+    ];
+    onBrokerFailure[shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        onBrokerFailure|
+        broker下线了，它上面的所有\l 
+        leader partition都下线了\l 
+        , 需要重新选取leader
+      }}";
+    ];
+    onControllerFailover[shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        onControllerFailover|
+        Controller故障了\l 
+        会选举新的controller\l 
+        ,然后触发新的leader election
+      }}";
+    ];
+    checkAndTriggerAutoLeaderRebalance[shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        checkAndTriggerAutoLeaderRebalance|
+          后台周期性检查\l 
+          是否要leader rebalance\l
+          需要的话会触发leader election\l
+      }}";
+    ];
+
+    partitionAssignments[
+      fillcolor="#95e1d3"
+      style=filled;
+      shape=box3d;
+      label="partitionAssignments"
+    ];
+  }
+
+  subgraph cluster_KafkaAdminClient {
+    graph[label="KafkaAdminClient";fontsize=20;];
+    admin_electLeaders[shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        electLeaders|
+        手动出发electLeaders
+      }}";
+    ];
+    admin_electLeaders -> handleElectReplicaLeader;
+  }
+}

@@ -1,0 +1,121 @@
+#include "styles.h"
+digraph peer_handle_raft_committed {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  Peer__handle_raft_ready_append -> {
+    RawNode__ready;
+    Peer__handle_raft_committed_entries;
+  }
+
+  RawNode__ready -> committed_entries[style_edge_data];
+  committed_entries[style_var;label="{{
+    committed_entries|
+    一批已经comitted\l
+    log entries\l
+  }}"]
+  ProposalQueue__find_proposal_time[style_func;label="{{
+    ProposalQueue\l
+    find_proposal_time\l|
+    根据log 的term,index\l
+    在Proposal Vec中二分查找\l
+    到对应的Proposal\l
+    返回它的renew_lease_time\l
+  }}"]
+  ProposalQueue__find_proposal[style_func;label="{{
+    ProposalQueue\l
+    find_proposal\l|
+    找到term,index对应的\l
+    proposal\l
+  }}"]
+  ProposalQueue__find_proposal -> {
+    notify_stale_req;
+  }
+  notify_stale_req[style_func;label="{{
+    notify_stale_req|
+    如果发现当前term和\l
+    proposal的term不一致\l
+    回调函数\l
+    StaleCommand\l
+  }}"]
+  notify_stale_req -> Callback__invoke_with_response;
+  committed_entries -> Peer__handle_raft_committed_entries;
+
+  Peer__handle_raft_committed_entries -> {
+    ProposalQueue__find_proposal_time;
+    ProposalQueue__find_proposal;
+    Callback__invoke_committed;
+    Peer__maybe_renew_leader_lease;
+    PollContext__ApplyRouter__schedule_task;
+  }
+  ProposalQueue__find_proposal -> cbs;
+
+  ProposalQueue__find_proposal_time -> Peer__maybe_renew_leader_lease[style_edge_data];
+  Callback__invoke_committed[style_blue1;label="{{
+    Callback\l
+    invoke_committed\l|
+    调用write回调\l
+    通知已经comitted了\l
+  }}"]
+  Callback__invoke_with_response[style_blue1;label="{{
+    Callback\l
+    invoke_with_response\l|
+    Error::StaleCommand, term\l
+  }}"]
+  {
+    committed_entries;
+    cbs;
+  } -> Apply__new;
+  cbs[style_func;label="{{
+    cbs|
+    这一批committed_entries\l
+    对应的Proposals\l
+    会转发给ApplyFsm\l
+  }}"]
+
+  Peer__maybe_renew_leader_lease[style_func;label="{{
+    Peer\l
+    maybe_renew_leader_lease\l|
+    使用Proposal提交时候的时间戳\l
+    renew leader lease\l
+  }}"]
+  Apply__new[style_func;label="{{
+    Apply__new|
+    self.peer_id(),\l|
+    self.region_id,\l|
+    self.term(),\l|
+    committed_entries,\l
+    cbs,
+  }}"]
+  Apply__new -> PollContext__ApplyRouter__schedule_task;
+  PollContext__ApplyRouter__schedule_task[style_func;label="{{
+    PollContext\l
+    ApplyRouter\l
+    schedule_task\l|
+    将comitted entries\l
+    连同它的callbacks\l
+    放入一个AplyTask\l
+    路由给ApplyFsm\l
+  }}"]
+
+  Peer__handle_raft_committed_entries[style_func;label="{{
+    Peer\l
+    handle_raft_committed_entries\l|
+    1. renew leader lease\l
+    2. 调用cb的invoke_comitted\l
+    3. 将comitted entries和它们的cbs\l
+    打包发给apply fsm处理\l
+  }}"]
+  Peer__handle_raft_ready_append[style_func;label="{{
+    Peer\l
+    handle_raft_ready_append\l
+  }}"]
+  RawNode__ready[style_func;label="{{
+    RawNode\l
+    ready\l|
+    获取comitted entries\l
+  }}"]
+}

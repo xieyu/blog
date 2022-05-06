@@ -1,0 +1,198 @@
+digraph flush_queue_put_detail {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  PreprocessWrite -> ScheduleFlushes;
+  ScheduleFlushes[shape="record";
+    label="{{
+      ScheduleFlushes|
+      生成flush请求放入\l 
+      flush_queue_队列中\l
+      由后台线程将memtable刷到磁盘上\l
+    }}";
+  ];
+  ScheduleFlushes -> {
+    FlushScheduler;
+    SelectColumnFamiliesForAtomicFlush;
+    TakeNextColumnFamily;
+    SwitchMemtable;
+    GenerateFlushRequest;
+    SchedulePendingFlush;
+    MaybeScheduleFlushOrCompaction;
+  }[color="#b83b5e"]
+
+  SelectColumnFamiliesForAtomicFlush[shape="record";
+    label="{{
+      SelectColumnFamiliesForAtomicFlush|
+      如果immutable_db_options_.\lattomic_flush
+      为true\l
+    }}";
+  ];
+
+  SchedulePendingFlush -> {
+    flush_queue_
+  }
+  GenerateFlushRequest[shape="record";
+    label="{{
+      GenerateFlushRequest|
+      遍历cfds, 获取每个cfd的\l 
+      LastestMemTableID\l
+      生成FlushRequest\l
+    }}";
+  ];
+  {
+    edge[style=dashed;color=gray40];
+  }
+
+  SelectColumnFamiliesForAtomicFlush;
+
+  SwitchMemtable[shape="record";
+    label="{{
+      SwitchMemtable|
+      将memtable加到immtable list中\l
+      并创建新的memtable\l
+    }}";
+  ];
+
+  subgraph cluster_MemTableInsert {
+    graph[label="MemTableInserter";fontsize=20;];
+    WriteBatchInternal_Iterate -> {
+      PutCFImpl;
+      DeleteImpl;
+      MergeCF;
+    }-> CheckMemtableFull;
+    CheckMemtableFull[shape="record";
+      label="{{
+        CheckMemtableFull|
+        如果memtable满了，\l 
+        需要flush，则放入队列\l
+      }}";
+    ];
+    WriteBatchInternal_Iterate[shape="record";
+      label="{{
+        WriteBatchInternal_Iterate|
+        迭代遍历WAL日志内容\l
+        插入memtable中\l
+      }}";
+    ];
+  }
+  WriteImpl -> {
+    WriteBatchInternal_Iterate;
+    PreprocessWrite;
+  };
+
+  CheckMemtableFull -> ScheduleWork;
+  subgraph cluster_FlushScheduler {
+    graph[label="FlushScheduler";fontsize=20;];
+    ScheduleWork -> _Node;
+    TakeNextColumnFamily[shape="record";
+      label="{{
+        TakeNextColumnFamily|
+        从链表头取出一个节点
+      }}";
+    ];
+    TakeNextColumnFamily -> _Node;
+
+    FlushScheduler[shape="record";
+      label="{{
+        flush_scheduler_|
+        FlushScheduler\l|
+        <Node> std::aomic\<Node*\> head_
+      }}";
+    ];
+    FlushScheduler -> _Node;
+    _Node[shape="record";
+      label="{{
+        Node|
+          ColumnFamilyData* column_family;\l|
+          Node* next;\l
+      }}";
+    ];
+  }
+  /*
+  subgraph cluster_ColumnFamily {
+    graph[label="ColumnFamily";fontsize=20;];
+    GetColumnFamily[shape="record";
+      label="{{
+        GetColumnFamily|
+        根据columnID获取对应的\l 
+        ColumnFamliyData\l
+      }}";
+    ];
+    subgraph cluster_ColumnFamilyData {
+      graph[label="ColumnFamilyData";fontsize=20;];
+      ColumnFamilyData[shape="record";
+        label="{{
+          ColumnFamilyData|
+            field \l
+        }}";
+      ];
+      CreateNewMemtable -> {
+        ConstructNewMemtable;
+        SetMemtable;
+      }
+    }
+  }
+  */
+
+  subgraph cluster_DBImpl{
+    graph[label="Dbimpl";fontsize=20;];
+    MaybeScheduleFlushOrCompaction[
+      shape="record";
+      label="{{
+        MaybeScheduleFlushOrCompaction|
+        将memtable flush到磁盘上\l
+        触发后台线程压缩\l
+      }}";
+    ];
+    WriteImpl;
+    SwitchMemtable;
+    PreprocessWrite;
+    ScheduleFlushes;
+    SelectColumnFamiliesForAtomicFlush;
+    SchedulePendingFlush;
+    GenerateFlushRequest;
+    flush_queue_[
+      shape="record";
+      style=filled
+      fillcolor="#95e1d3"
+      label="{{
+        flush队列: flush_queue_|
+          放入条件:cfd-\>imm()-\>IsFlushPending()\l|
+          <FlushRequest> std::deque\<FlushRequest\> flush_queue_;|
+      }}";
+    ];
+    FlushRequest[shape="record";
+      style=filled
+      fillcolor="#95e1d3"
+      label="{{
+        FlushRequest|
+          A flush request specifies\l 
+          the column families to flush\l 
+          as well as the largest memtable\l 
+          id to persist for each column family\l
+          typedef std::vector\<std::pair\l\<ColumnFamilyData*, uint64_t\>\> FlushRequest;
+      }}";
+    ];
+    flush_queue_:FlushRequest -> FlushRequest;
+    BackgroundFlush[shape="record";
+      label="{{
+        BackgroundFlush|
+        遍历flush_queue_\l
+        将需要刷新的columnfamilyData\l 
+        的memtable\l
+        刷到磁盘上\l
+      }}";
+    ];
+  }
+
+  //data depends relationship
+  {
+    edge[style=dashed;color=gray40];
+    flush_queue_ -> BackgroundFlush;
+    GenerateFlushRequest -> SchedulePendingFlush;
+    MaybeScheduleFlushOrCompaction -> BackgroundFlush;
+    ScheduleWork -> TakeNextColumnFamily;
+  }
+}

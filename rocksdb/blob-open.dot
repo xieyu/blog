@@ -1,0 +1,48 @@
+digraph blob_open {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_BlobDBImpl {
+    graph[label="BlobDBImpl";fontsize=20;];
+    Open -> {
+      OpenAllBlobFiles;
+    }
+    OpenAllBlobFiles[
+      shape="record"
+      label="{{
+        OpenAllBlobFiles|
+        1.扫描blob_dir所有的blob文件\l
+        2.读取blob的metadata\l
+        3.删除损坏的blob文件\l
+      }}"
+    ];
+    OpenAllBlobFiles ->{
+      GetAllBlobFiles;
+      ReadMetadata;
+      ObsoleteBlobFile;
+      blob_files_;
+    };
+
+    GetAllBlobFiles -> {
+      blob_dir_;
+      GetChildren;
+    }
+    GetAllBlobFiles[
+      shape="record"
+      label="{{
+        GetAllBlobFiles|
+        遍历blob_dir_文件夹\l
+        中所有blob文件的\l
+      }}"
+    ];
+    ReadMetadata[
+      shape="record"
+      label="{{
+        ReadMetadata|
+        读取blob文件的metadata
+      }}"
+    ];
+    
+  }
+}

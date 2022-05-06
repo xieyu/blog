@@ -1,0 +1,89 @@
+#include "styles.h"
+digraph RaftKv_async_write {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_RaftStoreRouter {
+    graph[label="RaftStoreRouter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    send_command;
+      
+  }
+  subgraph cluster_CallbackWrite {
+    graph[label="CallbackWrite";fontsize=20;style="rounded,dashed";color="slategrey"]
+
+    WriteCallback[style_struct;label="{{
+      WriteCallback|
+        Box\<dyn FnOnce(WriteResponse) + Send\>;\l
+    }}"]
+    Callback_Write[style_struct;label="{{
+      Callback::Write|
+        cb: WriteCallback,\l|
+        proposed_cb: Option\<ExtCallback\>,\l|
+        committed_cb: Option\<ExtCallback\>,\l
+    }}"]
+    Callback_Write -> WriteCallback;
+    send_command -> Callback_Write[style_edge_data]
+    send_command[style_func;label="{{
+      send_command|
+        发送消息给RaftPoller\l|
+        PeerFsm在处理好消息后\l
+        会调用callback\l
+    }}"]
+    Callback_Write -> {
+      invoke_proposed;
+      invoke_committed;
+      invoke_with_response;
+    }
+      
+  }
+  subgraph cluster_RaftKV {
+    graph[label="RaftKV";fontsize=20;style="rounded,dashed";color="slategrey"]
+    async_write -> {
+      async_write_ext;
+    }
+    async_write_ext -> {
+      modifies_to_requests;
+      exec_write_requests;
+      get_status_kind_from_error;
+    }
+
+    exec_write_requests -> {
+      raftkv_early_error_report_fp;
+      new_request_header;
+      send_command;
+      RaftCmdRequest;
+    }
+
+    modifies_to_requests[style_func;label="{{
+      modifies_to_requests|
+      将Txn中的Modifiers改为\l
+      发往raft的Request
+    }}"]
+    modifies[style_func;label="{{
+      modifies|
+      Vec\<modifies\>\l
+    }}"]
+    requests[style_func;label="{{
+      requests|
+      Vec\<Requests\l>
+    }}"]
+
+    modifies-> modifies_to_requests;
+    modifies_to_requests -> {
+      DeleteRequest;
+      PutRequest;
+      DeleteRangen;
+    } -> requests[style_edge_data];
+    RaftCmdRequest[style_struct;label="{{
+      RaftCmdRequest|
+      header: RaftRequestHeader
+      reqeusts: RepeatedField\<Request\>\l
+    }}"]
+
+    requests -> exec_write_requests;
+    requests -> RaftCmdRequest[style_edge_data];
+    RaftCmdRequest -> RaftStoreRouter;
+  }
+  
+}

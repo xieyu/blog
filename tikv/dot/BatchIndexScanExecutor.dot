@@ -1,0 +1,56 @@
+#include "styles.h"
+digraph BatchIndexScanExecutor {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  IndexScanExecutorImpl[style_func;label="{{
+    IndexScanExecutorImpl|
+    context: EvalContext,\l|
+    schema: Vec\<FieldType\>,\l|
+    columns_id_without_handle: Vec\<i64\>,\l|
+    columns_id_for_common_handle: Vec\<i64\>,\l|
+    decode_handle_strategy: DecodeHandleStrategy,\l|
+    pid_column_cnt: usize,\l|
+    index_version: i64,\l
+  }}"]
+
+  IndexScanExecutorImpl -> {
+     FieldType;
+     DecodeHandleStrategy;
+     EvalContext;
+  }
+
+  subgraph cluster_tipb {
+    graph[label="tipb";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Executor -> IndexScan;
+    IndexScan[style_func;label="{{
+      IndexScan|
+      optional int64 table_id = 1;\l|
+      optional int64 index_id = 2;\l|
+      repeated ColumnInfo columns = 3;\l|
+      optional bool desc = 4;\l|
+      optional bool unique = 5;\l|
+      repeated int64 primary_column_ids = 6;\l
+    }}"]
+    IndexScan -> ColumnInfo;
+
+    ColumnInfo[style_func;label="{{
+      ColumnInfo|
+	optional int64 column_id = 1\l|
+	optional int32 tp = 2 \l|
+	optional int32 collation = 3\l|
+	optional int32 columnLen = 4\l|
+	optional int32 decimal = 5\l|
+	optional int32 flag = 6\l|
+	repeated string elems = 7;\l|
+	optional bytes default_val = 8;\l|
+	optional bool pk_handle = 21\l
+    }}"]
+  }
+  build_executors -> BatchIndexScanExecutor_new;
+  BatchIndexScanExecutor_new -> IndexScanExecutorImpl;
+  field_type_from_column_info -> schema -> IndexScanExecutorImpl;
+  ColumnInfo -> field_type_from_column_info;
+  
+}

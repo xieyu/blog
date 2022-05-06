@@ -1,0 +1,82 @@
+digraph MaybeScheduleFlushOrCompaction {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  MaybeScheduleFlushOrCompaction[shape="record";
+    label="{{
+      MaybeScheduleFlushOrCompaction|
+      调度刷新和压缩线程\l
+      最大线程数为GetBGJobLimits\l
+    }}";
+  ];
+  MaybeScheduleFlushOrCompaction -> {
+    GetBGJobLimits;
+    GetBackgroundThreads;
+    Schedule;
+  }
+  Schedule[shape="record";
+    label="{{
+      Schedule|
+      后台线程池调度
+    }}";
+  ];
+  BGThread[shape="record";
+    label="{{
+      BGThread|
+      后台工作线程
+    }}";
+  ];
+  Schedule -> BGThread[style=dashed;color=gray70];
+
+  BGThread -> {
+    BGWorkFlush;
+    BGWorkCompaction;
+  }[style=dashed;color=gray50];
+
+  BGWorkFlush -> {
+    BackgroundCallFlush;
+  }
+
+  BackgroundCallFlush -> {
+    BackgroundFlush;
+    MaybeScheduleFlushOrCompaction;
+  }
+  BackgroundFlush[shape="record";
+    label="{{
+      BackgroundFlush|
+      将memTable\l 
+      刷到磁盘上\l
+    }}";
+  ];
+  BackgroundFlush -> Flush_Job -> WriteLevel0Table -> TableBuilder[style=dashed;color=gray40];
+
+  WriteLevel0Table[shape="record";
+    label="{{
+      WriteLevel0Table|
+      将memtable刷入磁盘中
+    }}";
+  ];
+
+
+  BGWorkCompaction -> {
+    BackgroundCallCompaction;
+    MaybeScheduleFlushOrCompaction;
+  }
+  BackgroundCallCompaction -> {
+    BackgroundCompaction;
+  }
+  BackgroundCompaction[shape="record";
+    label="{{
+      BackgroundCompaction|
+      压缩\l
+    }}";
+  ];
+  BackgroundCompaction -> CompactionJob -> ProcessKeyValueCompaction -> TableBuilder[style=dashed;color=gray40];
+  ProcessKeyValueCompaction[shape="record";
+    label="{{
+      ProcessKeyValueCompaction|
+      最归并排序compaction\l
+    }}";
+  ];
+}

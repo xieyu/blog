@@ -1,0 +1,278 @@
+digraph Writer {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  WriteGroup[
+    shape="record";
+    label="{{
+      WriteGroup|
+        <Writer> Writer* leader = nullptr;\l|
+        Writer* last_writer = nullptr;\l|
+        SequenceNumber last_sequence;\l|
+        Status status;\l|
+        std::atomic<size_t> running;\l
+    }}";
+  ];
+  WriteGroup:Writer -> Writer;
+
+  Writer[
+    shape="record";
+    label="{{
+      Writer|
+        WriteBatch* batch;\l|
+        bool sync;\l|
+        bool no_slowdown;\l|
+        bool disable_wal;\l|
+        bool disable_memtable;\l|
+        size_t batch_cnt;\l|
+        PreReleaseCallback* pre_release_callback;\l|
+        uint64_t log_used;\l|
+        uint64_t log_ref;\l|
+        WriteCallback* callback;\l|
+        <state> std::atomic\<uint8_t\> state;\l|
+        WriteGroup* write_group;\l
+        std::aligned_storage\<sizeof(std::mutex)\>\l::type state_mutex_bytes;\l|
+        std::aligned_storage\<sizeof(\lstd::condition_variable)\>::type state_cv_bytes;\l|
+        Writer* link_older;\l|
+        Writer* link_newer;\l
+    }}";
+  ];
+  WriteThread[
+    shape="record";
+    label="{{
+      WriteThread|
+        <Writer>
+        当前writer链表队列\l
+        std::atomic\<Writer*\> newest_writer_;\l|
+        std::atomic\<Writer*\> newest_memtable_writer_;\l|
+        port::Mutex stall_mu_;\l|
+        port::CondVar stall_cv_;\l
+    }}";
+  ];
+  EnterAsBatchGroupLeader[
+    shape="record";
+    label="{{
+      EnterAsBatchGroupLeader|
+      将writer设置为group中的leader\l
+    }}";
+  ];
+  DBImpl[
+    shape="record";
+    label="{{
+      DBImpl|
+        <WriteThread> WriteThread write_thread_;\l
+    }}";
+  ];
+  DBImpl:WriteThread -> WriteThread;
+  WriteThread:Writer -> Writer;
+
+  DBImpl_WriteImpl -> {
+    JoinBatchGroup;
+    DBImpl_PipelineWriteImpl;
+    IF_STATE_PARALLEL_MEMABLE_WRITER;
+    IF_STATE_GROUP_LEADER;
+  }[color="#e84545"]
+
+  IF_STATE_PARALLEL_MEMABLE_WRITER[shape="record";
+    label="{{
+      如果JoinBatchGroup后状态为\l|
+      STATE_PARALLEL_MEMTABLE_WRITER\l
+    }}";
+  ];
+
+  IF_STATE_PARALLEL_MEMABLE_WRITER -> {
+    ShouldWriteToMemtable;
+    WriteBatchInternal_InsertInto;
+    CompleteParallelMemTableWriter;
+    MemTableInsertStatusCheck;
+    ExitAsBatchGroupFollower;
+    EnterAsMemTableWriter;
+  }[color="#f08a5d"];
+
+  WriteBatchInternal_InsertInto[shape="record";
+    label="{{
+      WriteBatchInternal::InsertInto|
+      将WriteBatch插入MemTable\l
+    }}";
+  ];
+  JoinBatchGroup -> IF_STATE_PARALLEL_MEMABLE_WRITER [style=dashed;color=gray;];
+  JoinBatchGroup -> IF_STATE_GROUP_LEADER[style=dashed;color=gray];
+  LaunchParallelMemTableWriters -> IF_STATE_PARALLEL_MEMABLE_WRITER[style=dashed;color=gray];
+
+  CompleteParallelMemTableWriter -> {
+    AwaitState;
+  }
+
+  IF_STATE_GROUP_LEADER[shape="record";
+    label="{{
+      如果JoinBatchGroup后状态为\l 
+      成为GROUP_LEADER\l
+    }}";
+  ];
+  {rank=same;IF_STATE_GROUP_LEADER;IF_STATE_PARALLEL_MEMABLE_WRITER};
+
+    IF_STATE_GROUP_LEADER -> {
+      PreprocessWrite;
+      EnterAsBatchGroupLeader;
+      ShouldWriteToMemtable;
+      IF_PARALLEL;
+      WriteToWAL;
+      ConcurrentWriteToWAL;
+    }[color="#17b978"];
+
+    PreprocessWrite -> {
+      WaitForPendingWrites;
+      HandleWriteBufferFull;
+      TrimMemtableHistory;
+      ScheduleFlushes;
+    }
+
+    IF_PARALLEL[shape="record";
+      label="{{
+        如果允许并行写\l
+        就LaunchParallelMemTableWriters\l
+        让所有writers并行写\l
+        否则由groupLeader 插入\l 
+        到MemTable中\l
+      }}";
+    ];
+    IF_PARALLEL -> {
+      LaunchParallelMemTableWriters;
+      WriteBatchInternal_InsertInto;
+    };
+    WriteToWAL[shape="record";
+      label="{{
+        WriteToWAL|
+        写WAL日志
+      }}";
+    ];
+    ConcurrentWriteToWAL[shape="record";
+      label="{{
+        ConcurrentWriteToWAL|
+        由two_write_queues_变量\l 
+        决定是否并发写\l
+        并发的写入WAL日志\l
+      }}";
+    ];
+
+    LaunchParallelMemTableWriters[shape="record";
+      label="{{
+        LaunchParallelMemTableWriters|
+        将group中的所有write状态设置为\l
+        STATE_PARALLEL_MEMTABLE_WRITER\l
+      }}";
+    ];
+  DBImpl_WriteImpl[
+    shape="record";
+    label="{{
+      DBImpl::WriteImpl|
+      1.如果打开了enable_pipline_write则调用\l
+      PipelinedWriteImpl\l
+    }}";
+  ];
+  /*
+  DBImpl_PipelineWriteImpl -> {
+    JoinBatchGroup;
+    WaitForPendingWrites;
+    EnterAsBatchGroupLeader;
+    ExitAsBatchGroupFollower;
+    ExitAsMemTableWriter;
+    EnterAsMemTableWriter;
+  }[color="#3f72af"]
+  */
+
+  JoinBatchGroup[
+    shape="record";
+    label="{{
+      JoinBatchGroup|
+      1.加入batchGroup\l
+      2.要么作为leader，要么等到目标状态\l
+    }}";
+  ];
+  JoinBatchGroup -> {
+    LinkOne;
+    SetState;
+    AwaitState;
+  }[color="#3f72af"];
+
+  LinkOne[
+    shape="record";
+    label="{{
+      LinkOne|
+      尝试成为groupLeader
+    }}";
+  ];
+  LinkOne -> {
+    newest_writer_;
+    stall_cv_Wait;
+  }
+
+  AwaitState[
+    shape="record";
+    label="{{
+      AwaitState|
+    AwaitState(w, \lSTATE_GROUP_LEADER \l\| STATE_MEMTABLE_WRITER_LEADER \l\|
+                      STATE_PARALLEL_MEMTABLE_WRITER \l\| STATE_COMPLETED)\l
+      1.轮询两百次直到state变为目标状态\l|
+      2.使用thread yield\l|
+      3.等待condVar\l
+    }}";
+  ];
+  AwaitState -> {
+    Writer:state;
+    AsmVolatilePause;
+    std_this_thread_yield;
+    BlockingAwaitState;
+  }
+  BlockingAwaitState -> {
+    CreateMutex;
+    Writer:state;
+    StateCV_wait;
+  }
+  SetState[
+    shape="record";
+    label="{{
+      SetState|
+      设置Writer的状态，并通知\l 
+      等待writer状态变化的condvar\l
+    }}";
+  ];
+
+  SetState -> {
+    Writer:state;
+    StateCV_noitfy_one;
+  }
+
+  EnterAsBatchGroupLeader -> {
+    CreateMissingNewerLinks;
+    AllowWriteBatching;
+    WriteGroup:Writer;
+  }
+
+  EnterAsMemTableWriter -> {
+    CreateMissingNewerLinks;
+    HasMerge;
+  }
+
+  ExitAsMemTableWriter -> {
+    newest_memtable_writer_;
+    SetState;
+  }
+  LaunchParallelMemTableWriters -> {
+    SetState;
+  }
+
+  subgraph cluster_StateCV {
+    graph[label="StateCV";fontsize=20;style=rounded];
+    StateCV_wait;
+    StateCV_noitfy_one;
+    StateCV_noitfy_one -> StateCV_wait;
+  };
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;];
+    DBImpl_PipelineWriteImpl;
+    DBImpl_WriteImpl;
+    DBImpl;
+    WaitForPendingWrites;
+  }
+}

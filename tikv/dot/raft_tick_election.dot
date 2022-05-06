@@ -1,0 +1,194 @@
+#include "styles.h"
+digraph raft_tick_election {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftCore__tick -> {
+    RaftCore__tick_election;
+  }
+
+  RaftCore__tick_election ->{
+     RaftCore__election_elapsed;
+     RaftCore__pass_election_timeout;
+     RaftCore__step;
+  }
+
+  RaftCore__pass_election_timeout -> {
+     RaftCore__election_elapsed;
+     RaftCore__randomized_election_timeout;
+  }
+
+  RaftCore__step -> {
+    RaftCore__hup;
+    RaftCore__pre_vote;
+  }
+
+  RaftCore__hup -> {
+    RaftCore__campain
+  }
+  RaftCore__campain -> {
+    RaftCore__become_pre_candidate;
+    RaftCore__become_candidate;
+    ProgressTracker_conf_voters;
+    RaftCore__poll;
+    RaftCore__send;
+    VoteMsg;
+    PreVoteMsg;
+  }
+
+  RaftCore__become_pre_candidate[style_blue1;label="{{
+    RaftCore__become_pre_candidate|
+    1.将state设置为pre candidate\l
+    2.重置ProgressTracker的votes\l
+    注意这地方没有更改自己的hardstate: vote\l
+  }}"]
+  RaftCore__become_pre_candidate -> {
+     RaftCore__state;
+     ProgressTracker__reset_votes;
+  }
+  ProgressTracker_conf_voters[style_var;label="{{
+    ProgressTracker_conf_voters|
+    pub(crate) voters: JointConfig,\l
+  }}"]
+
+  RaftCore__campain[style_func;label="{{
+    RaftCore__campain|
+    遍历所有的voters\l
+    向每个voter发送PreVote\l
+    或者Vote Msg\l
+  }}"]
+  RaftCore__pre_vote[style_var;label="{{
+    RaftCore__pre_vote|
+    Enable the prevote algorithm\l
+    配置是否开启prevote\l
+  }}"]
+
+  ProgressTracker__record_vote[style_func;label="{{
+    ProgressTracker__record_vote|
+    先给自己记上一票\l
+  }}"]
+  ProgressTracker__tally_votes -> {
+    ProgressTracker__votes;
+  }
+  RaftCore__state[style_var;label="{{
+    RaftCore__state
+  }}"]
+  RaftCore__randomized_election_timeout[style_var;label="{{
+    RaftCore__randomized_election_timeout\l|
+    随机化的超时时间\l
+    降低多个candidate同时election\l
+    发送split vote概率\l
+  }}"]
+  RaftCore__election_elapsed[style_var;label="{{
+    RaftCore__election_elapsed
+  }}"]
+
+  ProgressTracker__reset_votes[style_func;label="{{
+    ProgressTracker__reset_votes|
+    清理掉之前的vote结果\l
+  }}"]
+  ProgressTracker__reset_votes -> ProgressTracker__votes;
+  ProgressTracker__record_vote -> ProgressTracker__votes;
+  ProgressTracker__votes[style_var;label="{{
+    ProgressTracker__votes|
+    votes: HashMap\<u64, bool\>,\l
+  }}"]
+
+  RaftCore__become_candidate[style_blue1;label="{{
+    RaftCore__become_candidate|
+    1.state设置为StateRole::Candidate\l
+    2.将self.term +1\l
+    3.将hardstate vote = self.id\l
+  }}"]
+
+  RaftCore__become_candidate -> {
+    RaftCore__state;
+    RaftCore__reset;
+  }
+
+  RaftCore__reset -> {
+    RaftCore__reset_randomized_election_timeout;
+  }
+  RaftCore__reset_randomized_election_timeout -> RaftCore__randomized_election_timeout;
+
+
+  RaftCore__poll[style_blue1;label="{{
+    RaftCore__poll|
+    先给自己投一票\l
+    然后查看投票结果\l
+    是否赢得了选票\l|
+    1.如果赢得了pre election\l
+    则发起真正的election\l|
+    2.如果赢得了election\l
+    成为leader,bcast_append\l|
+    3.失败了就成为follower\l
+  }}"]
+  RaftCore__poll -> {
+    ProgressTracker__record_vote;
+    win_pre_election;
+    RaftCore__become_leader;
+    RaftCore__become_follower;
+    RaftCore__bcast_append;
+    ProgressTracker__tally_votes;
+  }
+  ProgressTracker__tally_votes[style_func;label="{{
+    ProgressTracker__tally_votes|
+    统计选票看自己\l
+    是否已win\l
+  }}"]
+  win_pre_election[style_struct;label="{{
+    赢得了PreElection \l
+    发起真正election\l
+  }}"]
+  RaftCore__become_follower[style_func;label="{{
+    RaftCore__become_follower|
+    选举失败，成为follower\l
+  }}"]
+  RaftCore__become_leader[style_func;label="{{
+    RaftCore__become_leader|
+    赢得了选举，成为leader\l
+  }}"]
+  RaftCore__bcast_append[style_func;label="{{
+    RaftCore__bcast_append|
+    成为leader后，\l
+    开始向所有follower发送appendMsg\l
+  }}"]
+
+  RaftCore__send[style_func;label="{{
+    RaftCore__send|
+    向peer发送VoteRequest\l
+    或者PreVoteRequest\l
+  }}"]
+
+  win_pre_election -> RaftCore__campain;
+  RaftCore__pre_vote -> {
+    PreVoteMsg;
+    RaftCore__become_pre_candidate
+  }[style_edge_data];
+
+  {
+    ProgressTracker_conf_voters;
+    VoteMsg;
+    PreVoteMsg;
+  } -> RaftCore__send[style_edge_data];
+
+  PreVoteMsg[style_func;label="{{
+    PreVoteMsg|
+    type：MsgRequestPreVote\l|
+    index: self.raft_log.last_index\l|
+    term: self.term +1\l|
+    commit: self.raft_log.commit_info\l
+    commit_term: self.raft_log.commit_info
+  }}"]
+
+  VoteMsg[style_func;label="{{
+    VoteMsg|
+    type：MsgRequestVote\l|
+    index: self.raft_log.last_index\l|
+    term: self.term\l|
+    commit: self.raft_log.commit_info\l
+    commit_term: self.raft_log.commit_info
+  }}"]
+}

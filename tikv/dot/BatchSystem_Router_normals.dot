@@ -1,0 +1,72 @@
+#include "styles.h"
+digraph BatchSystem_router_normals{
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RaftBatchSystem_spawn -> {
+     RaftPollerBuilder_init;
+     RaftBatchSystem_start_system;
+  }
+  Vec_SenderFsmPair;
+  RaftBatchSystem_start_system -> {
+    RaftRouter_register_all;
+    BasicMailbox_new;
+  };
+  BasicMailbox_new -> RaftRouter_register_all[style_edge_data];
+  RaftRouter_register_all -> normals;
+  RaftPollerBuilder_init -> Vec_SenderFsmPair[style_edge_data];
+  RaftPollerBuilder_init -> {
+     kv_engine_scan_cf;
+     PeerFsm_create;
+  }
+  PeerFsm_create -> {
+    loose_bounded;
+  }
+  loose_bounded[style_func;label="{{
+    loose_bounded|
+    创建通信的tx,rx
+  }}"]
+  PeerFsm_create[style_func;label="{{
+    PeerFsm::create|
+    创建PeerFsm, rx保存在PeerFsm\l
+    tx返回给调用者\l
+  }}"]
+  PeerFsm_create -> tx;
+  kv_engine_scan_cf[style_func;label="{{
+    kv_engine.scan_cf(CF_RAFT,...)|
+    扫描CF_RAFT，\l
+    加载所有的region\l
+    对于每个Region创建PeerFsm\l
+  }}"]
+  tx -> Vec_SenderFsmPair -> BasicMailbox_new[style_edge_data];
+  kv_engine_scan_cf -> PeerFsm_create[style_edge_data];
+  RaftBatchSystem_spawn[style_func;label="{{
+    RaftBatchSystem\lspawn
+  }}"]
+  RaftPollerBuilder_init[style_func;label="{{
+    RaftPollerBuilder\linit\l
+  }}"]
+  Vec_SenderFsmPair[style_func;label="{{
+    Vec\<SenderFsmPair\>|
+    tx, PeerFsm
+  }}"]
+  RaftBatchSystem_start_system[style_func;label="{{
+    RaftBatchSystem\lstart_system
+  }}"]
+  RaftRouter_register_all[style_func;label="{{
+    RaftRouter\l|
+    register_all\l
+    注册mailbox到\l
+    normals map\l
+  }}"]
+
+  normals[style_blue1;label="{{
+    RaftRouter::normals|
+    {region1|{BasicMailbox|{FsmState\l标记Fsm是否已发送到\l NormalChannel\l|<tx1> tx}}}|
+    {region2|{BasicMailbox|{FsmState|<tx2> tx}}}|
+    {region3|{BasicMailbox|{FsmState|<tx3> tx}}}|
+    ...
+  }}"]
+}

@@ -1,0 +1,71 @@
+#include "styles.h"
+digraph AggregationExecutor_next_batch {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+
+  AggregationExecutor_next_batch -> {
+     AggregationExecutor_handle_next_batch;
+  }
+
+  AggregationExecutor_handle_next_batch -> {
+    entities_src_next_batch;
+    imp_process_batch_input;
+    AggregationExecutor_aggregate_partial_results;
+    imp_is_partial_results_ready;
+  }
+
+  AggregationExecutor_aggregate_partial_results -> {
+    imp_iterate_available_groups;
+  }
+  imp_iterate_available_groups -> state_push_result[style_edge_data];
+  imp_is_partial_results_ready -> AggregationExecutor_aggregate_partial_results[style_edge_data];
+  AggregationExecutor_aggregate_partial_results[style_func;label="{{
+    AggregationExecutor::\l 
+    aggregate_partial_results\l|
+    Generates aggregation \l 
+    results of available groups\l
+  }}"]
+  imp_iterate_available_groups[style_struct;label="{{
+    AggregationExecutorImpl::\literate_available_groups\l|
+    Pull aggregate results of each\l
+    available group\l|
+    遍历所有的group\l
+    调用传进来的闭包函数\l
+    对entities和states做处理\l
+  }}"]
+  imp_iterate_available_groups -> group_closure;
+  group_closure[style_func;label="{{
+   闭包函数\l
+   迭代处理states\l
+   \|entities,states\|\{...\}
+  }}"]
+  state_push_result -> all_result_columns;
+  group_closure -> state_push_result;
+
+  AggregationExecutor_next_batch[style_func;label="{{
+    AggregationExecutor::\lnext_batch\l
+  }}"]
+  AggregationExecutor_handle_next_batch[style_func;label="{{
+    AggregationExecutor::\lhandle_next_batch\l
+  }}"]
+  imp_process_batch_input[style_struct;label="{{
+    AggregationExecutorImpl::\lprocess_batch_input\l
+    对这一批数据做聚合处理\l
+  }}"]
+  entities_src_next_batch[style_var;label="{{
+    entities.src.next_batch|
+    从src BatchExecutor\l
+    获取一个BatchExecuteResult\l
+  }}"]
+  state_push_result[style_func;label="{{
+    AggrFunctionState::\lpush_result
+  }}"]
+
+  entities_src_next_batch -> imp_process_batch_input[style_edge_data];
+  imp_is_partial_results_ready[style_struct;label="{{
+    AggregationExecutorImpl::\lis_partial_results_ready
+  }}"]
+}

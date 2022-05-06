@@ -1,0 +1,74 @@
+#include "styles.h"
+digraph end {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RaftBatchSystem[style_struct;label="{{
+    RaftBatchSystem|
+    router: RaftRouter\<EK, ER\>,\l
+  }}"]
+  ApplyPollerBuilder[style_struct;label="{{
+    ApplyPollerBuilder|
+    sender: Box\<dyn Notifier\<EK\>\>,\l
+  }}"]
+  ApplyContext[style_struct;label="{{
+    ApplyContext|
+    router: ApplyRouter\<EK\>,\l|
+    <notifier> notifier: Box\<dyn Notifier\<EK\>\>,\l|
+    <apply_res> apply_res: Vec\<ApplyRes\<EK::Snapshot\>\>,\l
+    kv_wb: W,\l
+  }}"]
+
+  RaftBatchSystem:router -> ApplyPollerBuilder:sender -> ApplyContext:notifier;
+  subgraph cluster_RaftRouter {
+    graph[label="RaftRouter";fontsize=20;style="rounded,dashed";color="slategrey"]
+    notify -> {
+      try_send;
+    }
+    notify[style_func;label="{{
+      notify|
+      遍历apply_res\l
+      将ApplyRes 发送给\l 
+      ApplyRes.region_id\l 
+      对应的PeerFSM的reciver\l
+    }}"]
+    try_send[style_func;label="{{
+      try_send|
+      发送消息给Region\l|
+      该消息将在raftpoller\l 
+      线程池处理\l
+    }}"]
+  }
+
+  subgraph cluster_ApplyContext {
+    graph[label="ApplyContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    {
+      ApplyContext:apply_res
+      ApplyContext:notifier
+    } -> notify
+    flush -> {
+      write_to_db;
+      notify;
+    }
+    write_to_db[style_func;label="{{
+      write_to_db|
+      将kv_wb写入rocksdb\l
+    }}"]
+  }
+
+  subgraph cluster_ApplyPoller {
+    graph[label="ApplyPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    end -> {
+      flush;
+    };
+  }
+  subgraph cluster_Poller {
+    graph[label="Poller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    poll -> end;
+    poll[style_func;label="{{
+      poll|
+      apply poller线程
+    }}"]
+  }
+}

@@ -1,0 +1,49 @@
+#include "styles.h"
+digraph handleSingleBatch {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  handleSingleBatch[style_func;label="{{
+    actionCommit|
+    handleSingleBatch
+  }}"]
+  handleSingleBatch -> {
+    CommitRequest;
+    NewRegionRequestSender;
+    SendReq
+    GetRegionError;
+    GetCommitTsExpired;
+  }
+  NewRegionRequestSender -> SendReq -> CommitRequest[style_edge_data];
+  GetRegionError -> doActionOnMutations[style_edge_data];
+  doActionOnMutations[style_func;label="{{
+    doActionOnMutations|
+    有regionErr，重新对key分组\l
+    然后重新提交\l
+    actionCommit\{retry:true\}\l
+  }}"]
+  GetCommitTsExpired[style_func;label="{{
+    GetCommitTsExpired|
+    CommitTs rejected by Tikv\l
+    重新获取一个commit ts\l
+    重新提交\l
+  }}"]
+  KVStore__getTimestampWithRetry[style_func;label="{{
+    KVStore::getTimestampWithRetry|
+    获取新的commit ts\l
+  }}"]
+  GetCommitTsExpired -> {
+    KVStore__getTimestampWithRetry;
+  }
+  commitMutations -> doActionOnMutations;
+  doActionOnMutations -> handleSingleBatch[style_edge_data];
+  CommitRequest[style_func;label="{{
+    CommitRequest|
+    Context context = 1;\l|
+    uint64 start_version = 2;\l|
+    repeated bytes keys = 3;\l|
+    uint64 commit_version = 4;\l
+  }}"]
+
+}

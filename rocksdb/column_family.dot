@@ -1,0 +1,353 @@
+digraph ColumnFamily {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  edge[weight=5;color=gray40];
+  splines = ortho;
+
+  subgraph cluster_MemTable {
+    graph[label="MemTable";fontsize=20;];
+    MemTable[
+      shape="record";
+      label="{{
+        MemTable|
+          std::unique_ptr\<MemTableRep\> table_;\l|
+          std::unique_ptr\<MemTableRep\> range_del_table_;\l|
+          std::atomic_bool is_range_del_table_empty_;\l
+      }}";
+    ];
+    MemTable -> MemTableRep;
+    MemTableRep[shape="record";
+      label="{{
+        MemTableRep|
+        定义了MemTableRep接口\l|
+      }}";
+    ];
+    MemTableRep -> {
+      VectorRep;
+      SkipListRep;
+    }
+  }
+
+  subgraph cluster_Cache {
+    graph[label="Cache";fontsize=20;];
+    TableCache[shape="record";
+      label="{{
+        TableCache|
+          const ImmutableCFOptions& ioptions_;\l|
+          const FileOptions& file_options_;\l|
+          <Cache> Cache* const cache_;\l|
+          std::string row_cache_id_;\l|
+          bool immortal_tables_;\l|
+          BlockCacheTracer* const block_cache_tracer_;\l
+      }}";
+    ];
+    TableCache -> Cache;
+    Cache[shape="record";
+      label="{{
+        Cache|
+        定义了cache接口
+      }}";
+    ];
+
+    Cache -> ShardedCache;
+
+    ShardedCache[shape="record";
+      label="{{
+        ShardedCache|
+        分片cache 接口\l|
+        int num_shard_bits_;\l|
+        mutable port::Mutex capacity_mutex_;\l|
+        size_t capacity_;\l|
+        bool strict_capacity_limit_;\l|
+        std::atomic<uint64_t> last_id_;\l
+      }}";
+    ];
+    ShardedCache -> LRUCache;
+    LRUCache[shape="record";
+      label="{{
+        LRUCache|
+          <LRUCacheShard> LRUCacheShard* shards_\l|
+        int num_shards_ = 0;\l
+      }}";
+    ];
+    LRUCache:LRUCacheShard -> LRUCacheShard;
+    LRUCacheShard[shape="record";
+      label="{{
+        LRUCacheShard|
+          LRUHandle lru_;\l|
+          <LRUHandle> LRUHandle* lru_low_pri_;\l|
+          <LRUHandleTable> LRUHandleTable table_;\l
+      }}";
+    ];
+    LRUCacheShard:LRUHandleTable -> LRUHandleTable;
+    LRUCacheShard:LRUHandle -> LRUHandle;
+    LRUHandleTable[shape="record";
+      label="{{
+        LRUHandleTable|
+          LRUHandle** list_;\l|
+          uint32_t length_;\l|
+          uint32_t elems_;\l
+      }}";
+    ];
+  }
+
+  subgraph cluster_Table {
+    graph[label="Table";fontsize=20;];
+    TableReader[shape="record";
+      label="{{
+       TableReader|
+       定义了从table中一些读接口\l|
+       Get/Iter/MultiGet\l
+     }}"];
+    TableReader -> {
+      BlockBasedTable;
+      PlainTableReader;
+      CuckooTableReader
+    };
+  }
+
+  subgraph cluster_Version {
+    graph[label="Version";fontsize=20;];
+    Version[shape="record";
+      label="{{
+        Version|
+          Env* env_;\l|
+          FileSystem* fs_;\l|
+          ColumnFamilyData* cfd_;\l|
+          Logger* info_log_;\l|
+          Statistics* db_statistics_;\l|
+          <TableCache> TableCache* table_cache_;\l|
+          const MergeOperator* merge_operator_;\l|
+          <VesionStorageInfo> VersionStorageInfo storage_info_;\l|
+          <VersionSet> VersionSet* vset_;\l
+      }}";
+    ];
+    Version:TableCache -> TableCache;
+    Version:VersionSet -> VersionSet;
+    Version:VesionStorageInfo -> VersionStorageInfo;
+    
+    VersionStorageInfo[shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        VersionStorageInfo|
+        存储了各个level sstable\l 
+        文件的FileMetadata\l|
+        <FileMetaData> std::vector\<FileMetaData*\>* files_\l|
+        <BlobFiles> BlobFiles blob_files_\l
+      }}";
+    ];
+    VersionStorageInfo:FileMetaData -> FileMetaData;
+    VersionStorageInfo:BlobFiles -> BlobFiles;
+
+    FileMetaData[shape="record";
+      label="{{
+        FileMetaData|
+          <FileDescriptor> FileDescriptor fd\l|
+          InternalKey smallest\l|
+          InternalKey largest\l|
+          oldest_blob_file_number\l|
+          FileSampledStats stats\l|
+          ...
+      }}";
+    ];
+    FileMetaData:FileDescriptor -> FileDescriptor;
+    FileDescriptor[shape="record";
+      label="{{
+        FileDescriptor|
+        <TableReader> TableReader* table_reader\l|
+        uint64_t packed_number_and_path_id\l|
+        uint64_t file_size\l|
+        SequenceNumber smallest_seqno;\l|
+        SequenceNumber largest_seqno;\l
+      }}";
+    ];
+    FileDescriptor -> TableReader;
+    BlobFiles[shape="record";
+      label="{{
+        <BlobFileMetaData> BlobFiles|
+          std::map\<uint64_t,\l 
+          std::shared_ptr\<BlobFileMetaData\>\>;
+      }}";
+    ];
+    BlobFiles:BlobFileMetaData -> BlobFileMetaData;
+    BlobFileMetaData[shape="record";
+      label="{{
+        BlobFileMetaData|
+          <SharedBlobFileMetaData> std::shared_ptr\<SharedBlobFileMetaData\> shared_meta_;\l|
+          uint64_t garbage_blob_count_;\l|
+          uint64_t garbage_blob_bytes_;\l
+      }}";
+    ];
+    BlobFileMetaData:SharedBlobFileMetaData -> SharedBlobFileMetaData;
+    SharedBlobFileMetaData[shape="record";
+      label="{{
+        SharedBlobFileMetaData|
+        uint64_t blob_file_number_;\l|
+        uint64_t total_blob_count_;\l|
+        uint64_t total_blob_bytes_;\l|
+        std::string checksum_method_;\l
+      }}";
+    ];
+    VersionSet[
+      shape="record";
+      label="{{
+        VersionSet|
+          <ColumnFamilySet> std::unique_ptr\<ColumnFamilySet\>\l column_family_set_;\l|
+          Env* const env_;\l|
+          FileSystem* const fs_;\l|
+          const std::string dbname_;\l|
+          std::atomic<uint64_t> last_sequence_;\l|
+          std::deque<ManifestWriter*> manifest_writers_;\l|
+          ...\l
+      }}";
+    ];
+  }
+  VersionSet:ColumnFamilySet -> ColumnFamilySet;
+  subgraph cluster_ColumnFamily {
+    graph[label="ColumnFamily";fontsize=20;];
+    ColumnFamilyMemTables[
+      shape="record";
+      fillcolor="#a8d8ea"
+      style=filled
+      label="{{
+        ColumnFamilyMemTables|
+          virtual bool Seek(uint32_t column_family_id) = 0;\l|
+          virtual uint64_t GetLogNumber() const = 0;\l|
+          virtual MemTable* GetMemTable() const = 0;\l|
+          virtual ColumnFamilyHandle* GetColumnFamilyHandle() = 0;\l|
+          virtual ColumnFamilyData* current()\l
+      }}";
+    ];
+
+    ColumnFamilyMemTables -> {
+      ColumnFamilyMemTablesImpl
+      ColumnFamilyMemTablesDefault
+      ColumnFamilyHandle
+    }[color="#b83b5e"];
+
+    ColumnFamilyMemTablesDefault[
+      shape="record";
+      label="{{
+        ColumnFamilyMemTablesDefault|
+        bool ok_;|
+        <MemTable> MemTable* mem_;
+      }}";
+    ];
+    ColumnFamilyMemTablesDefault:MemTable -> MemTable;
+
+    ColumnFamilyMemTablesImpl[
+      shape="record";
+      label="{{
+        ColumnFamilyMemTablesImpl|
+          <ColumnFamilySet> ColumnFamilySet* column_family_set_;\l|
+          <ColumnFamilyData> ColumnFamilyData* current_;\l|
+          <ColumnFamilyHandleInternal> ColumnFamilyHandleInternal handle_;\l
+      }}";
+    ];
+    ColumnFamilyMemTablesImpl:ColumnFamilySet -> ColumnFamilySet[color="#f08a5d"];
+    ColumnFamilyMemTablesImpl:ColumnFamilyData -> ColumnFamilyData[color="#f08a5d"];
+    ColumnFamilyMemTablesImpl:ColumnFamilyHandleInternal-> ColumnFamilyHandleInternal[color="#f08a5d"];
+
+    ColumnFamilySet[
+      shape="record";
+      label="{{
+        ColumnFamilySet|
+          管理columnFamily\l 
+          name 到id到cfd的映射\l|
+          std::unordered_map\<std::string, uint32_t\>\l column_families_;\l|
+          <ColumnFamilyData> std::unordered_map\<uint32_t, ColumnFamilyData*\>\l column_family_data_;\l|
+          uint32_t max_column_family_;\l|
+          ColumnFamilyData* dummy_cfd_;\l|
+          ColumnFamilyData* default_cfd_cache_;\l|
+          <Cache> Cache* table_cache_;\l|
+          WriteBufferManager* write_buffer_manager_;\l|
+          WriteController* write_controller_;\l|
+          BlockCacheTracer* const block_cache_tracer_;\l
+      }}";
+    ];
+    ColumnFamilySet:ColumnFamilyData -> ColumnFamilyData;
+    ColumnFamilySet:Cache -> Cache;
+
+    ColumnFamilyHandle[
+      shape="record";
+      fillcolor="#a8d8ea"
+      style=filled
+      label="{{
+        ColumnFamilyHandle|
+          virtual const std::string& GetName() const = 0;\l|
+          virtual uint32_t GetID() const = 0;\l|
+          virtual Status GetDescriptor(ColumnFamilyDescriptor* desc) = 0;\l|
+          virtual const Comparator* GetComparator() const = 0;\l
+      }}";
+    ];
+    ColumnFamilyHandle -> ColumnFamilyHandleImpl;
+    ColumnFamilyHandleImpl[
+      shape="record";
+      label="{{
+        ColumnFamilyHandleImpl|
+        <ColumnFamilyData> ColumnFamilyData* cfd_;\l|
+        DBImpl* db_;\l|
+        InstrumentedMutex* mutex_;\l
+      }}";
+    ];
+    ColumnFamilyHandleImpl -> ColumnFamilyHandleInternal[color="#17b978"];
+    ColumnFamilyHandleImpl:ColumnFamilyData -> ColumnFamilyData[color="#17b978"];
+
+    ColumnFamilyHandleInternal[
+      shape="record";
+      label="{{
+        ColumnFamilyHandleInternal|
+          <ColumnFamilyData> ColumnFamilyData* internal_cfd_;\l
+      }}";
+    ];
+    ColumnFamilyHandleInternal:ColumnFamilyData -> ColumnFamilyData;
+    ColumnFamilyData[
+      shape="record";
+      fillcolor="#f38181";
+      style=filled;
+      label="{{
+        ColumnFamilyData|
+        主要数据结构\l
+        将Memtable，Version\l 
+        等等关联起来\l|
+          uint32_t id_;\l|
+          const std::string name_;\l|
+          Version* dummy_versions_;\l|
+          <Version> Version* current_;\l|
+          <MemTable> MemTable* mem_;\l|
+          MemTableList imm_;\l|
+          SuperVersion* super_version_;\l
+      }}";
+    ];
+    ColumnFamilyData:MemTable -> MemTable[color="#e84545"];
+    ColumnFamilyData:Version -> Version[color="#e84545"];
+
+    subgraph cluster_ColumnFamilyHandle {
+      graph[label="ColumnFamilyHandle";fontsize=20;style=rounded];
+      ColumnFamilyHandle;
+      ColumnFamilyHandleInternal;
+      ColumnFamilyHandleImpl;
+    };
+    subgraph cluster_ColumnFamilyMemTables {
+      graph[label="ColumnFamilyMemTables";fontsize=20;style=rounded];
+      ColumnFamilyMemTables;
+      ColumnFamilyMemTablesDefault;
+      ColumnFamilyMemTablesImpl;
+    };
+  }
+  subgraph cluster_DBImpl {
+    graph[label="DBImpl";fontsize=20;style=rounded];
+    DBImpl[
+      shape="record";
+      label="{{
+        DBImpl|
+          <ColumnFamilyMemTablesImpl> std::unique_ptr\<ColumnFamilyMemTablesImpl\>\l column_family_memtables_;\l|
+          <ColumnFamilyHandleImpl> ColumnFamilyHandleImpl* default_cf_handle_;\l
+      }}";
+    ];
+    DBImpl:ColumnFamilyMemTablesImpl -> ColumnFamilyMemTablesImpl[color="#3f72af"];
+    DBImpl:ColumnFamilyHandleImpl -> ColumnFamilyHandleImpl[color="#3f72af"];
+  };
+}

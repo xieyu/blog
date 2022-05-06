@@ -1,0 +1,144 @@
+digraph build_select_plan {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  SelectStmt -> buildSelect;
+  LogicalLock -> SelectLockExec;
+  subgraph cluster_PlanBuilder {
+    graph[label="PlanBuilder";fontsize=20;];
+    buildSelect -> {
+      buildResultSetNode;
+      buildTableDual;
+      unfoldWildStar;
+      resolveGbyExprs;
+      detectSelectWindow;
+      resolveWindowFunction;
+      resolveHavingAndOrderBy;
+      buildSelection;
+      buildSelectLock;
+      detectSelectAgg;
+    }
+
+    buildSelection -> {
+      LogicalSelection;
+      rewrite;
+    }
+
+    buildResultSetNode[
+      shape="record";
+      label="{{
+        buildResultSetNode|
+        sel.From != nil\l
+        处理select的From部分\l
+      }}";
+    ];
+    buildTableDual[
+      shape="record";
+      label="{{
+        buildTableDual|
+        sel.From == nil\l
+      }}";
+    ];
+    buildSelection[
+      shape="record";
+      label="{{
+        buildSelection|
+        if sel.Where != nil\l|
+        过滤条件
+      }}";
+    ];
+    buildResultSetNode -> {
+      buildJoin;
+      buildSelect_sub;
+      buildSetOpr;
+      buildDataSource;
+    }
+
+    buildSelect_sub[
+      shape="record";
+      label="{{
+        buildSelect|
+        处理select 子查询\l
+        递归调用buildSelect\l
+      }}";
+    ];
+    buildSelect_sub -> buildSelect[style=dashed];
+    buildDataSource -> DataSource;
+    DataSource[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        DataSource|
+        Logical plan DataSource\l
+      }}";
+    ];
+
+    LogicalJoin[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        LogicalJoin|
+        Logical Join Plan\l
+        left和right都是ResutSetNode;
+      }}";
+    ];
+    buildResultSetNode_child[
+      shape="record";
+      label="{{
+        buildResultSetNode\l|
+        jion的Left/Right 为ResultSetNode\l
+      }}";
+    ];
+    buildResultSetNode_child -> buildResultSetNode[style=dashed];
+
+    buildJoin -> {
+      buildResultSetNode_child;
+      LogicalJoin;
+    }
+    buildSetOpr -> {
+      buildIntersect;
+      buildExcept;
+    }
+    resolveGbyExprs -> {
+      gbyResolver;
+      rewrite;
+    }
+    rewrite -> rewriteWithPreprocess -> {
+      rewriteExprNode;
+      getExpressionRewriter;
+    }
+    resolveWindowFunction -> {
+      havingWindowAndOrderbyExprResolver;
+    }
+    buildSelection -> {
+      SelectionExec;
+    }
+
+    buildSelectLock -> {
+      LogicalLock;
+    }
+    LogicalLock[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+        LogicalLock
+      }}";
+    ];
+    havingWindowAndOrderbyExprResolver[
+      shape="record";
+      fillcolor="#95e1d3"
+      style=filled;
+      label="{{
+      havingWindowAndOrderbyExprResolver
+      }}";
+    ];
+    resolveHavingAndOrderBy -> {
+      havingWindowAndOrderbyExprResolver;
+    }
+  }
+}

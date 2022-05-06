@@ -1,0 +1,339 @@
+digraph txn_end {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_ReplicaManager {
+    graph[label="ReplicaManager";fontsize=20;style=rounded];
+    appendRecords[
+      shape="record";
+      label="{{
+        appendRecords|
+        将日志写入kafka\l 
+        internal topic中\l
+      }}";
+    ];
+  };
+
+  subgraph cluster_TransactionMetadata {
+    graph[label="TransactionMetadata";fontsize=20;style=rounded];
+    TransactionMetadata[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        TransactionMetadata|
+        transactionalId: String \l|
+        producerId: long \l|
+        lastProducerId: Long \l|
+        producerEpoch: short \l|
+        txnTimeoutMs: Int \l|
+        state: TransactionState \l|
+        <tp> topicPartitions: mutable.Set[TopicPartition]\l
+      }}";
+    ];
+    removePartition -> TransactionMetadata:tp;
+    prepareTransitionTo[
+      shape="record";
+      label="{{
+        prepareTransitionTo|
+        将状态设置为CompleteCommit\l 
+        或者CompleteAbort\l
+      }}";
+    ];
+    completeTransitionTo;
+    completeTransitionTo -> topicPartitions_clear;
+    prepareComplete -> prepareTransitionTo;
+  };
+
+  subgraph cluster_TransactionStateManager {
+    graph[label="TransactionStateManager";fontsize=20;style=rounded];
+    appendTransactionToLog[
+      shape="record";
+      label="{{
+        appendTransactionToLog|
+        将事务日志对应的\l 
+        写入topic_partition\l
+      }}";
+    ];
+    getTransactionState[
+      shape="record";
+      label="{{
+        getTransactionState|
+        根据tid获取事务对应状态
+      }}";
+    ];
+    transactionMetadataCache[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="transactionMetadataCache"
+    ];
+    transactionMetadataCache[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        transactionMetadataCache|
+        <entry>mutable.Map[Int, TxnMetadataCacheEntry]\l
+        parition 到cacheEntry的映射
+      }}";
+    ];
+    TxnMetadataCacheEntry[
+      shape="record";
+      fillcolor="#95e1d3";
+      style=filled;
+      label="{{
+        TxnMetadataCacheEntry|
+        coordinatorEpoch Int \l|
+        <meta> metadataPerTransactionalId \l 
+        Pool[String, TransactionMetadata]\l
+        事务ID到事务metadata映射
+      }}";
+    ];
+    partitionFor[
+      shape="record";
+      label="{{
+        partitionFor|
+        Utils.abs(transactionalId.hashCode)\%\l transactionTopicPartitionCount 
+        \l 根据事务id获取对应的partition\l
+      }}";
+    ];
+    updateCacheCallback[
+      shape="record";
+      label="{{
+        updateCacheCallback|
+        日志写入成功\l 
+        后的回调
+      }}";
+    ];
+    appendTransactionToLog -> updateCacheCallback[style=dashed]
+
+
+    transactionMetadataCache:entry -> TxnMetadataCacheEntry;
+    TxnMetadataCacheEntry:meta -> TransactionMetadata;
+
+    getTransactionState -> getAndMaybeAddTransactionState;
+    getAndMaybeAddTransactionState -> {
+      transactionMetadataCache;
+      partitionFor;
+    }
+
+    appendTransactionToLog -> {
+      TRANSACTION_STATE_TOPIC_NAME;
+      appendRecords;
+    };
+  };
+
+
+  subgraph cluster_TransactionMarkerChannelManager {
+    graph[label="TransactionMarkerChannelManager";fontsize=20;style=rounded];
+
+    subgraph cluster_TransactionMarkerRequestCompletionHandler {
+      graph[label="TransactionMarkerRequestCompletionHandler";fontsize=20;style=rounded];
+      TransactionMarkerRequestCompletionHandler;
+      TransactionMarkerRequestCompletionHandler[
+        shape="record";
+        label="{{
+          TransactionMarkerRequestCompletionHandler|
+          处理parition broker对writeMark的响应\l
+          1.首先判断自己是否还是tid对应的coordinator\l
+          检查epoch能否对的上
+          如果不是的就removeMarkersForTxnId\l
+          2.将出错的partition加入retry队列\l
+        }}";
+      ];
+    };
+    retryLogAppends -> txnLogAppendRetryQueue;
+    TxnIdAndMarkerEntry[
+      shape="record";
+      fillcolor="#95e1d3";
+      style=filled;
+      label="{{
+        TxnIdAndMarkerEntry|
+        txnId: String|
+        <entry> txnMarkerEntry: TxnMarkerEntry
+      }}";
+    ];
+    TxnMarkerEntry[
+      shape="record";
+      fillcolor="#95e1d3";
+      style=filled;
+      label="{{
+        TxnMarkerEntry|
+        producerId long|
+        producerEpoch short|
+        coordinatorEpoch int|
+        TransactionResult result|
+        partitions \l
+      }}";
+    ];
+    markersPerTxnTopicPartition[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        markersPerTxnTopicPartition|
+        <txn> [Int, BlockingQueue[TxnIdAndMarkerEntry]
+      }}";
+    ];
+    addTxnMarkersToSend[
+      shape="record";
+      label="{{
+        addTxnMarkersToSend|
+        将Marker请求放入队列中\l
+        由专门的线程处理
+      }}";
+    ];
+    completeSendMarkersForTxnId[
+      shape="record";
+      label="{{
+        completeSendMarkersForTxnId|
+        所有marker请求都处理成功了\l
+        写入日志\l
+      }}";
+    ];
+    txnLogAppendRetryQueue[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="box3d";
+      label="txnLogAppendRetryQueue"
+    ];
+    generateRequests[
+      shape="record";
+      label="{{
+        generateRequests|
+        遍历marker队列\l 
+        生成WriteMark请求\l
+      }}";
+    ];
+    WriteTxnMarkersRequest[
+      shape="record";
+      label="{{
+        WriteTxnMarkersRequest|
+        生成对broker的\l 
+        WriteTxnMarkers请求\l
+      }}";
+    ];
+    appendCallback[
+      shape="record";
+      label="{{
+        appendCallback|
+        对于COORDINATOR_NOT_AVALIBLE错误\l
+        加入重试队列,InterBroker线程\l 
+        会尝试重新发送\l
+      }}";
+    ];
+    addTxnMarkersToSend[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        addTxnMarkersToSend|
+        将txnMarker加入发送队列
+      }}";
+    ];
+    sendTxnMarkersCallback[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        sendTxnMarkersCallback|
+        prepareAbortOrCommit 事务日志\l 
+        写成功后的回调\l
+        coordinator开始向各个broker\l 
+        发送txnMark请求\l
+        不断尝试直到成功\l
+        并将状态设置为Complete\l
+      }}";
+    ];
+    tryAppendToLog[
+      shape="record";
+      label="{{
+        tryAppendToLog|
+        尝试写入Complete事务日志\l 
+        如果遇到COORDINATOR_NOT_AVAILABLE就重试\l
+      }}";
+    ];
+    drainQueuedTransactionMarkers[
+      shape="record";
+      label="{{
+        drainQueuedTransactionMarkers|
+        从各种队列中生成TxnMarks请求\l
+        并设置请求回调\l
+      }}";
+    ];
+
+    completeSendMarkersForTxnId -> {
+      checkAndComplete;
+    }
+    checkAndComplete -> appendToLogCallback;
+    appendToLogCallback -> tryAppendToLog -> appendTransactionToLog;
+    tryAppendToLog -> appendCallback[style=dashed];
+    appendCallback -> txnLogAppendRetryQueue;
+    removeMarkersForTxnId;
+    addTxnMarkersToSend -> {
+      addTxnMarkersToBrokerQueue;
+      tryCompleteElseWatch;
+    }
+    tryCompleteElseWatch -> DelayedTxnMarker -> appendToLogCallback;
+    addTxnMarkersToBrokerQueue -> {
+      addMarkersForBroker;
+      markersQueueForUnknownBroker;
+    }
+    addMarkersForBroker -> {
+      addMarkers;
+    };
+    addMarkers -> markersPerTxnTopicPartition;
+    removeMarkersForTxnId -> {
+      cancelForKey
+    }
+    TxnIdAndMarkerEntry:entry -> TxnMarkerEntry;
+    markersPerTxnTopicPartition:txn -> TxnIdAndMarkerEntry;
+    generateRequests -> drainQueuedTransactionMarkers -> forEachTxnTopicPartition -> markersPerTxnTopicPartition;
+    drainQueuedTransactionMarkers -> {
+      WriteTxnMarkersRequest;
+      retryLogAppends;
+    }
+    drainQueuedTransactionMarkers -> TransactionMarkerRequestCompletionHandler[style=dashed]
+  };
+  subgraph cluster_InterBrokerSendThread {
+    graph[label="InterBrokerSendThread";fontsize=20;style=rounded];
+    doWork[
+      fillcolor="#f38181"
+      style=filled;
+      shape="record";
+      label="{{
+        doWork|
+        Broker之间发送请求的线程
+      }}";
+    ];
+    doWork -> generateRequests;
+    generateRequests;
+    drainQueuedTransactionMarkers;
+    forEachTxnTopicPartition;
+  };
+
+  subgraph cluster_TransactionCoordinator {
+    graph[label="TransactionCoordinator";fontsize=20;style=rounded];
+  };
+
+  TransactionMarkerRequestCompletionHandler -> {
+    getTransactionState;
+    removeMarkersForTxnId;
+    addTxnMarkersToBrokerQueue;
+    removePartition;
+    completeSendMarkersForTxnId;
+  }
+  sendTxnMarkersCallback -> prepareComplete;
+  appendRecords -> updateCacheCallback;
+  sendTxnMarkersCallback -> addTxnMarkersToSend;
+
+  updateCacheCallback -> completeTransitionTo;
+  updateCacheCallback -> {
+    getTransactionState;
+    appendCallback;
+  }
+  {rank=same;addTxnMarkersToSend;forEachTxnTopicPartition;retryLogAppends}
+  {rank=same;markersPerTxnTopicPartition;txnLogAppendRetryQueue}
+}

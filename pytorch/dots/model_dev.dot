@@ -1,0 +1,271 @@
+#include "styles.h"
+digraph model_dev {
+  node[shape=box;style=round];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  labelloc=t
+
+  torch__nn[style_func;label="{{
+    torch.nn\l|
+    主要模块\l
+  }}"];
+  torch__nn -> {
+    nn_containers;
+    model_layers;
+    loss_functions;
+    optimizer;
+    non_linear_activations;
+  }
+
+  model_layers -> {
+    linear_layers;
+    conv_layers;
+    pooling_layers;
+    padding_layers;
+    dropout_layers;
+    normalization_layers;
+    recurrent_layers;
+    transformer_layers;
+    sparse_layers;
+    vision_layers;
+  }
+  nn_containers -> model_layers[style_edge_data];
+  dropout_layers -> {
+    Dropout;
+    AlphaDropout;
+  }
+  Dropout[style_func;label="{{
+    Dropout\l|
+    2d;3d\l
+  }}"];
+
+  nn_containers[style_blue1;label="{{
+    nn_containers\l|
+    各层容器\l
+  }}"];
+
+  conv_layers[style_func;label="{{
+    conv_layers\l|
+    卷积\l
+  }}"];
+
+  pooling_layers[style_func;label="{{
+    pooling_layers\l|
+    池化\l
+  }}"];
+  padding_layers[style_func;label="{{
+    padding_layers\l|
+    填充\l
+  }}"];
+
+  nn_containers -> {
+    Module;
+    Sequential;
+    ModuleList;
+    ModuleDict;
+    ParameterList;
+    ParameterDict;
+  }
+  Module -> {
+    __init__;
+    forward;
+  }
+
+  linear_layers[style_func;label="{{
+    linear_layers\l|
+    全连接层\l
+  }}"];
+
+  linear_layers -> {
+    Identity;
+    Linear;
+    Bilinear;
+  }
+  conv_layers -> {
+    Conv;
+    ConvTranspose;
+    Unfold;
+    Fold;
+  }
+
+  Conv[style_func;label="{{
+    Conv\l|
+    1d;2d;3d;\l
+  }}"];
+
+  ConvTranspose[style_func;label="{{
+    ConvTranspose\l|
+    1d;2d;3d;\l
+  }}"];
+
+
+  pooling_layers -> {
+    MaxPool;
+    MaxUnpool;
+    AvgPool
+    FractionalMaxPool2d;
+    LPPool;
+    AdaptiveMaxPool;
+    AdaptiveAvgPool;
+  }
+
+  MaxPool[style_func;label="{{
+    MaxPool\l|
+    MaxPool1d\l
+    MaxPool2d\l
+    MaxPool3d\l
+  }}"];
+  MaxUnpool[style_func;label="{{
+    MaxUnpool\l|
+    MaxUnpool1d;\l
+    MaxUnpool2d;\l
+    MaxUnpool3d;\l
+  }}"];
+  AvgPool[style_func;label="{{
+    AvgPool\l|
+    1d;2d;3d\l
+  }}"];
+  LPPool[style_func;label="{{
+    LPPool\l|
+    1d;2d;\l
+  }}"];
+  AdaptiveMaxPool[style_func;label="{{
+    AdaptiveMaxPool\l|
+    1d;2d\l
+  }}"];
+  AdaptiveAvgPool[style_func;label="{{
+    AdaptiveAvgPool\l|
+    1d;2d;3d;\l
+  }}"];
+
+  MaxPool[style_func;label="{{
+    MaxPool\l|
+    1d;2d;3d\l
+  }}"];
+
+  MaxUnpool[style_func;label="{{
+    MaxUnpool\l|
+    1d;2d;3d;\l
+  }}"];
+
+  padding_layers -> {
+    ReflectionPad;
+    ReplicationPad;
+    ZeroPad;
+    ConstantPad;
+  }
+
+  ReflectionPad[style_func;label="{{
+    ReflectionPad\l|
+    1d;2d\l
+  }}"];
+
+  ReplicationPad[style_func;label="{{
+    ReplicationPad\l|
+    1d;2d;3d\l
+  }}"];
+  ZeroPad[style_func;label="{{
+    ZeroPad\l|
+    2d;\l
+  }}"];
+
+  ConstantPad[style_func;label="{{
+    ConstantPad\l|
+    1d;2d;3d;\l
+  }}"];
+
+  normalization_layers -> {
+    BatchNormal;
+    GroupNormal;
+    SyncBatchNorm;
+    InstanceNorm;
+    LayerNorm;
+    LocalResponseNorm;
+  }
+  BatchNormal[style_func;label="{{
+    BatchNormal\l|
+    1d;2d;3d\l
+  }}"];
+
+  InstanceNorm[style_func;label="{{
+    InstanceNorm\l|
+    1d;2d;3d;\l
+  }}"];
+
+  recurrent_layers -> {
+    RNN;
+    LSTM;
+    GRU;
+  }
+
+  RNN[style_func;label="{{
+    RNN\l|
+    RNNBase\l
+    RNN\l
+    RNNCell
+  }}"];
+  LSTM[style_func;label="{{
+    LSTM\l|
+    LSTMCell\l
+  }}"];
+
+  GRU[style_func;label="{{
+    GRU\l|
+    GRUCell
+  }}"];
+
+  transformer_layers -> {
+    Transformer;
+    TransformerEncoder;
+    TransformerDecoder;
+    TransformerEncodeLayer;
+    Transformer;DecoderLayer;
+  }
+
+  sparse_layers -> {
+    Embedding;
+    EmbeddingBag;
+    CosineSimilarity;
+    PairwiseDistance;
+  }
+  vision_layers -> {
+    PixelShuffle;
+    Upsample;
+    UnsamplingNearest2d;
+    UpSamplingBilinear2d;
+  }
+  non_linear_activations[style_var;label="{{
+    non_linear_activations\l|
+    非线性激活函数\l|
+    ELU; Hardshrink; HardSigmoid; HardTanh;\l|
+    Hardswish; LeakyRelu; LogSigmoid;\l|
+    MultiHeadAttention;\l|
+    PRelU; ReLU; ReLU6; RRElU; SELU; CELU;\l
+    Sigmodi;Softplus;SotShrink; Softsign;\l|
+    Tanh;Tanhshrink;Threshold;\l|
+    SoftMin;SoftMax;SoftMax2d;LogSoftMax\l
+  }}"];
+  loss_functions[style_green1;label="{{
+    loss_functions\l|
+    L1Loss; SmoothL1Loss;\l
+    MSELoss\l
+    CrossEntropyLoss\l
+    CTCLoss\l
+    NLLLoss; PoissonNLLLoss\l
+    KLDivLoss\l
+    BCELoss;BCEWithLogitsLoss\l
+    HingeEmbeddingLoss\l|
+    MarginRankingLoss\l
+    MultiLabelMarginLoss; MultiLabelSoftMarginLoss;\l
+    SoftMarginLoss; MultiMarginLoss; GripletMarginLoss;\l
+  }}"];
+
+  optimizer[style_green1;label="{{
+    optimizer\l|
+    Adam; AdamW; Adamax; SparseAdam\l|
+    Adadelta; Adagrad;\l
+    ASGD; SGD;\l |
+    LBFGS; RMSprop; Rprop;\l
+  }}"];
+}

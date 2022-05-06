@@ -1,0 +1,63 @@
+#include "styles.h"
+digraph dig {
+  node[shape=none];
+  edge[color=gray40];
+  1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7;
+
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  newrank=true;
+  rankdir=LR;
+
+  t1__start -> t1__write_x ->  t1__write_y  ->  t1__commit;
+  t2__start -> t2__read_y -> t2__read2_y -> t2__commit;
+  t1__write_x -> x;
+  t1__write_y -> y;
+  {
+    rank=same;
+    t1__write_x;
+    x;
+  }
+  {
+    rank=same;
+    t1__write_y;
+    y;
+    4;
+  }
+  {
+    rank=same;
+    t1__start;
+    1;
+  }
+
+  {
+    rank=same;
+    t2__start;
+    5;
+  }
+  {
+    rank=same;
+    t1__commit;
+    6;
+  }
+  {
+    rank=same;
+    t2__read_y;
+    5;
+  }
+
+  {
+    rank=same;
+    t2__read2_y;
+    7;
+  }
+  t1__start[style_func;label="{{
+    t1\l|
+    事务startTS为1\l
+  }}"]
+  t2__start[style_func;label="{{
+    t2\l|
+    事务t2 startTS为\l
+    5\l
+  }}"]
+
+}

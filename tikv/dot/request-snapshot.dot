@@ -1,0 +1,34 @@
+#include "styles.h"
+digraph request_snapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  RawNode_request_snapshot[style_func;label="{{
+    RawNode::request_snapshot|
+    request a snapshot from a leader\l
+  }}"]
+  RawNode_request_snapshot -> request_snapshot;
+  step -> step_follower -> handle_append_entries;
+  request_snapshot -> {
+    pending_request_snapshot;
+    send_request_snapshot;
+  }
+  send_request_snapshot -> MsgAppendResponse[style_edge_data];
+  MsgAppendResponse[style_var;label="{{
+    MsgAppendResponse|
+     m.set_msg_type(MessageType::MsgAppendResponse);\l|
+     m.index = self.raft_log.committed;\l|
+     m.reject = true;\l|
+     m.reject_hint = self.raft_log.last_index();\l|
+     m.to = self.leader_id;\l|
+     m.request_snapshot = self.pending_request_snapshot;\l
+  }}"]
+  pending_request_snapshot[style_var;label="{{
+    pending_request_snapshot
+  }}"]
+  pending_request_snapshot -> handle_append_entries[style_edge_data];
+  handle_append_entries -> {
+    send_request_snapshot;
+  }
+}

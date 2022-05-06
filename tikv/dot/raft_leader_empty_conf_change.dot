@@ -1,0 +1,48 @@
+#include "styles.h"
+digraph raft_leader_empty_conf_change {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  RawNode__advance -> {
+    RawNode__advance_apend;
+    RawNode__advance_apply_to;
+  }
+
+  RawNode__advance_apply_to -> {
+    RaftCore__commit_apply;
+  }
+  RawNode__advance_apply -> {
+    RaftCore__commit_apply;
+  }
+
+  RaftCore__commit_apply -> {
+    RaftLog__applied;
+    RaftCore__pending_conf_index;
+  }
+
+  RaftCore__commit_apply[style_func;label="{{
+    RaftCore__commit_apply|
+    如果本次被apply的log entry中\l
+    包含EntryConfChange\l
+    且开启了auto_leave\l
+    且当前节点是leader\l|
+    则插入一个空的EntryConfChange\l
+    消息到日志中\l
+  }}"]
+  RaftCore__commit_apply -> {
+    RaftCore__pending_conf_index;
+  }
+
+  RaftCore__pending_conf_index[style_var;label="{{
+    RaftCore__pending_conf_index|
+    记录当前conf change log entry\l
+    的index\l
+  }}"]
+  RaftLog__applied[style_func;label="{{
+    RaftLog__applied|
+    记录已经applied index\l
+  }}"]
+
+}

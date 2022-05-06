@@ -1,0 +1,183 @@
+#include "styles.h"
+digraph prepare_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  PeerFsmDelegate__pre_propose_raft_command -> {
+    check_region_epoch;
+    Peer__is_applying_snapshot;
+    check_region_epoch;
+    check_store_id;
+    check_term;
+  }
+  PeerFsmDelegate__propose_raft_command[style_func;label="{{
+    PeerFsmDelegate\l
+    propose_raft_command\l|
+    提交raft command\l
+  }}"]
+  PeerFsmDelegate__propose_raft_command -> {
+    PeerFsmDelegate__pre_propose_raft_command;
+    PeerFsmDelegate__check_merge_proposal;
+    Peer__propose;
+  }
+  PeerFsmDelegate__pre_propose_raft_command[style_func;label="{{
+    PeerFsmDelegate\l
+    pre_propose_raft_command\l|
+    做一些check\l
+  }}"]
+  check_term[style_func;label="{{
+    check_term|
+    检查msg的term\l
+    和peer当前term\l
+    看msg term是否已stale\l
+  }}"]
+  check_term -> Error_StaleCommand;
+  Error_StaleCommand[style_func;label="{{
+    Error\l
+    StaleCommand\l|
+    如果term已过期\l
+    返回StaleCommand错误\l
+  }}"]
+  check_region_epoch[style_func;label="{{
+    check_region_epoch|
+    根据cmd类型检查region epoch\l
+    PrepareMerge\l
+    需要check epoch的\l
+    conf_ver和version\l
+  }}"]
+  check_store_id -> {
+    Error__StoreNotMatch;
+  }
+  check_store_id[style_func;label="{{
+    check_store_id|
+    如果req中的store_id\l
+    和peer的不一致\l
+    则返回StoreNotMatch\l
+    错误\l
+  }}"]
+  PeerFsmDelegate__check_merge_proposal[style_func;label="{{
+    PeerFsmDelegate\l
+    check_merge_proposal\l|
+    检查PrepareMerge和\l
+    CommitMerge是否valid\l
+  }}"]
+  Peer__in_joint_state[style_func;label="{{
+    Peer\l
+    in_joint_state\l|
+    为了简单起见\l
+    在joint 共识时\l
+    不做region merge\l
+  }}"]
+  StoreMeta__regions_get__target_region[style_func;label="{{
+    StoreMeta\l
+    regions_get\l
+    target_region\l|
+    看本地StoreMeta中\l
+    target region是否和\l
+    prepareMerge中的一致\l
+  }}"]
+  is_sibling_regions[style_func;label="{{
+    is_sibling_regions|
+    target_region\l
+    和source region是否是\l
+    相邻的\l
+  }}"]
+  region_on_same_stores[style_blue1;label="{{
+    region_on_same_stores|
+    target region\l
+    和source region\l
+    各个副本的store是对齐的\l
+    PeerRole 角色也是一样的\l
+  }}"]
+
+  PeerFsmDelegate__check_merge_proposal -> {
+    Peer__in_joint_state;
+    StoreMeta__regions_get__target_region;
+    is_sibling_regions;
+    region_on_same_stores;
+  }
+  Peer__propose[style_func;label="{{
+    Peer\l
+    propose\l
+  }}"]
+  Peer__propose_normal[style_func;label="{{
+    Peer\l
+    propose_normal\l
+  }}"]
+  Peer__pre_propose[style_func;label="{{
+    Peer\l
+    pre_propose\l|
+    Validate requst\l
+    for unexpected changes\l|
+    准备了ProposalContext\l
+  }}"]
+  Peer__propose -> Peer__propose_normal;
+
+  Peer__propose_normal -> {
+    Peer__pre_propose;
+    RawNode__propose;
+  }
+
+  Peer__pre_propose -> {
+    Peer__pre_propose_prepare_merge;
+    ProposalContext__insert__ProposalContext__PREPARE_MERGE
+    ProposalContext__insert__ProposalContext__SYNC_LOG;
+    get_sync_log_from_request;
+  }
+  Peer__pre_propose_prepare_merge[style_func;label="{{
+    Peer\l
+    pre_propose_prepare_merge\l|
+    对PrepareMerge做一些check\l
+  }}"]
+
+  Peer__pre_propose_prepare_merge -> {
+    EntryTYpe__EntryConfChange;
+    EntryTYpe__EntryConfChangeV2;
+    Peer__get_min_progress;
+    RaftLog__last_index;
+    Config__merge_max_log_gap;
+    RaftLog__entries;
+    PrepareMerge__set_min_index;
+  }
+  RaftLog__entries[style_func;label="{{
+    RaftLog\l
+    entries\l|
+    检查从min_committed +1\l
+    开始的log entry\l
+     Any command that can \l
+     change epoch or log\l
+     gap should be rejected.\l
+  }}"]
+  Peer__get_min_progress[style_func;label="{{
+    Peer\l
+    get_min_progress\l|
+    return minimal mathced\l
+    comitted index\l|
+    遍历raft的progress\l
+  }}"]
+  Peer__get_min_progress -> {
+    Progress__matched;
+    Progress__comitted_index;
+  }
+  Progress__matched[style_var;label="{{
+    Progress\l
+    matched\l|
+  }}"]
+  Progress__comitted_index[style_var;label="{{
+    Progress\l
+    comitted_index\l
+  }}"]
+  Progress__matched -> PrepareMerge__set_min_index;
+  PrepareMerge__set_min_index[style_blue1;label="{{
+    PrepareMerge\l
+    set_min_index|
+    设置最小的index\l
+  }}"]
+
+  {
+    Peer__get_min_progress;
+    RaftLog__last_index;
+  } -> Config__merge_max_log_gap[style_edge_data];
+}

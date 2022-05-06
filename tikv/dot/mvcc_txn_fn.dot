@@ -1,0 +1,63 @@
+#include "styles.h"
+digraph mvcc_txn_fn{
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  MvccTxn__put_lock -> {
+    Modify__Put__CF_LOCK;
+    Lock__to_bytes;
+    MvccTxn__modifies__push;
+  }
+  Lock__to_bytes -> Modify__Put__CF_LOCK -> MvccTxn__modifies__push[style_edge_data]
+  MvccTxn__unlock_key -> {
+    Modify__Delete__CF_LOCK;
+    MvccTxn__modifies__push;
+  }
+  Modify__Delete__CF_LOCK -> MvccTxn__modifies__push[style_edge_data];
+
+  {rank=same; MvccTxn__put_lock; MvccTxn__unlock_key};
+
+  MvccTxn__put_value -> {
+    Modify__Put__CF_DEFAULT;
+    MvccTxn__modifies__push;
+    Key__append_start_ts;
+  }
+  Key__append_start_ts -> Modify__Put__CF_DEFAULT -> MvccTxn__modifies__push[style_edge_data];
+
+  MvccTxn__delete_value -> {
+    Modify__Delete__CF_DEFAULT;
+    Key__append_start_ts;
+    MvccTxn__modifies__push;
+  }
+  Key__append_start_ts -> Modify__Delete__CF_DEFAULT -> MvccTxn__modifies__push[style_edge_data];
+
+  MvccTxn__put_write -> {
+    Modify__Put__CF_WRITE;
+    Key__append_ts_commit_ts;
+    MvccTxn__modifies__push;
+  }
+  Key__append_ts_commit_ts -> Modify__Put__CF_Write -> MvccTxn__modifies__push[style_edge_data];
+
+  MvccTxn__delete_write -> {
+    Modify__Delete__CF_WRITE;
+    Key__append_ts_commit_ts;
+    MvccTxn__modifies__push;
+  }
+  Key__append_ts_commit_ts -> Modify__Delete__CF_WRITE -> MvccTxn__modifies__push[style_edge_data];
+
+  MvccTxn__modifies__push -> MvccTxn__modifies;
+  MvccTxn__modifies[style_var;label="{{
+    MvccTxn\l
+    modifies\l|
+    Vec\<Modify\>,\l
+  }}"]
+  MvccTxn__modifies -> Modify;
+  Modify[style_blue1;label="{{
+    enum Modify|
+    Delete(CfName, Key),\l|
+    Put(CfName, Key, Value),\l|
+    DeleteRange(CfName, Key, Key, bool),\l
+  }}"]
+}

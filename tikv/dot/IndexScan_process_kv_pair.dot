@@ -1,0 +1,166 @@
+#include "styles.h"
+digraph process_kv_pair {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  key_layout[style_var;label="{{
+    key_layout|
+    {prefix|{tablePrefix:t\l|tableID:\l|SEP: _i\l|indexID\l}}|
+    <columnValues> columnValues\r|
+    {[handle]\l|{<intHandle> intHandle\l|<commonHandle> CommonHandle\l}}
+  }}"]
+
+  key_layout:columnValues -> decode_index_columns[color_red];
+  key_layout:intHandle -> decode_int_handle_from_key[color_red];
+  key_layout:columnValues-> extract_columns_from_datum_format_key_payload[color_red];
+
+  RestoreData[style_blue1;label="{{
+    RestoreData|
+    <NotExists> NotExists,\l|
+    <V4> V4(&'a [u8]),\l|
+    <V5> V5(&'a [u8]),\l
+  }}"]
+  DecodeHandleOp[style_blue1;label="{{
+    enum DecodeHandleOp|
+    Nop,\l|
+    IntFromKey(&'a [u8]),\l|
+    IntFromValue(&'a [u8]),\l|
+    CommonHandle(&'a [u8]),\l
+  }}"]
+  DecodePartitionIdOp[style_blue1;label="{{
+    DecodePartitionIdOp|
+    Nop,\l|
+    PID(&'a [u8]),\l
+  }}"]
+
+  IndexValueVersion0[style_var;label="{{
+    IndexValueVersion0|
+    with restore data \l 
+    or common handle \l 
+    or index is Global\l|
+    TailLen: 1\l|
+    Options: len(options)\l|
+    Padding: len(Padding)\l|
+    <intHandle> [IntHandle]: 8\l|
+    [UntouchedFlag]: 1\l
+  }}"]
+  IndexValueVersion0:intHandle -> decode_int_handle_from_value[color_red];
+
+  IndexValueForClusteredIndexVersion1[style_var;label="{{
+    IndexValueForClusteredIndexVersion1|
+    TailLen: 1\l|
+    VersionFlag: 1\l|
+    VersioN: 1\l|
+    Options: len(options)\l|
+    [UntouchedFlag]\l
+  }}"]
+  {
+    IndexValueForClusteredIndexVersion1;
+    IndexValueVersion0;
+  } -> Options;
+
+  Options[style_func;label="{{
+    Options|
+    {CommonHandle|{CHandle Flag: 1\l|CHandle len: 2\l|CHandle: len(CHandle)\l}}|
+    {Global Index|{PidFlag: 1\l|<pid> PartitionID: 8\l|<restoreData> restoreData: len(restoreData)\l}}
+  }}"]
+  Options:restoreData -> RestoreData[color_red];
+  Options:pid -> decode_pid_columns[color_red];
+
+  process_kv_pair -> {
+     process_kv_general;
+  }
+  process_kv_general -> {
+     build_operations;
+     decode_index_columns;
+     decode_handle_columns;
+     decode_pid_columns;
+  }
+  build_operations -> {
+    DecodeHandleOp;
+    DecodePartitionIdOp;
+    RestoreData;
+  }
+
+  RestoreData -> decode_index_columns;
+  decode_index_columns -> {
+     extract_columns_from_datum_format_key_payload;
+     extract_columns_from_row_format_rst;
+     restore_original_data;
+  }
+  restore_original_data -> {
+    RowSlice_from_bytes;
+    columns;
+  }
+  //extract_columns_from_datum_format -> {
+  //   columns;
+  //}
+  RestoreData:NotExists -> {
+     extract_columns_from_datum_format_key_payload;
+  }
+  extract_columns_from_datum_format_key_payload[style_func;label="{{
+    extract_columns_from_datum_format|
+    从key_payload的columnValues解析\l
+  }}"]
+  extract_columns_from_datum_format_key_payload -> columns;
+  RestoreData:V5 -> {
+     restore_original_data;
+     extract_columns_from_datum_format_key_payload;
+  }
+  restore_original_data[style_func;label="{{
+    restore_original_data|
+    TiDB5.0引入的新的format\l
+    对存储空间做了优化\l
+    RestoreData(V5)版本\l 
+    使用restore_data获取\l 
+    original data\l
+  }}"]
+  RestoreData:V4 -> {
+    extract_columns_from_row_format_rst;
+  }
+  extract_columns_from_row_format_rst[style_func;label="{{
+    extract_columns_from_row_format|
+    从restoreData(V4版本）\l
+    RowSlice 中解析出columnValues\l
+  }}"]
+  extract_columns_from_row_format_rst -> {
+     RowSlice_from_bytes;
+     columns;
+  }
+  decode_int_handle_from_key[style_func;label="{{
+    decode_int_handle_from_key|
+    使用key_layout中\l 
+    intHandle\l
+  }}"]
+  {rank=same;key_layout;IndexValueForClusteredIndexVersion1;IndexValueVersion0}
+
+
+  decode_handle_columns -> {
+     decode_int_handle_from_key;
+     decode_int_handle_from_value;
+     extract_columns_from_datum_format_common_handle;
+     restore_original_data;
+  }
+  extract_columns_from_datum_format_common_handle[style_func;label="{{
+    extract_columns_from_datum_format|
+    解析CommonHandle\l
+  }}"]
+  extract_columns_from_datum_format_common_handle -> columns;
+  DecodePartitionIdOp -> decode_pid_columns[style_edge_data];
+
+  decode_pid_columns -> {
+     columns;
+  };
+  decode_int_handle_from_key -> columns[style_edge_data];
+  decode_int_handle_from_value -> columns[style_edge_data]
+  DecodeHandleOp -> decode_handle_columns;
+  columns[style_var;label="{{
+    columns: LazyBatchColumnVec|
+    {coumns values|{column1|column2|...}}|
+    {可选：int handle\l| 解码为int的handle}|
+    {可选：commonHandle\l|未解码 commonHandle}|
+    {可选: pid column\l| 解码为int的 pid column}
+  }}"]
+}

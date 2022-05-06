@@ -1,0 +1,45 @@
+#include "styles.h"
+digraph mvcc_reader2 {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  MvccReader[style_func;label="{{
+    MvccReader|
+    snapshot: S,\l|
+    pub statistics: Statistics,\l|
+    data_cursor: Option\<Cursor\<S::Iter\>\>,\l|
+    lock_cursor: Option\<Cursor\<S::Iter\>\>,\l|
+    write_cursor: Option\<Cursor\<S::Iter\>\>,\l|
+    scan_mode: Option\<ScanMode\>,\l|
+    current_key: Option\<Key\>,\l|
+    fill_cache: bool,\l
+  }}"]
+
+  MvccReader -> {
+    EngineSnapshot;
+    Statistics;
+    Cursor;
+    ScanMode
+  }
+  Cursor[style_func;label="{{
+    Cusor|
+    iter: I,\l|
+    scan_mode: ScanMode,\l|
+    prefix_seek: bool,\l|
+    min_key: Option\<Vec\<u8\>\>,\l|
+    max_key: Option\<Vec\<u8\>\>,\l|
+    cur_key_has_read: Cell\<bool\>,\l|
+    cur_value_has_read: Cell\<bool\>,\l
+  }}"]
+  Cursor -> ScanMode;
+  Cursor -> EngineSnapshot_Iterator;
+  EngineSnapshot -> RegionSnapshot;
+  ScanMode[style_func;label="{{
+    ScanMode|
+    Forward,\l|
+    Backward,\l|
+    Mixed,\l
+  }}"]
+  RegionSnapshot -> EngineSnapshot_Iterator;
+}

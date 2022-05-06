@@ -1,0 +1,148 @@
+digraph flush_compaction {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  edge[weight=5;color=gray40];
+
+  MaybeScheduleFlushOrCompaction[shape="record";
+    label="{{
+      MaybeScheduleFlushOrCompaction|
+      调度刷新和压缩线程\l
+      最大线程数为GetBGJobLimits\l
+    }}";
+  ];
+  MaybeScheduleFlushOrCompaction -> {
+    GetBGJobLimits;
+    GetBackgroundThreads;
+    Schedule;
+  }
+  Schedule[shape="record";
+    label="{{
+      Schedule|
+      后台线程池调度
+    }}";
+  ];
+  BGThread[shape="record";
+    label="{{
+      BGThread|
+      后台工作线程
+    }}";
+  ];
+  Schedule -> BGThread[style=dashed;color=gray70];
+
+  BGThread -> {
+    BGWorkFlush;
+    BGWorkCompaction;
+  }[style=dashed;color=gray50];
+
+  BGWorkFlush -> {
+    BackgroundCallFlush;
+  }
+
+  BackgroundCallFlush -> {
+    BackgroundFlush;
+    bg_cv__SignalAll;
+    SleepForMicroseconds;
+    ReleaseFileNumberFromPendingOutputs;
+    FindObsoleteFiles;
+    FlushBufferToLog;
+    MaybeScheduleFlushOrCompaction;
+    atomic_flush_install_cv__SignalAll;
+    PurgeObsoleteFiles;
+  }
+
+  BackgroundFlush[shape="record";
+    label="{{
+      BackgroundFlush|
+      将memTable\l 
+      刷到磁盘上\l
+    }}";
+  ];
+  BackgroundCompaction[shape="record";
+    label="{{
+      BackgroundCompaction|
+      后台压缩线程\l|
+      多线程压缩体现在哪？
+    }}";
+  ];
+
+  BackgroundFlush -> {
+    IsBGWorkStopped;
+    IsRecoveryInProgress;
+    PopFirstFromFlushQueue;
+    IsFlushPending;
+    GetBGJobLimits;
+    FlushMemTablesToOutputFiles;
+  }
+
+  FlushMemTablesToOutputFiles -> {
+    AtomicFlushMemTablesToOutputFiles;
+    GetSnapshotContext;
+    GetLatestMutableCFOptions;
+    FlushMemTablesToOutputFiles2;
+  }
+  FlushMemTablesToOutputFiles2 -> {
+    FlushJob;
+    SyncClosedLogs;
+    FlushJob_Run;
+  }
+  FlushJob_Run -> {
+    GetPerfLevel;
+    WriteLevel0Table;
+    RollbackMemtableFlush;
+    TryInstallMemtableFlushResults;
+  }
+
+  WriteLevel0Table -> {
+    FlushBufferToLog;
+    BuildTable;
+  }
+  BuildTable -> {
+    TableFileName;
+    NewWritableFile;
+    MergeHelper;
+    Bulder_Finish;
+    Builder_Add;
+  }
+  TryInstallMemtableFlushResults -> {
+    LogAndApply;
+    InstallNewVersion;
+    UpdateCachedValuesFromMemTableListVersion;
+    ResetTrimHistoryNeeded;
+  }
+
+  BGWorkCompaction -> {
+    BackgroundCallCompaction;
+  }
+  BackgroundCallCompaction -> {
+    WaitForIngestFile;
+    BackgroundCompaction;
+    FindObsoleteFiles;
+    ReleaseFileNumberFromPendingOutputs;
+    MaybeScheduleFlushOrCompaction;
+    bg_cv__SignalAll;
+  }
+
+  BackgroundCompaction -> {
+    PickCompactionFromQueue;
+    GetLatestMutableCFOptions;
+    EnoughRoomForCompaction;
+    AddToCompactionQueue;
+    MaybeScheduleFlushOrCompaction;
+    NotifyOnCompactionBegin;
+    LogAndApply;
+    InstallSuperVersionAndScheduleWork;
+    CompactionJob;
+    NotifyOnCompactionCompleted;
+  }
+  PickCompactionFromQueue -> {
+    RequestCompactionToken;
+    compaction_queue_;
+  }
+  AddToCompactionQueue -> {
+    compaction_queue_;
+    set_queued_for_compaction;
+  }
+  CloseHelper -> PopFirstFromFlushQueue;
+  compaction_queue_ -> PopFirstFromFlushQueue;
+}

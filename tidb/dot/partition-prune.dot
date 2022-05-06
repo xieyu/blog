@@ -1,0 +1,122 @@
+digraph partition_prune {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_DataSource {
+    graph[label="DataSource";fontsize=20;style="rounded,dashed";color="slategrey"]
+    partitionNames;
+    allConds;
+  }
+
+  subgraph cluster_partitionProcessor {
+    graph[label="partitionProcessor";fontsize=20;style="rounded,dashed";color="slategrey"]
+    prune -> {
+      processHashPartition;
+      processRangePartition;
+    }
+    processHashPartition -> {
+      pruneHashPartition;
+      makeUnionAllChildren;
+      convertToRangeOr;
+    }
+    pruneHashPartition -> {
+      findUsedPartitions;
+    }
+    findUsedPartitions -> {
+      generateHashPartitionExpr;
+      DetachCondAndBuildRangeForPartition;
+      pe;
+      datchedResult;
+      used;
+    }[color="#b83b5e"];
+    datchedResult[
+      shape="record";
+      label="{{
+        datchedResult|
+        DetachRangeResult\l|
+	        Ranges []*Range\l|
+          AccessConds []expression.Expression\l|
+	        RemainedConds []expression.Expression\l|
+          EqCondCount int\l|
+          EqOrInCount int\l
+      }}"];
+      pe[
+        shape="record";
+        label="{{
+          pe|
+          expression.Expression
+        }}"];
+
+    used[
+      shape="record";
+      label="{{
+        used []int|
+        用到的paritionID\l
+      }}"];
+    makeUnionAllChildren[
+      shape="record";
+      label="{{
+        makeUnionAllChildren|
+        对于每个parition 生成\l 
+        一个新的DataSource\l
+        作为LogicalPaitionUnionAll的child\l
+      }}"];
+
+    //makeUnionAllChildren -> {
+    //  resolveOptimizeHint;
+    //}
+    //resolveOptimizeHint[
+    //  shape="record";
+    //  label="{{
+    //    resolveOptimizeHint|
+    //    根据hint和index等生成该分区\l
+    //    对应DataSource的所有可能访问路径\l
+    //  }}"];
+    //resolveOptimizeHint -> resolveAccessPaths;
+    //resolveAccessPaths -> {
+    //  getPossibleAccessPaths;
+    //  filterPathByIsolationRead;
+    //  possibleAccessPaths;
+    //}
+
+    processRangePartition -> {
+      pruneRangePartition;
+      makeUnionAllChildren;
+    }
+    pruneRangePartition -> {
+      pruneRangeColumnsPartition;
+      makePartitionByFnCol;
+      fullRange;
+      PartitionExpr;
+    }
+    pruneRangeColumnsPartition -> {
+      makeRangeColumnPruner;
+      partitionRangeForCNFExpr;
+    }
+    partitionRangeForCNFExpr[
+      shape="record";
+      label="{{
+        partitionRangeForCNFExpr|
+        遍历所有的condexp\l
+        取交集
+      }}"];
+    partitionRangeForCNFExpr -> partitionRangeForExpr;
+  }
+
+  edge[style=dashed;color=darkblue];
+  partitionNames -> generateHashPartitionExpr -> pe -> DetachCondAndBuildRangeForPartition;
+  DetachCondAndBuildRangeForPartition -> datchedResult;
+  datchedResult -> used;
+  used -> convertToRangeOr -> makeUnionAllChildren;
+  allConds -> DetachCondAndBuildRangeForPartition;
+  allConds -> partitionRangeForCNFExpr;
+  makeRangeColumnPruner -> partitionRangeForCNFExpr;
+  partitionRangeForExpr -> makeUnionAllChildren;
+  PartitionInfo -> {
+    makeUnionAllChildren;
+    pruneRangeColumnsPartition;
+  }
+  PartitionExpr -> pruneRangeColumnsPartition;
+}

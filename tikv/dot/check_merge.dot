@@ -1,0 +1,308 @@
+#include "styles.h"
+digraph check_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_PeerFsm {
+    graph[label="PeerFsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+    fsm_stop;
+  }
+  subgraph cluster_Router{
+    graph[label="Router";fontsize=20;style="rounded,dashed";color="slategrey"]
+    ctx_router_close_region_id;
+    ctx_router_close_region_id[style_func;label="{{
+      ctx.router.close(region_id)|
+      从router的normals map\l 
+      中去掉region_id对应的mailbox\l
+      并调用mailbox.close\l
+    }}"]
+  }
+  subgraph cluster_Peer {
+    graph[label="Peer";fontsize=20;style="rounded,dashed";color="slategrey"]
+    peer_maybe_destroy;
+  }
+  subgraph cluster_PeerFsmDelegate {
+    graph[label="PeerFsmDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    destroy_peer;
+  }
+
+  start -> {
+    on_check_merge;
+    register_merge_check_tick;
+    register_raft_base_tick;
+    register_raft_gc_log_tick;
+    register_pd_heartbeat_tick;
+    register_split_region_check_tick;
+    on_check_merge;
+  }
+  register_merge_check_tick -> PeerTicks_CHECK_MERGE;
+  PeerTicks_CHECK_MERGE -> {
+    on_check_merge;
+  }
+  schedule_merge -> {
+    validate_merge_peer;
+    new_admin_request;
+    CommitMerge;
+    router_force_send_RaftCommand;
+  }
+  rollback_merge -> {
+    RollbackMerge;
+  }
+  RollbackMerge ->exec_rollback_merge;
+
+  on_ready_result -> {
+    on_ready_prepare_merge;
+    on_ready_commit_merge;
+    on_ready_rollback_merge;
+    on_check_merge;
+  }
+
+  on_ready_prepare_merge -> {
+    schedule_task_LogsUpToDate;
+    on_check_merge;
+    pending_merge_state;
+  }
+  schedule_task_LogsUpToDate -> {
+    logs_up_to_date_for_merge;
+  }
+
+  on_check_merge -> {
+    register_merge_check_tick;
+    schedule_merge;
+    add_want_rollback_merge_peer;
+    rollback_merge;
+    is_learner;
+    send_want_rollback_merge;
+  }
+
+  on_ready_commit_merge -> {
+    register_split_region_check_tick;
+    ctx_store_meta;
+    meta_set_region;
+    meta_readers_remove;
+    require_updating_max_ts;
+    drop_meta;
+    peer_is_leader;
+    peer_heartbeat_pd;
+    router_force_send_SignificantMsg_MergeResult;
+  }
+  router_force_send_SignificantMsg_MergeResult[style_func;label="{{
+    router.force_send(source.get_id(),\l 
+    SignificantMsg::MergeResult)|
+    向source region 发送\l
+    SignificantMsg::MergeResult消息\l
+  }}"]
+
+  on_ready_rollback_merge -> {
+     pending_merge_state_get_commit;
+     meta_set_region;
+     peer_heartbeat_pd;
+     peer_is_leader;
+  }
+  router_force_send_SignificantMsg_MergeResult -> {
+   on_merge_result
+  }[style_edge_data];
+  on_merge_result[style_func;label="{{
+    on_merge_result|
+    source region处理merge result\l
+    先做一系列检查\l
+    是否初始化，\l 
+    是否在apply snaphot\l|
+    最后把自己给desory了？
+    destory一个region\l 
+    需要哪些步骤？\l
+  }}"]
+
+  pending_merge_state[style_var;label="{{
+    
+  pending_merge_state|
+    Option\<MergeState\>\l
+    pub min_index: u64\l|
+    pub target: ::protobuf::SingularPtrField\<super::metapb::Region\>,\l|
+    pub commit: u64,\l
+  }}"]
+
+  on_merge_result -> {
+    pending_merge_state;
+    ctx_store_meta;
+    is_applying_snapshot;
+    is_initialized;
+    destroy_peer;
+    schedule_task_ApplyTask_destory;
+    on_stale_merge;
+    MergeResultKind_FromTargetLog;
+    MergeResultKind_FromTargetSnapshotStep1;
+    MergeResultKind_FromTargetSnapshotStep2;
+    MergeResultKind_Stale;
+  }
+
+  MergeResultKind_FromTargetLog -> {
+    destroy_peer;
+  }[style_edge_data];
+  MergeResultKind_FromTargetSnapshotStep1 -> {
+    schedule_task_ApplyTask_destory;
+  }[style_edge_data];
+  MergeResultKind_FromTargetSnapshotStep2 -> {
+    destroy_peer;
+  }[style_edge_data];
+  MergeResultKind_Stale -> {
+    on_stale_merge;
+  }[style_edge_data];
+
+  schedule_task_ApplyTask_destory[style_func;label="{{
+    schedule_task_ApplyTask_destory|
+    destory apply fsm at frist\l
+  }}"]
+  schedule_task_ApplyTask_destory -> ApplyFsm_handle_destory[style_edge_data];
+  ApplyFsm_handle_destory[style_func;label="{{
+    ApplyFsm_handle_destory|
+    删掉applyFsm 然后发消息给\l
+    PeerFsm\l
+  }}"]
+  PeerMsg_ApplyRes_Destroy[style_func;label="{{
+    PeerMsg_ApplyRes_Destroy|
+    peer的on_apply_res处理该消息\l
+  }}"]
+  ApplyFsm_handle_destory -> {
+    ApplyFsm_destory;
+    PeerMsg_ApplyRes_Destroy;
+  }
+  ApplyFsm_destory -> {
+    ApplyContext_flush;
+    ApplyDelegate_destory;
+  }
+  notify_region_removed -> notify_req_region_removed;
+  notify_req_region_removed -> cb_invoke_with_response;
+  notify_req_region_removed[style_func;label="{{
+    notify_req_region_removed|
+    对于req返回\l 
+    RegoinNotFound错误\l
+  }}"]
+  
+  ApplyDelegate_destory -> {
+    notify_region_removed;
+    ApplyContext_router_close;
+  }
+
+  ApplyContext_router_close[style_func;label="{{
+  ApplyContext_router_close|
+    关闭region_id对应的\l 
+    applyFsm的router\l
+  }}"]
+
+  ApplyFsm_destory[style_func;label="{{
+    ApplyFsm::destory|
+    关掉ApplyFsm
+  }}"]
+  is_applying_snapshot[style_func;label="{{
+    is_applying_snapshot|
+    如果正在applying_snapshot\l
+    就panic\l
+  }}"]
+  PeerMsg_ApplyRes_Destroy -> {
+    destory_peer;
+  }[style_edge_data];
+
+  on_stale_merge -> {
+     peer_maybe_destroy;
+     handle_destroy_peer;
+  }
+  peer_maybe_destroy  -> {
+    store_meta;
+    is_applying_snapshot;
+    cancel_applying_snap;
+    DestoryPeerJob;
+  }
+  handle_destroy_peer -> {
+    schedule_task_ApplyTask_destory;
+    destroy_peer;
+  }
+
+  destroy_peer[style_func;label="{{
+    destroy_peer|
+    destory peer\l
+    关闭peerfsm\l
+    close router\l
+    ApplyFsm是怎么关闭的?\l
+  }}"]
+
+  destory_peer-> {
+    is_applying_snapshot;
+    store_meta;
+    meta_readers_remove;
+    coprocessor_host_on_region_changed;
+    pdTaskDestoryPeer;
+    peer_is_initialized;
+    ctx_router_close_region_id;
+    fsm_stop;
+    meta_leaders_remove_region_id;
+  }
+
+  pdTaskDestoryPeer -> worker_pd_Runner_handle_destory_peer;
+  worker_pd_Runner_handle_destory_peer -> {
+    region_peers_remove_region_id;
+  }
+  region_peers_remove_region_id -> region_peers;
+  region_peers[style_var;label="{{
+    region_peers|
+    region_peers: HashMap\<u64, PeerStat\>,\l
+  }}"]
+  on_catch_up_logs_for_merge -> {
+    maybe_append_merge_entries;
+    ApplyTask_LogsUpToDate;
+  }
+  ApplyTask_LogsUpToDate -> logs_up_to_date_for_merge;
+
+
+  subgraph cluster_apply {
+    graph[label="apply";fontsize=20;style="rounded,dashed";color="slategrey"]
+    exec_admin_cmd -> {
+      exec_prepare_merge;
+      exec_commit_merge;
+      exec_rollback_merge;
+    }
+    exec_prepare_merge-> {
+      write_peer_state;
+      PeerState_Merging;
+      mergin_state;
+      ExecResult_PrepareMerge
+    }
+
+    exec_commit_merge -> {
+      SignificantMsg_CatchUpLogs;
+      notify_one;
+      WaitMergeSource;
+      ExecResult_CommitMerge;
+      write_peer_state;
+      PeerState_Normal;
+      PeerState_Tombstone;
+    }
+
+    exec_rollback_merge -> {
+      ExecResult_RollbackMerge;
+      write_peer_state;
+      PeerState_Normal;
+    }
+    logs_up_to_date_for_merge -> {
+      apply_destroy;
+    }
+    apply_destroy-> {
+      ctx_flush;
+      apply_delegate_destroy;
+    }
+  }
+  SignificantMsg_CatchUpLogs -> on_catch_up_logs_for_merge;
+  CommitMerge -> exec_commit_merge[style_edge_data];
+
+  worker_pd_Runner_run -> schedule_heartbeat_receiver;
+  new_merge_request -> PrepareMerge -> exec_prepare_merge[style_edge_data];
+  schedule_heartbeat_receiver -> {
+    handle_region_heartbeat_response;
+  }
+  handle_region_heartbeat_response -> new_merge_request;
+
+  ExecResult_PrepareMerge -> on_ready_prepare_merge[style_edge_data];
+  ExecResult_CommitMerge -> on_ready_commit_merge[style_edge_data];
+  ExecResult_RollbackMerge -> on_ready_rollback_merge[style_edge_data];
+}

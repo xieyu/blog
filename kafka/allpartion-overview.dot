@@ -1,0 +1,116 @@
+digraph allpartionsoverview {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_zookeeper {
+    graph[label="zookeeper";fontsize=20;];
+    topic;
+    controller;
+    broker;
+    partition;
+  }
+  {topic, controller, broker, partition} -> zkHandlers;
+  controller -> borker1_controllerChangeHandler;
+  controller -> borker2_controllerChangeHandler;
+
+  subgraph cluster_KafkaController {
+    graph[label="KafkaController";fontsize=20;];
+    zkHandlers -> PartitionStateMachine -> ControllerChannelManager;
+    zkHandlers[shape="record";
+      label="{{
+        zkHandlers|
+          server启动时候，注册watch zk\l
+          路径的各种handler回调\l
+      }}";
+    ];
+    zkHandlers -> ReplicaStateMachine;
+    PartitionStateMachine[shape="record";
+      label="{{
+        PartitionStateMachine|
+          管理partion状态机\l 
+          并将partition状态的\l 
+          改变转换为request \l 
+          发送给其他broker\l
+      }}";
+    ];
+    ReplicaStateMachine[
+      shape="record";
+      label="{{
+        ReplicaStateMachine|
+        replica状态机\l
+        将replica状态的转变\l 
+        转换为request\l
+        发送给其他broker\l
+      }}";
+    ];
+    ControllerChannelManager[shape="record";
+      label="{{
+        ControllerChannelManager|
+          负责管理Controller和\l 
+          其他broker之间的通信线程\l
+      }}";
+    ];
+    ControllerContext[
+      fillcolor="#95e1d3";
+      style=filled;
+      shape="record";
+      label="{{
+        ControllerContext|
+        对zk中一些状态的缓存\l|
+        allTopics\l|
+        partitionAssignments\l|
+        partitionLeadershipInfo\l|
+        partitionsBeingReassigned\l|
+        partitionStates\l|
+        replicaStates\l|
+        replicasOnOfflineDirs\l|
+        topicsToBeDeleted\l|
+      }}";
+    ];
+    zkHandlers -> ControllerContext;
+    ReplicaStateMachine -> ControllerChannelManager;
+    RequestSendThread1[
+      shape="record";
+      label="{{
+        RequestSendThread|
+        controller和每个broker之间通信\l
+        有个blocing queue和单独的发送线程
+      }}";
+    ];
+    ControllerChannelManager ->{
+      RequestSendThread1;
+      RequestSendThread2;
+    }
+  }
+
+  subgraph cluster_KafkaBroker1 {
+    graph[label="KafkaBroker1";fontsize=20;];
+    borker1_controllerChangeHandler[shape="record";
+      label="{{
+          controllerChangeHandler|
+          如果controller挂了，\l 
+          就自己尝试成为controller
+      }}";
+    ];
+    borker1_KafkaApi[label="KafkaApi"];
+    borker1_ReplicaManager[label="ReplicaManager"];
+    borker1_KafkaApi ->borker1_ReplicaManager;
+  }
+
+  subgraph cluster_KafkaBroker2 {
+    graph[label="KafkaBroker2";fontsize=20;];
+    borker2_controllerChangeHandler[shape="record";
+      label="{{
+          controllerChangeHandler|
+          如果controller挂了，\l 
+          就自己尝试成为controller
+      }}";
+    ];
+    borker2_KafkaApi[label="KafkaApi"];
+    borker2_ReplicaManager[label="ReplicaManager"];
+    borker2_KafkaApi -> borker2_ReplicaManager;
+  }
+  RequestSendThread1 -> borker1_KafkaApi;
+  RequestSendThread2 -> borker2_KafkaApi;
+
+}

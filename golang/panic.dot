@@ -1,0 +1,131 @@
+digraph panic {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  g[
+    shape="record";
+    label="{{
+      g |
+      <defer> _defer *_defer\l|
+      _panic *_panic\l
+    }}";
+  ];
+  defer[
+    shape="record";
+    label="{{
+      _defer|
+      size int32 \l|
+      started bool \l|
+      heap bool \l|
+      sp uintptr \l|
+      pc uintptr\l|
+      fn      *funcval\l|
+      _panic  *_panic\l|
+      <link> link    *_defer\l
+    }}";
+  ];
+  defer2[
+    shape="record";
+    label="{{
+      _defer|
+      size int32 \l|
+      started bool \l|
+      heap bool \l|
+      sp uintptr \l|
+      pc uintptr\l|
+      fn      *funcval\l|
+      _panic  *_panic\l|
+      <_defer> link    *_defer\l
+    }}";
+  ];
+  panic[
+    shape="record";
+    label="{{
+      panic|
+      argp unsafe.Pointer\l|
+      arg interface\{\}\l|
+      link *_panic\l|
+      recovered bool\l|
+      abort\l
+    }}";
+  ];
+
+  panic2[
+    shape="record";
+    label="{{
+      panic|
+      argp unsafe.Pointer\l|
+      arg interface\{\}\l|
+      link *_panic\l|
+      recovered bool\l|
+      abort\l
+    }}";
+  ]
+
+  gopanic[
+    shape="record";
+    label="{{
+      gopanic|
+      panic调用\l
+    }}";
+  ];
+  reflectcall_dfn[
+    shape="record";
+    label="{{
+      reflectcall(...dfn)|
+      通过反射调用\l 
+      defer中的函数\l
+    }}";
+  ];
+  recovery[
+    shape="record";
+    label="{{
+      recovery|
+      重新设置go的sp和pc\l
+      调用gogo重新调度goroutine\l
+      sp和pc是defer中的参数\l
+    }}";
+  ];
+  gorecover[
+    shape="record";
+    label="{{
+      gorecover|
+      将panic中的recovered\l 
+      字段设置为true\l
+    }}";
+  ];
+
+  subgraph cluster_deferlink {
+    graph[label="defer link list";fontsize=20;style=rounded];
+    defer;
+    defer2;
+  };
+
+  subgraph cluster_paniclink {
+    graph[label="panic link list";fontsize=20;style=rounded];
+    panic;
+    panic2;
+  };
+
+  g:_panic -> panic;
+  panic -> panic2;
+  defer -> defer2;
+  defer -> panic;
+  g:_defer -> defer;
+
+  gopanic -> {
+    reflectcall_dfn;
+    preprintpanics;
+    fatalpanic;
+    g;
+  };
+  gopanic -> recovery[label="recovered"];
+  fatalpanic -> {
+    exit;
+    dopanic_m;
+  }
+  reflectcall_dfn -> gorecover[label="在defer中可能调用recover";style=dashed];
+  gorecover -> recovery[style=dashed];
+  recovery -> gogo;
+  gorecover -> panic[label="set true"]
+}

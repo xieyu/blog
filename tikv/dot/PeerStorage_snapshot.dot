@@ -1,0 +1,115 @@
+#include "styles.h"
+digraph PeerStorageSnapshot {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  SnapState[style_func;label="{{
+    SnapState|
+    Relax,\l|
+    <generating> Generating(Receiver\<Snapshot\>),\l|
+    Applying(Arc\<AtomicUsize\>),\l|
+    ApplyAborted,\l
+  }}"]
+  PeerStorage_snap_state_check -> SnapState;
+  PeerStorage_snapshot[style_func;label="{{
+    PeerStorage\l
+    snapshot\l|
+    如果snapshot还没准备好\l
+    返回SnapshotTemporarilyUnavailable\l
+  }}"]
+
+  SnapState:generating -> SnapState_Generatting;
+
+  SnapState_Generatting -> Receiver_try_recv[style_edge_data];
+
+  PeerStorage_snapshot -> {
+    PeerStorage_snap_state_check;
+    Receiver_try_recv;
+    PeerStorage_validate_snap;
+    MAX_SNAP_TRY_CNT;
+    GenSnapTask_new;
+    SnapState_Generatting;
+  }
+  channel[style_var;label="{{
+    channel|
+    {tx|rx}
+  }}"]
+  GenSnapTask_new -> channel -> SnapState_Generatting[style_edge_data];
+  GenSnapTask_new -> PeerStorage_gen_snap_task;
+  PeerStorage_snap_state_check[style_func;label="{{
+    PeerStorage::snap_state|
+    如果snapstate为Generating\l
+    try_recv看是否已经生成好\l
+    snapshot\l
+  }}"]
+  Receiver_try_recv[style_func;label="{{
+    Receiver\l
+    try_recv\l|
+    尝试从rx读取snapshot\l
+    如果是Empty\l
+    则返回SnapshotTemporarilyUnavailable\l
+  }}"]
+  PeerStorage_snap_state_check -> Receiver_try_recv[style_edge_data];
+  Receiver_try_recv -> PeerStorage_validate_snap;
+  PeerStorage_validate_snap[style_func;label="{{
+    PeerStorage\l
+    validate_snap\l|
+    检查snap的index, epoch等
+  }}"]
+  SnapState_Generatting[style_func;label="{{
+    SnapState\l
+    Generatting\l|
+    Receiver\<Snapshot\>\l
+  }}"]
+
+  PeerStorage_gen_snap_task[style_func;label="{{
+    PeerStorage::gen_snap_task|
+    GenSnapTask\l|
+    pub(crate) region_id: u64,\l|
+    snap_notifier: SyncSender\<RaftSnapshot\>,\l|
+    for_balance: bool,\l
+  }}"]
+
+  GenSnapTask_new[style_func;label="{{
+    GenSnapTask::new|
+    创建一个GenSnapTask\l
+  }}"]
+
+  Peer_handle_raft_ready_append[style_func;label="{{
+    Peer\l
+    handle_raft_ready_append\l|
+    处理pending的GenSnapTask\l
+    发送给ApplyFsm\l
+  }}"]
+
+  PeerStorage_take_gen_snap_task[style_func;label="{{
+    PeerStorage\l
+    take_gen_snap_task\l|
+    获取GenSnapTask\l
+  }}"]
+  ApplyRouter_schedule_task_ApplyTask_Snapshot[style_blue1;label="{{
+    ApplyRouter\l
+    schedule\l
+    task::ApplyTask::Snapshot\l|
+    使用ApplyRouter\l
+    将task发送给ApplyFsm\l
+    ApplyFsm生成完后\l
+    使用tx通知rx\l
+  }}"]
+  ApplyRouter_schedule_task_ApplyTask_Snapshot -> SnapState_Generatting[style_edge_data];
+
+  Peer_handle_raft_ready_append -> {
+    PeerStorage_take_gen_snap_task;
+    ApplyRouter_schedule_task_ApplyTask_Snapshot;
+  }
+  PeerStorage_take_gen_snap_task -> PeerStorage_gen_snap_task;
+  PeerStorage_gen_snap_task -> ApplyRouter_schedule_task_ApplyTask_Snapshot[style_edge_data];
+
+  MAX_SNAP_TRY_CNT[style_func;label="{{
+    MAX_SNAP_TRY_CNT|
+    如果超过了这个次数\l
+    就返回错误\l
+  }}"]
+}

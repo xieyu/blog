@@ -1,0 +1,125 @@
+digraph plan_struct {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+
+  baseLogicalPlan[shape="record";
+  label="{{
+    baseLogicalPlan|
+      <basePlan> basePlan \l|
+      <task> taskMap   map[string]task\l|
+      self      LogicalPlan\l|
+      maxOneRow bool\l|
+      children  []LogicalPlan\l
+  }}";
+  ];
+
+  basePlan [shape="record";
+  label="{{
+    basePlan |
+      tp          string\l|
+      id          int\l|
+      ctx         sessionctx.Context\l|
+      stats       *property.StatsInfo\l|
+      blockOffset int\l
+  }}";
+  ];
+
+  logicalSchemaProducer[shape="record";
+    label="{{
+      logicalSchemaProducer|
+        schema *expression.Schema\l|
+        names  types.NameSlice\l|
+        <baseLogicalPlan> baseLogicalPlan\l
+    }}";
+  ];
+
+  DataSource[shape="record";
+    label="{{
+      DataSource|
+        <logicalSchemaProducer> logicalSchemaProducer\l|
+        indexHints []*ast.IndexHint\l|
+        table      table.Table\l|
+        tableInfo  *model.TableInfo\l|
+        Columns    []*model.ColumnInfo\l|
+        DBName     model.CIStr\l|
+        possibleAccessPaths []*accessPath\l|
+        ...
+    }}";
+  ];
+
+  LogicalProjection[shape="record";
+    label="{{
+      LogicalProjection|
+        <logicalSchemaProducer> logicalSchemaProducer\l|
+        Exprs []expression.Expression\l|
+        calculateGenCols bool\l|
+        CalculateNoDelay bool\l|
+        AvoidColumnEvaluator bool\l
+    }}";
+  ];
+
+  LogicalSelection[shape="record";
+    label="{{
+      LogicalSelection|
+        <baseLogicalPlan> baseLogicalPlan\l|
+        Conditions []expression.Expression\l
+    }}";
+  ];
+
+  LogicalJoin[shape="record";
+    label="{{
+      LogicalJoin|
+        <logicalSchemaProducer> logicalSchemaProducer\l|
+        JoinType      JoinType\l|
+        reordered     bool\l|
+        cartesianJoin bool\l|
+        LeftJoinKeys    []*expression.Column\l|
+        RightJoinKeys   []*expression.Column\l|
+        leftProperties  [][]*expression.Column\l|
+        rightProperties [][]*expression.Column\l|
+        ...
+    }}";
+  ];
+
+  task [shape="record";
+    label="{{
+      task |
+        count() float64\l|
+        addCost(cost float64)\l|
+        cost() float64\l|
+        copy() task\l|
+        plan() PhysicalPlan\l|
+        invalid() bool\l|
+    }}";
+  ];
+  copTask[shape="record";
+    label="{{
+      copTask\l在TiKV侧执行\l|
+        indexPlan PhysicalPlan\l|
+        tablePlan PhysicalPlan\l|
+        cst       float64\l|
+        keepOrder bool\l|
+        ...
+    }}";
+  ];
+  rootTask[shape="record";
+    label="{{
+      rootTask\l在TiDB侧执行\l|
+        p   PhysicalPlan\l|
+        cst float64\l
+    }}";
+  ];
+
+  copTask -> task[label="impl"];
+  rootTask -> task[label="impl"];
+  baseLogicalPlan:task -> task;
+  
+
+  LogicalSelection:baseLogicalPlan -> baseLogicalPlan;
+  LogicalJoin:logicalSchemaProducer -> logicalSchemaProducer;
+  LogicalProjection:logicalSchemaProducer -> logicalSchemaProducer;
+  DataSource:logicalSchemaProducer -> logicalSchemaProducer;
+  logicalSchemaProducer:baseLogicalPlan -> baseLogicalPlan;
+  baseLogicalPlan:basePlan -> basePlan;
+}

@@ -1,0 +1,24 @@
+digraph schema_map_to_kv {
+  node[shape=box;];
+  newrank=true;
+  rankdir=LR;
+  TiDB;
+  subgraph cluster_sql {
+    graph[label="sql";fontsize=20;style=rounded]
+    {
+      query;
+      insert;
+      update;
+      delete;
+    } -> TiDB
+  }
+  TiDB -> Schema;
+
+  TiDB -> TiKV
+  TiKV -> {
+    get;
+    put;
+    del;
+  };
+
+}

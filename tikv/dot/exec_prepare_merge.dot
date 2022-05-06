@@ -1,0 +1,71 @@
+#include "styles.h"
+digraph exec_prepar_merge {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  ApplyDelegate__exec_prepare_merge[style_func;label="{{
+    ApplyDelegate\l
+    exec_prepare_merge\l|
+    更改region epoch\l
+    的conf_ver\l|
+    设置Peer状态为Merging\l
+    保存MergeState\l
+  }}"]
+
+  ApplyDelegate__exec_prepare_merge -> {
+     region__mut_region_epoch__set_version;
+     region__mut_region_epoch__set_conf_ver;
+     MergeState;
+     write_peer_state;
+     PeerState__Merging;
+     ExecResult__PrepareMerge;
+  }
+  region__mut_region_epoch__set_conf_ver[style_blue1;label="{{
+    region\l
+    mut_region_epoch\l
+    set_conf_ver\l|
+    将conf_ver + 1\l|
+    we don't want to do\l
+    conf change after\l
+    prepare_merge is comitted\l
+  }}"]
+  region__mut_region_epoch__set_version[style_blue1;label="{{
+    region\l
+    mut_region_epoch\l
+    set_version\l|
+    将version + 1\l
+  }}"]
+  MergeState[style_func;label="{{
+    MergeState|
+    uint64 min_index = 1;\l|
+    metapb.Region target = 2;\l|
+    uint64 commit = 3;\l
+  }}"]
+  PeerState__Merging[style_func;label="{{
+    PeerState\l
+    Merging\l|
+    将当前peerstate\l
+    设置为merging\l
+  }}"]
+  MergeState -> ExecResult__PrepareMerge[style_edge_data];
+  ExecResult__PrepareMerge[style_func;label="{{
+    ExecResult\l
+    PrepareMerge\l|
+    region: Region,\l|
+    state: MergeState,\l
+  }}"]
+
+  {
+    region__mut_region_epoch__set_version;
+    region__mut_region_epoch__set_conf_ver;
+  } -> ExecResult__PrepareMerge[style_edge_data];
+
+  {
+    PeerState__Merging
+    region__mut_region_epoch__set_version;
+    region__mut_region_epoch__set_conf_ver;
+    MergeState;
+  } -> write_peer_state;
+
+}

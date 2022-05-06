@@ -1,0 +1,103 @@
+#include "styles.h"
+digraph PollContext_wb {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  Engine[style_func;label="{{
+    Engine|
+    pub kv: K,\l|
+    pub raft: R,\l
+  }}"]
+  RocksEngine[style_func;label="{{
+    RocksEngine|
+    core: Arc\<Mutex\<RocksEngineCore\>\>,\l|
+    sched: Scheduler\<Task\>,\l|
+    engines: Engines\<BaseRocksEngine, BaseRocksEngine\>,\l|
+    not_leader: Arc\<AtomicBool\>,\l
+  }}"]
+  BaseRocksEngine[style_func;label="{{
+    engine_rocks/src/engine/\l 
+    RocksEngine|
+    db: Arc\<DB\>,\l|
+    shared_block_cache: bool,\l
+  }}"]
+
+  PollContext[style_func;label="{{
+    PollContext|
+    pub kv_wb: EK::WriteBatch,\l|
+    pub raft_wb: ER::LogBatch\l
+  }}"]
+
+  RocksWriteBatch[style_func;label="{{
+    RocksWriteBatch|
+    db: Arc\<DB\>,\l|
+    wb: RawWriteBatch,\l
+  }}"]
+  Engine_Entry_EntryExtTyped_PipLog[style_func;label="{{
+    Engine_Entry_EntryExtTyped_PipLog|
+    cfg: Arc\<Config\>,\l|
+    memtables: MemTableAccessor\<E, W\>,\l|
+    pipe_log: P,\l|
+    global_stats: Arc\<GlobalStats\>,\l|
+    purge_manager: PurgeManager\<E, W, P\>,\l|
+    workers: Arc\<RwLock\<Workers\>\>,\l
+  }}"]
+  RaftLogBatch[style_func;label="{{
+    RaftLogBatch|
+    LogBatch\<Entry, EntryExtTyped\>\l
+  }}"]
+
+/*
+  RaftLogEngine -> {
+    RawRaftEngine;
+    Entry;
+    EntryExtTyped;
+    RaftLogBatch;
+  }
+  RawRaftEngine -> {
+    Engine_Entry_EntryExtTyped_PipLog
+  }
+  RaftLogBatch -> {
+    Entry;
+    EntryExtTyped;
+    LogBatch;
+  }
+  LogBatch[style_func;label="{{
+    LogBatch|
+    pub items: Vec\<LogItem\<E\>\>,\l|
+    _phantom: PhantomData\<W\>,\l
+  }}"]
+
+  RocksEngine -> {
+    Engine;
+    BaseRocksEngine;
+  }
+  RocksEngine_new -> RocksEngine;
+  */
+
+  PollContext -> {
+    RaftEngine;
+    KvEngine;
+  }
+  KvEngine -> {
+    RocksEngine;
+    PanicEngine;
+  }[label="impl"];
+
+  RaftEngine -> {
+    RocksEngine;
+    RaftLogEngine;
+    PanicEngine;
+  }[label="impl"];
+
+  LogBatch -> {
+    RocksWriteBatch;
+    RaftLogBatch;
+  }
+  RocksEngine -> {
+    RocksWriteBatch;
+  }
+  
+}

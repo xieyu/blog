@@ -1,0 +1,91 @@
+digraph mspancreate {
+  node[shape=box];
+  newrank=true;
+  rankdir=LR;
+  edge[weight=5];
+  splines = ortho;
+  subgraph cluster_mcache {
+    graph[label="mcache";fontsize=20;];
+    nextFree[shape="record";
+      label="{{
+        nextFree|
+          如果当前spec对应\l 
+          的mspan没空间了\l
+      }}";
+    ];
+    refill[shape="record";
+      label="{{
+        refill|
+          从spec对应的mcentral \l 
+          中获取一个mspan\l
+      }}";
+    ];
+    nextFree -> refill;
+  }
+  subgraph cluster_mcentral {
+    graph[label="mcentral";fontsize=20;];
+    cacheSpan[shape="record";
+      label="{{
+        cacheSpan|
+          扫描noempty和empty \l 
+          找一个空闲的mspan\l
+          如果没有则分配一个
+      }}";
+    ];
+    mcentral_grow[shape="record";
+      label="{{
+        grow|
+          根据spec计算需要的pages\l
+          调用heap分配内存\l
+      }}";
+    ];
+    cacheSpan -> mcentral_grow;
+  }
+  subgraph cluster_mheap {
+    graph[label="mheap";fontsize=20;];
+    allocSpanLocked[shape="record";
+      label="{{
+        allocSpanLocked|
+          最终创建mspan的地方\l
+          先从free中找npages内存\l 
+          找不到的话grow
+      }}";
+    ];
+    grow[shape="record";
+      label="{{
+        grow|
+          使用sysAlloc分配npages内存\l
+          使用fixalloc分配mspan\l
+      }}";
+    ];
+    alloc -> alloc_m -> allocSpanLocked -> grow;
+    grow -> {
+      sysAlloc;
+      spanalloc_alloc;
+    };
+  }
+  subgraph cluster_linearAlloc {
+    graph[label="linearAlloc";fontsize=20;];
+    linear_alloc[label="alloc"]
+  }
+  linear_alloc -> {
+    sysMap;
+    sysUsed;
+  }
+  subgraph cluster_linux{
+    graph[label="linux";fontsize=20;];
+    mmap;
+    madvise;
+  }
+
+  sysMap -> mmap;
+  sysUsed -> sysHugePage;
+  sysHugePage -> madvise;
+
+  mallocgc-> nextFree;
+  refill -> cacheSpan;
+  {rank=same; alloc; nextFree;linear_alloc};
+  edge[weight=1];
+  mcentral_grow -> alloc;
+  sysAlloc -> linear_alloc;
+}

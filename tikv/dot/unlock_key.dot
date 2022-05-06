@@ -1,0 +1,86 @@
+#include "styles.h"
+digraph unlock_key {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  commit -> unlock_key;
+  handle_1pc_locks -> unlock_key;
+  PessimisticRollback_process_write -> unlock_key;
+
+  check_txn_status_lock_exists -> unlock_key;
+  check_txn_status_lock_exists -> rollback_lock;
+  rollback_lock -> unlock_key;
+  CheckSecondaryLocks_process_write -> unlock_key;
+  CheckTxnStatus_process_write ->  check_txn_status_lock_exists;
+
+  Prewriter_process_write -> Prewriter_write_result;
+  Prewriter_write_result -> one_pc_commit_ts;
+  one_pc_commit_ts -> handle_1pc_locks
+
+  Commit_process_write[style_func;label="{{
+    Commit::process_write
+  }}"]
+  Commit_process_write ->commit;
+
+  Command_process_write -> {
+   Commit_process_write;
+   Prewriter_process_write;
+   CheckTxnStatus_process_write;
+   CheckSecondaryLocks_process_write;
+   PessimisticRollback_process_write;
+  }
+
+  check_txn_status_lock_exists[style_func;label="{{
+    check_txn_status_lock_exists|
+    check whether there's an overlapped\l
+    write record, and then perform rollback\l|
+    检查lock ttl，如果lock expire了\l
+    就rollback lock\l
+  }}"]
+  CheckTxnStatus_process_write[style_func;label="{{
+    CheckTxnStatus::process_write|
+    check the status of a transaction\l
+    this is usually invoked by a transaction\l
+    that meets another transaction's lock\l
+  }}"]
+
+  CheckSecondaryLocks_process_write[style_func;label="{{
+    CheckSecondaryLocks_process_write|
+    check secondary locks of\l 
+    an sync commit transaction\l|
+    if the lock not exist \l
+    or a pessimistic lock\l
+    to prevent the  status being changed\l
+    a rollback maybe written\l
+  }}"]
+  Prewriter_process_write[style_func;label="{{
+    Prewriter::process_write
+  }}"]
+  Prewriter_write_result[style_func;label="{{
+    Prewriter::write_result
+  }}"]
+  Command_process_write[style_func;label="{{
+    Command::process_write
+  }}"]
+
+  CheckSecondaryLocks::process_write[style_func;label="{{
+    CheckSecondaryLocks::process_write|
+  }}"]
+
+
+  subgraph cluster_Commit {
+    graph[label="Commit";fontsize=20;style="rounded,dashed";color="slategrey"]
+    commit;
+    one_pc_commit_ts;
+    handle_1pc_locks;
+  }
+  subgraph cluster_Rollback {
+    graph[label="Rollback";fontsize=20;style="rounded,dashed";color="slategrey"]
+    PessimisticRollback_process_write;
+    CheckSecondaryLocks_process_write;
+    check_txn_status_lock_exists;
+    rollback_lock;
+  }
+}

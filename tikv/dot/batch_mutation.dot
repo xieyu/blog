@@ -1,0 +1,80 @@
+#include "styles.h"
+digraph batch_mutations {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  KVTxn -> twoPhaseCommitter -> groupMutations -> batchMutations -> batchExecutor -> twoPhaseCommitAction -> TiKV;
+  twoPhaseCommitter[style_func;label="{{
+    twoPhaseCommitter|
+    遍历MemDB\l
+    转换成memBufferMutations\l|
+	startTS             uint64\l|
+	mutations           *memBufferMutations\l|
+  ...\l
+  }}"]
+  KVTxn -> KVUnionStore -> MemDB -> memBufferMutations -> groupMutations[style_edge_data];
+  KVTxn[style_func;label="{{
+    KVTxn|
+    write操作先保存在\l
+    MemDB中 commit时 转成\l|
+    memBufferMutations\l
+  }}"]
+  batchMutations -> twoPhaseCommitAction;
+  twoPhaseCommitAction[style_var;label="{{
+    twoPhaseCommitAction|
+    handleSingleBatch\l
+    处理一批mutations\l
+    会发送一些cmd请求到TiKV\l
+  }}"]
+  groupMutations[style_func;label="{{
+    groupMutations|
+    先对mutation根据\l
+    region做分组\l
+  }}"]
+  batchMutations[style_func;label="{{
+    batchMutations|
+    对每个分组内的\l
+    mutations \l
+    按照size limit\l
+    分批batch\l
+  }}"]
+  batchExecutor[style_func;label="{{
+    batchExecutor|
+    并发处理batchMutations\l
+  }}"]
+
+  TiKV[style_func;label="{{
+    TiKv\l
+    处理TiDB 发来的请求\l
+  }}"]
+
+  KVUnionStore[style_blue1;label="{{
+    KVUnionStore\l
+	memBuffer *MemDB\l|
+	snapshot  uSnapshot\l
+  }}"]
+
+  MemDB[style_blue1;label="{{
+    MemDB\l|
+	sync.RWMutex\l|
+	root      memdbArenaAddr\l|
+	allocator nodeAllocator\l|
+	vlog      memdbVlog\l|
+	entrySizeLimit  uint64\l|
+	bufferSizeLimit uint64\l|
+	count           int\l|
+	size            int\l|
+	vlogInvalid bool\l|
+	dirty       bool\l|
+	stages      []memdbCheckpoint\l
+  }}"]
+
+  memBufferMutations[style_blue1;label="{{
+    memBufferMutations\l|
+	storage *unionstore.MemDB\l|
+	handles []unionstore.MemKeyHandle\l
+  }}"]
+
+}

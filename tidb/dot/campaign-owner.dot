@@ -1,0 +1,244 @@
+digraph campaign_owner {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  subgraph cluster_KVClient {
+    graph[label="KVClient";fontsize=20;style="rounded,dashed";color="slategrey"]
+    KVClient_Txn;
+    KVClient_Get;
+  }
+
+
+  subgraph cluster_txn {
+    graph[label="txn";fontsize=20;style="rounded,dashed";color="slategrey"]
+    node[shape=record;style=filled;fillcolor="turquoise"];
+    cmps;
+    sus;
+    fas;
+    node[shape=box;style=stroke;];
+    txn_Then;
+    txn_Else;
+    txn_If;
+    txn_Commit -> KVClient_Txn;
+
+    txn_If -> cmps;
+    txn_Then -> sus;
+    txn_Else -> fas;
+    
+    edge[style=dashed];
+    {cmps;sus;fas} -> TxnRequest -> KVClient_Txn;
+  }
+
+  subgraph cluster_Election {
+    graph[label="Election";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Campaign[
+      shape="record";
+      label="{{
+        Campaign|
+        puts a value as eligible for the election\l
+        on the prefix key\l
+        Campaign will continue to be blocked\l
+        util it becomes the leader\l
+      }}"];
+
+    NewElection[
+      shape="record";
+      label="{{
+        NewElection|
+        returns a new election \l 
+        on a given key prefix\l
+      }}"];
+    Leader[
+      shape="record";
+      label="{{
+        Leader|
+        returns the leader value\l 
+        for the curent election\l
+      }}"];
+    OpDelete[
+      shape="record";
+      label="{{
+        OpDelete|
+        删除leader key\l
+      }}"];
+    Resign[
+      shape="record";
+      label="{{
+        Resign|
+        lets a leader start\l 
+        a new election\l
+      }}"];
+    Proclaim[
+      shape="record";
+      label="{{
+        Proclaim|
+        lets the leader announce\l
+        a new value without another\l
+        election\l
+      }}"];
+
+    Campaign -> {
+      waitDeletes;
+      txn_Then;
+      txn_Else;
+      txn_Commit;
+      Resign;
+      Proclaim;
+    }[color=limegreen];
+
+    Proclaim -> {
+      txn_Then;
+      txn_If;
+      txn_Commit;
+      OpPut;
+    }
+    Resign -> {
+      txn_If;
+      txn_Commit;
+      OpDelete;
+    }
+    waitDeletes -> {
+      waitDeletes;
+      KVClient_Get;
+    }
+    Leader-> KVClient_Get;
+  }
+
+  subgraph cluster_ownerManager {
+    graph[label="ownerManager";fontsize=20;style="rounded,dashed";color="slategrey"]
+    watchOwner[
+      shape="record";
+      label="{{
+        watchOwner|
+        watch等待no owner\l
+        或者owner is deleted\l
+      }}"];
+    GetOwnerInfo[
+      shape="record";
+      label="{{
+        GetOwnerInfo|
+        获取ownerID并和自己的比较\l
+        不一致则报错\l
+      }}"];
+    NewSession[
+      shape="record";
+      label="{{
+        NewSession|
+        etcdSession.Done\l
+        开始新的session\l
+      }}"];
+    revokeSession[
+      shape="record";
+      label="{{
+        revokeSession|
+        NewSession Failed revokeSession\l
+      }}"];
+    RetireOwner[
+      shape="record";
+      label="{{
+        RetireOwner|
+        将elec指针设为nil\l
+      }}"];
+    ResignOwner[
+      shape="record";
+      label="{{
+        ResignOwner|
+        lets the owner start a new election\l
+      }}"];
+    toBeOwner[
+      shape="record";
+      label="{{
+        toBeOwner|
+        将指针设为新的elec
+      }}"];
+    campaignLoop[
+      shape="record";
+      label="{{
+        campaignLoop|
+        新启一个go routine\l
+        进入选举loop\l
+      }}"];
+    IsOwner[
+      shape="record";
+      label="{{
+        IsOwner|
+        根据指针是否为nil\l 
+        判断是否为owner\l
+      }}"];
+      ownerManager_elec[
+        shape="record";
+        label="{{
+          elec|
+          atomic 指针
+        }}"];
+
+    ownerManager_elec;
+
+    watchOwner -> {
+      etcdCli_Watch;
+    }
+    toBeOwner -> ownerManager_elec[label="atom.StorePointer"];
+    RetireOwner -> ownerManager_elec[label="atom.StorePointer"];
+
+    CampaignOwner -> {
+      campaignLoop;
+      NewSession;
+    };
+    campaignLoop -> {
+      revokeSession;
+      NewElection;
+      Campaign;
+      toBeOwner;
+      watchOwner;
+      RetireOwner;
+      watchOwner;
+      GetOwnerInfo;
+    }[color=turquoise];
+    GetOwnerInfo -> {
+      Leader;
+    }
+    ResignOwner -> Resign;
+
+    //data deps
+    edge[style=dashed;color=blue];
+    NewElection -> toBeOwner;
+    ownerManager_elec -> ResignOwner;
+    ownerManager_elec -> IsOwner;
+    NewSession -> campaignLoop;
+  }
+  subgraph cluster_worker {
+    graph[label="worke";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handleDDLJobQueue[
+      shape="record";
+      label="{{
+        handleDDLJobQueue|
+        loop: handle DDL jobs in DDL job queue\l|
+        处理之前，先确认自己是owner,\l
+        否则退出loop\l
+        过2 * leasTime后再次检查\l
+      }}"];
+    worker_start[
+      shape="record";
+      label="{{
+        worker_start|
+        启动多个goroutine
+      }}"];
+    worker_start -> handleDDLJobQueue -> isOwner;
+    isOwner[
+      shape="record";
+      label="{{
+        isOwner|
+        检查自己是否是owner\l
+      }}"];
+  }
+
+
+  subgraph cluster_ddl {
+    graph[label="ddl";fontsize=20;style="rounded,dashed";color="slategrey"]
+    Start -> CampaignOwner;
+    isOwner -> IsOwner;
+    Start -> worker_start;
+  }
+}

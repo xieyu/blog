@@ -1,0 +1,52 @@
+digraph runJoinWorker {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  HashJoinExec_Next -> fetchAndProbeHashTable;
+  HashJoinExec_Next -> joinResultCh[label="recv\l 取数据";color=blue];
+  fetchAndProbeHashTable ->  runJoinWorker[label="go routine"];
+  probeResultChs[
+    shape="record";
+    label="{{
+      probeResultChs|
+        probeResultChs     []chan *chunk.Chunk\l|
+        probeResultChs[workerID]\l|
+        取probeResult数据\l
+    }}"];
+
+  runJoinWorker -> {
+    join2ChunkForOuterHashJoin;
+    join2Chunk;
+  }
+  joinMatchedProbeSideRow2Chunk -> {
+    GetMatchedRowsAndPtrs;
+  }
+
+  runJoinWorker[
+    shape="record";
+    label="{{
+      runJoinWorker|
+      多个joinWorker并发执行
+    }}"];
+  runJoinWorker -> {
+    joinResultCh;
+    probeChkResourceCh;
+  }[label="send";color=red]
+
+  probeChkResourceCh[
+    shape="record";
+    label="{{
+      probeChkResourceCh|
+        probeChkResourceCh chan *probeChkResource\l|
+        将结probeChResource 放回channel中\l
+    }}"];
+
+  edge[style=dashed;color=blue]
+  probeResultChs -> runJoinWorker[label="recv"];
+  {
+    join2ChunkForOuterHashJoin;
+    join2Chunk;
+  } -> joinResult -> joinResultCh;
+}

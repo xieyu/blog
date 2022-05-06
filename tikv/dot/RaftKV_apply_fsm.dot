@@ -1,0 +1,77 @@
+#include "styles.h"
+digraph apply_fsm {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  subgraph cluster_ApplyContext {
+    graph[label="ApplyContext";fontsize=20;style="rounded,dashed";color="slategrey"]
+    kv_wb_mut;
+    apply_ctx_cb_push;
+    flush -> write_to_db -> cb_invoke;
+    kv_wb_mut -> write_to_db[style_edge_data];
+      
+  }
+
+  subgraph cluster_ApplyDelegate {
+    graph[label="ApplyDelegate";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_raft_committed_entries -> {
+      handle_raft_entry_normal;
+    }
+    handle_raft_entry_normal -> {
+       process_raft_cmd;
+    }
+    apply_raft_cmd[style_func;label="{{
+      apply_raft_cmd|
+      将modify写入ctx.kv_wb\l
+    }}"]
+    apply_raft_cmd -> kv_wb_mut;
+    process_raft_cmd -> {
+       apply_raft_cmd;
+       find_pending;
+       apply_ctx_cb_push;
+    }
+    apply_ctx_cb_push -> cb_invoke[style_edge_data];
+    pending_cmds;
+  }
+
+  subgraph cluster_ApplyFsm {
+    graph[label="ApplyFsm";fontsize=20;style="rounded,dashed";color="slategrey"]
+      
+    handle_tasks -> {
+       handle_apply;
+    }
+    handle_apply -> {
+       append_proposal;
+       handle_raft_committed_entries;
+    }
+    append_proposal -> pending_cmds;
+  }
+  subgraph cluster_ApplyPoller {
+    graph[label="ApplyPoller";fontsize=20;style="rounded,dashed";color="slategrey"]
+    handle_normal -> handle_tasks[style_edge_data];
+    end -> flush;
+    poll[style_func;label="{{
+      poll|
+      Apply Poll线程
+    }}"]
+    poll -> {
+      handle_normal;
+      end;
+      begin;
+    }
+    handle_normal[style_func;label="{{
+      handle_normal|
+      批量处理一批\l 
+      normal msg\l
+      将修改写入write_batch中\l
+    }}"]
+    end[style_func;label="{{
+      end|
+      整批处理完毕\l
+      保存write_batch到rocksdb中\l
+    }}"]
+  }
+
+  
+}

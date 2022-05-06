@@ -1,0 +1,123 @@
+#include "styles.h"
+digraph handle_heartbeats {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  step -> {
+    step_follower;
+    step_candidate;
+    case_leader_lower_term;
+  }
+  case_leader_lower_term[style_var;label="{{
+    case_leader_lower_term|
+    received messages from a leader\l
+    at a lower term\l|
+    需要考虑network delay\l
+    network partition\l
+  }}"]
+  case_leader_lower_term -> {
+    check_quorum;
+    pre_vote;
+  }
+  step_follower -> {
+    election_elapsed;
+    leader_id;
+    handle_heartbeat;
+  }
+  step_candidate -> {
+    become_follower;
+    handle_heartbeat;
+  }
+  handle_heartbeat[style_func;label="{{
+    handle_heartbeat|
+    发送heartbeat 消息回复\l
+    带上自己的commit_index|
+    if self.pending_request_snapshot != INVALID_INDEX {
+    这种发送需要snapshot请求
+  }}"]
+  MsgHeartbeatResponse[style_var;label="{{
+    MsgHeartbeatResponse|
+      to_send.to = m.from;\l|
+      to_send.context = m.take_context();\l
+      to_send.commit = self.raft_log.committed;\l
+  }}"]
+  handle_heartbeat -> {
+    raft_log_commit_to;
+    send_request_snapshot;
+    send;
+    MsgHeartbeatResponse;
+  }
+  pending_request_snapshot -> send_request_snapshot[style_edge_data];
+  send_request_snapshot -> {
+    MsgAppendResponse;
+    send;
+  }
+  {
+    MsgHeartbeatResponse
+      MsgAppendResponse
+  } -> send[style_edge_data]
+
+  leader_id[style_struct;label="{{
+    leader_id|
+    pub struct RaftCore\<T: Storage\>\l
+    pub leader_id: u64\l
+    更新leader_id\l
+    方便后续redirect请求 到leader\l
+  }}"]
+  election_elapsed[style_struct;label="{{
+    election_elapsed|
+    将election_elapsed重置为0\l
+  }}"]
+
+  MsgAppendResponse[style_var;label="{{
+    MsgAppendResponse|
+    m.index = self.raft_log.committed;\l|
+    m.reject = true;\l|
+    m.reject_hint = self.raft_log.last_index();\l|
+    m.to = self.leader_id;\l|
+    m.request_snapshot = self.pending_request_snapshot;\l
+  }}"];
+  raft_log_commit_to[style_func;label="{{
+    raft_log.commit_to|
+    将log commit index\l 
+    设置为和message一致\l|
+    这个地方为什么可以直接设置？\l 
+    如果follower的index 比commit小呢？\l
+  }}"]
+
+  become_follower[style_func;label="{{
+    become_follower|
+    将term重置为heartbeat消息的term\l
+    将角色设置为follower|
+    self.reset(term);\l
+    self.leader_id = leader_id;\l
+    self.state = StateRole::Follower;\l
+    self.pending_request_snapshot = pending_request_snapshot;\l
+  }}"]
+  become_follower -> {
+    reset;
+  }
+  reset[style_func;label="{{
+    reset|
+    Resets the current\l 
+    node to given term\l
+  }}"]
+  reset_randomized_election_timeout[style_func;label="{{
+    reset_randomized_election_timeout|
+    重新生成一个随机\l 
+    election_timout时间\l
+  }}"]
+  abort_leader_transfer[style_func;label="{{
+    abort_leader_transfer|
+      self.lead_transferee = None;\l|
+      Stops the transfer of a leader\l
+  }}"]
+
+  reset -> {
+    reset_randomized_election_timeout;
+    abort_leader_transfer;
+    reset_votes;
+    pr_reset;
+  }
+}

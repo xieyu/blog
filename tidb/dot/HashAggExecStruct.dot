@@ -1,0 +1,142 @@
+digraph HashAggExec {
+  node[shape=box];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  HashAggExec[
+    shape="record";
+    label="{{
+      HashAggExec|
+	      sc               *stmtctx.StatementContext\l|
+	      PartialAggFuncs  []aggfuncs.AggFunc\l|
+	      FinalAggFuncs    []aggfuncs.AggFunc\l|
+	      partialResultMap aggPartialResultMapper\l|
+	      groupSet         set.StringSet\l|
+	      groupKeys        []string\l|
+	      cursor4GroupKey  int\l|
+	      GroupByItems     []expression.Expression\l|
+	      groupKeyBuffer   [][]byte\l|
+	      finishCh         chan struct\{\}\l|
+	      finalOutputCh    chan *AfFinalResult\l|
+	      partialOutputChs []chan *HashAggIntermData\l|
+	      inputCh          chan *HashAggInput\l|
+	      partialInputChs  []chan *chunk.Chunk\l|
+	      partialWorkers   []HashAggPartialWorker\l|
+	      finalWorkers     []HashAggFinalWorker\l|
+	      defaultVal       *chunk.Chunk\l|
+	      childResult      *chunk.Chunk\l|
+	      isChildReturnEmpty bool\l|
+	      isUnparallelExec bool\l|
+	      prepared         bool\l|
+	      executed         bool\l|
+	      memTracker *memory.Tracker\l|
+	      stats *HashAggRuntimeStats\l
+    }}"];
+  HashAggExec -> {
+    AggFunc;
+    AfFinalResult;
+    HashAggIntermData;
+    HashAggPartialWorker;
+    HashAggFinalWorker;
+    HashAggInput;
+    aggPartialResultMapper;
+  }
+  aggPartialResultMapper[
+    shape="record";
+    label="{{
+      aggPartialResultMapper|
+      type aggPartialResultMapper\l 
+      map[string][]aggfuncs.PartialResult\l
+    }}"];
+  HashAggPartialWorker[
+    shape="record";
+    label="{{
+      HashAggPartialWorker|
+	      baseHashAggWorker
+	        inputCh           chan *chunk.Chunk\l|
+	        outputChs         []chan *HashAggIntermData\l|
+	        globalOutputCh    chan *AfFinalResult\l|
+	        giveBackCh        chan\<- *HashAggInput\l|
+	        partialResultsMap aggPartialResultMapper\l|
+	        groupByItems      []expression.Expression\l|
+	        groupKey          [][]byte\l|
+	        chk        *chunk.Chunk\l|
+	        memTracker *memory.Tracker\l|
+    }}"];
+  HashAggPartialWorker -> {
+    baseHashAggWorker;
+    aggPartialResultMapper;
+    AfFinalResult;
+    HashAggInput;
+    Expression;
+  }
+  HashAggFinalWorker[
+    shape="record";
+    label="{{
+      HashAggFinalWorker|
+	      baseHashAggWorker\l|
+	      rowBuffer           []types.Datum\l|
+	      mutableRow          chunk.MutRow\l|
+	      partialResultMap    aggPartialResultMapper\l|
+	      groupSet            set.StringSet\l|
+	      inputCh             chan *HashAggIntermData\l|
+	      outputCh            chan *AfFinalResult\l|
+	      finalResultHolderCh chan *chunk.Chunk\l|
+	      groupKeys           [][]byte\l
+    }}"];
+  HashAggFinalWorker -> {
+    baseHashAggWorker;
+    aggPartialResultMapper;
+    HashAggIntermData;
+    AfFinalResult;
+    MutRow;
+  };
+  baseHashAggWorker[
+    shape="record";
+    label="{{
+      baseHashAggWorker|
+	      ctx          sessionctx.Context\l|
+	      finishCh     \<-chan struct\{\}\l|
+	      aggFuncs     []aggfuncs.AggFunc\l|
+	      maxChunkSize int\l|
+	      stats        *AggWorkerStat\l
+    }}"];
+  baseHashAggWorker -> {
+    AggFunc;
+  }
+
+  HashAggInput[
+    shape="record";
+    label="{{
+      HashAggInput|
+        chk *chunk.Chunk\l|
+        giveBackCh chan\<- *chunk.Chunk\l
+    }}"];
+  HashAggIntermData[
+    shape="record";
+    label="{{
+      HashAggIntermData|
+	      groupKeys        []string\l|
+	      cursor           int\l|
+	      partialResultMap aggPartialResultMapper\l
+    }}"];
+  HashAggIntermData -> aggPartialResultMapper;
+  AggFunc[
+    shape="record";
+    label="{{
+      AggFunc|
+        AllocPartialResult\l|
+        ResetPartialResult\l|
+        UpdatePartialResult\l|
+        MergePartialResult\l|
+        AppendFinalResult2Chunk\l
+    }}"];
+  AfFinalResult[
+      shape="record";
+      label="{{
+        AfFinalResult|
+	        chk        *chunk.Chunk\l|
+	        err        error\l|
+	        giveBackCh chan *chunk.Chunk\l
+      }}"];
+}

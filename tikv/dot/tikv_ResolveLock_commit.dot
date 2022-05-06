@@ -1,0 +1,153 @@
+#include "styles.h"
+digraph dig {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+  commit -> {
+    ErrorInner__CommitTsExpired;
+    SnapshotReader__get_txn_commit_record;
+    SnapshotReader__load_lock;
+    Lock__rollback_ts;
+    Write__set_ovelapped_rollback;
+    MvccTxn__put_write;
+    MvccTxn__unlock_key;
+    WriteType__from_lock_type;
+  }
+  SnapshotReader__load_lock -> {
+   lock__match;
+   lock__mismatch;
+  }[style_edge_data];
+
+  WriteType__Rollback -> ErrorInner__TxnNotFound[style_edge_data]
+  SnapshotReader__get_txn_commit_record -> {
+    WriteType__Rollback;
+    WriteType__Other;
+  }
+  WriteType__Other -> OK_None;
+  Lock__rollback_ts -> Write__set_ovelapped_rollback[style_edge_data];
+  lock__mismatch -> SnapshotReader__get_txn_commit_record[style_edge_data];
+  lock__match -> ErrorInner__CommitTsExpired[style_edge_data];
+  lock__match -> {
+    LockType__Pessimistic;
+    Lock__rollback_ts;
+    MvccTxn__unlock_key;
+  }[style_edge_data];
+  LockType__Lock -> WriteType__from_lock_type[style_edge_data];
+
+  LockType__Lock -> MvccTxn__put_write[style_edge_data];
+
+
+  LockType__Pessimistic -> LockType__Lock;
+
+  {
+    WriteType__from_lock_type
+    Write__set_ovelapped_rollback;
+  } -> MvccTxn__put_write[style_edge_data];
+
+  //rank
+  {
+    rank=same;
+    MvccTxn__put_write;
+    MvccTxn__unlock_key;
+  }
+  {
+    rank=same;
+    ErrorInner__TxnNotFound;
+    ErrorInner__CommitTsExpired;
+  }
+  {
+    rank=same;
+    lock__match;
+    lock__mismatch;
+  }
+
+  SnapshotReader__load_lock[style_func;label="{{
+    SnapshotReader\l
+    load_lock\l
+  }}"]
+
+  SnapshotReader__get_txn_commit_record[style_func;label="{{
+    SnapshotReader\l
+    get_txn_commit_record\l
+    扫描从max_ts到start_ts\l
+    key的所有 write record\l
+  }}"]
+  WriteType__Rollback[style_func;label="{{
+    WriteType\l
+    Rollback\l|
+    如果类型为Rollback\l
+    则返回错误TxnLockNotFound\l
+  }}"]
+  ErrorInner__TxnNotFound[style_green1;label="{{
+    ErrorInner\l
+    TxnLockNotFound\l
+  }}"]
+  ErrorInner__CommitTsExpired[style_green1;label="{{
+    ErrorInner\l
+    CommitTsExpired\l|
+    如果commit_ts \<\l
+    lock.min_commit_ts\l
+    则返回CommitTsExpired错误\l
+  }}"]
+
+  lock__match[style_blue1;label="{{
+    lock match\l|
+    lock.ts == reader.start_ts\l
+  }}"]
+  lock__mismatch[style_blue1;label="{{
+    lock mismatch\l
+    lock 为none\l|
+    或者lock.ts != reader.start_ts
+  }}"]
+
+  Lock__rollback_ts[style_func;label="{{
+    Lock\l
+    rollback_ts\l|
+    遍历rollback_ts\l
+    如果ts == commit_ts\l
+    则set_verlapped_rollback\l
+  }}"]
+  Write__set_ovelapped_rollback[style_func;label="{{
+    Write\l
+    set_ovelapped_rollback\l
+  }}"]
+  WriteType__Other[style_func;label="{{
+    WriteType\l
+    为PUt/Delete/Lock\l|
+    Committed by concurent\l
+    transaction]\l|
+    返回Ok(None)
+  }}"]
+  OK_None[style_green1;label="{{
+    Ok(None)\l
+  }}"]
+
+  LockType__Pessimistic[style_func;label="{{
+    LockType\l
+    Pessimistic\l|
+    如果Lock type为悲观锁\l
+  }}"]
+  LockType__Lock[style_func;label="{{
+    LockType\l
+    Lock\l|
+    提交时，write类型为lock\l
+  }}"]
+  WriteType__from_lock_type[style_func;label="{{
+    WriteType\l
+    from_lock_type\l
+  }}"]
+
+  MvccTxn__unlock_key[style_blue1;label="{{
+    MvccTxn\l
+    unlock_key\l|
+    清理掉lock\l
+  }}"]
+
+  MvccTxn__put_write[style_blue1;label="{{
+    MvccTxn\l
+    put_write\l|
+    提交write\l
+  }}"]
+
+}

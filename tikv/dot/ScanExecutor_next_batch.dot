@@ -1,0 +1,92 @@
+#include "styles.h"
+digraph ScanExecutor_next_batch {
+  node[shape=box;style="rounded";color="#1c2123";fontcolor="#2f3638"];
+  edge[color=gray40];
+  newrank=true;
+  rankdir=LR;
+
+  ScanExecutor_next_batch[style_func;label="{{
+    ScanExecutor::next_batch
+  }}"]
+
+  ScanExecutor_next_batch -> {
+     impl_build_column_vec;
+     ScanExecutor_fill_column_vec;
+  }
+  ScanExecutor_fill_column_vec -> {
+    RangesScanner_next;
+    impl_process_kv_pair;
+    truncate_into_equal_length;
+  }
+  ScanExecutor_fill_column_vec[style_func;label="{{
+    ScanExecutor::fill_column_vec|
+    调用RangesScanner_next\l 
+    扫描scan_rows行数据\l
+  }}"]
+  subgraph cluster_for_scan_rows {
+    graph[label="for _ in 0..scan_rows\l 迭代扫描数据";fontsize=20;style="rounded,dashed";color="slategrey"]
+    RangesScanner_next;
+    impl_process_kv_pair;
+    truncate_into_equal_length;
+    OwnedKvPair;
+    OwnedKvPair[style_func;label="{{
+      OwnedKvPair|
+      Vec\<u8\>, Vec\<u8\>\l
+    }}"]
+
+    RangesScanner_next -> {
+      Storage_begin_scan;
+      Storage_scan_next;
+      Storage_get;
+    }
+  }
+
+  RangesScanner_next[style_func;label="{{
+    RangesScanner::next|
+    从storage中\l
+    读取next row数据\l
+  }}"]
+  RangesScanner_next -> OwnedKvPair -> impl_process_kv_pair[style_edge_data];
+  impl_process_kv_pair[style_func;label="{{
+    ScanExecutorImpl::\lprocess_kv_pair\l|
+    Accepts a key value pair\l
+    and fills the column vector\l
+  }}"]
+
+  impl_build_column_vec[style_func;label="{{
+    ScanExecutorImpl::\l
+    build_column_vec\l|
+    创建一个lazay column vec\l
+  }}"]
+  impl_build_column_vec -> LazyBatchColumnVec;
+
+  LazyBatchColumnVec[style_func;label="{{
+    LazyBatchColumnVec|
+    columns: Vec\<LazyBatchColumn\>,\l
+  }}"]
+  truncate_into_equal_length -> LazyBatchColumnVec[style_edge_data];
+  impl_process_kv_pair -> LazyBatchColumnVec[style_edge_data];
+  LazyBatchColumnVec -> BatchExecuteResult[style_edge_data];
+  BatchExecuteResult[style_func;label="{{
+    BatchExecuteResult|
+    pub physical_columns: LazyBatchColumnVec,\l|
+    pub logical_rows: Vec\<usize\>,\l
+  }}"]
+
+  Storage_begin_scan[style_func;label="{{
+    trait Storage::begin_scan
+  }}"]
+  Storage_scan_next[style_func;label="{{
+    trait Storage::scan_next
+  }}"]
+  Storage_get[style_func;label="{{
+    trait Storage::get
+  }}"]
+  LazyBatchColumn[style_func;label="{{
+    LazyBatchColumn|
+    a container stores an array of datums\l
+    which can be either raw\l
+    or decode into `VectorValue` type\l
+  }}"]
+  
+}
